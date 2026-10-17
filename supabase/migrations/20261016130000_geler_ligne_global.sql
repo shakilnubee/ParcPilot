@@ -42,7 +42,10 @@ begin
     raise exception 'La ligne de réglages « global » est une archive gelée (16/10/2026) : les réglages PXP sont dans la ligne « PXP ». Recharge la page (Ctrl+Maj+R).'
       using errcode = 'P0001';
   end if;
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end $$;
 
 -- Nom en « trg_00_… » : les déclencheurs BEFORE s'exécutent par ordre alphabétique →
