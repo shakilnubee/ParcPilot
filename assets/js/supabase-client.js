@@ -599,20 +599,15 @@
     } catch (_) {}
     try {
       const q = (window.FP && FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : [];
-      let pend = null;   // dernière écriture app_settings EN ATTENTE = intention la plus récente de ce poste
-      for (let i = q.length - 1; i >= 0; i--) {
-        const it = q[i];
-        if (it && it.op === 'upsert' && it.table === 'app_settings' && it.row && it.row.data && typeof it.row.data === 'object'
-            && (!rowId || it.row.id === rowId)) { pend = it.row.data; break; }
-      }
-      if (pend) {
-        Object.keys(pend).forEach(k => {
-          const pv = pend[k];
-          if (pv && typeof pv === 'object' && !Array.isArray(pv) && shared[k] && typeof shared[k] === 'object' && !Array.isArray(shared[k])) {
-            shared[k] = Object.assign({}, shared[k], pv);   // objets (profil, notif, maps de données…) : les champs en attente priment
-          } else {
-            shared[k] = pv;   // scalaires (couleur, date de cycle, booléens) + tableaux + nouveaux objets : valeur en attente
-          }
+      // Écritures app_settings EN ATTENTE pour cette ligne, rejouées dans l'ordre sur la version serveur fraîche
+      // avec la MÊME règle que leur renvoi (FP._fusion.rejouer) : seules les clés réellement modifiées par ce poste
+      // sont appliquées ; une copie sans repère ne fait que combler des trous. ⚠️ Avant, la copie en attente était
+      // recopiée clé par clé PAR-DESSUS le serveur : une copie de réglages par défaut (cache vide à la connexion)
+      // remplaçait alors les vrais réglages à l'affichage, puis au prochain enregistrement.
+      if (window.FP && FP._fusion && FP._fusion.rejouer) {
+        q.forEach(it => {
+          if (it && it.op === 'upsert' && it.table === 'app_settings' && it.row && it.row.data && typeof it.row.data === 'object'
+              && (!rowId || it.row.id === rowId)) shared = FP._fusion.rejouer(shared, it);
         });
       }
     } catch (_) {}
