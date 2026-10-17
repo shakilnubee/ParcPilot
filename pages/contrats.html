@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261017a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261017a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261017a">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -838,8 +838,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261017a"></script>
+<script src="../assets/js/supabase-client.js?v=20261017a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -855,11 +855,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261017a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261017a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -4644,14 +4644,22 @@
       // on réserve cette récupération de PDF orphelins au CEO (qui voit déjà tout). Un compte client ne
       // liste donc jamais les fichiers d'un autre client.
       if (!(window.FP && FP.isCEO && FP.isCEO())) return [];
-      const { data, error } = await FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans').list('contrats-leasing', { limit: 300, sortBy: { column: 'name', order: 'asc' } });
-      if (error || !Array.isArray(data)) return [];
+      // Deux emplacements : l'ancien dossier partagé (fichiers d'avant le 17/10/2026, tous PXP) et le
+      // dossier de la société active (cloisonnement storage, cf. FP.storageDossierSociete).
+      const bucket = FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans');
+      const dossiers = ['contrats-leasing', (FP.storageDossierSociete ? FP.storageDossierSociete() : 'societes/pxp') + '/contrats-leasing'];
       const hidden = recoverHiddenSet();
-      return data.filter(f => f && f.name && /\.pdf$/i.test(f.name) && !hidden.has('contrats-leasing/' + f.name)).map(f => ({
-        name: f.name,
-        path: 'contrats-leasing/' + f.name,   // ⚠️ chemin RÉEL du stockage (pour remove) — plus fiable que déduire de l'URL
-        url: FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans').getPublicUrl('contrats-leasing/' + f.name).data.publicUrl,
-      }));
+      const out = [];
+      for (const dir of dossiers) {
+        const { data, error } = await bucket.list(dir, { limit: 300, sortBy: { column: 'name', order: 'asc' } });
+        if (error || !Array.isArray(data)) continue;
+        data.filter(f => f && f.name && /\.pdf$/i.test(f.name) && !hidden.has(dir + '/' + f.name)).forEach(f => out.push({
+          name: f.name,
+          path: dir + '/' + f.name,   // ⚠️ chemin RÉEL du stockage (pour remove) — plus fiable que déduire de l'URL
+          url: bucket.getPublicUrl(dir + '/' + f.name).data.publicUrl,
+        }));
+      }
+      return out;
     } catch (e) { console.warn('[listContratPdfs]', e); return []; }
   }
   // Cibles possibles pour relier un PDF : contrats LLD saisis + véhicules en leasing dérivés (BPCE…).

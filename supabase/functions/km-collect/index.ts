@@ -435,6 +435,11 @@ async function portalConfig(db: ReturnType<typeof createClient>, societe: string
 // pour que le client puisse PRÉVENIR l'utilisateur si des photos n'ont pas pu être enregistrées.
 const PHOTO_CAP = 20;
 const PHOTO_MAX_BYTES = 12_000_000;   // 12 Mo/fichier (le repli HEIC brut du client peut être lourd)
+// ⚠️ CLOISONNEMENT DES FICHIERS PAR SOCIÉTÉ (17/10/2026) : tout fichier va dans
+// « societes/<dossier-société>/… ». fpSlug DOIT rester identique à public.fp_slug (SQL) et FP.storageSlug (app.js).
+function fpSlug(s: unknown): string { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "societe"; }
+function dossierSociete(societe: unknown): string { return "societes/" + fpSlug(societe || "PXP"); }
+
 async function uploadPhotosDetail(db: ReturnType<typeof createClient>, photos: unknown, folder: string): Promise<{ urls: string[]; sent: number; saved: number; dropped: number }> {
   const urls: string[] = [];
   if (!Array.isArray(photos)) return { urls, sent: 0, saved: 0, dropped: 0 };
@@ -711,7 +716,7 @@ Deno.serve(async (req) => {
         const type = String(body.type || "sinistre").trim() === "probleme" ? "probleme" : "sinistre";
         const description = String(body.description || "").trim();
         if (!description) return json({ error: "Décris brièvement ce qui s'est passé." }, 400);
-        const _up = await uploadPhotosDetail(db, body.photos, "declarations/" + (qr.plaque || "veh"));
+        const _up = await uploadPhotosDetail(db, body.photos, dossierSociete(qr.societe) + "/declarations/" + (qr.plaque || "veh"));
         const photos = _up.urls;
         const rec = {
           id: genId("dc"), vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",
@@ -784,7 +789,7 @@ Deno.serve(async (req) => {
         const { qr, err } = await loadQr(db, qtok0);
         if (err) return json({ error: err }, 404);
         const sens = String(body.sens || "restitution").trim() === "prise" ? "prise" : "restitution";
-        const _up = await uploadPhotosDetail(db, body.photos, "etat-des-lieux/" + (qr.plaque || "veh"));
+        const _up = await uploadPhotosDetail(db, body.photos, dossierSociete(qr.societe) + "/etat-des-lieux/" + (qr.plaque || "veh"));
         const photos = _up.urls;
         if (!photos.length) return json({ error: "Ajoute au moins une photo." }, 400);
         // Le sens vit dans `label` ('Entrée'/'Sortie') — même convention que la fiche véhicule.
@@ -857,7 +862,7 @@ Deno.serve(async (req) => {
         if (err) return json({ error: err }, 404);
         const question = String(body.description || "").trim();
         if (!question) return json({ error: "Écris ta question." }, 400);
-        const _up = await uploadPhotosDetail(db, body.photos, "questions/" + (qr.plaque || "veh"));
+        const _up = await uploadPhotosDetail(db, body.photos, dossierSociete(qr.societe) + "/questions/" + (qr.plaque || "veh"));
         const photos = _up.urls;
         const ins = await db.from("declarations_conducteur").insert({
           id: genId("dc"), vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",

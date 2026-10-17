@@ -135,10 +135,66 @@ async function testerCompte(c) {
   }
 }
 
+// ─── 4) FICHIERS (bucket « scans ») ─────────────────────────────────────────────────────────────
+// Rangement : societes/<dossier-société>/… ; anciens fichiers hors « societes/ » = PXP uniquement.
+// ⚠️ Même règle de nom de dossier que FP.storageSlug (app.js) et public.fp_slug (SQL).
+const slug = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'societe';
+const BUCKET = 'scans';
+const FICHIER_ANCIEN = 'documents/ancien-fichier-pxp-test.txt';   // posé par seed-donnees-fictives.sql (staging)
+const cheminTest = (c) => `societes/${slug(c.societe)}/tests/isolation-${c.nom}.txt`;
+
+function stockage(jeton) {
+  const H = { apikey: KEY, Authorization: `Bearer ${jeton}` };
+  const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+  return {
+    deposer: (p) => fetch(`${URL_}/storage/v1/object/${BUCKET}/${enc(p)}`, { method: 'POST', headers: { ...H, 'Content-Type': 'text/plain', 'x-upsert': 'true' }, body: 'fichier de test (isolation)' }),
+    lister: async (prefix) => { const r = await fetch(`${URL_}/storage/v1/object/list/${BUCKET}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefix, limit: 100 }) }); const d = await r.json().catch(() => null); return Array.isArray(d) ? d : []; },
+    signer: async (p) => { const r = await fetch(`${URL_}/storage/v1/object/sign/${BUCKET}/${enc(p)}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ expiresIn: 60 }) }); const d = await r.json().catch(() => ({})); return r.ok && !!(d && (d.signedURL || d.signedUrl)); },
+    lire: async (p) => (await fetch(`${URL_}/storage/v1/object/authenticated/${BUCKET}/${enc(p)}`, { headers: H })).ok,
+    supprimer: async (p) => { const r = await fetch(`${URL_}/storage/v1/object/${BUCKET}`, { method: 'DELETE', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: [p] }) }); const d = await r.json().catch(() => null); return Array.isArray(d) ? d.length : 0; },
+  };
+}
+
+async function testerFichiers(sessions) {
+  console.log('\nFichiers (stockage)');
+  // a) chaque compte dépose un fichier dans SON dossier
+  for (const c of COMPTES) {
+    const r = await sessions[c.nom].st.deposer(cheminTest(c));
+    if (r.ok) ok(`compte ${c.nom} : dépôt dans son dossier (${cheminTest(c)})`);
+    else impossible(`compte ${c.nom} : dépôt dans son propre dossier refusé (HTTP ${r.status})`);
+  }
+  // b) tentatives chez l'autre société
+  for (const c of COMPTES) {
+    const st = sessions[c.nom].st;
+    const autre = COMPTES.find(x => x.societe === c.autre);
+    const fAutre = cheminTest(autre);
+    const vus = await st.lister(`societes/${slug(c.autre)}/tests`);
+    if (vus.length) ko(`compte ${c.nom} : voit ${vus.length} fichier(s) du dossier de ${c.autre}`); else ok(`compte ${c.nom} : ne voit pas les fichiers de ${c.autre}`);
+    if (await st.signer(fAutre)) ko(`compte ${c.nom} : a obtenu un lien vers un fichier de ${c.autre}`); else ok(`compte ${c.nom} : pas de lien vers les fichiers de ${c.autre}`);
+    if (await st.lire(fAutre)) ko(`compte ${c.nom} : a téléchargé un fichier de ${c.autre}`); else ok(`compte ${c.nom} : téléchargement d'un fichier de ${c.autre} refusé`);
+    const dep = await st.deposer(`societes/${slug(c.autre)}/tests/intrusion-${c.nom}.txt`);
+    if (dep.ok) { ko(`compte ${c.nom} : a pu DÉPOSER dans le dossier de ${c.autre}`); await sessions[autre.nom].st.supprimer(`societes/${slug(c.autre)}/tests/intrusion-${c.nom}.txt`); }
+    else ok(`compte ${c.nom} : dépôt dans le dossier de ${c.autre} refusé`);
+    const nSuppr = await st.supprimer(fAutre);
+    if (nSuppr > 0) { ko(`compte ${c.nom} : a pu SUPPRIMER un fichier de ${c.autre}`); await sessions[autre.nom].st.deposer(fAutre); }
+    else ok(`compte ${c.nom} : suppression d'un fichier de ${c.autre} refusée`);
+    // anciens fichiers (hors « societes/ ») = PXP uniquement
+    const anciens = await st.lister('documents');
+    if (anciens.length) ko(`compte ${c.nom} : voit ${anciens.length} ancien(s) fichier(s) PXP`); else ok(`compte ${c.nom} : ne voit pas les anciens fichiers PXP`);
+    if (await st.signer(FICHIER_ANCIEN)) ko(`compte ${c.nom} : a obtenu un lien vers un ancien fichier PXP`); else ok(`compte ${c.nom} : pas de lien vers les anciens fichiers PXP`);
+  }
+  // c) ménage : chaque compte retire son propre fichier de test
+  for (const c of COMPTES) { try { await sessions[c.nom].st.supprimer(cheminTest(c)); } catch (e) {} }
+}
+
 console.log(`\nTest d'isolation entre sociétés — ${URL_}`);
+const sessions = {};
 for (const c of COMPTES) {
-  try { await testerCompte(c); }
+  try { await testerCompte(c); const { jeton } = await connexion(c); sessions[c.nom] = { st: stockage(jeton) }; }
   catch (e) { impossible(e.message); }
+}
+if (Object.keys(sessions).length === COMPTES.length) {
+  try { await testerFichiers(sessions); } catch (e) { impossible('fichiers : ' + e.message); }
 }
 console.log('');
 if (echecs.length) {
@@ -147,4 +203,4 @@ if (echecs.length) {
   process.exit(1);
 }
 if (impossibles) { console.log(`⚠️  Test incomplet : ${impossibles} vérification(s) impossible(s).`); process.exit(2); }
-console.log('✅ Isolation entre sociétés respectée (lecture, écriture, profil).');
+console.log('✅ Isolation entre sociétés respectée (lecture, écriture, profil, fichiers).');

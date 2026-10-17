@@ -11655,6 +11655,18 @@ if (typeof window !== 'undefined') {
 // pour pouvoir le revoir à tout moment depuis n'importe quel PC.
 // Le bucket "scans" doit exister et être public (voir supabase-storage.sql).
 FP.SCAN_BUCKET = 'scans';
+// ⚠️⚠️ CLOISONNEMENT DES FICHIERS PAR SOCIÉTÉ (17/10/2026) — SOURCE UNIQUE du rangement : tout nouveau
+// fichier va dans « societes/<dossier-société>/<dossier>/… ». Les policies storage (fp_storage_acces) ne
+// laissent un compte agir QUE dans le dossier de SA société (le CEO voit tout ; les anciens fichiers hors
+// « societes/ » restent réservés à PXP). FP.storageSlug DOIT rester identique à public.fp_slug (SQL,
+// supabase/migrations/20261017090000_storage_cloisonnement_societes.sql) et à fpSlug (Edge Functions).
+FP.storageSlug = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'societe';
+FP.storageDossierSociete = () => {
+  let soc = 'PXP';
+  try { soc = (FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch (e) {}
+  if (soc === '__all__') soc = 'PXP';   // CEO en vue « toutes sociétés » : rangé chez PXP (sa société)
+  return 'societes/' + FP.storageSlug(soc);
+};
 
 // Compresse une photo avant l'envoi (pour économiser l'espace de stockage).
 // - Ne touche PAS aux PDF ni aux fichiers non-image : renvoyés tels quels.
@@ -12293,8 +12305,10 @@ FP.uploadScan = async function (file, folder, opts) {
   let path, named = false;
   // opts.name : nomme le fichier de façon lisible (ex. n° de contravention) au lieu d'un nom aléatoire
   const slug = opts.name ? String(opts.name).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) : '';
-  if (slug) { path = `${folder || 'divers'}/${slug}${ext}`; named = true; }
-  else { const rand = Math.random().toString(36).slice(2, 8); path = `${folder || 'divers'}/${Date.now()}-${rand}${ext}`; }
+  // Rangé dans le dossier de la société active (cloisonnement storage, cf. FP.storageDossierSociete).
+  const base = FP.storageDossierSociete() + '/' + (folder || 'divers');
+  if (slug) { path = `${base}/${slug}${ext}`; named = true; }
+  else { const rand = Math.random().toString(36).slice(2, 8); path = `${base}/${Date.now()}-${rand}${ext}`; }
   // ⚠️ RETENTE AUTOMATIQUE (jusqu'à 3 essais) sur erreur TRANSITOIRE (réseau coupé, serveur occupé,
   // jeton d'auth en cours de rafraîchissement) : un échec passager ne doit PLUS obliger l'utilisateur à
   // recommencer son téléversement (bug vécu : permis qui « ne part pas au 1er coup »). Le MÊME `path` est
@@ -12389,9 +12403,7 @@ FP.hostSocieteLogo = async function () {
       blob = new Blob([arr], { type: mime });
     }
     const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg');
-    let soc = 'PXP'; try { soc = localStorage.getItem('fp_societe') || 'PXP'; } catch (e) {} if (soc === '__all__') soc = 'PXP';
-    const slug = String(soc).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'soc';
-    const path = 'logos/' + slug + '.' + ext;
+    const path = FP.storageDossierSociete() + '/logos/logo.' + ext;   // cloisonné par société
     const up = await FP.supabase.storage.from(FP.SCAN_BUCKET).upload(path, blob, { upsert: true, contentType: mime });
     if (up && up.error) { console.warn('[hostSocieteLogo upload]', up.error); return ''; }
     const { data } = await FP.supabase.storage.from(FP.SCAN_BUCKET).createSignedUrl(path, 315360000); // ~10 ans

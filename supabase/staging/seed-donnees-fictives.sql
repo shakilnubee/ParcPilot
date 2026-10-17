@@ -84,6 +84,12 @@ insert into public.app_settings (id, data) values
   ('TEST-A', jsonb_build_object('societe', jsonb_build_object('nom', 'Société Test A'), 'condConges', jsonb_build_object('t-alice-test', jsonb_build_array(jsonb_build_object('debut', (current_date + 10)::text, 'fin', (current_date + 17)::text))))),
   ('TEST-B', jsonb_build_object('societe', jsonb_build_object('nom', 'Société Test B'), 'condConges', jsonb_build_object('t-chloe-test', jsonb_build_array(jsonb_build_object('debut', (current_date + 5)::text, 'fin', (current_date + 9)::text)))));
 
+-- « Ancien » fichier PXP (rangé HORS du dossier societes/, comme les 945 fichiers historiques de la prod) :
+-- sert au test d'isolation des fichiers (un compte TEST-A / TEST-B ne doit pas y accéder). Métadonnée seule.
+insert into storage.objects (bucket_id, name, metadata)
+values ('scans', 'documents/ancien-fichier-pxp-test.txt', '{"mimetype": "text/plain", "size": 0}'::jsonb)
+on conflict do nothing;
+
 commit;
 
 -- Contrôle : nombre de lignes par société
