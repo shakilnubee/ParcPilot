@@ -91,11 +91,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **PR #985, #987 et #988 fusionnées.** Site et fonctions serveur redéployés. Les nouveaux fichiers sont rangés dans un dossier par société.
 - **Règle de cloisonnement appliquée en production**, après copie des règles précédentes. Les 639 fichiers s'ouvrent toujours, et l'accès anonyme reste fermé.
 
-### 17/10/2026 — Cause de vidage des réglages trouvée et corrigée 🟡 (testée, en attente de mise en production)
+### 17/10/2026 — Cause de vidage des réglages trouvée et corrigée ✅ (en production)
 - **Observé en direct** : à la connexion, quand le cache du navigateur est vide, l'application pouvait renvoyer à la base une copie **quasi vide** des réglages (28 clés au lieu de 97), en remplacement complet, si l'on changeait de page juste après. Bloqué ce jour-là seulement par le rôle Gestionnaire. Pour un administrateur, cela effaçait d'un coup congés, affectations, contrats, assurances…
 - **Garde-fou dans la base**, testé sur le staging (7 cas sur 7) : la base refuse toute écriture qui supprimerait d'un coup une part importante des réglages, viderait une liste importante ou viderait le profil de la société.
 - **Correction de la cause dans le code** : une écriture en attente ne modifie plus que ce que l'utilisateur a réellement changé, et la version du serveur l'emporte sur tout le reste. Le même correctif empêche un élément supprimé ou modifié sur un autre appareil de « revenir » (scénario B de l'audit).
 - **11 tests automatiques** reproduisent l'incident et les cas multi-appareils. Ils tournent désormais à chaque PR.
+- **Mis en production le 17/10/2026** : d'abord le garde-fou en base, actif immédiatement pour tous les navigateurs, puis le correctif du code (PR #992).
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -111,12 +112,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #986 | Fin des « deux tiroirs » | ✅ Fusionnée et déployée |
 | #987 | Staging + test d'isolation | ✅ Fusionnée |
 | #988 | Cloisonnement des fichiers | ✅ Fusionnée, règle appliquée en production |
-| (à venir) | Anti-vidage des réglages (base + code) | Testée sur le staging ; en attente de mise en production |
+| #992 | Anti-vidage des réglages (base + code) | ✅ Fusionnée, garde-fou actif en production |
 | (cette PR) | Ce document de suivi | — |
 
 ## 7. Prochaines étapes
 
-1. **Mise en production de l'anti-vidage des réglages** (garde-fou en base + correctif du code).
+1. ✅ ~~Mise en production de l'anti-vidage des réglages~~ : fait le 17/10/2026.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. **Sauvegardes** : sauvegarde automatique hors Supabase (base **et** fichiers), et procédure de restauration écrite **et testée**.
 4. **GitHub** : protéger la branche principale (PR et tests obligatoires), ranger les anciens scripts SQL, réécrire le `README.md` et le `CLAUDE.md`.
