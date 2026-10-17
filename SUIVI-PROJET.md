@@ -86,6 +86,18 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Prouvé sur le staging** : 14 fuites avant correction, 0 après. PXP conserve l'accès à ses documents.
 - **En attente** : vérification visuelle dans l'application (accès en cours pour François), puis mise en production avec accord.
 
+### 17/10/2026 — Vérification dans l'application + cloisonnement des fichiers ✅ (en production)
+- **Vérification dans l'application** avec un compte Gestionnaire PXP : les **639 fichiers** référencés (cartes grises, documents, états des lieux, avis, factures) s'ouvrent tous.
+- **PR #985, #987 et #988 fusionnées.** Site et fonctions serveur redéployés. Les nouveaux fichiers sont rangés dans un dossier par société.
+- **Règle de cloisonnement appliquée en production**, après copie des règles précédentes. Les 639 fichiers s'ouvrent toujours, et l'accès anonyme reste fermé.
+
+### 17/10/2026 — Cause de vidage des réglages trouvée et corrigée ✅ (en production)
+- **Observé en direct** : à la connexion, quand le cache du navigateur est vide, l'application pouvait renvoyer à la base une copie **quasi vide** des réglages (28 clés au lieu de 97), en remplacement complet, si l'on changeait de page juste après. Bloqué ce jour-là seulement par le rôle Gestionnaire. Pour un administrateur, cela effaçait d'un coup congés, affectations, contrats, assurances…
+- **Garde-fou dans la base**, testé sur le staging (7 cas sur 7) : la base refuse toute écriture qui supprimerait d'un coup une part importante des réglages, viderait une liste importante ou viderait le profil de la société.
+- **Correction de la cause dans le code** : une écriture en attente ne modifie plus que ce que l'utilisateur a réellement changé, et la version du serveur l'emporte sur tout le reste. Le même correctif empêche un élément supprimé ou modifié sur un autre appareil de « revenir » (scénario B de l'audit).
+- **11 tests automatiques** reproduisent l'incident et les cas multi-appareils. Ils tournent désormais à chaque PR.
+- **Mis en production le 17/10/2026** : d'abord le garde-fou en base, actif immédiatement pour tous les navigateurs, puis le correctif du code (PR #992).
+
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
 - Le déploiement automatique des fonctions serveur **fonctionnait**. Sa condition a tout de même été rendue robuste au nom du dépôt.
@@ -96,16 +108,17 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 | PR | Sujet | État |
 |---|---|---|
-| #985 | Accès anonyme fermé + vue QR en lecture seule | Base corrigée en prod ; PR à fusionner après vérification visuelle |
+| #985 | Accès anonyme fermé + vue QR en lecture seule | ✅ Fusionnée |
 | #986 | Fin des « deux tiroirs » | ✅ Fusionnée et déployée |
-| #987 | Staging + test d'isolation | Prête ; à fusionner après #985 |
-| #988 | Cloisonnement des fichiers | Prête et testée ; à fusionner après #987, puis migration en prod |
+| #987 | Staging + test d'isolation | ✅ Fusionnée |
+| #988 | Cloisonnement des fichiers | ✅ Fusionnée, règle appliquée en production |
+| #992 | Anti-vidage des réglages (base + code) | ✅ Fusionnée, garde-fou actif en production |
 | (cette PR) | Ce document de suivi | — |
 
 ## 7. Prochaines étapes
 
-1. **Vérification visuelle** dans l'application : ouvrir un document, une carte grise et un état des lieux. Il faut un accès pour François.
-2. **Mise en production du cloisonnement des fichiers** : fusion des PR #985, #987 et #988, puis application de la règle en production.
+1. ✅ ~~Mise en production de l'anti-vidage des réglages~~ : fait le 17/10/2026.
+2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. **Sauvegardes** : sauvegarde automatique hors Supabase (base **et** fichiers), et procédure de restauration écrite **et testée**.
 4. **GitHub** : protéger la branche principale (PR et tests obligatoires), ranger les anciens scripts SQL, réécrire le `README.md` et le `CLAUDE.md`.
 5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables : congés, affectations, contrats, assurances, tâches, sinistres… Suppression ensuite du système de fusion maison.

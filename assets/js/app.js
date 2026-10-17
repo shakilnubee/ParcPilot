@@ -5597,6 +5597,89 @@ FP.backups = {
   },
 };
 
+/*<fusion-reglages>*/
+// ⚠️⚠️ FUSION DES RÉGLAGES (app_settings) — SOURCE UNIQUE, sans dépendance (testée : tests/unit/fusion-reglages.mjs).
+// Utilisée par FP.settings._pushSettings (enregistrement), FP.persist.flush (renvoi d'une écriture restée en file)
+// et la réconciliation au chargement (supabase-client.js). Règle d'or : une écriture ne modifie QUE ce que CE poste
+// a réellement changé (par rapport à la version serveur qu'il connaissait = « base ») ; tout le reste vient du
+// serveur, y compris les suppressions et modifications faites sur un AUTRE appareil.
+FP._fusion = (function () {
+  const isPlain = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const collSize = v => Array.isArray(v) ? v.length : (isPlain(v) ? Object.keys(v).length : ((v == null || v === '') ? 0 : 1));
+  // Map { clé → valeur } : ajouts/modifs de ce poste appliqués sur le serveur frais ; suppressions de ce poste honorées ;
+  // entrées NON modifiées par ce poste (identiques à base) → la version serveur fait foi (même si elle a été supprimée).
+  const mergeMap = (remoteV, objV, baseV) => {
+    const out = isPlain(remoteV) ? { ...remoteV } : {};
+    const ks = new Set([...(isPlain(objV) ? Object.keys(objV) : []), ...(isPlain(baseV) ? Object.keys(baseV) : [])]);
+    ks.forEach(k => {
+      const ov = isPlain(objV) ? objV[k] : undefined, bv = isPlain(baseV) ? baseV[k] : undefined, rv = out[k];
+      if (ov === undefined) { delete out[k]; return; }                          // supprimée par ce poste
+      if (bv !== undefined && same(ov, bv)) return;                             // pas touchée ici → serveur fait foi
+      if (isPlain(ov) || isPlain(bv) || isPlain(rv)) { out[k] = mergeMap(rv, ov, bv); return; }   // sous-objet → fusion fine
+      out[k] = ov;                                                              // scalaire / tableau modifié ici
+    });
+    return out;
+  };
+  // Tableau : avec id → fusion par id ; sans id → union par valeur. Seuls les éléments AJOUTÉS ou MODIFIÉS par ce
+  // poste sont recopiés ; ses suppressions sont honorées ; un élément non touché ici suit le serveur.
+  const mergeArr = (remoteV, objV, baseV) => {
+    const rA = Array.isArray(remoteV) ? remoteV : [], oA = Array.isArray(objV) ? objV : [], bA = Array.isArray(baseV) ? baseV : [];
+    const hasIds = a => a.length > 0 && a.every(t => t && typeof t === 'object' && t.id != null);
+    if (hasIds(oA) || hasIds(rA)) {
+      const byId = new Map(); rA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });
+      const baseById = new Map(); bA.forEach(t => { if (t && t.id != null) baseById.set(t.id, JSON.stringify(t)); });
+      const objIds = new Set(oA.map(t => t && t.id).filter(v => v != null));
+      oA.forEach(t => { if (t && t.id != null && baseById.get(t.id) !== JSON.stringify(t)) byId.set(t.id, t); });   // ajoutés / modifiés ici
+      bA.forEach(t => { if (t && t.id != null && !objIds.has(t.id)) byId.delete(t.id); });                          // supprimés ici
+      return Array.from(byId.values());
+    }
+    const key = v => JSON.stringify(v);
+    const objKeys = new Set(oA.map(key)), baseKeys = new Set(bA.map(key)), seen = new Set(), out = [];
+    rA.forEach(v => { const k = key(v); if (baseKeys.has(k) && !objKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });
+    oA.forEach(v => { const k = key(v); if (baseKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });   // seulement les ajouts
+    return out;
+  };
+  const mergeCollection = (k, remoteV, objV, baseV) => {
+    if (Array.isArray(objV) || Array.isArray(remoteV)) return mergeArr(remoteV, objV, baseV);
+    if (isPlain(objV) || isPlain(remoteV)) return mergeMap(remoteV, objV, baseV);
+    return objV;   // valeur scalaire mal classée → remplacement simple, jamais transformée en {}
+  };
+  // « Combler les trous » : le serveur GAGNE sur toute valeur existante ; on n'ajoute que ce qui lui manque.
+  const gapFill = (remote, local) => {
+    const out = isPlain(remote) ? Object.assign({}, remote) : {};
+    Object.keys(local || {}).forEach(k => {
+      const lv = local[k], rv = out[k];
+      if (isPlain(lv)) out[k] = gapFill(rv, lv);
+      else if (rv === undefined || rv === null || rv === '') out[k] = lv;
+    });
+    return out;
+  };
+  // Rejoue une écriture de réglages restée en FILE (page quittée pendant l'envoi, hors-ligne…) sur la version
+  // serveur FRAÎCHE. ⚠️ JAMAIS un remplacement complet par la copie en file (cause de vidages vécus) :
+  //  • fusion « delta » → seules les clés que ce poste avait modifiées (item.fusion.cles) sont appliquées,
+  //    les collections finement (base connue), sans jamais vider entièrement une collection ;
+  //  • sans information (écriture ancienne, ou faite sans version serveur de référence) → « combler les trous ».
+  const rejouer = (remote, item) => {
+    const data = item && item.row && isPlain(item.row.data) ? item.row.data : {};
+    if (!isPlain(remote)) return JSON.parse(JSON.stringify(data));        // ligne inexistante côté serveur → création
+    const f = (item && isPlain(item.fusion)) ? item.fusion : null;
+    if (!f || f.mode !== 'delta' || !Array.isArray(f.cles)) return gapFill(remote, data);
+    const coll = new Set(Array.isArray(f.coll) ? f.coll : []), bases = isPlain(f.bases) ? f.bases : {};
+    const out = { ...remote };
+    f.cles.forEach(k => {
+      if (!(k in data)) return;
+      if (coll.has(k)) {
+        if (collSize(data[k]) === 0 && (collSize(bases[k]) > 0 || collSize(remote[k]) > 0)) return;   // jamais de vidage total
+        out[k] = mergeCollection(k, remote[k], data[k], bases[k]);
+      } else out[k] = data[k];
+    });
+    return out;
+  };
+  return { isPlain, collSize, mergeMap, mergeArr, mergeCollection, gapFill, rejouer };
+})();
+/*</fusion-reglages>*/
+
 FP.settings = {
   STORAGE_KEY: 'auto_flotte_settings',
   // Réglages (apparence : groupes, libellés, couleurs…) PROPRES À CHAQUE SOCIÉTÉ.
@@ -5830,9 +5913,12 @@ FP.settings = {
   _pushSettings(obj, prevLocal) {
     const self = this;
     let id; try { id = this._effectiveId || this._dbId(); } catch (e) { id = this._effectiveId || 'global'; }
-    const plainUpsert = (data) => {
+    // `fusion` = comment rejouer cette écriture si elle reste en file (cf. FP._fusion.rejouer) : jamais un
+    // remplacement complet de la ligne par une copie locale.
+    const GAPFILL = { mode: 'gapfill' };
+    const plainUpsert = (data, fusion) => {
       try {
-        if (FP.persist && FP.persist.upsert) FP.persist.upsert('app_settings', { id, data });
+        if (FP.persist && FP.persist.upsert) FP.persist.upsert('app_settings', { id, data }, fusion || GAPFILL);
         else if (FP.db && FP.supabase) FP.db.upsert('app_settings', { id, data });
       } catch (e) {}
     };
@@ -5847,7 +5933,7 @@ FP.settings = {
     // (prevLocal n'est donc plus utilisé comme base ; le 1er push d'une session passe en additif, sûr.)
     const base = (this._serverSnap && typeof this._serverSnap === 'object') ? this._serverSnap : null;
     // Sans Supabase : on ne peut rien lire/écrire côté serveur → file/local (comportement d'avant).
-    if (!(FP.supabase && FP.supabase.from)) { plainUpsert(obj); return; }
+    if (!(FP.supabase && FP.supabase.from)) { plainUpsert(obj, GAPFILL); return; }
     // ⚠️ AUCUN repère FIABLE (ni snapshot serveur, ni état local précédent) = tout 1er enregistrement
     // sur ce cache OU cache vidé (purge multi-sociétés / vidage navigateur) : `base` est null OU un
     // objet VIDE `{}`. ⚠️⚠️ Un base VIDE est PIÉGEUX : en mode « delta » plus bas, CHAQUE clé de `obj`
@@ -5857,18 +5943,10 @@ FP.settings = {
     // (le serveur GAGNE sur les feuilles existantes → config préservée), sans jamais réécraser.
     // Repli file d'écriture si la lecture échoue (pas de perte).
     if (!base || (typeof base === 'object' && Object.keys(base).length === 0)) {
-      const gapFill = (remote, local) => {
-        const out = (remote && typeof remote === 'object' && !Array.isArray(remote)) ? Object.assign({}, remote) : {};
-        Object.keys(local || {}).forEach(k => {
-          const lv = local[k], rv = out[k];
-          if (lv && typeof lv === 'object' && !Array.isArray(lv)) out[k] = gapFill(rv, lv);
-          else if (rv === undefined || rv === null || rv === '') out[k] = lv;   // serveur absent/vide → on comble
-        });
-        return out;
-      };
+      const gapFill = FP._fusion.gapFill;
       // Même filet anti-perte que le CAS : repli en file d'écriture AVANT le réseau, retiré à la réussite.
       let _settleUid0 = null;
-      try { if (FP.persist && FP.persist._enqueue) _settleUid0 = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj } }); } catch (e) {}
+      try { if (FP.persist && FP.persist._enqueue) _settleUid0 = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj }, fusion: GAPFILL }); } catch (e) {}
       self._serialize(id, async () => {
         try {
           const r = await FP.supabase.from('app_settings').select('data').eq('id', id).maybeSingle();
@@ -5877,8 +5955,8 @@ FP.settings = {
           self._serverSnap = JSON.parse(JSON.stringify(merged));
           try { localStorage.setItem(self._key(), JSON.stringify(merged)); } catch (_) {}
           try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (e) {}
-          plainUpsert(merged);
-        } catch (e) { try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (_) {} plainUpsert(obj); }   // échec de lecture → au moins mettre en file (ne pas perdre l'écriture)
+          plainUpsert(merged, GAPFILL);
+        } catch (e) { try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (_) {} plainUpsert(obj, GAPFILL); }   // échec de lecture → au moins mettre en file (ne pas perdre l'écriture)
       });
       return;
     }
@@ -5956,52 +6034,8 @@ FP.settings = {
       'vehDossierVente']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
-    const isPlain = x => x && typeof x === 'object' && !Array.isArray(x);
-    // Fusion par FEUILLE d'un objet-map (ajouts/modifs d'obj appliqués sur remote frais ; suppressions de CE poste honorées).
-    const mergeMap = (remoteV, objV, baseV) => {
-      const out = isPlain(remoteV) ? { ...remoteV } : {};
-      const ks = new Set([...(isPlain(objV) ? Object.keys(objV) : []), ...(isPlain(baseV) ? Object.keys(baseV) : [])]);
-      ks.forEach(k => {
-        const ov = isPlain(objV) ? objV[k] : undefined, bv = isPlain(baseV) ? baseV[k] : undefined, rv = out[k];
-        // ⚠️⚠️ CORRECTIF DE FOND (cause commune de « ça revient ») : une clé qui était dans la base chargée
-        // mais que CE poste a RETIRÉE (ov === undefined) est VRAIMENT supprimée — même si sa valeur est un
-        // OBJET. Avant, on partait en récursion et on laissait un « husk » {} (truthy) qui ressuscitait
-        // l'entrée au rechargement (RDV garage, immobilisation, anomalie « remise à vérifier »…). ⚠️ Les
-        // clés présentes SEULEMENT côté serveur (ajoutées par un AUTRE appareil) ne sont PAS dans `ks`
-        // (= clés de objV ∪ baseV) → elles restent dans `out` (parti de {...remoteV}) et ne sont JAMAIS
-        // supprimées → l'anti-perte multi-appareils est préservé.
-        if (ov === undefined) { delete out[k]; return; }
-        if (isPlain(ov) || isPlain(bv) || isPlain(rv)) { out[k] = mergeMap(rv, ov, bv); return; }  // sous-objet → fusion fine
-        if (JSON.stringify(ov) !== JSON.stringify(bv)) out[k] = ov;                                // scalaire modifié
-      });
-      return out;
-    };
-    // Fusion d'un TABLEAU (union sur remote frais ; modifs/suppressions de CE poste appliquées).
-    // • tableau d'objets AVEC id → fusion par id ; • sinon (strings, ou objets sans id) → union par
-    //   valeur (JSON) en honorant les suppressions de ce poste. ⚠️ Ne JAMAIS filtrer sur `.id` un tableau
-    //   sans id (ex. `loueurs` [{nom,prop}], `alertesMasquees` [string]) → on perdrait tout son contenu.
-    const mergeArr = (remoteV, objV, baseV) => {
-      const rA = Array.isArray(remoteV) ? remoteV : [], oA = Array.isArray(objV) ? objV : [], bA = Array.isArray(baseV) ? baseV : [];
-      const hasIds = a => a.length > 0 && a.every(t => t && typeof t === 'object' && t.id != null);
-      if (hasIds(oA) || hasIds(rA)) {
-        const byId = new Map(); rA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });
-        const objIds = new Set(oA.map(t => t && t.id).filter(v => v != null));
-        oA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });                            // ajouts/modifs de ce poste
-        bA.forEach(t => { if (t && t.id != null && !objIds.has(t.id)) byId.delete(t.id); });        // suppressions de ce poste
-        return Array.from(byId.values());
-      }
-      // Sans id : union par valeur (dédup), suppressions de ce poste (présent dans base, absent d'obj) honorées.
-      const key = v => JSON.stringify(v);
-      const objKeys = new Set(oA.map(key)), baseKeys = new Set(bA.map(key)), seen = new Set(), out = [];
-      rA.forEach(v => { const k = key(v); if (baseKeys.has(k) && !objKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });
-      oA.forEach(v => { const k = key(v); if (!seen.has(k)) { seen.add(k); out.push(v); } });
-      return out;
-    };
-    const mergeCollection = (k, remoteV, objV, baseV) => {
-      if (Array.isArray(objV) || Array.isArray(remoteV)) return mergeArr(remoteV, objV, baseV);
-      if (isPlain(objV) || isPlain(remoteV)) return mergeMap(remoteV, objV, baseV);
-      return objV;   // ⚠️ SÉCURITÉ : valeur scalaire mal classée → remplacement simple, JAMAIS transformée en {}
-    };
+    // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).
+    const { isPlain, mergeMap, mergeArr, mergeCollection } = FP._fusion;
     const applyDelta = (remote) => {
       const merged = { ...remote };
       // ⚠️⚠️ ANTI-PERTE : on ne traite QUE les clés RÉELLEMENT PRÉSENTES dans le cache local (`obj`).
@@ -6056,8 +6090,14 @@ FP.settings = {
     // le réglage « disparaît ». On dépose donc D'ABORD un repli dans la file d'écriture durable (upsert
     // complet de `obj`, exactement le même dernier recours que la contention), puis on le RETIRE dès que le
     // CAS aboutit → en fonctionnement normal aucune écriture parasite ; sur abandon il repart au load suivant.
+    // Informations de rejeu : clés réellement modifiées par CE poste (obj vs base), et base des collections
+    // concernées → une écriture restée en file ne touchera QUE ces clés (cf. FP._fusion.rejouer).
+    const _cles = Object.keys(obj).filter(k => JSON.stringify(obj[k]) !== JSON.stringify(base[k]));
+    const _coll = _cles.filter(isCollKey);
+    const _bases = {}; _coll.forEach(k => { if (base[k] !== undefined) _bases[k] = base[k]; });
+    const DELTA = { mode: 'delta', cles: _cles, coll: _coll, bases: _bases };
     let _settleUid = null;
-    try { if (FP.persist && FP.persist._enqueue) _settleUid = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj } }); } catch (e) {}
+    try { if (FP.persist && FP.persist._enqueue) _settleUid = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj }, fusion: DELTA }); } catch (e) {}
     const _dropSettle = () => { try { if (_settleUid && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid); } catch (e) {} };
     // (Le CAS ci-dessous est SÉRIALISÉ par id via self._serialize — voir plus bas — pour qu'il ne se
     //  chevauche jamais avec un autre enregistrement de la même ligne.)
@@ -6075,7 +6115,7 @@ FP.settings = {
         if (r2 && r2.error) throw r2.error;
         const remote2 = (r2 && r2.data && r2.data.data && typeof r2.data.data === 'object') ? r2.data.data : null;
         const merged2 = remote2 ? applyDelta(remote2) : obj;   // pas de ligne existante → insert simple d'obj
-        commit(merged2); _dropSettle(); plainUpsert(merged2);
+        commit(merged2); _dropSettle(); plainUpsert(merged2, DELTA);
       } catch (e2) {
         // Relecture impossible (hors-ligne) : on ne peut pas fusionner maintenant → l'écriture COMPLÈTE
         // reste dans la file durable (déjà déposée en tête de _pushSettings) et sera retentée ; le
@@ -6097,9 +6137,9 @@ FP.settings = {
           if (r && r.error) throw r.error;
           const remote = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : null;
           const remoteRev = (r && r.data && typeof r.data.rev === 'number') ? r.data.rev : null;
-          if (!remote) { self._serverSnap = JSON.parse(JSON.stringify(obj)); _dropSettle(); plainUpsert(obj); return; } // pas encore de ligne → insert simple
+          if (!remote) { self._serverSnap = JSON.parse(JSON.stringify(obj)); _dropSettle(); plainUpsert(obj, DELTA); return; } // pas encore de ligne → insert simple
           const merged = applyDelta(remote);
-          if (remoteRev === null) { commit(merged); _dropSettle(); plainUpsert(merged); return; } // colonne rev absente → fusion sans CAS (comme avant)
+          if (remoteRev === null) { commit(merged); _dropSettle(); plainUpsert(merged, DELTA); return; } // colonne rev absente → fusion sans CAS (comme avant)
           // Écrit seulement si rev inchangé ; .select() renvoie les lignes réellement modifiées.
           const w = await FP.supabase.from('app_settings').update({ data: merged }).eq('id', id).eq('rev', remoteRev).select('id');
           if (w && w.error) throw w.error;
@@ -11477,7 +11517,18 @@ FP.persist = {
   // Chaque écriture : on tente la base ; si ça échoue, on garde en file locale
   // (filet de sécurité) et on renverra automatiquement plus tard.
   async insert(table, row) { return this._write({ op: 'insert', table, row }, () => FP.db.insert(table, row)); },
-  async upsert(table, row) { return this._write({ op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
+  async upsert(table, row, fusion) { return this._write(fusion ? { op: 'upsert', table, row, fusion } : { op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
+  // ⚠️ Renvoi d'une écriture de RÉGLAGES restée en file : relit la ligne serveur et FUSIONNE (FP._fusion.rejouer),
+  // au lieu de remplacer toute la ligne par la copie en file (cause de vidages complets vécus le 17/10/2026).
+  async _rejouerReglages(it) {
+    const id = it.row && it.row.id;
+    if (!id) return { error: null };
+    if (id === 'global') { try { console.warn('[FP.persist] écriture obsolète vers la ligne « global » (gelée) abandonnée'); } catch (e) {} return { error: null };}
+    const r = await FP.supabase.from('app_settings').select('data').eq('id', id).maybeSingle();
+    if (r && r.error) return r;
+    const remote = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : null;
+    return FP.db.upsert('app_settings', { id, data: FP._fusion.rejouer(remote, it) });
+  },
   async update(table, id, fields) { return this._write({ op: 'update', table, id, fields }, () => FP.db.update(table, id, fields)); },
   // record (optionnel) = copie complète de l'élément supprimé → déposée dans la Corbeille (FP.trash)
   // pour pouvoir le RESTAURER depuis Paramètres. Rétro-compatible : sans record, aucune capture.
@@ -11501,7 +11552,8 @@ FP.persist = {
       if (force) { it.failed = false; } // on redonne sa chance (ex. colonne ajoutée entre-temps)
       try {
         let r;
-        if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
+        if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
+        else if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
         else if (it.op === 'update') r = await FP.db.update(it.table, it.id, it.fields);
         else if (it.op === 'delete') r = await FP.db.delete(it.table, it.id);
         if (r && r.error) throw r.error;

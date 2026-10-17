@@ -33,6 +33,11 @@ jobs:
       - name: Tests unitaires des calculs
         run: node scripts/test-calculs.mjs
 
+      # 3) Fusion des réglages : aucune écriture en attente ne peut vider la ligne d'une société, et les
+      #    modifications d'un autre appareil sont respectées (incident du 17/10/2026 reproduit en test).
+      - name: Tests de la fusion des réglages
+        run: node tests/unit/fusion-reglages.mjs
+
   # Tests « fumée » Playwright : chaque page clé se charge-t-elle sans erreur JS ? (page blanche = JS cassé)
   # Job séparé car il installe un navigateur (plus lourd) ; reste bloquant pour une PR.
   e2e:
