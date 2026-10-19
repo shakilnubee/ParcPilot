@@ -974,12 +974,22 @@
     try { const CK = window.FP_CACHE_KEY; const c = CK && JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Array.isArray(c.vehicules)) { const cv = c.vehicules.find(x => x.id === v.id); if (cv) { cv.proprietaire = v.proprietaire; localStorage.setItem(CK, JSON.stringify(c)); } } } catch (e) {}
     return true;
   }
+  // ⚠️ NOM PROPRE d'un document de contrat (source unique, BPCE + Localease) : un fichier televerse garde
+  // parfois son nom brut (« 5528091_TJMAX___Completez_avec_Docusign… ») → on affiche « Contrat de leasing.pdf »
+  // pour un nom manifestement technique/long, sinon on garde le nom s'il est deja court et lisible. Le vrai
+  // nom de fichier reste au survol (title).
+  function cleanContratDocName(nm){
+    const s = String(nm || '').trim();
+    if (!s) return 'Contrat de leasing.pdf';
+    if (s.length > 26 || /_{2,}|docusign|compl[eé]tez|^\d{6,}/i.test(s)) return 'Contrat de leasing.pdf';
+    return s;
+  }
   function bpceDocsHtml(immat){
     const docs = allContratDocs(immat); // Contrats + fiche véhicule fusionnés (source unique)
     const links = docs.map(d => {
       const delAttr = d.src === 'doc' ? `data-fiche-doc-del="${escC(d.docId)}"` : `data-bpce-doc-del="${escC(immat)}::${d.idx}"`;
       return `<div class="flex items-center gap-1" style="margin-bottom:2px;max-width:170px">
-        <button type="button" data-bpce-doc="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(d.name || 'Contrat')}</button>
+        <button type="button" data-bpce-doc="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</button>
         <button type="button" ${delAttr} class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
       </div>`;
     }).join('');
@@ -4281,7 +4291,7 @@
       const totalVerseEst = debutSource === 'mec' || debutSource === 'histo';   // date de début déduite (pas saisie) → total estimé
       const docs = Array.isArray(c.docs) ? c.docs : (c.pdfUrl ? [{ url: c.pdfUrl, name: 'Contrat' }] : []);
       const docsHtml = docs.map((d, di) => `<div class="flex items-center gap-1 justify-center" style="margin-bottom:2px;max-width:170px;margin-left:auto;margin-right:auto">
-          <a href="${escC((window.FP && FP.safeUrl) ? FP.safeUrl(d.url) : d.url)}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escC(d.name || 'Document')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(d.name || 'Document')}</a>
+          <a href="${escC((window.FP && FP.safeUrl) ? FP.safeUrl(d.url) : d.url)}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escC(d.name || 'Document')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</a>
           <button type="button" data-loc-doc-assur="${i}:${di}" class="text-slate-300 hover:text-teal-600 flex-shrink-0" title="Déplacer vers l'Assurance de la fiche véhicule (mémo assurance)" style="font-size:12px;line-height:1">🛡</button>
           <button type="button" data-loc-doc-del="${i}:${di}" class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
         </div>`).join('');
