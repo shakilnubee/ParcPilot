@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019g">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -419,8 +419,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019f"></script>
-<script src="../assets/js/supabase-client.js?v=20261019f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019g"></script>
+<script src="../assets/js/supabase-client.js?v=20261019g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -436,11 +436,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261019f"></script>
+<script src="../assets/js/app.min.js?v=20261019g"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -2169,9 +2169,15 @@
         // dans FP.msg.open dès qu'une adresse est connue. (La réponse ÉCRITE persistée reste le bouton dédié.)
         smsBtn = `<button type="button" class="btn btn-outline text-xs" data-msg-open data-msg-phone="${FP.esc(tel)}" data-msg-email="${FP.esc(email)}" data-msg-nom="${FP.esc(prenom)}" data-msg-title="${FP.esc((isQuestion ? 'Répondre à ' : 'Prévenir ') + (prenom || 'le conducteur'))}" data-msg-text="${FP.esc(msgTxt)}"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> ${isQuestion ? 'Répondre' : 'SMS / WhatsApp / Email'}</button>`;
       }
-      return `<div style="border:1px solid ${borderCol};border-radius:12px;padding:12px 14px;background:${bgCol}" data-decl="${FP.esc(d.id)}">
-        <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
-          <div class="flex items-center gap-2 flex-wrap">${tag}<b class="text-sm">${FP.esc(d.plaque || '')}</b><span class="text-xs text-slate-400">reçu le ${FP.esc(when)}</span>${stageChip}</div>
+      // Véhicule concerné (marque + modèle) pour bien distinguer les demandes de véhicules différents.
+      const _vehObj = (data.vehicules || []).find(v => FP.immatEq ? FP.immatEq(v.immat, d.plaque || '') : (FP.normImmat(v.immat) === FP.normImmat(d.plaque || '')));
+      const _vehTxt = _vehObj ? [_vehObj.marque, _vehObj.modele].filter(Boolean).join(' ') : '';
+      return `<div style="border:1px solid ${borderCol};border-left:5px solid ${isInfo ? infoBorder : (traite ? '#CBD5E1' : '#EF4444')};border-radius:12px;padding:14px 16px;background:${bgCol};box-shadow:0 2px 8px -4px rgba(15,30,61,.18)" data-decl="${FP.esc(d.id)}">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="font-mono font-extrabold text-sm" style="background:#0F1E3D;color:#fff;padding:3px 11px;border-radius:7px;letter-spacing:.5px">${FP.esc(d.plaque || '—')}</span>
+            ${_vehTxt ? `<b class="text-sm text-slate-700">${FP.esc(_vehTxt)}</b>` : ''}
+            ${tag}<span class="text-xs text-slate-400">reçu le ${FP.esc(when)}</span>${stageChip}</div>
         </div>
         ${line('Quand', d.date_incident)}${line('Lieu', d.lieu)}
         <div class="text-sm mt-1">${FP.esc(d.description || '')}</div>
@@ -2206,7 +2212,7 @@
           <div class="font-extrabold flex items-center gap-2" style="color:var(--fp-primary)"><i data-lucide="inbox" class="w-5 h-5"></i> Demandes conducteur ${nouv.length ? `<span style="background:#EF4444;color:#fff;border-radius:9999px;padding:0 8px;font-size:12px">${nouv.length}</span>` : ''}</div>
           ${traites.length ? `<button type="button" id="decl-toggle-traites" class="btn btn-outline text-xs">${this.showTraites ? 'Masquer les traités' : `Voir les traités (${traites.length})`}</button>` : ''}
         </div>`;
-      const body = shown.length ? `<div class="space-y-3">${shown.map(d => this.cardHTML(d)).join('')}</div>`
+      const body = shown.length ? `<div class="space-y-4">${shown.map(d => this.cardHTML(d)).join('')}</div>`
         : '<div class="text-sm text-slate-400">Aucune demande en attente. 🎉</div>';
       box.innerHTML = `<div class="card p-5" style="border-left:4px solid #EF4444">${head}${body}</div>`;
       if (window.lucide) lucide.createIcons();
@@ -2461,6 +2467,12 @@
         ]);
         cardBlock('Circonstances déclarées', d.description);
         y += 3;
+
+        // --- Réponse envoyée au conducteur (celle qu'il voit aussi dans son espace « Mes signalements ») ---
+        if (d.reponse && String(d.reponse).trim()) {
+          cardBlock('Réponse envoyée au conducteur' + (d.reponse_at ? ' (le ' + FP.date(String(d.reponse_at).slice(0, 10)) + ')' : ''), d.reponse);
+          y += 3;
+        }
 
         // --- Pièces jointes : IMAGES en vignettes groupées, PDF (constat, courrier assureur, tout
         //     document PDF déposé sur le dossier) rendus en PAGE PLEINE et lisibles. ---

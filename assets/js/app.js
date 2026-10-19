@@ -16193,7 +16193,17 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const _fs = _nc > 12 ? 8 : 9;
     const _pad = _nc > 12 ? 2 : 2.6;
     const columnStyles = { 0: { halign: 'left', textColor: [148, 163, 184], cellWidth: _nc > 13 ? 9 : 12, cellPadding: { top: _pad, right: 1.2, bottom: _pad, left: 1.6 }, overflow: 'visible' } };
-    cols.forEach((col, idx) => { columnStyles[idx + 1] = { halign: col.align === 'right' ? 'right' : 'left', font: col.mono ? 'courier' : 'helvetica' }; });
+    // ⚠️ ADAPTER les largeurs aux colonnes CHOISIES : une colonne COURTE (date, montant, plaque, statut,
+    // n°…) prend la largeur de SON CONTENU et n'est JAMAIS tronquée ; une colonne LONGUE (description,
+    // intitulé…) reste flexible et passe à la ligne. Fini les « 1 999,… » / « CAR WORLD… » coupés.
+    cols.forEach((col, idx) => {
+      const st = { halign: col.align === 'right' ? 'right' : 'left', font: col.mono ? 'courier' : 'helvetica' };
+      let maxLen = clean(col.label).length;
+      for (const r of rows) { const l = clean(col.get(r)).length; if (l > maxLen) maxLen = l; }
+      // Numérique / mono / courte → largeur au contenu (cellWidth 'wrap' = ne rétrécit jamais sous le contenu).
+      if (col.align === 'right' || col.mono || maxLen <= 24) st.cellWidth = 'wrap';
+      columnStyles[idx + 1] = st;
+    });
     // Ligne de total (si au moins une colonne a une fonction `sum`) → pied de tableau « TOTAL ».
     let foot = null;
     if (cols.some(c => typeof c.sum === 'function')) {
@@ -16218,7 +16228,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       foot: foot || undefined,
       footStyles: { fillColor: [241, 245, 249], textColor: [15, 30, 61], fontStyle: 'bold', fontSize: 9, lineColor: [203, 213, 225], lineWidth: 0.1 },
       startY: 36, margin: { top: 36, left: 10, right: 10 }, tableWidth: pageW - 20, theme: 'grid',
-      styles: { fontSize: _fs, cellPadding: { top: _pad, right: _pad + 0.4, bottom: _pad, left: _pad + 0.4 }, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1, valign: 'middle', overflow: 'ellipsize' },
+      styles: { fontSize: _fs, cellPadding: { top: _pad, right: _pad + 0.4, bottom: _pad, left: _pad + 0.4 }, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1, valign: 'middle', overflow: 'linebreak' },
       headStyles: { fillColor: [15, 30, 61], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: Math.max(6.5, _fs - 0.5), lineColor: [15, 30, 61], lineWidth: 0, cellPadding: { top: _pad + 0.4, right: _pad + 0.4, bottom: _pad + 0.4, left: _pad + 0.4 }, overflow: 'linebreak' },
       alternateRowStyles: { fillColor: [247, 249, 252] },
       columnStyles: columnStyles,

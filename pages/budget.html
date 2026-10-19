@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019g">
 <style>
   /* (pastilles d'échéance : composant canonique .fp-ech dans styles.css) */
 </style>
@@ -110,7 +110,8 @@
         <h1 class="text-2xl font-extrabold" style="color: var(--fp-primary)">Budget</h1>
         <p class="text-slate-500 text-sm mt-1">Ton budget prévisionnel par poste comparé au réel, + la prévision de trésorerie sur 12 mois.</p>
       </div>
-      <div class="flex items-end gap-3">
+      <div class="flex items-end gap-3 flex-wrap">
+        <span data-data-io></span>
         <button class="btn btn-outline text-sm" id="bud-releve" title="Relevé PDF / Excel du budget — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <div>
           <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">Année</label>
@@ -179,8 +180,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019f"></script>
-<script src="../assets/js/supabase-client.js?v=20261019f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019g"></script>
+<script src="../assets/js/supabase-client.js?v=20261019g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -196,10 +197,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261019f"></script>
+<script src="../assets/js/app.min.js?v=20261019g"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -462,6 +463,20 @@
     const snap = _budLast || { postesData: [], year };
     if (!snap.postesData.length) { alert('Aucune donnée budget à exporter.'); return; }
     FP.fiche.open({ key: 'budget', title: 'Budget ' + snap.year + ' — prévu vs réel', cols: BUD_FICHE_COLS, rows: snap.postesData });
+  });
+  // Export Excel visible (bouton « Exporter (Excel) »), comme sur les autres pages.
+  if (FP.injectDataIO) FP.injectDataIO({
+    exportOnly: true,
+    sheetName: 'Budget',
+    baseName: () => 'parc-pilot-budget-' + ((_budLast && _budLast.year) || year) + '-' + new Date().toISOString().slice(0, 10),
+    columns: [
+      { key: 'poste',  label: 'Poste' },
+      { key: 'prevu',  label: 'Prévu (€/an)', format: FP.csv.numFormat },
+      { key: 'reel',   label: 'Réel (€)',     format: FP.csv.numFormat },
+      { key: 'ecart',  label: 'Écart (€)',    format: FP.csv.numFormat },
+      { key: 'reelN1', label: 'Réel N-1 (€)', format: FP.csv.numFormat },
+    ],
+    getRows: () => { if (!_budLast) render(); return ((_budLast && _budLast.postesData) || []).map(p => ({ poste: p.label + (p.annuel ? ' (annuel)' : ''), prevu: p.prevu, reel: p.reel, ecart: p.prevu - p.reel, reelN1: (p.annuel || p.reelN1 == null) ? '' : p.reelN1 })); },
   });
 
   function boot() { buildYears(); syncObjInputs(); render(); }
