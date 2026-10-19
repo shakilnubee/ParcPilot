@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019b">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -703,6 +703,8 @@
     <details class="acc" id="s-contrats">
       <summary><i data-lucide="file-text" class="w-5 h-5"></i> Contrats <i data-lucide="chevron-down" class="w-5 h-5 chev"></i></summary>
       <div class="acc-body">
+        <div class="man-zone">🔖 N° de contrat dans la colonne « Contrat » <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
+        <div class="man-item">Dans le tableau <b>Leasing</b>, la colonne <b>Contrat</b> affiche une petite zone <b>« N° »</b> : clique dessus (ou sur « + n° de contrat ») pour <b>saisir le numéro de contrat/dossier</b> à la main. Si un <b>PDF de contrat</b> est déjà ajouté, le bouton <b>🤖</b> à côté <b>lit le numéro automatiquement</b> dans le document. Le numéro est enregistré par véhicule et <b>synchronisé</b> sur tous tes appareils.</div>
         <div class="man-zone">Des indicateurs <b>propres à chaque sous-onglet</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
         <div class="man-item"><b>Chaque sous-onglet affiche SES propres chiffres</b> (plus de mélange leasing/assurance partout, et plus de doublon) :
           <ul style="margin:.3rem 0 0 1rem;padding:0;list-style:disc">
@@ -995,8 +997,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019a"></script>
-<script src="../assets/js/supabase-client.js?v=20261019a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019b"></script>
+<script src="../assets/js/supabase-client.js?v=20261019b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1012,10 +1014,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261019a"></script>
+<script src="../assets/js/app.min.js?v=20261019b"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

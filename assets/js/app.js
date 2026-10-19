@@ -5979,7 +5979,7 @@ FP.settings = {
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
       'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys',
       // — Historique & données par VÉHICULE :
-      'affectations', 'antiPollDates', 'leasingDocs', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
+      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
       // — Données par SINISTRE :
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
