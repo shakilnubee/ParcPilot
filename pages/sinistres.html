@@ -2082,7 +2082,7 @@
     { v: 'traite', label: 'Résolu', emo: '✅' }
   ];
   const DeclCond = {
-    rows: [], showTraites: false,
+    rows: [], showTraites: false, search: '',
     async load() {
       if (!(window.FP && FP.supabase)) return;
       try {
@@ -2202,21 +2202,65 @@
         </div>
       </div>`;
     },
+    // Normalisation (accents/casse) pour une recherche tolérante, comme ailleurs sur la plateforme.
+    _norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); },
+    // Recherche simple : plaque, véhicule (marque/modèle/chauffeur), description, lieu, tiers,
+    // réponse écrite, type de demande (sinistre / problème / km / état des lieux / question).
+    _matchSearch(d, nq) {
+      if (!nq) return true;
+      const t = (d.type || 'sinistre');
+      const typeLbl = t === 'etat_lieux' ? 'etat des lieux edl' : (t === 'km' ? 'releve km kilometrage' : (t === 'question' ? 'question' : (t === 'probleme' ? 'probleme panne' : 'sinistre accident')));
+      const veh = (data.vehicules || []).find(v => FP.immatEq ? FP.immatEq(v.immat, d.plaque || '') : (FP.normImmat(v.immat) === FP.normImmat(d.plaque || '')));
+      const vehTxt = veh ? [veh.marque, veh.modele, veh.chauffeur].filter(Boolean).join(' ') : '';
+      const hay = this._norm([d.plaque, vehTxt, d.description, d.lieu, d.tiers, d.date_incident, d.reponse, typeLbl, (d.statut === 'traite' ? 'traite' : 'en attente a traiter')].filter(Boolean).join(' • '));
+      return nq.split(/\s+/).every(w => hay.includes(w));
+    },
     render() {
       const box = document.getElementById('decl-cond-banner'); if (!box) return;
+      if (!this.rows.length) { box.innerHTML = ''; return; }
       const nouv = this.rows.filter(d => d.statut !== 'traite');
       const traites = this.rows.filter(d => d.statut === 'traite');
-      if (!this.rows.length) { box.innerHTML = ''; return; }
-      const shown = this.showTraites ? this.rows : nouv;
-      const head = `<div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div class="font-extrabold flex items-center gap-2" style="color:var(--fp-primary)"><i data-lucide="inbox" class="w-5 h-5"></i> Demandes conducteur ${nouv.length ? `<span style="background:#EF4444;color:#fff;border-radius:9999px;padding:0 8px;font-size:12px">${nouv.length}</span>` : ''}</div>
-          ${traites.length ? `<button type="button" id="decl-toggle-traites" class="btn btn-outline text-xs">${this.showTraites ? 'Masquer les traités' : `Voir les traités (${traites.length})`}</button>` : ''}
+      // En-tête soigné : pastille icône + titre + résumé « N en attente · M traité ».
+      const resume = [
+        nouv.length ? `<b style="color:#B91C1C">${nouv.length}</b> en attente` : '<span style="color:#16a34a;font-weight:700">tout est traité 🎉</span>',
+        traites.length ? `<b>${traites.length}</b> traité${traites.length > 1 ? 's' : ''}` : ''
+      ].filter(Boolean).join(' <span style="color:var(--fp-border)">·</span> ');
+      const head = `<div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <span style="flex:none;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#FEE2E2,#FECACA);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #FCA5A5">
+              <i data-lucide="inbox" class="w-5 h-5" style="color:#DC2626"></i>
+            </span>
+            <div class="min-w-0">
+              <div class="font-extrabold leading-tight" style="color:var(--fp-primary);font-size:15px">Demandes conducteur ${nouv.length ? `<span style="background:#EF4444;color:#fff;border-radius:9999px;padding:1px 8px;font-size:12px;vertical-align:1px">${nouv.length}</span>` : ''}</div>
+              <div class="text-xs text-slate-500 mt-0.5">${resume}</div>
+            </div>
+          </div>
+          ${traites.length ? `<button type="button" id="decl-toggle-traites" class="btn btn-outline text-xs">${this.showTraites ? '↩ Masquer les traités' : `✓ Voir les traités (${traites.length})`}</button>` : ''}
         </div>`;
-      const body = shown.length ? `<div class="space-y-4">${shown.map(d => this.cardHTML(d)).join('')}</div>`
-        : '<div class="text-sm text-slate-400">Aucune demande en attente. 🎉</div>';
-      box.innerHTML = `<div class="card p-5" style="border-left:4px solid #EF4444">${head}${body}</div>`;
+      // Barre de recherche simple (apparaît dès qu'il y a de quoi filtrer), style identique au reste du site.
+      const searchBar = this.rows.length > 1 ? `<div style="position:relative;margin-bottom:12px">
+          <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:#94a3b8;pointer-events:none"></i>
+          <input id="decl-search" type="search" placeholder="Rechercher (plaque, véhicule, lieu, description, réponse…)" value="${FP.esc(this.search || '')}" style="width:100%;padding:9px 12px 9px 38px;font-size:14px;border:1px solid var(--fp-border);border-radius:10px;background:var(--fp-surface);color:inherit">
+        </div>` : '';
+      box.innerHTML = `<div class="card p-5" style="border-left:4px solid #EF4444">${head}${searchBar}<div id="decl-list" class="space-y-4"></div></div>`;
+      // Saisie → re-rend UNIQUEMENT la liste (l'input garde le focus, pas de perte de frappe).
+      const si = document.getElementById('decl-search');
+      if (si) si.addEventListener('input', () => { this.search = si.value; this.renderList(); });
+      this.renderList();
       if (window.lucide) lucide.createIcons();
-      this.signPhotos(box);
+    },
+    // Rend la liste seule (filtrée par « traités » + recherche) → focus préservé pendant la frappe.
+    renderList() {
+      const listEl = document.getElementById('decl-list'); if (!listEl) return;
+      const nouv = this.rows.filter(d => d.statut !== 'traite');
+      const scope = this.showTraites ? this.rows.slice() : nouv;
+      const nq = this._norm(this.search);
+      const shown = nq ? scope.filter(d => this._matchSearch(d, nq)) : scope;
+      listEl.innerHTML = shown.length
+        ? shown.map(d => this.cardHTML(d)).join('')
+        : `<div class="text-sm text-slate-400" style="padding:4px 2px">${nq ? 'Aucune demande ne correspond à « ' + FP.esc(this.search) + ' ».' : 'Aucune demande en attente. 🎉'}</div>`;
+      if (window.lucide) lucide.createIcons();
+      this.signPhotos(listEl);
     },
     async setStatut(id, statut) {
       // UI optimiste PUIS écriture DURABLE (file FP.persist → retente + pastille de sync ; plus d'échec
@@ -2590,7 +2634,11 @@
   document.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('[data-decl-traite],[data-decl-untraite],[data-decl-del],[data-decl-sin],[data-decl-pdf],[data-decl-reply],#decl-toggle-traites');
     if (!t) return;
-    if (t.id === 'decl-toggle-traites') { DeclCond.showTraites = !DeclCond.showTraites; DeclCond.render(); return; }
+    if (t.id === 'decl-toggle-traites') {
+      DeclCond.showTraites = !DeclCond.showTraites;
+      t.innerHTML = DeclCond.showTraites ? '↩ Masquer les traités' : `✓ Voir les traités (${DeclCond.rows.filter(d => d.statut === 'traite').length})`;
+      DeclCond.renderList(); return;
+    }
     if (t.hasAttribute('data-decl-reply')) DeclCond.reply(t.getAttribute('data-decl-reply'));
     else if (t.hasAttribute('data-decl-traite')) DeclCond.setStatut(t.getAttribute('data-decl-traite'), 'traite');
     else if (t.hasAttribute('data-decl-untraite')) DeclCond.setStatut(t.getAttribute('data-decl-untraite'), 'nouveau');
