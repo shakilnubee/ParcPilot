@@ -9664,7 +9664,10 @@ FP.buildAlertes = (data) => {
         const t = (f.type || '').toLowerCase();
         let amt = 0;
         if (COUT.includes(t)) amt = Number(f.montantTTC) || 0;
-        else if (t === 'sinistre') { const _ss = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : ''; if (_ss !== 'rembourse' && _ss !== 'pec') amt = Number(f.montantTTC) || 0; }
+        // Sinistre : coût RÉEL via la source unique FP.coutSinistre (0 si remboursé / pris en charge / devis) —
+        // comme tous les KPI de coût. Évite de déclencher une alerte « budget dépassé » sur un devis ou un
+        // sinistre déjà remboursé.
+        else if (t === 'sinistre') { amt = FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0); }
         const _k = FP.normImmat(f.vehiculeImmat); if (amt && _k) spendByImmat[_k] = (spendByImmat[_k] || 0) + amt; // clé plaque NORMALISÉE (source unique)
       });
       const over = [];

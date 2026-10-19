@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   .chart-wrap { position: relative; height: 280px; }
   .chart-wrap-sm { position: relative; height: 220px; }
@@ -318,8 +318,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019g"></script>
-<script src="../assets/js/supabase-client.js?v=20261019g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -335,10 +335,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261019g"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -669,7 +669,10 @@
     if (annee !== 'all' && /^\d{4}$/.test(annee)) {
       const py = String(+annee - 1);
       const prevFact = FP.dedupeFactures((factures || []).filter(f => (f.date || '').startsWith(py)));
-      const prevData = months.map((m, i) => { const pym = py + '-' + String(i + 1).padStart(2, '0'); return prevFact.filter(f => (f.date || '').startsWith(pym)).reduce((s, f) => s + (+f.montantTTC || 0), 0); });
+      // ⚠️ MÊME périmètre d'exploitation que la courbe de l'année en cours (ligne du dessus) : exclure
+      // achat/cession/leasing/sinistre via FP.coutFactureExploit — sinon la courbe N-1 (pointillés)
+      // comptait les achats de véhicules et les sinistres remboursés, et n'était plus comparable.
+      const prevData = months.map((m, i) => { const pym = py + '-' + String(i + 1).padStart(2, '0'); return prevFact.filter(f => (f.date || '').startsWith(pym) && (FP.coutFactureExploit ? FP.coutFactureExploit(f) : true)).reduce((s, f) => s + (+f.montantTTC || 0), 0); });
       if (prevData.some(x => x > 0)) {
         datasets.push({ label: py, data: prevData, borderColor: '#94A3B8', borderDash: [5, 4], backgroundColor: 'transparent', tension: .35, fill: false, pointRadius: 2 });
         showLegend = true;
@@ -681,8 +684,13 @@
       options: { plugins: { legend: { display: showLegend, position: 'bottom', labels: { boxWidth: 14, font: { size: 13 } } }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ' : ' + FP.euro(ctx.parsed.y) } } }, scales: { y: { ticks: { callback: v => v + ' €' } } }, maintainAspectRatio: false, responsive: true }
     });
 
+    // ⚠️ Coût RÉEL d'une facture pour les répartitions ci-dessous : un sinistre REMBOURSÉ / pris en
+    // charge / devis compte 0 € (source unique FP.coutSinistre, comme les KPI « Coût des sinistres »,
+    // « Coût d'usage » et le TCO) ; toute autre facture compte son TTC. Sans ça, un sinistre remboursé
+    // (ex. réparation 1 999 € intégralement prise en charge) gonflait à tort les répartitions.
+    const coutReel = (f) => ((f.type || '').toLowerCase() === 'sinistre') ? (FP.coutSinistre ? FP.coutSinistre(f) : (+f.montantTTC || 0)) : (+f.montantTTC || 0);
     // Par type
-    const perType = {}; fact.forEach(f => { const t = f.type || 'autre'; perType[t] = (perType[t] || 0) + (+f.montantTTC || 0); });
+    const perType = {}; fact.forEach(f => { const t = f.type || 'autre'; perType[t] = (perType[t] || 0) + coutReel(f); });
     charts.type = new Chart($('typeChart'), {
       type: 'doughnut',
       data: { labels: Object.keys(perType), datasets: [{ data: Object.values(perType), backgroundColor: ['#1E3A8A', '#DC2626', '#16A34A', '#7C3AED', '#F59E0B', '#7F1D1D', '#94A3B8'], borderWidth: 0 }] },
@@ -690,7 +698,7 @@
     });
 
     // Top fournisseurs
-    const perFourn = {}; fact.forEach(f => { if (!f.fournisseur) return; perFourn[f.fournisseur] = (perFourn[f.fournisseur] || 0) + (+f.montantTTC || 0); });
+    const perFourn = {}; fact.forEach(f => { if (!f.fournisseur) return; perFourn[f.fournisseur] = (perFourn[f.fournisseur] || 0) + coutReel(f); });
     const topFourn = Object.entries(perFourn).sort((a, b) => b[1] - a[1]).slice(0, 10);
     charts.fourn = new Chart($('fournChart'), {
       type: 'bar',
@@ -699,7 +707,7 @@
     });
 
     // Par société
-    const perSociete = {}; fact.forEach(f => { const veh = _vehByImmat.get(FP.normImmat(f.vehiculeImmat)); const soc = veh ? (veh.proprietaire || 'Inconnu') : 'Inconnu'; perSociete[soc] = (perSociete[soc] || 0) + (+f.montantTTC || 0); });
+    const perSociete = {}; fact.forEach(f => { const veh = _vehByImmat.get(FP.normImmat(f.vehiculeImmat)); const soc = veh ? (veh.proprietaire || 'Inconnu') : 'Inconnu'; perSociete[soc] = (perSociete[soc] || 0) + coutReel(f); });
     charts.soc = new Chart($('societeChart'), {
       type: 'doughnut',
       data: { labels: Object.keys(perSociete), datasets: [{ data: Object.values(perSociete), backgroundColor: [(FP.chartInk?FP.chartInk():'#0F1E3D'), '#F97316', '#F59E0B', '#94A3B8'], borderWidth: 0 }] },
