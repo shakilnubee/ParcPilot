@@ -5993,7 +5993,23 @@
             // Lecture → complète/maj la fiche (IA prioritaire, fiable même sur un scan sans texte ; repli OCR local)
             if (!SKIP_IA.has(type)) try {
               let ia = null;
-              try { ia = await FP.scanIA(file, type === 'controle-technique' ? 'controle-technique' : 'facture'); } catch (e) {}
+              // ⚠️ CONTRÔLE TECHNIQUE : prompt DÉDIÉ (date du contrôle + date du prochain CT). Sans ça, scanIA
+              // utilisait le prompt générique « facture » → il ne renvoyait ni la date du CT ni la date limite
+              // du prochain contrôle, donc « Prochain CT » ne se mettait pas à jour. Même pipeline que les
+              // factures (couche texte d'abord, puis IA, contrôles) — seul le prompt change.
+              const CT_SCAN_PROMPT = [
+                "Ce document est un PROCES-VERBAL / certificat de CONTROLE TECHNIQUE automobile francais.",
+                "Renvoie UNIQUEMENT un objet JSON valide, sans aucun texte autour (mets null si l'info est absente) :",
+                "date : la DATE a laquelle le controle technique a ete effectue (passage au centre), format AAAA-MM-JJ.",
+                "controleTechniqueProchain : la date limite du PROCHAIN controle technique. Cherche les libelles 'prochain controle technique', 'prochaine visite', 'valable jusqu au', 'a renouveler avant le'. Format AAAA-MM-JJ. Si SEULE la date du controle figure et que le resultat est favorable, mets null (l'application ajoutera 2 ans).",
+                "resultat : 'favorable', 'defavorable' ou 'contre-visite' si c'est indique, sinon null.",
+                "Ne le confonds pas avec une date d'edition, un numero de PV, une immatriculation ou un kilometrage. Ne recopie QUE ce qui est ecrit, n'invente aucune date."
+              ].join("\n");
+              try {
+                ia = (type === 'controle-technique')
+                  ? await FP.scanIA(file, 'controle-technique', CT_SCAN_PROMPT, { maxTokens: 500 })
+                  : await FP.scanIA(file, 'facture');
+              } catch (e) {}
               let det = {};
               try { const text = await FP.ocr.fileToText(file); det = FP.detectDoc(text, data.vehicules) || {}; } catch (e) {}
               const v = data.vehicules.find(x => x.id === vehId);
