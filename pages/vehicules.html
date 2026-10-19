@@ -628,6 +628,7 @@
         </div>
         <span data-data-io></span>
         <span id="veh-export-mount"></span>
+        <button class="btn btn-outline text-sm" id="btn-releve-veh" title="Relevé PDF / Excel — choisis et réordonne les colonnes (groupe affiché ou sélection)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-compare" title="Comparer deux véhicules côte à côte"><i data-lucide="scale" class="w-4 h-4"></i> Comparer</button>
         <div style="position:relative;display:inline-block">
           <button class="btn btn-outline text-sm" id="btn-import-lot" title="Importer en lot des cartes grises ou des cartes mémo (rattachées aux fiches par immatriculation, sans doublon)"><i data-lucide="upload" class="w-4 h-4"></i> Importer en lot <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
@@ -5236,15 +5237,17 @@
     if (bz) { if (ko) bz.fail(resume); else bz.done(resume); } else if (FP.toast) FP.toast(resume);
   }
 
-  { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', () => {
-      // Si des véhicules sont COCHÉS → la fiche ne prend QUE ceux-là (priorité à la sélection).
-      const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
-      if (sel.length) { openFicheModal(sel, 'Véhicules sélectionnés'); return; }
-      const grp = state.groupe;
-      const label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp));
-      const list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp));
-      openFicheModal(list, label);
-    }); }
+  // Relevé PDF/Excel de la liste : sélection cochée en priorité, sinon le groupe/filtre affiché.
+  function openVehReleve() {
+    const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
+    if (sel.length) { openFicheModal(sel, 'Véhicules sélectionnés'); return; }
+    const grp = state.groupe;
+    const label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp));
+    const list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp));
+    openFicheModal(list, label);
+  }
+  { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', openVehReleve); }
+  { const b = $('btn-releve-veh'); if (b) b.addEventListener('click', openVehReleve); }
   // « Tous les QR (PDF) » — un PDF avec le QR de CHAQUE véhicule de la flotte (liste LIVE complète,
   // pas seulement ceux qui ont un conducteur). Même carte QR que l'impression/PNG de la fiche.
   function downloadAllVehQr() {
