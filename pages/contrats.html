@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019b">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -838,8 +838,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019a"></script>
-<script src="../assets/js/supabase-client.js?v=20261019a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019b"></script>
+<script src="../assets/js/supabase-client.js?v=20261019b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -855,11 +855,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261019a"></script>
+<script src="../assets/js/app.min.js?v=20261019b"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -983,7 +983,25 @@
         <button type="button" ${delAttr} class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
       </div>`;
     }).join('');
-    return links + `<button type="button" class="btn btn-outline text-xs !px-2" data-bpce-up="${escC(immat)}" title="Téléverser le contrat de leasing (PDF)" style="margin-top:2px"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
+    // ⚠️ N° DE CONTRAT (demande utilisateur) : petite zone éditable qui affiche le numéro de contrat/dossier
+    // de leasing. Saisie MANUELLE (clic) OU lecture par l'IA depuis le PDF du contrat (bouton 🤖). Stocké
+    // par immat dans settings.leasingNumero (synchronisé anti-perte, présent dans COLLECTION_KEYS).
+    const _nkey = FP.normImmat(immat);
+    const _num = ((FP.settings.get().leasingNumero) || {})[_nkey] || '';
+    const numZone = `<div class="flex items-center gap-1" style="margin-bottom:4px;max-width:180px">
+        <span style="font-size:10px;color:var(--fp-muted);flex-shrink:0">N°</span>
+        <button type="button" data-contrat-num="${escC(immat)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:${_num ? 'var(--fp-text)' : 'var(--fp-accent)'};font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;font-weight:${_num ? '600' : '400'}" title="Cliquer pour saisir / modifier le n° de contrat">${_num ? escC(_num) : '+ n° de contrat'}</button>
+        ${docs.length ? `<button type="button" data-contrat-num-ai="${escC(immat)}" class="text-slate-400 hover:text-indigo-600 flex-shrink-0" title="Lire le n° de contrat depuis le PDF (IA)" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;line-height:1">🤖</button>` : ''}
+      </div>`;
+    return numZone + links + `<button type="button" class="btn btn-outline text-xs !px-2" data-bpce-up="${escC(immat)}" title="Téléverser le contrat de leasing (PDF)" style="margin-top:2px"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
+  }
+  // Enregistre (ou efface) le n° de contrat de leasing d'un véhicule, par immatriculation. Synchronisé.
+  function setContratNumero(immat, numero){
+    const k = FP.normImmat(immat); if (!k) return;
+    const s = FP.settings.get(); s.leasingNumero = (s.leasingNumero && typeof s.leasingNumero === 'object') ? s.leasingNumero : {};
+    const val = String(numero == null ? '' : numero).trim();
+    if (val) s.leasingNumero[k] = val; else delete s.leasingNumero[k];
+    FP.settings.save(s);
   }
   // ===== Filtre par loueur (partagé BPCE + Localease) =====
   let leasingLoueurFilter = 'all';
@@ -2373,6 +2391,44 @@
       const apply = (nm) => { if (setVehChauffeur(immat, nm)) { rebuildLeasingData(); renderKPIs(); renderLeasing(); if (FP.toast) FP.toast('Conducteur affecté ✓'); } else { renderLeasing(); } };
       if (FP.conducteurPicker) FP.conducteurPicker(inp, { onPick: (c) => apply((c && FP.conducteurs && FP.conducteurs.displayName) ? FP.conducteurs.displayName(c) : inp.value.trim()) });
       inp.addEventListener('blur', () => setTimeout(() => { if (document.getElementById('veh-cond-edit') === inp) apply(inp.value.trim()); }, 200));
+      return;
+    }
+    // N° de contrat — SAISIE MANUELLE (clic sur le n° / « + n° de contrat »).
+    const bNum = e.target.closest('[data-contrat-num]');
+    if (bNum) {
+      const immat = bNum.getAttribute('data-contrat-num');
+      const cur = ((FP.settings.get().leasingNumero) || {})[FP.normImmat(immat)] || '';
+      let v; try { v = FP.prompt ? await FP.prompt('N° de contrat de leasing :', cur) : prompt('N° de contrat de leasing :', cur); } catch (e2) { v = null; }
+      if (v == null) return;
+      setContratNumero(immat, v); renderLeasing();
+      if (FP.toast) FP.toast(String(v).trim() ? 'N° de contrat enregistré ✓' : 'N° de contrat effacé');
+      return;
+    }
+    // N° de contrat — LECTURE PAR L'IA depuis le PDF du contrat (bouton 🤖).
+    const bNumAi = e.target.closest('[data-contrat-num-ai]');
+    if (bNumAi) {
+      const immat = bNumAi.getAttribute('data-contrat-num-ai');
+      const d0 = (allContratDocs(immat) || [])[0];
+      if (!d0 || !d0.url) { if (FP.toast) FP.toast('Aucun PDF de contrat à lire.'); return; }
+      if (!(window.FP && FP.scanIA)) { if (FP.toast) FP.toast('Lecture IA indisponible (connexion requise).'); return; }
+      const PROMPT = [
+        "Ce document est un CONTRAT DE LEASING / LLD (location longue duree) de vehicule, ou son recapitulatif.",
+        "Renvoie UNIQUEMENT un objet JSON valide, sans aucun texte autour (mets null si l'info est absente) :",
+        "numeroContrat : le NUMERO DE CONTRAT ou de DOSSIER de ce leasing. Ancre-toi sur les libelles : 'N° de contrat', 'Numero de contrat', 'Reference contrat', 'Contrat n°', 'N° de dossier', 'Dossier', 'Reference'. C'est une reference alphanumerique.",
+        "Ne le confonds JAMAIS avec : une immatriculation, un VIN, un IBAN, un numero de client, un montant, une date, un numero de TVA ou de SIRET.",
+        "Ne recopie QUE ce qui est ecrit. N'invente aucun numero."
+      ].join("\n");
+      const busy = FP.busy ? FP.busy('Lecture du n° de contrat…') : null;
+      try {
+        const u = FP.signedScanUrl ? (await FP.signedScanUrl(d0.url, 600)) : d0.url;
+        const resp = await fetch(u); const blob = await resp.blob();
+        const isPdf = /pdf/i.test(blob.type || '') || /\.pdf($|\?)/i.test(d0.url || '');
+        const file = new File([blob], isPdf ? 'contrat.pdf' : 'contrat.jpg', { type: blob.type || (isPdf ? 'application/pdf' : 'image/jpeg') });
+        const f = await FP.scanIA(file, 'contrat-leasing', PROMPT, { maxTokens: 300 });
+        const num = (f && (f.numeroContrat || f.numero)) ? String(f.numeroContrat || f.numero).trim() : '';
+        if (num) { setContratNumero(immat, num); renderLeasing(); if (busy) busy.done('N° lu : ' + num); else if (FP.toast) FP.toast('N° lu : ' + num); }
+        else { const m = 'N° de contrat introuvable dans le PDF — saisis-le à la main.'; if (busy) busy.fail(m); else if (FP.toast) FP.toast(m); }
+      } catch (err) { const m = 'Lecture impossible : ' + (err && (err.message || err)); if (busy) busy.fail(m); else alert(m); }
       return;
     }
     const bUp = e.target.closest('[data-bpce-up]');
