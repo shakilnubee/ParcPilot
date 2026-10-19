@@ -8282,20 +8282,25 @@ FP.affectations = {
       const sv = String(sens || '').toLowerCase();
       const isSortie = sv.indexOf('resti') >= 0 || sv.indexOf('sort') >= 0;
       let did = false;
-      // ⚠️ FILL-ONLY STRICT : le lien EDL → période ne REMPLIT QUE LE VIDE (km de début/fin absent). Il ne
-      // REMPLACE JAMAIS un km déjà présent (saisi à la main OU posé par un précédent EDL) — sinon un scan
-      // d'un EDL d'une autre période (ex. 0 km) écrasait la vraie valeur et faisait « revenir » les données.
-      // Une correction d'un km déjà posé se fait en cliquant sur le km de la période (saisie manuelle).
+      // ⚠️ L'EDL FAIT AUTORITÉ sur la période (demande utilisateur : « l'IA lit le PDF de l'EDL »). On MET À
+      // JOUR le km de début/fin avec la valeur LUE sur l'état des lieux — y compris pour corriger une valeur
+      // parasite déjà présente (ex. 6709 remis à 0 pour un véhicule neuf dont l'EDL dit 0). C'est SÛR ici car
+      // applyEdlKm n'est appelé QUE sur une action DÉLIBÉRÉE (bouton « Lire le(s) km » / import) ET l'appelant
+      // garde `al.length === 1` (une seule période → pas d'ambiguïté). Le ré-ancrage AUTOMATIQUE au chargement
+      // (reanchorCurrent/reanchorEdlOnce) reste, lui, FILL-ONLY (c'est lui qui causait le « revenir »).
       if (k != null) {
-        if (isSortie) { if (list[idx].kmFin == null) { list[idx].kmFin = k; list[idx].kmFinManuel = true; did = true; } }
-        else { if (list[idx].kmDebut == null) { list[idx].kmDebut = k; list[idx].kmDebutManuel = true; did = true; } }
+        if (isSortie) { if (list[idx].kmFin !== k) { list[idx].kmFin = k; list[idx].kmFinManuel = true; did = true; } }
+        else { if (list[idx].kmDebut !== k) { list[idx].kmDebut = k; list[idx].kmDebutManuel = true; did = true; } }
       }
       // 🔗 DATE DE REMISE (demande utilisateur) : la date de l'état des lieux de remise SIGNÉ devient la
       // date de début de la période — comme le km. On l'applique quand elle est VALIDE (AAAA-MM-JJ complète)
       // et qu'elle remplace une date AUTO (mise en circulation / estimation) ; on NE touche JAMAIS une date
       // SAISIE À LA MAIN (debutManuel). Ainsi on est sûr de ne pas se tromper : c'est la date du document.
       const d = (date && /^\d{4}-\d{2}-\d{2}$/.test(String(date).slice(0, 10))) ? String(date).slice(0, 10) : null;
-      if (!isSortie && d && !list[idx].debutManuel && list[idx].debut !== d) { list[idx].debut = d; did = true; }
+      // ⚠️ DATE : on ne REMPLIT que si la date de début est VIDE, ou on CORRIGE seulement vers une date PLUS
+      // ANCIENNE. On ne POUSSE JAMAIS le début vers l'avant — sinon un EDL généré lors d'une COLLECTE de km
+      // (daté du jour de la collecte) écrasait la vraie date de remise et faussait la période (bug signalé).
+      if (!isSortie && d && !list[idx].debutManuel && (!list[idx].debut || d < list[idx].debut)) { list[idx].debut = d; did = true; }
       if (did || k != null) FP.settings.save(s);                       // on persiste aussi le marqueur « manuel »
       return did;
     } catch (e) { return false; }
