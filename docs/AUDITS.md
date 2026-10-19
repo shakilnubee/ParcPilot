@@ -94,6 +94,78 @@ et par flux** — pas seulement par thème :
 
 ---
 
+## ✅ Base de référence — failles déjà corrigées (audit sécurité François, 10/2026)
+
+> **À lire AVANT de relancer l'audit sécurité (#1) et isolation (#4).** Ces points ont été audités
+> puis corrigés par **François** (conseil technique du projet) en octobre 2026. Un auditeur qui les
+> « re-trouve » fait un **faux positif** : vérifier d'abord qu'ils sont toujours fermés plutôt que
+> de les signaler comme neufs. Le suivi détaillé, maintenu et partageable est dans **`SUIVI-PROJET.md`**
+> (racine du dépôt) ; détail technique appliqué en prod dans `supabase/migrations/JOURNAL.md`.
+> Ce bloc est un **mémo de l'audit**, pas la source — en cas d'écart, `SUIVI-PROJET.md` fait foi.
+
+**Phase 0 — audit complet en lecture seule (16/10/2026).** Dépôt GitHub, code, historique Git
+(887 commits) et base Supabase audités. **Aucun secret** trouvé dans le code ni l'historique. Constats
+classés par gravité, plan priorisé remis.
+
+### Corrigé et EN PRODUCTION ✅
+
+- **① Accès anonyme aux fichiers — FERMÉ (16/10).** Une règle de storage laissait lister/télécharger
+  des documents **sans connexion**. Supprimée, accès anonyme revérifié = rien n'est visible. Copie des
+  règles faite avant intervention, retour arrière documenté. **Test automatique quotidien** de l'accès
+  anonyme (GitHub Actions). → *Auditeur #1 : ne pas re-signaler l'accès public storage comme ouvert.*
+- **② Vue des QR codes — passée en LECTURE SEULE (16/10).** Elle était modifiable sans connexion.
+  Désormais lecture seule. **La lecture publique est CONSERVÉE volontairement** (décision du responsable :
+  les infos QR n'ont pas vocation à être privées — cf. `carte.html`). → *Auditeur #1 : la lecture publique
+  du QR est un CHOIX, pas une faille ; ne pas re-proposer de la fermer.*
+- **③ Cloisonnement des fichiers entre sociétés — APPLIQUÉ EN PROD (17/10).** Les nouveaux fichiers sont
+  rangés dans un **dossier par société** ; chaque compte n'accède qu'aux fichiers de sa société, le CEO
+  voit tout. Les fichiers existants restent en place et réservés à PXP (aucun lien cassé). Prouvé sur le
+  staging : **14 fuites avant → 0 après**. Vérifié dans l'app avec un compte Gestionnaire PXP : les **639
+  fichiers** référencés s'ouvrent tous. PR #985/#987/#988 fusionnées, règle appliquée après copie des
+  règles précédentes. → *Auditeur #4 : le cloisonnement fichiers est en place côté serveur.*
+- **④ Isolation multi-sociétés — TEST QUOTIDIEN 58/58 ✅.** Test automatique : connecté comme une société
+  de test, il vérifie qu'on ne peut ni lire, ni modifier, ni créer, ni supprimer chez l'autre société, ni
+  changer de société, ni s'octroyer des droits CEO. Tourne chaque jour + à chaque migration de base.
+  **58/58 vérifications réussies.** → *Auditeur #4 : l'isolation RLS est testée en continu.*
+- **⑤ « Deux tiroirs » app_settings — RÉSOLU + GELÉ (16/10).** Cause d'une partie des données qui
+  « reviennent » : les réglages PXP existaient en **deux exemplaires** (`global` historique + `PXP`), et
+  certains appareils écrivaient dans l'ancien après une coupure réseau → divergence. Analyse clé par clé :
+  la ligne de référence était la plus complète. L'app n'utilise plus qu'un exemplaire ; **l'ancien est gelé
+  par un trigger base** (écriture refusée, conservé en archive). → *Auditeurs #5/#9 : la ligne `global`
+  est volontairement en lecture seule — une écriture refusée dessus est le comportement ATTENDU.*
+- **⑥ Vidage des réglages à la connexion — CAUSE CORRIGÉE + GARDE-FOU (17/10).** Observé en direct : cache
+  navigateur vide → l'app pouvait renvoyer en base une copie **quasi vide** des réglages (28 clés au lieu
+  de 97) en remplacement complet si on changeait de page juste après (effaçait congés/affectations/
+  contrats/assurances pour un admin). Deux correctifs : **(a) garde-fou en base** (refuse toute écriture
+  qui supprimerait d'un coup une part importante des réglages / viderait une liste ou le profil société),
+  **(b) correction de la cause dans le code** — une écriture en attente ne pousse plus que ce que
+  l'utilisateur a réellement changé, la version serveur l'emporte (règle anti-perte ④/⑥ du `CLAUDE.md`).
+  **11 tests automatiques** reproduisent l'incident + cas multi-appareils, lancés à chaque PR. PR #992.
+  → *Auditeurs #5/#9/#13e : ne pas re-signaler ce scénario, il est testé.*
+
+### Corrections à l'audit initial (faux constats levés)
+
+- L'organisation Supabase est bien sur le **plan Pro**, avec **sauvegardes quotidiennes** (mais **hors
+  fichiers** — cf. point ouvert ci-dessous).
+- Le déploiement automatique des Edge Functions **fonctionnait** ; sa condition a été rendue robuste au
+  nom du dépôt (renommage `autoflotte`→`ParcPilot`).
+
+### Encore OUVERT — à NE PAS considérer comme réglé (l'audit doit continuer à les suivre)
+
+- 🟠 **Sauvegardes** : la sauvegarde quotidienne Supabase **n'inclut pas les fichiers** ; sauvegarde hors
+  Supabase (base **et** fichiers) + procédure de restauration écrite **et testée** = à faire (→ auditeur #23).
+- 🟠 **GitHub** : **branche `main` pas encore protégée** (PR + tests obligatoires à activer).
+- 🟠 **QR public liste TOUS les véhicules** : acceptable aujourd'hui, à **restreindre au véhicule scanné**
+  avant l'arrivée de plusieurs clients (→ auditeur #1/#4, gravité moyenne).
+- 🟠 **`app_settings` = données métier mêlées à la config dans un gros blob JSON** : une fonction serveur
+  réécrit encore le bloc entier (risque de perte en écritures simultanées). À traiter avec la **migration
+  des données** vers de vraies tables (congés, affectations, contrats, assurances…) puis suppression du
+  système de fusion « maison » (→ auditeurs #9/#13). ⚠️ `CLAUDE.md` interdit de re-durcir `app_settings`
+  côté base tant que config et données de travail ne sont pas séparées en lignes distinctes.
+- 🟡 **États des lieux vides (0 km)** parfois créés automatiquement : à investiguer (hors sécurité).
+
+---
+
 ## 1. Sécurité & contrôle d'accès
 Secrets exposés (clé `service_role`), gating de rôles CEO/Admin/Gestionnaire/
 Chauffeur cohérent et non contournable, **XSS** (données saisies/OCR en `innerHTML`
