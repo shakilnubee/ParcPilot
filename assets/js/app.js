@@ -4425,8 +4425,8 @@ FP.mailObjetL = function (defKey, tags, lang) {
 // Champs du profil société (rendu générique : le formulaire de Paramètres itère dessus).
 // Un champ avec `default` est PRÉ-REMPLI avec ce texte quand la valeur est vide (l'utilisateur le voit).
 FP.PROFIL_CHAMPS = [
-  { key: 'mailExpediteur',     label: "E-mail d'envoi des amendes",       type: 'email', ph: 'ex. contact@masociete.fr' },
-  { key: 'mailCopie',          label: 'E-mails en copie (séparés par ,)', type: 'text',  ph: 'ex. compta@masociete.fr, direction@masociete.fr' },
+  { key: 'mailExpediteur',     label: "E-mail d'envoi (amendes, EDL, réponses conducteur…)", type: 'email', ph: 'ex. contact@masociete.fr' },
+  { key: 'mailCopie',          label: 'E-mails TOUJOURS en copie de tous les envois (séparés par ,)', type: 'text',  ph: 'ex. compta@masociete.fr, direction@masociete.fr' },
   // Signataire côté SOCIÉTÉ pour les états des lieux (reçoit le lien Yousign pour signer « pour la
   // société »). Propre à chaque société (le titulaire change d'une société à l'autre).
   { key: 'edlSignataireNom',   label: 'États des lieux — signataire société (nom)',   type: 'text',  ph: 'ex. Prénom Nom — la personne qui signe côté société' },
