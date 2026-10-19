@@ -34,6 +34,15 @@
   /* Retrait FLUIDE d'une carte quand on clique « Vu »/« Ignorer » (plus de reconstruction/clignotement de toute la liste) */
   .notif-card-wrap { transition: opacity .2s ease, max-height .3s ease, margin .3s ease, transform .2s ease; overflow: hidden; }
   .notif-card-wrap.removing { opacity: 0; max-height: 0 !important; margin-top: 0 !important; margin-bottom: 0 !important; transform: translateX(8px); }
+  /* ===== Barre d'onglets = contrôle segmenté (même style que le reste de la plateforme : page Contrôle) ===== */
+  .notif-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
+  .notif-tab { display:inline-flex; align-items:center; gap:.5rem; padding:.55rem .95rem; border-radius:.65rem; border:none; background:none; cursor:pointer; font-weight:700; font-size:.9rem; color:var(--fp-muted); white-space:nowrap; transition:background .12s, color .12s, box-shadow .12s; }
+  .notif-tab:hover { background:#F1F5F9; color:var(--fp-primary); }
+  .notif-tab:focus-visible { outline:2px solid var(--fp-accent); outline-offset:2px; }
+  .notif-tab.active { background:var(--fp-primary); color:#fff; box-shadow:0 8px 18px -10px rgba(15,30,61,.55); }
+  body.fp-dark .notif-tabs { background:var(--fp-surface); }
+  body.fp-dark .notif-tab { color:#cbd5e1; }
+  body.fp-dark .notif-tab:hover { background:#1e293b; color:#fff; }
 </style>
 <script>
 (function(){
@@ -125,16 +134,16 @@
       <a href="calendrier.html" class="btn btn-outline text-sm"><i data-lucide="calendar-days" class="w-4 h-4"></i> Vue calendrier</a>
     </div>
 
-    <div class="flex gap-1 border-b border-slate-200 mb-6" id="notif-tabbar" style="overflow-x:auto">
-      <button type="button" id="tab-alertes" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid var(--fp-accent);color:var(--fp-primary);cursor:pointer">🔔 Alertes</button>
-      <button type="button" id="tab-relances" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">📣 Relances</button>
+    <div class="notif-tabs" id="notif-tabbar" role="tablist" aria-label="Sections du suivi">
+      <button type="button" id="tab-alertes" class="notif-tab active">🔔 Alertes</button>
+      <button type="button" id="tab-relances" class="notif-tab">📣 Relances</button>
       <!-- Relevé KM a DÉMÉNAGÉ dans Contrôle → bouton masqué ici (plus dans « Suivi & alertes »). Le
            contenu reste (affiché en embed depuis Contrôle via ?embed&tab=relevekm). -->
-      <button type="button" id="tab-relevekm" style="display:none;padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">📏 Relevé KM</button>
-      <button type="button" id="tab-echeances" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">🔄 Renouvellements</button>
-      <button type="button" id="tab-complet" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">📝 À compléter</button>
-      <button type="button" id="tab-suivi" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">📋 Suivi flotte</button>
-      <button type="button" id="tab-decisions" style="padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;cursor:pointer">💡 Décisions</button>
+      <button type="button" id="tab-relevekm" class="notif-tab" style="display:none">📏 Relevé KM</button>
+      <button type="button" id="tab-echeances" class="notif-tab">🔄 Renouvellements</button>
+      <button type="button" id="tab-complet" class="notif-tab">📝 À compléter</button>
+      <button type="button" id="tab-suivi" class="notif-tab">📋 Suivi flotte</button>
+      <button type="button" id="tab-decisions" class="notif-tab">💡 Décisions</button>
     </div>
 
     <div id="suivi-decisions" class="hidden"></div>
@@ -1598,7 +1607,7 @@
     document.getElementById('suivi-complet').classList.toggle('hidden', which !== 'complet');
     document.getElementById('suivi-flotte').classList.toggle('hidden', which !== 'suivi');
     document.getElementById('relances').classList.toggle('hidden', which !== 'relances');
-    [[tabD, 'decisions'], [tabA, 'alertes'], [tabK, 'relevekm'], [tabE, 'echeances'], [tabC, 'complet'], [tabS, 'suivi'], [tabR, 'relances']].forEach(([t, w]) => { if (!t) return; const on = w === which; t.style.borderBottomColor = on ? 'var(--fp-accent)' : 'transparent'; t.style.color = on ? 'var(--fp-primary)' : '#94A3B8'; });
+    [[tabD, 'decisions'], [tabA, 'alertes'], [tabK, 'relevekm'], [tabE, 'echeances'], [tabC, 'complet'], [tabS, 'suivi'], [tabR, 'relances']].forEach(([t, w]) => { if (!t) return; t.classList.toggle('active', w === which); });
     if (which === 'decisions') renderDecisions();
     if (which === 'echeances') renderEcheances();
     if (which === 'complet') renderComplet();
