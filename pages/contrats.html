@@ -2408,7 +2408,15 @@
     const bNumAi = e.target.closest('[data-contrat-num-ai]');
     if (bNumAi) {
       const immat = bNumAi.getAttribute('data-contrat-num-ai');
-      const d0 = (allContratDocs(immat) || [])[0];
+      let d0 = (allContratDocs(immat) || [])[0];
+      // Repli LOCALEASE (LLD) : les contrats Ayvens/Localease stockent leurs PDF sur l'objet contrat (c.docs).
+      if (!d0 || !d0.url) {
+        try {
+          const lc = (getLocalease() || []).find(c => FP.normImmat(c && (c.immat || (typeof autoImmatLoc === 'function' ? autoImmatLoc(c) : ''))) === FP.normImmat(immat));
+          const dd = lc && (Array.isArray(lc.docs) ? lc.docs : (lc.pdfUrl ? [{ url: lc.pdfUrl }] : []));
+          if (dd && dd[0] && dd[0].url) d0 = dd[0];
+        } catch (e) {}
+      }
       if (!d0 || !d0.url) { if (FP.toast) FP.toast('Aucun PDF de contrat à lire.'); return; }
       if (!(window.FP && FP.scanIA)) { if (FP.toast) FP.toast('Lecture IA indisponible (connexion requise).'); return; }
       const PROMPT = [
@@ -4282,7 +4290,14 @@
       const _restitImmat = c.immat || autoImmatLoc(c);
       const _restitInFleet = _restitImmat && (data.vehicules || []).some(v => normPlaque(v.immat) === normPlaque(_restitImmat));
       const restitBtn = _restitInFleet ? ` <button type="button" class="btn btn-outline" style="padding:2px 8px;font-size:11px;margin-top:2px" data-loc-restit="${escC(_restitImmat)}" title="Checklist de restitution (compte à rebours 120/90/60/30 j)"><i data-lucide="clipboard-check" class="w-3 h-3"></i> Restitution</button>` : '';
-      const lienCell = docsHtml
+      // N° de contrat (même zone éditable que les lignes BPCE) — clé par immat du contrat Localease.
+      const _locNum = _restitImmat ? (((FP.settings.get().leasingNumero) || {})[FP.normImmat(_restitImmat)] || '') : '';
+      const locNumZone = _restitImmat ? `<div class="flex items-center gap-1" style="margin-bottom:4px;max-width:180px;margin-left:auto;margin-right:auto">
+          <span style="font-size:10px;color:var(--fp-muted);flex-shrink:0">N°</span>
+          <button type="button" data-contrat-num="${escC(_restitImmat)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:${_locNum ? 'var(--fp-text)' : 'var(--fp-accent)'};font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;font-weight:${_locNum ? '600' : '400'}" title="Cliquer pour saisir / modifier le n° de contrat">${_locNum ? escC(_locNum) : '+ n° de contrat'}</button>
+          ${docs.length ? `<button type="button" data-contrat-num-ai="${escC(_restitImmat)}" class="text-slate-400 hover:text-indigo-600 flex-shrink-0" title="Lire le n° de contrat depuis le PDF (IA)" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;line-height:1">🤖</button>` : ''}
+        </div>` : '';
+      const lienCell = locNumZone + docsHtml
         + `<button type="button" class="btn btn-outline" style="padding:2px 9px;font-size:11px;margin-top:2px" data-loc-up="${i}"><i data-lucide="upload" class="w-3 h-3"></i> ${docs.length ? 'Ajouter un doc' : '+ téléverser'}</button>`
         + restitBtn
         + ` <button type="button" class="btn btn-outline" style="padding:2px 8px;font-size:11px;margin-top:2px" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3 h-3 text-red-600"></i></button>`;
@@ -4315,7 +4330,7 @@
       // avaient des boutons différents dans la dernière colonne.
       const _upBtn = `<button type="button" class="btn btn-outline text-xs !px-2" data-loc-up="${i}" title="Téléverser le contrat de leasing (PDF)"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
       const _restitBtn2 = _restitInFleet ? `<button type="button" class="btn btn-outline text-xs !px-2" data-loc-restit="${escC(_restitImmat)}" title="Checklist de restitution (compte à rebours 120/90/60/30 j)"><i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i></button>` : '';
-      const actionsHtml = `${docsHtml}${_upBtn}${_restitBtn2}<button type="button" class="btn btn-outline text-xs !px-2" data-loc-edit="${i}" title="Modifier le contrat (forfait km, durée, loyer, dates…)"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button><button type="button" class="btn btn-outline text-xs !px-2" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-600"></i></button>`;
+      const actionsHtml = `${locNumZone}${docsHtml}${_upBtn}${_restitBtn2}<button type="button" class="btn btn-outline text-xs !px-2" data-loc-edit="${i}" title="Modifier le contrat (forfait km, durée, loyer, dates…)"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button><button type="button" class="btn btn-outline text-xs !px-2" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-600"></i></button>`;
       // ⚠️ MÊMES CLASSES DE CELLULES QUE LES LIGNES BPCE (l'alignement des colonnes est géré une seule
       // fois par le CSS scopé [data-section="leasing"] → pas de text-align inline à ré-appliquer ici).
       const tr = `<tr>
