@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -419,8 +419,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019g"></script>
-<script src="../assets/js/supabase-client.js?v=20261019g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -436,11 +436,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261019g"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -764,7 +764,7 @@
             </div>
             <div class="sin-courrier-status text-xs mt-1" data-key="${g.key}"></div>
             <div class="sin-constat-status text-xs mt-1" data-key="${g.key}"></div>
-            ${g.cost ? `<div class="text-xs text-slate-500 mt-2">Coût ${FP.euroPrecis(g.cost)}${Number(dv.rembourse) ? ` · remboursé ${FP.euroPrecis(dv.rembourse)}` : ''} → <b style="color:${reste > 0 ? '#b45309' : '#047857'}">reste à charge ${FP.euroPrecis(Math.max(0, reste))}</b></div>` : ''}
+            ${g.cost ? `<div class="text-xs text-slate-500 mt-2">Coût ${FP.euroPrecis(g.cost)}${Number(dv.rembourse) ? ` · remboursé ${FP.euroPrecis(dv.rembourse)}` : ((cur === 'rembourse' || cur === 'pec') ? ` · <span style="color:#047857;font-weight:700">${cur === 'pec' ? 'pris en charge (assurance)' : 'remboursé (assurance)'}</span>` : '')} → <b style="color:${reste > 0 ? '#b45309' : '#047857'}">reste à charge ${FP.euroPrecis(Math.max(0, reste))}</b></div>` : ''}
             <div class="mt-2">
               <button type="button" class="sin-cloturer" data-key="${g.key}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;border-radius:8px;padding:4px 10px;cursor:pointer;${dv.dateCloture ? 'color:#475569;background:#fff;border:1px solid var(--fp-border)' : 'color:#047857;background:#ECFDF5;border:1px solid #A7F3D0'}"><i data-lucide="${dv.dateCloture ? 'rotate-ccw' : 'check-circle-2'}" class="w-3.5 h-3.5"></i> ${dv.dateCloture ? 'Rouvrir le dossier' : 'Clôturer le dossier'}</button>
             </div>
@@ -813,7 +813,7 @@
                 <button type="button" data-sin-depose="${s.id}" data-key="${g.key}" title="Déposer la facture de réparation de CET accident : l'IA lit le montant et la rattache à cet incident (sans créer de doublon)" class="inline-flex items-center gap-1 text-xs font-semibold" style="color:var(--fp-accent)"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer la facture</button>
                 <button type="button" data-sin-assoc="${g.key}" title="Associer un devis / une facture déjà enregistré" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Associer</button>
                 ${multi ? '' : docLink(s.fileId, false)}
-                ${multi ? '' : `<button type="button" data-sin-pdf="${s.id}" title="Générer le rapport PDF (avec photos) à envoyer à l'assurance" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>`}
+                <button type="button" data-sin-pdf="${s.id}" title="Générer le rapport PDF (avec photos) à envoyer à l'assurance" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>
                 ${multi ? '' : `<button type="button" data-sin-del="${s.id}" title="Supprimer ce sinistre" class="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>`}
               </div>
             </div>
@@ -1164,6 +1164,16 @@
       const attMap = new Map();
       allDocs.forEach(x => { if (x.url) attMap.set(x.url, { url: x.url, label: x.label || '', isConstat: /constat/i.test(x.label || '') }); });
       if (dv.constatUrl) { const ex = attMap.get(dv.constatUrl); if (ex) ex.isConstat = true; else attMap.set(dv.constatUrl, { url: dv.constatUrl, label: 'Constat amiable', isConstat: true }); }
+      // ⚠️ Inclure AUSSI les photos envoyées par le conducteur depuis le QR (table declarations_conducteur) :
+      // selon le parcours de création, elles ne sont pas toujours recopiées dans les documents du dossier.
+      // On les ajoute ici (dédoublonnées par URL via attMap) → le rapport montre TOUJOURS toutes les photos
+      // du conducteur. Source : DeclCond.rows (toutes les déclarations de la société, même traitées).
+      try {
+        (DeclCond.rows || []).filter(dcl => dcl && dcl.plaque && (FP.immatEq ? FP.immatEq(dcl.plaque, s.vehiculeImmat) : (FP.normImmat(dcl.plaque) === FP.normImmat(s.vehiculeImmat)))).forEach(dcl => {
+          let ph = []; try { ph = Array.isArray(dcl.photos) ? dcl.photos : JSON.parse(dcl.photos || '[]'); } catch (_) { ph = []; }
+          ph.forEach(u => { if (u && !attMap.has(u)) attMap.set(u, { url: u, label: 'Photo conducteur' }); });
+        });
+      } catch (_) {}
       const attachments = [...attMap.values()];
       DeclCond.exportPdf({ id: s.id, type: 'sinistre', plaque: s.vehiculeImmat || '', created_at: s.date || '', date_incident: s.date ? FP.date(s.date) : '', lieu: dv.lieu || '', description: desc, tiers: tiers, conducteur: dv.conducteur || '', blesses: '', attachments: attachments }, sinPdf);
       return;
