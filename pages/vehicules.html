@@ -4997,6 +4997,14 @@
     } else {
       el.addEventListener('change', () => commit(true));
     }
+    // ⚠️ CHAMPS DATE — « je clique la date, ça me quitte / ça ne me laisse pas » : avant, le 1er clic ne
+    // créait qu'un <input type=date> NATIF (il fallait RE-cliquer pour ouvrir le calendrier, et taper
+    // l'année segment par segment éjectait en pleine frappe). On ouvre maintenant DIRECTEMENT le
+    // calendrier FP.datePicker au 1er clic → 1 clic = calendrier = on choisit = enregistré. Le choix émet
+    // un 'change' (date complète valide) capté ci-dessus par commit(). Vérifié (repro Playwright).
+    if (type === 'date' && window.FP && FP.datePicker && FP.datePicker.open) {
+      try { FP.datePicker.open(el); } catch (e) {}
+    }
   }
 
   let _rowClickTimer = null;
