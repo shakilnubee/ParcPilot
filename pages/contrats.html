@@ -203,6 +203,7 @@
     </div>
     <div class="flex flex-wrap justify-end items-center gap-4 mb-8">
       <div class="flex items-center gap-3">
+        <button id="btn-releve-contrat" type="button" class="btn btn-outline text-sm" title="Relevé PDF / Excel de l'onglet affiché — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <span data-data-io></span>
       </div>
     </div>
@@ -2163,7 +2164,9 @@
   // Lignes d'export CSV/Excel = assurance (1 ligne/véhicule) + TOUTES les unités leasing (source unique).
   // Onglet actif (Leasing / Assurance) — l'export ne sort QUE les données de l'onglet affiché
   // (leasing → aucune ligne assurance, et inversement). Consigne explicite de l'utilisateur.
-  function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : 'leasing'; } catch (e) { return 'leasing'; } }
+  // ⚠️ Onglet ACTIF réel (pour que l'export/relevé concerne CE qu'on regarde) : assurance / cadre / leasing.
+  // Avant, seul « assurance » était reconnu → sur l'onglet « Contrats cadre » l'export sortait du LEASING (bug).
+  function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : (t === 'cadre') ? 'cadre' : 'leasing'; } catch (e) { return 'leasing'; } }
   // Lignes LEASING (toutes les unités : BPCE + Ayvens/LLD, source unique leasingUnitsAll).
   function leasingExportRows() {
     return leasingUnitsAll().map(u => ({
@@ -2212,13 +2215,64 @@
     { key: 'primeHT',   label: 'Prime HT/an (€)', format: FP.csv.numFormat },
     { key: 'primeTTC',  label: 'Prime TTC/an (€)', format: FP.csv.numFormat },
   ];
+  // Lignes CONTRATS CADRE (accords prestataires) — source unique FP.contratsCadre (synchro + anti-perte).
+  function cadreExportRows() {
+    return (FP.contratsCadre && FP.contratsCadre.list ? FP.contratsCadre.list() : []).map(c => ({
+      intitule: String(c.intitule || '').trim() || (FP.contratCadreTypeLabel ? FP.contratCadreTypeLabel(c.type) : (c.type || '')),
+      type: FP.contratCadreTypeLabel ? FP.contratCadreTypeLabel(c.type) : (c.type || ''),
+      prestataire: c.prestataire || '',
+      numero: c.numero || '',
+      debut: c.dateDebut ? _fmtDateExp(c.dateDebut) : '',
+      fin: c.dateFin ? _fmtDateExp(c.dateFin) : '',
+      montant: (c.montant != null && c.montant !== '') ? c.montant : '',
+      periode: c.periode === 'mois' ? 'par mois' : 'par an',
+      coutAnnuel: (FP.contratCadreCoutAnnuel ? Math.round(FP.contratCadreCoutAnnuel(c)) : ''),
+      paysEntite: c.paysEntite || '',
+      perimetre: (Array.isArray(c.vehicules) && c.vehicules.length) ? c.vehicules.join(' · ') : 'Toute la flotte',
+      statut: (c.statut && c.statut !== 'actif') ? (c.statut === 'resilie' ? 'résilié' : 'en renégociation') : 'actif',
+      garanties: c.garanties || '',
+    }));
+  }
+  const CADRE_COLS = [
+    { key: 'intitule',    label: 'Intitulé' },
+    { key: 'type',        label: 'Type' },
+    { key: 'prestataire', label: 'Prestataire' },
+    { key: 'numero',      label: 'N° de contrat' },
+    { key: 'debut',       label: 'Début' },
+    { key: 'fin',         label: 'Fin' },
+    { key: 'montant',     label: 'Montant (€)', format: FP.csv.numFormat },
+    { key: 'periode',     label: 'Périodicité' },
+    { key: 'coutAnnuel',  label: 'Coût annuel (€)', format: FP.csv.numFormat },
+    { key: 'paysEntite',  label: 'Pays / entité' },
+    { key: 'perimetre',   label: 'Périmètre' },
+    { key: 'statut',      label: 'Statut' },
+    { key: 'garanties',   label: 'Garanties' },
+  ];
+  function ctabCols()  { const t = activeCtab(); return t === 'assurance' ? ASSUR_COLS : t === 'cadre' ? CADRE_COLS : LEASING_COLS; }
+  function ctabRows()  { const t = activeCtab(); return t === 'assurance' ? assuranceExportRows() : t === 'cadre' ? cadreExportRows() : leasingExportRows(); }
+  function ctabTitle() { const t = activeCtab(); return t === 'assurance' ? 'Assurance — état de parc' : t === 'cadre' ? 'Contrats cadre' : 'Contrats de leasing'; }
   FP.injectDataIO({
     exportOnly: true,
     // Nom de fichier + colonnes + lignes = ceux de l'onglet AFFICHÉ (évalués au clic sur Exporter).
     filename: () => `parc-pilot-${activeCtab()}-${new Date().toISOString().slice(0, 10)}.csv`,
-    columns: () => activeCtab() === 'assurance' ? ASSUR_COLS : LEASING_COLS,
-    getRows: () => activeCtab() === 'assurance' ? assuranceExportRows() : leasingExportRows(),
+    columns: ctabCols,
+    getRows: ctabRows,
   });
+  // Relevé PDF / Excel / CSV configurable (colonnes au choix + réordonnables) — concerne l'ONGLET ACTIF.
+  function toFicheCols(cols) {
+    return cols.map(c => { const isNum = c.format === FP.csv.numFormat; return {
+      id: c.key, label: c.label, def: true, align: isNum ? 'right' : undefined,
+      get: r => { const v = r[c.key]; if (v == null || v === '') return ''; return c.format ? c.format(v) : String(v); },
+      num: isNum ? (r => { const n = Number(r[c.key]); return isNaN(n) ? null : n; }) : undefined,
+    }; });
+  }
+  function openContratReleve() {
+    if (!(FP.fiche && FP.fiche.open)) { alert('Relevé indisponible — recharge la page (Ctrl+Maj+R).'); return; }
+    const rows = ctabRows();
+    if (!rows.length) { if (FP.toast) FP.toast('Aucune ligne à exporter sur cet onglet.'); else alert('Aucune ligne à exporter.'); return; }
+    FP.fiche.open({ key: 'contrats-' + activeCtab(), title: ctabTitle(), cols: toFicheCols(ctabCols()), rows });
+  }
+  { const b = document.getElementById('btn-releve-contrat'); if (b) b.addEventListener('click', openContratReleve); }
 
   // ---------- Édition du forfait leasing ----------
   let leaseEditImmat = null;
