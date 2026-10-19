@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019f">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -121,6 +121,7 @@
     </div>
     <div class="flex flex-wrap justify-end items-center gap-3 mb-8">
       <span data-data-io></span>
+      <button type="button" class="btn btn-outline text-sm" id="btn-releve-ent" title="Relevé PDF / Excel — colonnes au choix, réordonnables, filtrable par période"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
       <button type="button" class="btn btn-dark text-sm" onclick="document.getElementById('garage-modal').classList.add('open')"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacter le garage</button>
     </div>
 
@@ -546,8 +547,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019e"></script>
-<script src="../assets/js/supabase-client.js?v=20261019e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019f"></script>
+<script src="../assets/js/supabase-client.js?v=20261019f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -563,10 +564,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261019e"></script>
+<script src="../assets/js/app.min.js?v=20261019f"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -958,22 +959,30 @@
     });
   }
 
+  const ENT_EXPORT_COLS = [
+    { key: 'date',          label: 'Date' },
+    { key: 'vehiculeImmat', label: 'Véhicule' },
+    { key: 'description',   label: 'Description' },
+    { key: 'fournisseur',   label: 'Garage' },
+    { key: 'type',          label: 'Type' },
+    { key: 'km',            label: 'Km', format: FP.csv.numFormat },
+    { key: 'montantTTC',    label: 'TTC (€)', format: FP.csv.numFormat },
+    { key: 'numeroFacture', label: 'N° facture' },
+    { key: 'fileName',      label: 'Fichier', def: false },
+  ];
   FP.injectDataIO({
     exportOnly: true,
     filename: `parc-pilot-entretiens-${new Date().toISOString().slice(0,10)}.csv`,
-    columns: [
-      { key: 'date',          label: 'Date' },
-      { key: 'vehiculeImmat', label: 'Véhicule' },
-      { key: 'description',   label: 'Description' },
-      { key: 'fournisseur',   label: 'Garage' },
-      { key: 'type',          label: 'Type' },
-      { key: 'km',            label: 'Km', format: FP.csv.numFormat },
-      { key: 'montantTTC',    label: 'TTC (€)', format: FP.csv.numFormat },
-      { key: 'numeroFacture', label: 'N° facture' },
-      { key: 'fileName',      label: 'Fichier' },
-    ],
+    columns: ENT_EXPORT_COLS,
     getRows: () => filtered(),
   });
+  // Relevé PDF / Excel / CSV (colonnes au choix + réordonnables + filtre période sur la date).
+  { const b = document.getElementById('btn-releve-ent'); if (b) b.addEventListener('click', () => {
+      if (!(FP.fiche && FP.fiche.open)) { alert('Relevé indisponible — recharge (Ctrl+Maj+R).'); return; }
+      const rows = filtered();
+      if (!rows.length) { if (FP.toast) FP.toast('Aucun entretien à exporter.'); else alert('Aucun entretien.'); return; }
+      FP.fiche.open({ key: 'entretiens', title: 'Relevé des entretiens & réparations', cols: FP.ficheColsFromExport(ENT_EXPORT_COLS), rows, date: i => i.date });
+    }); }
 
   // Wiring
   $('ent-more').addEventListener('click', e => { if (e.target.closest('#ent-toggle')) { entExpanded = !entExpanded; renderTable(); } });

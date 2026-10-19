@@ -16026,6 +16026,12 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       + '<button id="fp-fiche-x" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button></div>'
       + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin:14px 0 4px">Titre de la fiche</label>'
       + '<input id="fp-fiche-title" type="text" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;font-size:14px;color:#0f172a">'
+      + '<div id="fp-fiche-period" style="display:none;margin-top:13px">'
+      + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px">Période <span style="font-weight:400;color:#94a3b8">(vide = tout)</span></label>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span style="font-size:13px;color:#64748b">Du</span><input id="fp-fiche-du" type="date" style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 10px;font-size:14px;color:#0f172a">'
+      + '<span style="font-size:13px;color:#64748b">au</span><input id="fp-fiche-au" type="date" style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 10px;font-size:14px;color:#0f172a">'
+      + '<button id="fp-fiche-period-clear" type="button" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer;font-size:13px">Tout</button></div></div>'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 4px"><span style="font-size:12px;font-weight:600;color:#64748b">Colonnes</span>'
       + '<span style="font-size:12px"><button id="fp-fiche-all" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer">Tout</button> · <button id="fp-fiche-none" style="background:none;border:none;color:#64748b;font-weight:600;cursor:pointer">Rien</button></span></div>'
       + '<p style="font-size:11.5px;color:#94a3b8;margin:0 0 7px">Coche pour inclure · glisse <b>⠿</b> pour changer l\'ordre.</p>'
@@ -16058,6 +16064,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       const r = row.getBoundingClientRect(); const after = (e.clientY - r.top) / r.height > 0.5;
       colsBox.insertBefore(dragEl, after ? row.nextSibling : row);
     });
+    // Filtre par PÉRIODE (quand la page fournit une date par ligne) : met à jour le compteur en direct.
+    el.querySelector('#fp-fiche-period-clear').onclick = () => { el.querySelector('#fp-fiche-du').value = ''; el.querySelector('#fp-fiche-au').value = ''; updateScope(); };
+    el.querySelector('#fp-fiche-du').addEventListener('change', updateScope);
+    el.querySelector('#fp-fiche-au').addEventListener('change', updateScope);
 
     // --- Modale 2 : aperçu PDF plein écran ---
     const pv = document.createElement('div');
@@ -16090,19 +16100,43 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     }, true);
   }
 
+  // Filtre les lignes selon la période saisie (si la page a fourni une date par ligne via config.date).
+  function periodFilter(rows) {
+    if (!cur || !cur.date || !modal) return rows;
+    const du = modal.querySelector('#fp-fiche-du').value, au = modal.querySelector('#fp-fiche-au').value;
+    if (!du && !au) return rows;
+    return rows.filter(r => { let d = cur.date(r); if (!d) return false; d = String(d).slice(0, 10); return (!du || d >= du) && (!au || d <= au); });
+  }
+  function periodLabelTxt() {
+    if (!cur || !cur.date || !modal) return '';
+    const du = modal.querySelector('#fp-fiche-du').value, au = modal.querySelector('#fp-fiche-au').value;
+    const f = (s) => s ? s.split('-').reverse().join('/') : '';
+    if (du && au) return ' · du ' + f(du) + ' au ' + f(au);
+    if (du) return ' · depuis le ' + f(du);
+    if (au) return ' · jusqu\'au ' + f(au);
+    return '';
+  }
+  function updateScope() {
+    if (!modal || !cur) return;
+    const n = periodFilter(cur.rows).length;
+    const sc = modal.querySelector('#fp-fiche-scope'); if (sc) sc.textContent = n + ' ligne(s)';
+  }
+
   function ctx() {
     // Ordre = ordre DES LIGNES dans la liste (réordonnées au glisser) ; inclusion = cases cochées.
-    const rows = Array.from(modal.querySelectorAll('#fp-fiche-cols .fp-fcol-row'));
-    const allIds = rows.map(r => r.dataset.id);
-    const ids = rows.filter(r => { const i = r.querySelector('input'); return i && i.checked; }).map(r => r.dataset.id);
+    const rowEls = Array.from(modal.querySelectorAll('#fp-fiche-cols .fp-fcol-row'));
+    const allIds = rowEls.map(r => r.dataset.id);
+    const ids = rowEls.filter(r => { const i = r.querySelector('input'); return i && i.checked; }).map(r => r.dataset.id);
     if (!ids.length) { alert('Choisis au moins une colonne.'); return null; }
     // Persistance (synchronisée) : colonnes cochées (ordre) + ordre complet de TOUTES les colonnes.
     try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = ids; s.ficheColsOrder[cur.key] = allIds; FP.settings.save(s); } catch (e) {}
     const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
+    const rows = periodFilter(cur.rows);
+    if (!rows.length) { alert('Aucune ligne sur cette période — élargis les dates (ou clique « Tout »).'); return null; }
     return {
       cols: ids.map(id => byId[id]).filter(Boolean),   // dans l'ordre choisi
-      title: (modal.querySelector('#fp-fiche-title').value || '').trim() || cur.title,
-      rows: cur.rows,
+      title: ((modal.querySelector('#fp-fiche-title').value || '').trim() || cur.title) + periodLabelTxt(),
+      rows: rows,
       today: new Date().toLocaleDateString('fr-FR'),
     };
   }
@@ -16223,8 +16257,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   FP.fiche = {
     open(config) {
       build();
-      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche' };
+      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche', date: (typeof config.date === 'function') ? config.date : null };
       if (!cur.rows.length) { alert('Aucune ligne à imprimer (vérifie les filtres / la sélection).'); return; }
+      // Bloc « Période » : affiché seulement si la page fournit une date par ligne (config.date). Remis à zéro.
+      { const pb = modal.querySelector('#fp-fiche-period'); if (pb) pb.style.display = cur.date ? 'block' : 'none'; const du = modal.querySelector('#fp-fiche-du'), au = modal.querySelector('#fp-fiche-au'); if (du) du.value = ''; if (au) au.value = ''; }
       let savedChecked, savedOrder;
       try { const st = FP.settings.get(); savedChecked = (st.ficheCols || {})[cur.key]; savedOrder = (st.ficheColsOrder || {})[cur.key]; } catch (e) {}
       // Ordre d'affichage = ordre mémorisé (colonnes connues), puis toute NOUVELLE colonne ajoutée à la fin ;
@@ -16250,6 +16286,21 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     },
   };
 })();
+
+// Convertit des colonnes d'export CSV/Excel ({key,label,format?,value?}) en colonnes FP.fiche
+// ({id,label,get,num,align}) → une page qui a déjà son export Excel obtient son Relevé PDF sans redéfinir
+// les colonnes. `format === FP.csv.numFormat` ⇒ colonne numérique (aligne à droite + valeur num pour Excel).
+FP.ficheColsFromExport = function (cols) {
+  return (cols || []).map(c => {
+    const isNum = c.format === FP.csv.numFormat;
+    const raw = (r) => (typeof c.value === 'function') ? c.value(r) : r[c.key];
+    return {
+      id: c.key, label: c.label, def: c.def !== false, align: isNum ? 'right' : undefined, mono: !!c.mono,
+      get: (r) => { const v = raw(r); if (v == null || v === '') return ''; return c.format ? c.format(v) : String(v); },
+      num: isNum ? (r) => { const n = Number(raw(r)); return isNaN(n) ? null : n; } : undefined,
+    };
+  });
+};
 
 // Aperçu PDF générique (réutilisable par n'importe quelle page) : montre un doc jsPDF dans une
 // iframe, avec Télécharger (un clic) + Imprimer + Fermer. Usage : FP.pdfPreview(doc, 'fichier.pdf', 'sous-titre').
