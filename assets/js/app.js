@@ -16026,12 +16026,16 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       + '<button id="fp-fiche-x" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button></div>'
       + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin:14px 0 4px">Titre de la fiche</label>'
       + '<input id="fp-fiche-title" type="text" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;font-size:14px;color:#0f172a">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px"><span style="font-size:12px;font-weight:600;color:#64748b">Colonnes</span>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 4px"><span style="font-size:12px;font-weight:600;color:#64748b">Colonnes</span>'
       + '<span style="font-size:12px"><button id="fp-fiche-all" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer">Tout</button> · <button id="fp-fiche-none" style="background:none;border:none;color:#64748b;font-weight:600;cursor:pointer">Rien</button></span></div>'
-      + '<div id="fp-fiche-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px"></div>'
-      + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap">'
+      + '<p style="font-size:11.5px;color:#94a3b8;margin:0 0 7px">Coche pour inclure · glisse <b>⠿</b> pour changer l\'ordre.</p>'
+      + '<div id="fp-fiche-cols" style="display:flex;flex-direction:column;gap:3px;max-height:46vh;overflow:auto"></div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap">'
       + '<button id="fp-fiche-cancel" class="btn btn-outline text-sm">Annuler</button>'
-      + '<button id="fp-fiche-apercu" class="btn btn-dark text-sm"><i data-lucide="eye" class="w-4 h-4"></i> Aperçu</button></div></div>';
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button id="fp-fiche-xlsx" class="btn btn-outline text-sm"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel</button>'
+      + '<button id="fp-fiche-csv" class="btn btn-outline text-sm">CSV</button>'
+      + '<button id="fp-fiche-apercu" class="btn btn-dark text-sm"><i data-lucide="eye" class="w-4 h-4"></i> Aperçu PDF</button></div></div></div>';
     document.body.appendChild(el);
     modal = el;
     const close = () => { el.style.display = 'none'; };
@@ -16041,6 +16045,19 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     el.querySelector('#fp-fiche-all').onclick = () => el.querySelectorAll('#fp-fiche-cols input').forEach(i => { i.checked = true; });
     el.querySelector('#fp-fiche-none').onclick = () => el.querySelectorAll('#fp-fiche-cols input').forEach(i => { i.checked = false; });
     el.querySelector('#fp-fiche-apercu').onclick = openPreview;
+    el.querySelector('#fp-fiche-xlsx').onclick = () => doExport('xlsx');
+    el.querySelector('#fp-fiche-csv').onclick = () => doExport('csv');
+    // Réordonnancement des colonnes par glisser-déposer (la ligne glissée se repositionne dans la liste).
+    const colsBox = el.querySelector('#fp-fiche-cols');
+    let dragEl = null;
+    colsBox.addEventListener('dragstart', (e) => { const row = e.target.closest('.fp-fcol-row'); if (!row) return; dragEl = row; row.style.opacity = '.4'; try { e.dataTransfer.effectAllowed = 'move'; } catch (x) {} });
+    colsBox.addEventListener('dragend', () => { if (dragEl) { dragEl.style.opacity = ''; dragEl = null; } });
+    colsBox.addEventListener('dragover', (e) => {
+      if (!dragEl) return; e.preventDefault();
+      const row = e.target.closest('.fp-fcol-row'); if (!row || row === dragEl) return;
+      const r = row.getBoundingClientRect(); const after = (e.clientY - r.top) / r.height > 0.5;
+      colsBox.insertBefore(dragEl, after ? row.nextSibling : row);
+    });
 
     // --- Modale 2 : aperçu PDF plein écran ---
     const pv = document.createElement('div');
@@ -16074,15 +16091,35 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   }
 
   function ctx() {
-    const ids = Array.from(modal.querySelectorAll('#fp-fiche-cols input:checked')).map(i => i.value);
+    // Ordre = ordre DES LIGNES dans la liste (réordonnées au glisser) ; inclusion = cases cochées.
+    const rows = Array.from(modal.querySelectorAll('#fp-fiche-cols .fp-fcol-row'));
+    const allIds = rows.map(r => r.dataset.id);
+    const ids = rows.filter(r => { const i = r.querySelector('input'); return i && i.checked; }).map(r => r.dataset.id);
     if (!ids.length) { alert('Choisis au moins une colonne.'); return null; }
-    try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheCols[cur.key] = ids; FP.settings.save(s); } catch (e) {}
+    // Persistance (synchronisée) : colonnes cochées (ordre) + ordre complet de TOUTES les colonnes.
+    try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = ids; s.ficheColsOrder[cur.key] = allIds; FP.settings.save(s); } catch (e) {}
+    const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
     return {
-      cols: cur.cols.filter(c => ids.includes(c.id)),
+      cols: ids.map(id => byId[id]).filter(Boolean),   // dans l'ordre choisi
       title: (modal.querySelector('#fp-fiche-title').value || '').trim() || cur.title,
       rows: cur.rows,
       today: new Date().toLocaleDateString('fr-FR'),
     };
+  }
+
+  // Export du contenu choisi (mêmes colonnes + même ordre que le PDF) en Excel ou CSV.
+  function doExport(kind) {
+    const c = ctx(); if (!c) return;
+    const cols = c.cols.map(col => ({ label: col.label, value: (r) => (col.num ? col.num(r) : col.get(r)), number: !!col.num }));
+    const base = (clean(c.title).replace(/[^\wÀ-ÿ \-]+/g, '').trim().replace(/\s+/g, '-') || 'export') + '_' + c.today.split('/').reverse().join('-');
+    try {
+      if (kind === 'xlsx') {
+        FP.xlsx.download(base + '.xlsx', cols, c.rows, { title: c.title, sheetName: clean(c.title).slice(0, 28) || 'Export' });
+      } else {
+        const ccols = c.cols.map((col, i) => ({ key: '_' + i, label: col.label, format: (_, r) => (col.num ? col.num(r) : col.get(r)) }));
+        FP.csv.download(base + '.csv', ccols, c.rows, { title: c.title });
+      }
+    } catch (e) { alert('Export impossible : ' + (e && e.message || e)); }
   }
 
   // Construit le PDF « à la sauce Parc Pilot » (bandeau arrondi, logo, accent, statuts colorés).
@@ -16188,10 +16225,23 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       build();
       cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche' };
       if (!cur.rows.length) { alert('Aucune ligne à imprimer (vérifie les filtres / la sélection).'); return; }
-      let saved; try { saved = (FP.settings.get().ficheCols || {})[cur.key]; } catch (e) {}
-      if (!saved || !saved.length) saved = cur.cols.filter(c => c.def).map(c => c.id);
-      modal.querySelector('#fp-fiche-cols').innerHTML = cur.cols.map(c =>
-        '<label style="display:flex;align-items:center;gap:7px;font-size:14.5px;color:#334155;padding:5px 6px;border-radius:6px;cursor:pointer"><input type="checkbox" value="' + c.id + '"' + (saved.indexOf(c.id) >= 0 ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label>').join('');
+      let savedChecked, savedOrder;
+      try { const st = FP.settings.get(); savedChecked = (st.ficheCols || {})[cur.key]; savedOrder = (st.ficheColsOrder || {})[cur.key]; } catch (e) {}
+      // Ordre d'affichage = ordre mémorisé (colonnes connues), puis toute NOUVELLE colonne ajoutée à la fin ;
+      // par défaut (jamais configuré) = l'ordre fourni par la page (« comme c'est actuellement »).
+      let order;
+      if (savedOrder && savedOrder.length) {
+        order = savedOrder.filter(id => cur.cols.some(c => c.id === id));
+        cur.cols.forEach(c => { if (order.indexOf(c.id) < 0) order.push(c.id); });
+      } else order = cur.cols.map(c => c.id);
+      // Cases cochées = config mémorisée, sinon les colonnes `def` (défaut d'origine).
+      const checkedSet = (savedChecked && savedChecked.length) ? new Set(savedChecked) : new Set(cur.cols.filter(c => c.def).map(c => c.id));
+      const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
+      modal.querySelector('#fp-fiche-cols').innerHTML = order.map(id => { const c = byId[id]; if (!c) return '';
+        return '<div class="fp-fcol-row" draggable="true" data-id="' + escH(c.id) + '" style="display:flex;align-items:center;gap:8px;font-size:14.5px;color:#334155;padding:6px 7px;border:1px solid #eef2f7;border-radius:8px;background:#fff;cursor:grab">'
+          + '<span style="color:#cbd5e1;font-size:15px;cursor:grab;user-select:none" title="Glisser pour réordonner">⠿</span>'
+          + '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;margin:0"><input type="checkbox" value="' + escH(c.id) + '"' + (checkedSet.has(c.id) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label></div>';
+      }).join('');
       modal.querySelector('#fp-fiche-scope').textContent = cur.rows.length + ' ligne(s)';
       modal.querySelector('#fp-fiche-h').textContent = cur.title;
       modal.querySelector('#fp-fiche-title').value = cur.title;
