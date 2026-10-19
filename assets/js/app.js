@@ -2542,8 +2542,21 @@ FP.conducteurs = {
   list() { try { return (window.FP_DATA && Array.isArray(FP_DATA.conducteurs)) ? FP_DATA.conducteurs.filter(c => c && !c.masque) : []; } catch (e) { return []; } },
   displayName(c) {
     if (!c) return '';
-    const base = String(c.name || c.prenom || c.key || '').trim();
-    return (c.nom && !base.toLowerCase().includes(String(c.nom).toLowerCase())) ? (base + ' ' + c.nom).trim() : base;
+    // AFFICHAGE = PRÉNOM SEUL (choix produit explicite). Le nom de famille est stocké à part (fiche,
+    // rapprochements) mais ne s'affiche PAS — SAUF pour départager deux conducteurs ACTIFS qui portent
+    // le même prénom (homonymes), auquel cas on ajoute le nom pour ne pas les confondre.
+    const prenom = String(c.prenom || c.name || c.key || '').trim();
+    const nom = String(c.nom || '').trim();
+    if (!prenom) return nom;
+    if (!nom) return prenom;
+    if (prenom.toLowerCase().includes(nom.toLowerCase())) return prenom; // ancienne donnée: name="Prénom Nom"
+    let homonyme = false;
+    try {
+      const kp = FP.normPrenom(prenom);
+      homonyme = !!kp && FP.conducteurs.list().some(o => o && o.key !== c.key
+        && FP.normPrenom(o.prenom || o.name || o.key) === kp && String(o.nom || '').trim());
+    } catch (e) {}
+    return homonyme ? (prenom + ' ' + nom).trim() : prenom;
   },
   find(name) {
     const list = this.list();
@@ -2565,15 +2578,18 @@ FP.conducteurs = {
     info = info || {};
     // Garde-fou multi-sociétés : pas de création en vue « Toutes les sociétés ».
     if (FP.exigeSocieteChoisie && !FP.exigeSocieteChoisie('de créer un conducteur')) return null;
-    const name = String(info.name || ((info.prenom || '') + ' ' + (info.nom || ''))).trim() || String(info.prenom || '').trim();
+    // ⚠️ NOM AFFICHÉ = PRÉNOM SEUL. `name` (le libellé affiché partout) = le prénom ; le nom de famille
+    // reste dans `nom` (séparé). Le nom COMPLET ne sert qu'au calcul de la clé / anti-homonymes.
+    const fullName = String(info.name || ((info.prenom || '') + ' ' + (info.nom || ''))).trim();
+    const name = String(info.prenom || '').trim() || String(info.name || '').trim() || String(info.nom || '').trim();
     if (!name) return null;
     // Clé = prénom seul (rétro-compatible). MAIS si un homonyme de prénom existe déjà avec un nom
     // DIFFÉRENT, on prend une clé prénom+nom pour ne pas fusionner deux personnes distinctes.
-    let key = FP.normPrenom(name);
+    let key = FP.normPrenom(fullName);
     const nom = String(info.nom || '').toLowerCase().trim();
     if (nom) {
       const homonymeDiff = this.list().some(c => FP.normPrenom(c.name || c.prenom || c.key) === key && String(c.nom || '').toLowerCase().trim() && String(c.nom || '').toLowerCase().trim() !== nom);
-      if (homonymeDiff) { const kf = FP.normNomComplet(name).replace(/\s+/g, '-'); if (kf) key = kf; }
+      if (homonymeDiff) { const kf = FP.normNomComplet(fullName).replace(/\s+/g, '-'); if (kf) key = kf; }
     }
     // ⚠️ SÉCURITÉ DONNÉES : on n'inclut QUE les champs réellement fournis (pas de `|| null`). L'upsert
     // ne touche que les colonnes présentes → si ce prénom correspond en fait à une fiche DÉJÀ existante
@@ -4011,8 +4027,8 @@ FP.newConducteurModal = function (prefillName) {
         + '<button type="button" id="fp-nc-x" style="border:none;background:none;cursor:pointer;font-size:1.3rem;color:var(--fp-muted);line-height:1">✕</button></div>'
         + '<p style="font-size:.8rem;color:var(--fp-muted);margin-bottom:1rem">Ce nom n\'existe pas encore — renseigne ses infos pour l\'enregistrer.</p>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">'
-        + '<div><div class="field-label">Prénom</div><input class="field-input" id="fp-nc-prenom"></div>'
-        + '<div><div class="field-label">Nom</div><input class="field-input" id="fp-nc-nom"></div>'
+        + '<div><div class="field-label">Prénom <span style="color:var(--fp-accent);font-weight:700">(affiché partout)</span></div><input class="field-input" id="fp-nc-prenom" placeholder="Prénom uniquement"></div>'
+        + '<div><div class="field-label">Nom <span style="color:var(--fp-muted);font-weight:400;text-transform:none">(de famille)</span></div><input class="field-input" id="fp-nc-nom" placeholder="Nom de famille"></div>'
         + '<div><div class="field-label">Téléphone</div><input class="field-input" id="fp-nc-tel"></div>'
         + '<div><div class="field-label">Email</div><input class="field-input" id="fp-nc-email" type="email"></div>'
         + '<div style="grid-column:1/3"><div class="field-label">N° de permis</div><input class="field-input" id="fp-nc-permis"></div>'
