@@ -6,7 +6,7 @@
    • NAVIGATIONS HTML → NETWORK-FIRST (en ligne = toujours la version fraîche ; le cache ne
      sert qu'en secours hors-ligne). Évite toute « page périmée ».
    On NE touche PAS aux autres origines (Supabase, Google Fonts, CDN) : réseau direct. */
-const CACHE = 'parcpilot-v20261019b';
+const CACHE = 'parcpilot-v20261019c';
 
 // PRÉ-CHARGEMENT hors ligne : à l'installation du SW (après un déploiement), on met en cache les
 // pages principales pour qu'elles soient consultables SANS réseau MÊME si l'utilisateur ne les a

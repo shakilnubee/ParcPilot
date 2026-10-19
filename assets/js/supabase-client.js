@@ -47,10 +47,27 @@
   // d'envoi configurée de la société active (FP.societeProfil().mailExpediteur), affichée
   // « <Nom société> <adresse> ». Le destinataire reçoit donc le mail DE l'adresse de la société.
   // (Resend n'accepte que les adresses d'un domaine vérifié → chaque société doit vérifier le sien.)
+  // Découpe une liste d'adresses « a@x.fr, b@y.fr ; c@z.fr » en tableau propre (garde ce qui a un @).
+  const _parseEmails = (v) => String(v == null ? '' : v).split(/[,;]+/).map(s => s.trim()).filter(s => s.includes('@'));
   FP.sendEmail = async (msg) => {
     msg = msg || {};
     try {
       const prof = (FP.societeProfil && FP.societeProfil()) || {};
+      // ⚠️ COPIE SYSTÉMATIQUE (traçabilité légale) : toute personne configurée dans Paramètres →
+      // Société → « E-mails toujours en copie » (prof.mailCopie) est mise en copie de TOUT e-mail
+      // envoyé par la plateforme — amendes, états des lieux, RÉPONSES AUX DEMANDES CONDUCTEUR, accès
+      // véhicule, relances… — pas seulement les amendes. On fusionne avec un éventuel cc explicite,
+      // on dédoublonne (insensible à la casse) et on retire les adresses déjà destinataires (to) pour
+      // ne pas copier deux fois. Centralisé ICI = aucun point d'envoi ne peut l'oublier (source unique).
+      try {
+        const seen = new Set(_parseEmails(msg.to).map(a => a.toLowerCase()));
+        const merged = [];
+        _parseEmails(msg.cc).concat(_parseEmails(prof.mailCopie)).forEach(a => {
+          const k = a.toLowerCase();
+          if (!seen.has(k)) { seen.add(k); merged.push(a); }
+        });
+        msg.cc = merged.join(', ');
+      } catch (e) {}
       const exp = String(prof.mailExpediteur || '').trim();
       if (exp) {
         // Réponses → la VRAIE adresse de la société (même quand on envoie via un domaine dédié).
