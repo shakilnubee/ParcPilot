@@ -132,7 +132,14 @@ Deno.serve(async (req) => {
       const email = String(body.email || "").trim().toLowerCase();
       const acces = String(body.acces || "gestionnaire");
       const societe = isCEO ? (body.societe ? String(body.societe) : null) : mySociete;
-      const redirectTo = String(body.redirectTo || "https://parc-pilot.fr/login.html");
+      // ⚠️ L'invité clique le lien sur SON appareil : il doit TOUJOURS viser le site en PRODUCTION, jamais
+      // le localhost/dev de l'admin qui a lancé l'invitation (sinon « ERR_CONNECTION_REFUSED »). On n'accepte
+      // donc un redirectTo fourni par le navigateur que s'il pointe sur le domaine de production ; sinon on
+      // force l'URL canonique. (NB : Supabase remplace ce redirect par sa « Site URL » si l'URL n'est pas
+      // dans la liste blanche « Redirect URLs » du projet → bien y mettre https://parc-pilot.fr/** et régler
+      // la Site URL sur https://parc-pilot.fr.)
+      const _rt = String(body.redirectTo || "").trim();
+      const redirectTo = /^https:\/\/(www\.)?parc-pilot\.fr(\/|$)/i.test(_rt) ? _rt : "https://parc-pilot.fr/login.html";
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "E-mail valide requis." }, 400);
       if (acces !== "ceo" && !societe) return json({ error: "Société requise pour un Admin/Gestionnaire." }, 400);
       const scopeErr = guardScope(acces, societe);
