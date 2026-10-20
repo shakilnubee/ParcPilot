@@ -170,7 +170,14 @@ Deno.serve(async (req) => {
 
       // 3) Envoi de NOTRE e-mail (sauce Parc Pilot) via Resend.
       const RESEND = Deno.env.get("RESEND_API_KEY");
-      const from = Deno.env.get("INVITE_FROM") || Deno.env.get("EMAIL_FROM") || "Parc Pilot <onboarding@resend.dev>";
+      // ⚠️ Resend n'accepte un expéditeur que sur un domaine VÉRIFIÉ dans le compte. Aujourd'hui seul
+      // projectxparis.fr l'est. Sans secret INVITE_FROM/EMAIL_FROM configuré — OU avec l'adresse de TEST
+      // onboarding@resend.dev (qui ne peut écrire QU'au titulaire du compte Resend) — une invitation à un
+      // tiers échoue (« You can only send testing emails to your own email address »). On retombe donc
+      // sur le domaine vérifié. (Le jour où parc-pilot.fr est vérifié, il suffit de poser le secret
+      // INVITE_FROM = « Parc Pilot <envoi@parc-pilot.fr> », qui a priorité ci-dessous.)
+      let from = Deno.env.get("INVITE_FROM") || Deno.env.get("EMAIL_FROM") || "";
+      if (!from || /resend\.dev/i.test(from)) from = "Parc Pilot <noreply@projectxparis.fr>";
       if (!RESEND) return json({ ok: true, id: userId, emailSent: false, warn: "Compte prêt, mais RESEND_API_KEY absent → e-mail non envoyé. Configure Resend puis renvoie l'invitation." });
       const esc = (s: string) => String(s).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] || c));
       // Message ÉDITABLE (Paramètres → E-mails → « invitation à un compte »), lu depuis la config société.
