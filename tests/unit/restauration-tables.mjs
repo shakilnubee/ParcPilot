@@ -63,6 +63,11 @@ test('une vraie différence reste détectée (indicateur passé à vrai)', () =>
   const r = R.parCle({ veh: [{ conducteur: 'X', kmFin: 5 }] }, { veh: [{ conducteur: 'X', kmFin: 5, kmFinManuel: true }] });
   assert.deepEqual(r.changes, ['veh']);
 });
+test('forfaits de leasing (objets) : forfait modifié revient, forfait créé depuis conservé, objet vide n\'efface rien', () => {
+  const r = R.parCle({ 'HG-763-VP': { loyer: 999 }, 'HJ-285-FL': { loyer: 300 } }, { 'HG-763-VP': { loyer: 410 }, 'HH-613-KE': {} });
+  assert.equal(r.valeur['HG-763-VP'].loyer, 410); assert.equal(r.valeur['HJ-285-FL'].loyer, 300);
+  assert.ok(!('HH-613-KE' in r.valeur)); assert.deepEqual(r.changes, ['HG-763-VP']);
+});
 console.log('\nContrats LLD (par identifiant)');
 const A = { id: 'a', loyerTTC: 400 }, B = { id: 'b', loyerTTC: 500 };
 test('contrat supprimé depuis la version → il revient', () => {

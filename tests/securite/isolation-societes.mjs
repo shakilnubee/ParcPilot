@@ -31,7 +31,7 @@ const COMPTES = [
   { nom: 'B', societe: 'TEST-B', autre: 'TEST-A', email: process.env.TEST_B_EMAIL, mdp: process.env.TEST_B_PASSWORD, vehAutre: 'T-A-V1' },
 ];
 // Tables métier isolées par la colonne `societe`.
-const TABLES_SOCIETE = ['vehicules', 'conducteurs', 'amendes', 'factures', 'documents', 'emprunts', 'driver_absences', 'vehicle_assignments', 'lease_contracts',
+const TABLES_SOCIETE = ['vehicules', 'conducteurs', 'amendes', 'factures', 'documents', 'emprunts', 'driver_absences', 'vehicle_assignments', 'lease_contracts', 'lease_overrides',
   'total_conso', 'total_conso_tx', 'ulys_conso', 'km_qr', 'km_requests', 'qr_scans', 'declarations_conducteur',
   'edl_signatures', 'offres_achat', 'controle_findings', 'app_settings_history', 'audit_log', 'scans'];
 

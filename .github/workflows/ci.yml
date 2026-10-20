@@ -43,6 +43,8 @@ jobs:
         run: node tests/unit/affectations-table.mjs
       - name: Tests de la projection des contrats LLD
         run: node tests/unit/contrats-lld-table.mjs
+      - name: Tests de la projection des forfaits de leasing
+        run: node tests/unit/forfaits-leasing-table.mjs
       - name: Restauration d'une version des réglages (tables)
         run: node tests/unit/restauration-tables.mjs
       - name: File d'écriture (rien de perdu pendant un renvoi)
