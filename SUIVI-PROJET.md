@@ -110,6 +110,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - Clés de chiffrement en place pour François et Shakil (celle de Shakil est provisoire et sera remplacée).
 - **Activées le 20/10/2026** (fusion de la PR #991) : une sauvegarde de la production chaque nuit vers 3 h 15.
 - **Reste à faire** : un test de restauration complet par un humain.
+- **20/10/2026, après-midi** : une sauvegarde manuelle de la production a restauré la base à l'identique (31 tables), mais n'a copié **aucun fichier** sur 961. Cause : GitHub a mis à jour l'outil AWS de ses serveurs (2.37.13 → 2.38.1), et la nouvelle version échoue avec le stockage Supabase. La version qui fonctionne est désormais figée dans la sauvegarde.
 
 ### 20/10/2026 — Organisation de GitHub 🟡 (préparée, en attente de validation)
 - **Règles de travail inscrites dans `CLAUDE.md`**, lu par chaque session Claude, sur tous les PC : jamais de modification directe de la branche publiée, une PR par sujet, migrations testées sur le staging, aucun secret, ne pas affaiblir les protections en place. Les anciennes consignes contraires (publication directe, Netlify) sont corrigées.
@@ -183,6 +184,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1019 | Migration des données, étape 2 : les affectations | ✅ Fusionnée, en production |
 | #1020 | Correctif : lecture des tables sur toutes les pages + journal | ✅ Fusionnée |
 | #1024 | Correctif de la file d'attente des écritures | ✅ Fusionnée |
+| #1026 | Sauvegardes : version de l'outil AWS figée | ✅ Fusionnée, essai production réussi |
 | (cette PR) | Migration des données, étape 3 : les contrats LLD | En cours |
 
 ## 7. Prochaines étapes

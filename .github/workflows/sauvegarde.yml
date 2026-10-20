@@ -95,6 +95,15 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq age postgresql-client > /dev/null
+          # Outil AWS FIGÉ : la version 2.38.1 (image GitHub du 18/10/2026) échoue sur tous les téléchargements
+          # du stockage de production (« GetObject » sans code), la 2.37.13 fonctionne. Ne pas dé-figer sans
+          # refaire un essai complet sur la production (docs/SAUVEGARDES.md).
+          AWS_CLI_VERSION=2.37.13
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp/awscli
+          sudo /tmp/awscli/aws/install --update > /dev/null
+          hash -r
+          aws --version | grep -q "aws-cli/${AWS_CLI_VERSION} " || { echo "::error::Outil AWS : version ${AWS_CLI_VERSION} attendue, $(aws --version) trouvée"; exit 1; }
           age --version; psql --version; aws --version
       - uses: supabase/setup-cli@v1
         with:
