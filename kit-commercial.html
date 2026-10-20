@@ -20,7 +20,7 @@
     try { var t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token') || 'null');
       if (t && t.access_token && !(t.expires_at && t.expires_at*1000 < Date.now()) && t.user && t.user.email) email = t.user.email; } catch(e){}
     if (!email) { try { email = localStorage.getItem('fp_email') || ''; } catch(e){} }
-    if (OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
+    var _ceo=false; try{var _pp=JSON.parse(localStorage.getItem('fp_profile')||'null'); _ceo=!!(_pp&&_pp.is_admin===true);}catch(e){} if (!_ceo || OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
   } catch(e){ document.documentElement.style.display='none'; window.location.replace('login.html'); }
 })();
 </script>

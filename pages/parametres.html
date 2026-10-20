@@ -209,26 +209,9 @@
       </div>
     </div>
 
-    <!-- Section Onglets sidebar -->
-    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="affichage">
-      <div class="section-title">
-        <i data-lucide="layout-list" class="w-5 h-5"></i> Onglets du menu
-      </div>
-      <p class="text-sm text-slate-600 mb-4">Change l'ordre avec les flèches ▲▼ (ou en glissant ⋮⋮), <b>retire un onglet du menu</b> avec la corbeille 🗑, et renomme-le dans le champ. Les changements s'appliquent au menu de gauche sur toutes les pages.</p>
-
-      <div id="nav-labels-form"></div>
-
-      <div id="nav-removed-wrap" class="mt-5" style="display:none">
-        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Onglets retirés du menu</div>
-        <p class="text-xs text-slate-400 mb-2">Ces onglets n'apparaissent plus dans le menu de gauche. Clique « Rétablir » pour les remettre.</p>
-        <div id="nav-removed-list" class="space-y-1"></div>
-      </div>
-
-      <div class="flex gap-2 mt-5">
-        <button class="btn btn-dark text-sm" id="btn-save-nav"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
-        <button class="btn btn-outline text-sm" id="btn-reset-nav"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Réinitialiser</button>
-      </div>
-    </div>
+    <!-- Section « Onglets du menu » RETIRÉE (demande utilisateur) : les onglets du menu sont désormais
+         CODÉS EN DUR — toujours présents, ordre fixe, plus de masquage/renommage. Le filtrage par RÔLE
+         (pages réservées au CEO, outils propriétaire « JIS ») reste géré dans app.js. -->
 
     <!-- Section Couleur de l'interface (onglet Affichage) -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="affichage">
@@ -879,6 +862,7 @@
   }
 
   function saveGroupes() {
+    if (FP.canManageSociete && !FP.canManageSociete()) { if (FP.toast) FP.toast('Configuration réservée à l\'administrateur.'); return; }
     FP.history.commit();
     const current = FP.settings.get();
     const newGroupes = { ...current.groupes };
@@ -991,6 +975,7 @@
     const hiddenSet = new Set(FP.settings.get().navHidden || []);
     const alwaysVisible = new Set(FP.NAV_ALWAYS_VISIBLE || ['parametres.html']);
     const form = $('nav-labels-form');
+    if (!form) return;   // éditeur d'onglets retiré (onglets codés en dur) → fonction inerte
     // ⚠️ N'éditer QUE les VRAIS onglets de la barre latérale : on lit les liens <a data-nav>
     // réellement présents dans le menu. Certaines pages « regroupées » (Entretiens→Factures,
     // À vendre→Véhicules, Renouvellements→Suivi & alertes, Calendrier) ont un LIBELLÉ mais AUCUN
@@ -1351,6 +1336,9 @@
   }
 
   function saveSociete() {
+    // Défense en profondeur : la config société est réservée au CEO/Admin (le bouton est déjà masqué pour
+    // un gestionnaire, ceci bloque aussi tout appel direct). Règle projet : « masquer un bouton ≠ sécurité ».
+    if (FP.canManageSociete && !FP.canManageSociete()) { if (FP.toast) FP.toast('Configuration réservée à l\'administrateur.'); return; }
     FP.history.commit();
     const current = FP.settings.get();
     current.societe = {
@@ -1652,43 +1640,8 @@
     renderGroupesForm(); renderPreview();
     showToast('Groupe supprimé' + (vehs.length ? ' · ' + vehs.length + ' véhicule(s) reclassé(s)' : ''));
   });
-  $('btn-save-nav').addEventListener('click', saveNavLabels);
-  $('btn-reset-nav').addEventListener('click', resetNavLabels);
-  // Flèches ▲▼ : montent/descendent l'onglet et appliquent tout de suite au menu de gauche
-  $('nav-labels-form').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-move]');
-    if (!btn) return;
-    const form = $('nav-labels-form');
-    const row = btn.closest('.nav-row');
-    if (!row) return;
-    if (btn.dataset.move === 'up' && row.previousElementSibling) form.insertBefore(row, row.previousElementSibling);
-    else if (btn.dataset.move === 'down' && row.nextElementSibling) form.insertBefore(row.nextElementSibling, row);
-    updateNavArrows();
-    applyNavFromForm(false);
-  });
-  // 🗑 Retirer un onglet du menu (appliqué tout de suite ; il part dans « Onglets retirés »).
-  function setNavHidden(key, hide) {
-    const alwaysVisible = new Set(FP.NAV_ALWAYS_VISIBLE || ['parametres.html']);
-    if (hide && alwaysVisible.has(key)) return;              // onglet essentiel non supprimable
-    FP.history.commit();
-    const cur = FP.settings.get();
-    const set = new Set((cur.navHidden || []).filter(k => !alwaysVisible.has(k)));
-    if (hide) set.add(key); else set.delete(key);
-    cur.navHidden = Array.from(set);
-    FP.settings.save(cur);
-    if (FP.applyNavVisibility) FP.applyNavVisibility();
-    renderNavLabelsForm();
-  }
-  $('nav-labels-form').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-remove]');
-    if (!btn || btn.disabled) return;
-    const row = btn.closest('.nav-row'); if (!row) return;
-    setNavHidden(row.dataset.navKey, true);
-  });
-  { const rl = $('nav-removed-list'); if (rl) rl.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-restore]'); if (!btn) return;
-      setNavHidden(btn.dataset.restore, false);
-    }); }
+  // (Éditeur « Onglets du menu » retiré : onglets codés en dur. Plus d'écouteurs de réordonnancement/
+  //  masquage/renommage ici — le menu est fixe, seul le filtrage par rôle s'applique, dans app.js.)
   $('btn-save-societe').addEventListener('click', saveSociete);
   { const be = $('btn-save-emails'); if (be) be.addEventListener('click', saveSociete); }  // onglet E-mails : même sauvegarde (profil société)
 
@@ -2300,7 +2253,7 @@
     // correctif app_settings (un gestionnaire peut de nouveau écrire ses DONNÉES de travail), la
     // protection de la config est assurée ICI, par l'interface : on CACHE les boutons « Enregistrer »
     // de la config pour un gestionnaire (même modèle de droits que le reste de la plateforme).
-    ['btn-save-groupes', 'btn-save-nav', 'btn-save-notif'].forEach(id => {
+    ['btn-save-groupes', 'btn-save-notif'].forEach(id => {
       const b = document.getElementById(id); if (!b) return;
       b.style.display = 'none';
       if (b.parentNode && !b.parentNode.querySelector('.fp-config-ro-note')) {
@@ -2372,13 +2325,14 @@
           ? `<select class="field-input text-sm" data-usoc style="width:180px"${(u.self || u.acces === 'ceo') ? ' disabled' : ''}>${socOptions(u.acces === 'ceo' ? '' : (u.societe || ''))}</select>`
           : `<span class="text-xs text-slate-400" style="min-width:120px">${esc(u.societe || '—')}</span>`;
         return `
-        <div class="flex items-center gap-2 flex-wrap py-2 border-b border-slate-100" data-uid="${esc(u.id)}">
+        <div class="flex items-center gap-2 flex-wrap py-2 border-b border-slate-100" data-uid="${esc(u.id)}" data-uemail="${esc(u.email || '')}">
           <div style="min-width:200px;flex:1">
             <div class="font-semibold text-slate-800 text-sm">${esc(u.email || '—')}${u.self ? ' <span class="text-xs text-slate-400">(vous)</span>' : ''}</div>
           </div>
           <select class="field-input text-sm" data-uacc style="width:150px"${u.self ? ' disabled title="Vous ne pouvez pas changer votre propre accès"' : ''}>${accesOptions(isCEO, u.acces)}</select>
           ${socSelHtml}
-          <button class="btn btn-outline text-xs" data-ureset title="Réinitialiser le mot de passe"><i data-lucide="key-round" class="w-4 h-4"></i></button>
+          <button class="btn btn-outline text-xs" data-uresetmail title="Envoyer un e-mail de réinitialisation — la personne choisit elle-même son nouveau mot de passe"><i data-lucide="mail" class="w-4 h-4"></i></button>
+          <button class="btn btn-outline text-xs" data-ureset title="Fixer un mot de passe manuellement (tu le communiques)"><i data-lucide="key-round" class="w-4 h-4"></i></button>
           <button class="btn btn-outline text-xs" data-udel title="Supprimer le compte"${u.self ? ' disabled style="opacity:.4"' : ''}><i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i></button>
         </div>`;
       }).join('');
@@ -2458,7 +2412,20 @@
       listEl.addEventListener('click', async (e) => {
         const row = e.target.closest('[data-uid]'); if (!row) return;
         const id = row.getAttribute('data-uid');
-        if (e.target.closest('[data-ureset]')) {
+        if (e.target.closest('[data-uresetmail]')) {
+          // Envoi d'un e-mail de réinitialisation : la personne choisit ELLE-MÊME son nouveau mot de passe
+          // (même mécanique que l'invitation, mais sans rien changer à son rôle). Serveur = action 'invite'
+          // avec resetOnly:true (fonction manage-users).
+          const em = row.getAttribute('data-uemail') || '';
+          if (!em) return alert('E-mail du compte introuvable.');
+          if (!await FP.confirm('Envoyer un e-mail de réinitialisation à ' + em + ' ?\n\nLa personne recevra un lien pour choisir elle-même un nouveau mot de passe.')) return;
+          const btn = e.target.closest('[data-uresetmail]'); if (btn) btn.disabled = true;
+          const r = await call({ action: 'invite', email: em, resetOnly: true, redirectTo: location.origin + '/login.html' });
+          if (btn) btn.disabled = false;
+          if (r.error) return alert('Échec : ' + r.error);
+          if (r.emailSent === false) return alert('⚠️ ' + (r.warn || 'E-mail non envoyé.'));
+          alert('✓ E-mail de réinitialisation envoyé à ' + em + '.');
+        } else if (e.target.closest('[data-ureset]')) {
           const pw = await FP.prompt('Nouveau mot de passe pour ce compte (min. 8 caractères) :');
           if (pw == null) return;
           if (pw.length < 8) return alert('Mot de passe trop court (min. 8 caractères).');
