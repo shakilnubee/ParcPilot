@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021l">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021l"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021l">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -411,7 +411,7 @@
         <div class="man-zone">Créer des véhicules en masse (onboarding)</div>
         <div class="man-item"><b>📸 Importer une ou plusieurs cartes grises</b> — bouton <b>« Importer en lot » → « Cartes grises »</b> en haut de la page Véhicules (ou dans le formulaire « Nouveau véhicule »). Dépose une pile de cartes grises → l'<b>IA</b> lit chaque carte (immat, marque, modèle, VIN, CO₂, puissance, carburant, masse, 1re immat, prochain CT). Pour chaque carte, Parc Pilot compare l'immatriculation et affiche l'<b>état</b> : <b>🔗 Rattacher</b> (immat déjà connue → la carte grise est <b>rattachée à la fiche existante</b>, aucun doublon, et complète les champs encore vides), <b>➕ Nouveau</b> (immat inconnue → une <b>fiche est créée</b>), <b>✓ Déjà à jour</b> (la carte grise est déjà sur la plateforme). La carte grise est <b>enregistrée sur la plateforme</b> (donc visible aussi dans le <b>QR conducteur → Mes documents</b>). 👉 Idéal pour <b>(ré)importer toute la flotte d'un coup</b> sans créer de doublon.</div>
         <div class="man-item"><b>🗒️ Importer des cartes mémo (en lot)</b> — même principe : dépose une pile de <b>cartes mémo</b>. Chaque mémo est <b>rattaché à la bonne fiche</b> d'après l'<b>immatriculation</b> (lue dans le nom du fichier, sinon Parc Pilot la lit par IA, sinon tu la corriges dans le tableau), <b>enregistré sur la plateforme</b> et visible dans le <b>QR conducteur → Mes documents</b>. <b>Aucun doublon</b> (« ✓ Déjà présent » si le véhicule a déjà un mémo). Un mémo dont l'immatriculation ne correspond à aucun véhicule affiche « ⚠ Véhicule introuvable » (importe d'abord sa carte grise, ou corrige l'immat).</div>
-        <div class="man-item"><b>Importer (Excel)</b> — colle un tableau depuis Excel/Google Sheets (avec la ligne d'en-têtes) → les colonnes sont reconnues automatiquement et les véhicules créés/mis à jour. Une <b>case vide n'écrase jamais</b> une valeur existante ; un ré-import du même véhicule met à jour au lieu de dupliquer. <b>📄 Modèle vierge</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fenêtre d'import, le bouton <b>« Télécharger un modèle vierge (CSV) »</b> te donne un fichier aux <b>bons en-têtes, dans le bon ordre</b> (Immat., Marque, Modèle, Groupes, Catégorie, Km, Chauffeur, Statut, Prochain CT, Mise en circulation, VIN, Carburant, Propriétaire, Valeur d'achat, CO₂, Puissance fiscale). <b>Idéal pour un nouveau client</b> : tu lui envoies ce fichier, il le remplit dans Excel (<b>seule l'immatriculation est obligatoire</b>, le reste est optionnel et se complète ensuite par les scans/l'IA), puis tu le réimportes ici. Le même bouton existe sur chaque page qui a l'import Excel (il reprend automatiquement les colonnes de cette page).</div>
+        <div class="man-item"><b>Importer (Excel)</b> — colle un tableau depuis Excel/Google Sheets (avec la ligne d'en-têtes) → les colonnes sont reconnues automatiquement et les véhicules créés/mis à jour. Une <b>case vide n'écrase jamais</b> une valeur existante ; un ré-import du même véhicule met à jour au lieu de dupliquer. <b>📄 Modèle vierge (Excel)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — clique le bouton <b>« Importer (Excel) »</b> (en haut de la page Véhicules) pour ouvrir la fenêtre d'import : à l'intérieur, le bouton <b>« Télécharger un modèle vierge (Excel) »</b> te donne un <b>vrai fichier Excel (.xlsx)</b> aux <b>bons en-têtes, dans le bon ordre</b> (Immat., Marque, Modèle, Groupes, Catégorie, Km, Chauffeur, Statut, Prochain CT, Mise en circulation, VIN, Carburant, Propriétaire, Valeur d'achat, CO₂, Puissance fiscale). <b>Idéal pour un nouveau client</b> : tu lui envoies ce fichier, il le remplit dans Excel (<b>seule l'immatriculation est obligatoire</b>, le reste est optionnel et se complète ensuite par les scans/l'IA), puis tu le réimportes ici. Le même bouton existe sur chaque page qui a l'import Excel (il reprend automatiquement les colonnes de cette page).</div>
 
         <div class="man-zone">📎 Quoi fournir pour les imports par SCAN (lus par l'IA)</div>
         <div class="man-item"><b>Pas de fichier à remplir ici</b> — pour ces imports, tu déposes directement le <b>document</b> (photo ou PDF) et l'IA lit les infos. Pour que la lecture soit fiable, fournis un document <b>net, entier et lisible</b> (pas coupé, pas flou, de préférence le <b>PDF d'origine</b> plutôt qu'une capture d'écran). Ce qu'il faut selon le document :
@@ -1027,8 +1027,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021k"></script>
-<script src="../assets/js/supabase-client.js?v=20261021k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021l"></script>
+<script src="../assets/js/supabase-client.js?v=20261021l"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1044,10 +1044,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021l"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261021k"></script>
+<script src="../assets/js/app.min.js?v=20261021l"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
