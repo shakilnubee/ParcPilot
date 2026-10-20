@@ -5036,11 +5036,22 @@
   ];
 
   let _ficheList = [], _ficheLabel = '';
+  // Colonnes « champs personnalisés » (société) pour le relevé CSV/PDF — désactivées par défaut (def:false).
+  function cfFicheCols() {
+    if (!(window.FP && FP.customFields && FP.customFields.defsFor)) return [];
+    try {
+      return FP.customFields.defsFor('vehicule').map(def => ({
+        id: 'cf:' + def.key, label: def.label, def: false,
+        align: (def.type === 'number' || def.type === 'money') ? 'right' : 'left',
+        get: v => FP.customFields.display(def, FP.customFields.effective('vehicule', v.id, def)) || '—'
+      }));
+    } catch (e) { return []; }
+  }
   // Passe par le moteur commun FP.fiche (style Parc Pilot + aperçu + choix des colonnes mémorisé).
   function openFicheModal(list, label) {
     const rows = (list || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
     if (window.FP && FP.fiche && FP.fiche.open) {
-      FP.fiche.open({ key: 'vehicules', title: label || 'Véhicules', cols: FICHE_COLS, rows: rows });
+      FP.fiche.open({ key: 'vehicules', title: label || 'Véhicules', cols: FICHE_COLS.concat(cfFicheCols()), rows: rows });
     }
   }
 

@@ -3306,11 +3306,22 @@
     // Colonne technique : l'identifiant interne du conducteur (sert à relier congés, cartes, docs…). Décochée par défaut.
     { id: 'cle',       label: 'Clé (identifiant interne)', def: false, mono: true, get: d => d.key || '' },
   ];
+  // Colonnes « champs personnalisés » (société) pour le relevé CSV/PDF — désactivées par défaut (def:false).
+  function cfFicheColsCond() {
+    if (!(window.FP && FP.customFields && FP.customFields.defsFor)) return [];
+    try {
+      return FP.customFields.defsFor('conducteur').map(def => ({
+        id: 'cf:' + def.key, label: def.label, def: false,
+        align: (def.type === 'number' || def.type === 'money') ? 'right' : 'left',
+        get: d => FP.customFields.display(def, FP.customFields.effective('conducteur', d.key, def)) || ''
+      }));
+    } catch (e) { return []; }
+  }
   document.getElementById('btn-releve')?.addEventListener('click', () => {
     if (!(FP.fiche && FP.fiche.open)) { alert('Aperçu indisponible ici.'); return; }
     const rows = (drivers || []).slice();
     if (!rows.length) { alert('Aucun conducteur à exporter.'); return; }
-    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS, rows });
+    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows });
   });
 
   // Résout un conducteur par clé/nom normalisé ; s'il n'a pas de fiche, en FABRIQUE une à la
