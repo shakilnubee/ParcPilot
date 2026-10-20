@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021m">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021n">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021m"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021n"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021m">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021n">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -730,6 +730,7 @@
             <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Importer en lot</div>
             <button id="il-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes grises (rattachées aux fiches par immatriculation, sans doublon) — remplit marque, modèle, VIN, CO₂, puissance, masse, carburant, dates"><i data-lucide="file-badge" class="w-4 h-4 text-slate-400"></i> Cartes grises</button>
             <button id="il-memo" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes mémo (rattachées à la bonne fiche par immatriculation, sans doublon)"><i data-lucide="sticky-note" class="w-4 h-4 text-slate-400"></i> Cartes mémo</button>
+            <button id="il-modele" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Télécharger un modèle Excel vierge (bons en-têtes, dans le bon ordre) à remplir puis réimporter — idéal pour un nouveau client"><i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i> Modèle Excel (vierge)</button>
             <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Lire &amp; compléter</div>
             <button id="btn-completer-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire les cartes grises déjà stockées et remplir automatiquement les champs manquants (carburant, CO₂, puissance, masse, VIN, dates)"><i data-lucide="wand-sparkles" class="w-4 h-4 text-slate-400"></i> Compléter depuis les cartes grises</button>
             <button id="btn-lire-km-edl" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire le kilométrage de TOUS les états des lieux importés (PDF/photo) qui n'ont pas encore de km — en une seule fois, sans ouvrir chaque fiche. Les km déjà connus ne sont pas relus (aucun crédit gaspillé)."><i data-lucide="gauge" class="w-4 h-4 text-slate-400"></i> Lire tous les km des états des lieux</button>
@@ -1183,8 +1184,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021m"></script>
-<script src="../assets/js/supabase-client.js?v=20261021m"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021n"></script>
+<script src="../assets/js/supabase-client.js?v=20261021n"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1200,13 +1201,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021n"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261021m"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261021m"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021n"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261021n"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021m"></script><script>
+<script src="../assets/js/app.min.js?v=20261021n"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -7656,6 +7657,8 @@
     // Le menu Outils se referme tout seul au clic sur une action, pas besoin de le fermer ici.
     if ($('il-cg') && $('f-cg-top')) $('il-cg').addEventListener('click', () => { $('f-cg-top').click(); });
     if ($('il-memo') && $('f-memo-file')) $('il-memo').addEventListener('click', () => { $('f-memo-file').click(); });
+    // Accès direct au modèle Excel vierge (même fichier que la fenêtre d'import, sans l'ouvrir).
+    if ($('il-modele')) $('il-modele').addEventListener('click', () => { if (window.FP && FP.downloadImportTemplate) FP.downloadImportTemplate(); else if (FP.toast) FP.toast('Modèle indisponible (recharge la page).'); });
     // Depuis la barre, on va TOUJOURS dans l'import en lot (même pour 1 seule carte grise).
     if ($('f-cg-top')) $('f-cg-top').addEventListener('change', (e) => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleCarteGriseBatch(files); });
   })();

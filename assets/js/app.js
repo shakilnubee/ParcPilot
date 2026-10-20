@@ -17336,6 +17336,25 @@ FP.injectDataIO = function (cfg) {
   const canImport = typeof cfg.onImport === 'function' && cols.length > 0 && cfg.exportOnly !== true;
   const canExport = typeof cfg.getRows === 'function' && cfg.export !== false && (colsIsFn || (cfg.columns || []).length > 0);
   if (!canImport && !canExport) return;
+
+  // ⚠️ SOURCE UNIQUE — Modèle vierge (Excel) : UNE seule implémentation, réutilisée par le bouton de la
+  // fenêtre d'import ET par un accès direct (ex. menu « Outils » → FP.downloadImportTemplate()). Fichier
+  // propre (en-têtes en ligne 1, sans bandeau) ; repli CSV si l'export Excel est indisponible.
+  const dlTemplate = () => {
+    const tplCols = cols.filter(c => !/^(id)$/i.test(c.key));
+    const headers = tplCols.map(c => (c.label == null ? '' : String(c.label)));
+    const base = (typeof cfg.baseName === 'function' ? cfg.baseName() : cfg.baseName) || (typeof cfg.filename === 'function' ? cfg.filename() : cfg.filename) || 'import';
+    const name = 'modele-' + String(base).replace(/\.(csv|xlsx|xls)$/i, '').replace(/[^\w-]+/g, '-').toLowerCase();
+    if (FP.downloadXlsx) { const ok = FP.downloadXlsx(name, headers, [], { sheet: 'Modèle', noBrand: true }); if (ok) { if (FP.toast) FP.toast('✓ Modèle Excel téléchargé — remplis-le puis réimporte-le ici.'); return; } }
+    try {
+      const line = headers.map(s => (/[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s)).join(';');
+      const blob = new Blob(['﻿' + line + '\n'], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '.csv';
+      document.body.appendChild(a); a.click(); setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch (e) {} a.remove(); }, 120);
+      if (FP.toast) FP.toast('✓ Modèle téléchargé (CSV).');
+    } catch (e) { if (FP.toast) FP.toast('Téléchargement indisponible sur ce navigateur.'); }
+  };
+  if (canImport) FP.downloadImportTemplate = dlTemplate;
   const mount = document.querySelector('[data-data-io]');
   if (!mount || mount.dataset.ioReady === '1') return;
   mount.dataset.ioReady = '1';
@@ -17500,30 +17519,8 @@ FP.injectDataIO = function (cfg) {
         try { navigator.clipboard && navigator.clipboard.writeText(headerModel); } catch (e) {}
         if (FP.toast) FP.toast('✓ Ligne d\'en-têtes copiée — colle-la en 1re ligne de ton tableau si besoin');
       };
-      // Modèle VIERGE téléchargeable (CSV) = la ligne d'en-têtes dans le bon ordre, prête à remplir
-      // dans Excel puis à réimporter ici. Séparateur « ; » + BOM UTF-8 (Excel FR). Donnable à un client.
-      ov.querySelector('#fp-io-dl').onclick = () => {
-        // Modèle vierge = colonnes importables SAUF les champs techniques (ex. « ID », interne) qu'un
-        // nouveau client n'a pas à remplir — ils restent reconnus à l'import (mise à jour), juste absents du modèle.
-        const tplCols = cols.filter(c => !/^(id)$/i.test(c.key));
-        const headers = tplCols.map(c => (c.label == null ? '' : String(c.label)));
-        const base = (typeof cfg.baseName === 'function' ? cfg.baseName() : cfg.baseName) || (typeof cfg.filename === 'function' ? cfg.filename() : cfg.filename) || 'import';
-        const name = 'modele-' + String(base).replace(/\.(csv|xlsx|xls)$/i, '').replace(/[^\w-]+/g, '-').toLowerCase();
-        // 1) VRAI fichier Excel (.xlsx) — plus simple à remplir pour le client (pas de souci de séparateur/accents).
-        if (FP.downloadXlsx) {
-          const ok = FP.downloadXlsx(name, headers, [], { sheet: 'Modèle', noBrand: true });
-          if (ok) { if (FP.toast) FP.toast('✓ Modèle Excel téléchargé — remplis-le puis réimporte-le ici.'); return; }
-        }
-        // 2) Repli CSV (séparateur « ; » + BOM UTF-8) si l'export Excel est indisponible.
-        try {
-          const line = headers.map(s => (/[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s)).join(';');
-          const blob = new Blob(['﻿' + line + '\n'], { type: 'text/csv;charset=utf-8' });
-          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '.csv';
-          document.body.appendChild(a); a.click();
-          setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch (e) {} a.remove(); }, 120);
-          if (FP.toast) FP.toast('✓ Modèle téléchargé (CSV) — ouvre-le dans Excel, remplis, puis réimporte.');
-        } catch (e) { if (FP.toast) FP.toast('Téléchargement indisponible sur ce navigateur.'); }
-      };
+      // Modèle VIERGE téléchargeable — même fonction que l'accès direct (source unique, cf. dlTemplate).
+      ov.querySelector('#fp-io-dl').onclick = dlTemplate;
       ov.querySelector('#fp-io-file').addEventListener('change', (e) => {
         const f = (e.target.files || [])[0]; if (!f) return;
         const rd = new FileReader();
