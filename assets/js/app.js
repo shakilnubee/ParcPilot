@@ -13577,7 +13577,8 @@ FP.docFrame = function (src, opts) {
 //   FP.downloadXlsx(nomFichier, entetes[], lignes[][], { sheet })  — une valeur number = cellule
 //   numérique ; sinon texte. À utiliser PARTOUT à la place des exports CSV « moches ».
 FP._xlsxCRC = (() => { let c, t = []; for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
-FP.buildXlsx = function (headers, rows, sheetName) {
+FP.buildXlsx = function (headers, rows, sheetName, opts) {
+  opts = opts || {};
   const CT = FP._xlsxCRC, te = new TextEncoder();
   const crc32 = (b) => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CT[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
   const enc = (s) => te.encode(s);
@@ -13585,7 +13586,8 @@ FP.buildXlsx = function (headers, rows, sheetName) {
   const colL = (i) => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - (m + 1)) / 26; } return s; };
   const sheetRows = [];
   // Bloc « Parc Pilot » en tête (colonne A) → décale l'en-tête et les données de OFF lignes.
-  const brandLines = FP._exportBrandLines ? (function () { try { return FP._exportBrandLines(sheetName) || []; } catch (e) { return []; } })() : [];
+  // opts.noBrand = modèle vierge à remplir : AUCUN bandeau, l'en-tête commence en ligne 1 (fichier propre).
+  const brandLines = (!opts.noBrand && FP._exportBrandLines) ? (function () { try { return FP._exportBrandLines(sheetName) || []; } catch (e) { return []; } })() : [];
   const OFF = brandLines.length, HR = OFF + 1;
   brandLines.forEach((line, i) => { sheetRows.push('<row r="' + (i + 1) + '"><c r="A' + (i + 1) + '" t="inlineStr" s="' + (i === 0 ? 1 : 0) + '"><is><t xml:space="preserve">' + esc(line) + '</t></is></c></row>'); });
   sheetRows.push('<row r="' + HR + '">' + (headers || []).map((h, c) => `<c r="${colL(c)}${HR}" t="inlineStr" s="1"><is><t xml:space="preserve">${esc(h)}</t></is></c>`).join('') + '</row>');
@@ -13625,7 +13627,7 @@ FP.buildXlsx = function (headers, rows, sheetName) {
 FP.downloadXlsx = function (filename, headers, rows, opts) {
   opts = opts || {};
   try {
-    const bytes = FP.buildXlsx(headers, rows, opts.sheet);
+    const bytes = FP.buildXlsx(headers, rows, opts.sheet, opts);
     const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob); const el = document.createElement('a');
     el.href = url; el.download = String(filename || 'export').replace(/\.xlsx$/i, '') + '.xlsx';
@@ -17509,7 +17511,7 @@ FP.injectDataIO = function (cfg) {
         const name = 'modele-' + String(base).replace(/\.(csv|xlsx|xls)$/i, '').replace(/[^\w-]+/g, '-').toLowerCase();
         // 1) VRAI fichier Excel (.xlsx) — plus simple à remplir pour le client (pas de souci de séparateur/accents).
         if (FP.downloadXlsx) {
-          const ok = FP.downloadXlsx(name, headers, [], { sheet: 'Modèle' });
+          const ok = FP.downloadXlsx(name, headers, [], { sheet: 'Modèle', noBrand: true });
           if (ok) { if (FP.toast) FP.toast('✓ Modèle Excel téléchargé — remplis-le puis réimporte-le ici.'); return; }
         }
         // 2) Repli CSV (séparateur « ; » + BOM UTF-8) si l'export Excel est indisponible.
