@@ -11647,6 +11647,7 @@ FP.trash = {
   },
 };
 
+/*<persist-file>*/
 FP.persist = {
   // ⚠️ File d'écriture SUFFIXÉE PAR SOCIÉTÉ : une écriture créée hors-ligne en société A ne doit pas être
   // « flushée » (et estampillée) sous la société B après une bascule. On ne flush que la file de la société
@@ -11791,38 +11792,65 @@ FP.persist = {
   _flushing: false,
   // Renvoie tout ce qui est en attente. Les insert sont rejoués en upsert
   // (clé = id) pour éviter les doublons si une partie était déjà passée.
+  // ⚠️ La file peut CHANGER pendant l'envoi (enregistrement fait entre-temps, autre onglet, écriture plus récente
+  // qui remplace une ancienne — `meta.remplace`). Donc : (1) avant d'envoyer un élément, on vérifie qu'il est
+  // TOUJOURS dans la file (sinon il a été remplacé ou déjà envoyé → le renvoyer écraserait la version récente) ;
+  // (2) à la fin, on relit la file et on n'y retire QUE les éléments envoyés avec succès. Avant, la file
+  // relue au début était réenregistrée telle quelle → un élément ajouté pendant l'envoi disparaissait sans
+  // avoir été envoyé (perte silencieuse). Couvert par tests/unit/persist-file.mjs.
   async flush(opts) {
     const force = !!(opts && opts.force); // clic manuel = retente même les échecs définitifs
     if (this._flushing || !this.available()) return;
     const q = this._loadQ();
     if (!q.length) { if (FP._syncBadge) FP._syncBadge(); return; }
     this._flushing = true;
-    const remaining = [];
-    for (const it of q) {
-      // Ne pas reboucler automatiquement sur un échec définitif (sauf retente manuelle)
-      if (it.failed && !force) { remaining.push(it); continue; }
-      if (force) { it.failed = false; } // on redonne sa chance (ex. colonne ajoutée entre-temps)
-      try {
-        let r;
-        if (it.op === 'rpc') r = await FP.supabase.rpc(it.fn, it.args);
-        else if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
-        else if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
-        else if (it.op === 'update') r = await FP.db.update(it.table, it.id, it.fields);
-        else if (it.op === 'delete') r = await FP.db.delete(it.table, it.id);
-        if (r && r.error) throw r.error;
-      } catch (e) {
-        it.tries = (it.tries || 0) + 1;
-        it.error = (e && (e.message || e.code)) || 'erreur inconnue';
-        // Erreur base (définitive) OU trop d'échecs réseau d'affilée → on arrête de boucler
-        if (this._estPermanente(e) || it.tries >= 5) it.failed = true;
-        remaining.push(it);
+    const bilan = new Map();   // _uid → null (envoyé) | élément mis à jour (reste en file)
+    let out = null;
+    try {
+      // Anciennes files : un identifiant par élément, pour pouvoir le retrouver dans la file relue.
+      let sansUid = false;
+      for (const it of q) if (it && !it._uid) { it._uid = this._uid(); sansUid = true; }
+      if (sansUid) this._saveQ(q);
+      for (const it of q) {
+        if (!it) continue;
+        // Ne pas reboucler automatiquement sur un échec définitif (sauf retente manuelle)
+        if (it.failed && !force) continue;
+        // Retiré ou remplacé depuis le début de l'envoi → ne pas renvoyer une version périmée.
+        if (!this._loadQ().some(x => x && x._uid === it._uid)) continue;
+        if (force) { it.failed = false; } // on redonne sa chance (ex. colonne ajoutée entre-temps)
+        try {
+          let r;
+          if (it.op === 'rpc') r = await FP.supabase.rpc(it.fn, it.args);
+          else if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
+          else if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
+          else if (it.op === 'update') r = await FP.db.update(it.table, it.id, it.fields);
+          else if (it.op === 'delete') r = await FP.db.delete(it.table, it.id);
+          if (r && r.error) throw r.error;
+          bilan.set(it._uid, null);
+        } catch (e) {
+          it.tries = (it.tries || 0) + 1;
+          it.error = (e && (e.message || e.code)) || 'erreur inconnue';
+          // Erreur base (définitive) OU trop d'échecs réseau d'affilée → on arrête de boucler
+          if (this._estPermanente(e) || it.tries >= 5) it.failed = true;
+          bilan.set(it._uid, it);
+        }
       }
+    } finally {
+      // Fusion avec la file ACTUELLE : tout ce qui y a été ajouté pendant l'envoi est conservé.
+      out = [];
+      for (const x of this._loadQ()) {
+        if (!x) continue;
+        if (!bilan.has(x._uid)) { out.push(x); continue; }
+        const maj = bilan.get(x._uid);
+        if (maj) out.push(maj);
+      }
+      this._saveQ(out);
+      this._flushing = false;
     }
-    this._saveQ(remaining);
-    this._flushing = false;
-    if (FP._syncBadge) FP._syncBadge(remaining.length === 0 && q.length > 0);
+    if (FP._syncBadge) FP._syncBadge(out.length === 0 && q.length > 0);
   },
 };
+/*</persist-file>*/
 
 // --- Indicateur de synchro (pastille en bas à droite) ---
 // Jaune = des modifs ne sont pas encore enregistrées dans la base (cliquer = réessayer).

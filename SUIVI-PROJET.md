@@ -149,6 +149,11 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
   - vérification dans l'application : lecture conforme, et une modification de km faite puis annulée s'est bien enregistrée dans la table et la copie.
 - **Défaut trouvé pendant la vérification, puis corrigé** : sur certaines pages, l'application lisait la copie de sécurité au lieu des tables, parce que l'ordre de chargement des fichiers ne le permettait pas. C'était sans conséquence : la copie est identique, et le garde-fou a empêché toute écriture automatique. Le défaut touchait aussi les congés.
 
+### 20/10/2026 — Correctif de la file d'attente des écritures ✅
+- **Défaut ancien, trouvé pendant la migration** : quand l'application renvoyait des modifications restées en attente, elle réenregistrait à la fin la liste telle qu'elle était **au début** de l'envoi. Une modification faite pendant ce court instant pouvait donc disparaître de la file sans avoir été envoyée. Autre cas : une ancienne version d'une donnée, remplacée entre-temps, pouvait être renvoyée **par-dessus** la nouvelle.
+- **Correction** : avant chaque envoi, l'application vérifie que l'élément est toujours en attente ; à la fin, elle ne retire de la file **que** ce qui a bien été envoyé. Tout ce qui a été ajouté entre-temps est conservé.
+- **Tests** : 6 tests automatiques, dont 2 échouaient sur l'ancien code. Aucun changement visible pour les utilisateurs.
+
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
 - Le déploiement automatique des fonctions serveur **fonctionnait**. Sa condition a tout de même été rendue robuste au nom du dépôt.
@@ -169,7 +174,8 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1014 | Migration des données, étape 1 : les congés | ✅ Fusionnée, en production |
 | #1018 | Journal et suivi : congés en production | ✅ Fusionnée |
 | #1019 | Migration des données, étape 2 : les affectations | ✅ Fusionnée, en production |
-| (cette PR) | Correctif : lecture des tables sur toutes les pages + journal | En cours |
+| #1020 | Correctif : lecture des tables sur toutes les pages + journal | ✅ Fusionnée |
+| (cette PR) | Correctif de la file d'attente des écritures | En cours |
 
 ## 7. Prochaines étapes
 
