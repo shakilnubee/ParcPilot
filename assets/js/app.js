@@ -3052,7 +3052,7 @@ FP.projections = {
   },
 };
 
-// ================= ÉLÉMENTS DE RÉGLAGES EN TABLE GÉNÉRIQUE (assurances, tâches…) =========
+// ================= ÉLÉMENTS DE RÉGLAGES EN TABLE GÉNÉRIQUE (assurances, tâches, sinistres…) =========
 // SOURCE (depuis le 21/10/2026) des collections listées dans COLLECTIONS : la TABLE `settings_items` (1 élément =
 // 1 ligne : société, collection, clé ; valeur complète en jsonb ; RLS par société). Les écrans lisent toujours
 // settings.<collection> : c'est une PROJECTION de la table (+ écritures encore en file).
@@ -3060,7 +3060,7 @@ FP.projections = {
 // (`_ref`, posée par la projection puis à chaque enregistrement) et seuls les éléments réellement modifiés partent
 // (fp_element_enregistrer) ; un élément retiré est ARCHIVÉ (fp_element_archiver), jamais effacé. Aucune écriture de
 // ces collections ne peut donc « oublier » la table. Formes : 'map' { clé: valeur } · 'liste-id' [ {id…} ] ·
-// 'ensemble' [ texte ]. Nouvelle collection : l'ajouter ici ET dans fp_element_collection_ok (migration).
+// 'ensemble' [ texte ] (sans doublon, ordre conservé). Nouvelle collection : l'ajouter ici ET dans fp_element_collection_ok (migration).
 /*<elements-reglages>*/
 FP.elementsReglages = {
   FN_ENREGISTRER: 'fp_element_enregistrer',
@@ -3070,6 +3070,9 @@ FP.elementsReglages = {
     assureurs: 'liste-id', assureurVeh: 'map', assuranceEcheance: 'map', assurancePrimes: 'map', assuranceIgnore: 'ensemble',
     // tâches (20261021120000)
     taches: 'liste-id', rappelsPerso: 'liste-id', tachesAutoFaites: 'map', rappelsFaits: 'map', automationDone: 'map',
+    // sinistres (20261021130000)
+    sinistreStatut: 'map', sinistreStage: 'map', sinistreGroupes: 'map', sinistreAssurance: 'map',
+    sinistreSous: 'map', sinistreDocSub: 'map', sinistreDossiers: 'ensemble', sinistreDossiersSupprimes: 'ensemble',
   },
   _plain(x) { return !!x && typeof x === 'object' && !Array.isArray(x); },
   // Forme canonique (champs triés) : la base renvoie le jsonb avec ses champs réordonnés.
@@ -3086,7 +3089,10 @@ FP.elementsReglages = {
     } else if (forme === 'liste-id') {
       (Array.isArray(val) ? val : []).forEach((x, i) => { if (this._plain(x) && x.id != null && String(x.id) !== '') out[String(x.id)] = { v: x, o: i }; });
     } else if (forme === 'ensemble') {
-      (Array.isArray(val) ? val : []).forEach(x => { if ((typeof x === 'string' || typeof x === 'number') && String(x) !== '') out[String(x)] = { v: true, o: 0 }; });
+      // Liste de textes SANS doublon, ORDRE conservé (ex. dossiers de sinistres affichés dans leur ordre) :
+      // ordre = position parmi les éléments distincts (1re occurrence).
+      let i = 0;
+      (Array.isArray(val) ? val : []).forEach(x => { if ((typeof x === 'string' || typeof x === 'number') && String(x) !== '' && !(String(x) in out)) out[String(x)] = { v: true, o: i++ }; });
     }
     return out;
   },
@@ -8899,7 +8905,7 @@ FP.restaurerReglages.texte = (b) => {
   if (b && b.affectations) p.push(b.affectations + ' véhicule(s) : affectations');
   if (b && b.contrats) p.push(b.contrats + ' contrat(s) LLD');
   if (b && b.forfaits) p.push(b.forfaits + ' forfait(s) de leasing');
-  if (b && b.assurances) p.push(b.assurances + ' élément(s) d\'assurance ou de tâche');
+  if (b && b.assurances) p.push(b.assurances + ' élément(s) d\'assurance, de tâche ou de sinistre');
   return p.length ? ' — remis aussi en base : ' + p.join(', ') : '';
 };
 FP.affectations = {
@@ -12442,7 +12448,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing', settings_items: 'réglage (assurance, tâche…)' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing', settings_items: 'réglage (assurance, tâche, sinistre…)' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');

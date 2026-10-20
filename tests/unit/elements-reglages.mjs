@@ -65,6 +65,19 @@ test('tâche terminée (fait: false → true) → seule cette tâche est envoyé
   assert.deepEqual(e.map(x => [x.op, x.cle]), [['enregistrer', '2']]);
 });
 
+test('ensemble : ordre conservé, doublons ignorés (dossiers de sinistres)', () => {
+  const D = ['GC-885-LB', 'AA-111-AA', 'GC-885-LB', 'ZZ-999-ZZ'];
+  assert.deepEqual(E.depuisLignes('ensemble', viaBase('ensemble', D)), ['GC-885-LB', 'AA-111-AA', 'ZZ-999-ZZ']);
+});
+test('collections des sinistres déclarées avec la bonne forme', () => {
+  ['sinistreStatut', 'sinistreStage', 'sinistreGroupes', 'sinistreAssurance', 'sinistreSous', 'sinistreDocSub'].forEach(c => assert.equal(E.COLLECTIONS[c], 'map', c));
+  assert.equal(E.COLLECTIONS.sinistreDossiers, 'ensemble'); assert.equal(E.COLLECTIONS.sinistreDossiersSupprimes, 'ensemble');
+});
+test('dossier ajouté en fin de liste → seul ce dossier est envoyé', () => {
+  const D = ['A1', 'B2'];
+  assert.deepEqual(E.ecarts('ensemble', E.empreintes('ensemble', D), ['A1', 'B2', 'C3']).map(x => [x.op, x.cle, x.ordre]), [['enregistrer', 'C3', 2]]);
+});
+
 console.log('\nCe qui est envoyé après un enregistrement');
 test('rien de changé → rien envoyé, même si la base a réordonné les champs', () => {
   const ref = E.empreintes('map', E.depuisLignes('map', viaBase('map', PRIMES)));
