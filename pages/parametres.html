@@ -482,40 +482,44 @@
 
     <!-- Section Données -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="donnees">
-      <div class="section-title">
-        <i data-lucide="database" class="w-5 h-5"></i> Données
+      <div class="set-head">
+        <h2><i data-lucide="database"></i> Données</h2>
+        <p>Sauvegardes anti-perte, import / export, synchronisation, service IA et corbeille.</p>
       </div>
-      <div class="mb-5 p-4 rounded-lg border border-slate-200" style="background:#F8FAFC" id="backup-card">
-        <div class="font-semibold text-slate-900 mb-1 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4" style="color:var(--fp-accent)"></i> Sauvegarde complète (anti-perte)</div>
-        <p class="text-sm text-slate-600 mb-3">Télécharge un fichier contenant <b>toutes les données</b> (véhicules, amendes, factures, conducteurs, documents, emprunts) + tes réglages. Garde-le précieusement (Drive, disque). À refaire de temps en temps.</p>
+
+      <div class="set-sub muted" id="backup-card">
+        <div class="set-sub-h"><i data-lucide="shield-check"></i> Sauvegarde complète (anti-perte)</div>
+        <p class="set-sub-d">Télécharge un fichier contenant <b>toutes les données</b> (véhicules, amendes, factures, conducteurs, documents, emprunts) + tes réglages. Garde-le précieusement (Drive, disque) et refais-le de temps en temps.</p>
         <button class="btn btn-dark text-sm" id="btn-backup"><i data-lucide="download" class="w-4 h-4"></i> Télécharger la sauvegarde complète</button>
         <span id="backup-status" class="text-xs text-slate-500 ml-2"></span>
       </div>
 
-      <div class="mb-5 p-4 rounded-lg border border-slate-200" style="background:#F8FAFC" id="autobak-card">
-        <div class="font-semibold text-slate-900 mb-1 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4" style="color:var(--fp-accent)"></i> Historique automatique des réglages <span class="text-xs font-normal text-slate-500">(anti-perte)</span></div>
-        <p class="text-sm text-slate-600 mb-3">L'appli garde toute seule les <b>15 dernières versions</b> de tes réglages (congés, assurance, leasing, loueurs…). Si quelque chose se perd, tu <b>restaures une version</b> en 1 clic. Ces sauvegardes sont sur cet appareil ; pour une copie à part, utilise aussi « Exporter » ci-dessous.</p>
+      <div class="set-sub muted" id="autobak-card">
+        <div class="set-sub-h"><i data-lucide="history"></i> Historique des réglages — sur cet appareil</div>
+        <p class="set-sub-d">L'appli garde toute seule les <b>15 dernières versions</b> de tes réglages (congés, assurance, leasing, loueurs…). Si quelque chose se perd, tu <b>restaures une version</b> en 1 clic.</p>
         <div id="autobak-list" class="space-y-1.5"></div>
       </div>
 
-      <div class="mb-5 p-4 rounded-lg border border-slate-200" style="background:#F0F9FF" id="autobak-srv-card">
-        <div class="font-semibold text-slate-900 mb-1 flex items-center gap-2"><i data-lucide="cloud" class="w-4 h-4" style="color:var(--fp-accent)"></i> Historique des réglages — côté serveur <span class="text-xs font-normal text-slate-500">(anti-perte, tous appareils)</span></div>
-        <p class="text-sm text-slate-600 mb-3">Ces versions sont stockées <b>sur le serveur</b> (pas sur cet appareil) : même si tu vides le cache de <b>tous</b> tes appareils, tu peux <b>restaurer tes congés/assurances/leasing depuis ici</b>. C'est le filet qui ne dépend d'aucun téléphone.</p>
+      <div class="set-sub" style="border-color:#BFDBFE;background:#F0F9FF" id="autobak-srv-card">
+        <div class="set-sub-h"><i data-lucide="cloud"></i> Historique des réglages — côté serveur</div>
+        <p class="set-sub-d">Ces versions sont stockées <b>sur le serveur</b> : même si tu vides le cache de <b>tous</b> tes appareils, tu peux <b>restaurer tes congés / assurances / leasing depuis ici</b>. Le filet qui ne dépend d'aucun téléphone.</p>
         <div id="autobak-srv-list" class="space-y-1.5"><span class="text-xs text-slate-400">Chargement…</span></div>
       </div>
 
-      <p class="text-sm text-slate-600 mb-4" id="data-tech-note">Tous les véhicules, amendes et factures sont stockés dans <code class="bg-slate-100 px-1 rounded text-xs">assets/js/data.js</code>. Pour réimporter ou remplacer, édite ce fichier directement.</p>
-
-      <div class="flex gap-2" id="danger-tools">
-        <button class="btn btn-outline text-sm" id="btn-export-all"><i data-lucide="download" class="w-4 h-4"></i> Exporter tous les paramètres (JSON)</button>
-        <button class="btn btn-outline text-sm" id="btn-import-all"><i data-lucide="upload" class="w-4 h-4"></i> Importer des paramètres</button>
-        <button class="btn text-sm text-red-600 hover:bg-red-50" id="btn-reset-all"><i data-lucide="trash-2" class="w-4 h-4"></i> Tout réinitialiser</button>
-        <input type="file" id="import-file" accept=".json" class="hidden" />
+      <div class="set-sub" id="data-tech-note">
+        <div class="set-sub-h"><i data-lucide="file-cog"></i> Export / import des réglages</div>
+        <p class="set-sub-d">Sauvegarde ou restaure <b>tous les paramètres</b> (groupes, libellés, modèles d'e-mail, barèmes…) sous forme de fichier JSON. « Tout réinitialiser » efface les réglages locaux — à utiliser avec précaution.</p>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-outline text-sm" id="btn-export-all"><i data-lucide="download" class="w-4 h-4"></i> Exporter les paramètres (JSON)</button>
+          <button class="btn btn-outline text-sm" id="btn-import-all"><i data-lucide="upload" class="w-4 h-4"></i> Importer des paramètres</button>
+          <button class="btn text-sm text-red-600 hover:bg-red-50" id="btn-reset-all"><i data-lucide="trash-2" class="w-4 h-4"></i> Tout réinitialiser</button>
+          <input type="file" id="import-file" accept=".json" class="hidden" />
+        </div>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-100">
-        <div class="field-label">Synchronisation entre postes (cloud)</div>
-        <p class="text-sm text-slate-600 mb-3">Partage les réglages (noms/couleurs des groupes, libellés, titres, couleur) entre tous les PC via Supabase.</p>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="refresh-cw"></i> Synchronisation entre postes (cloud)</div>
+        <p class="set-sub-d">Partage les réglages (noms / couleurs des groupes, libellés, titres) entre tous les PC via Supabase.</p>
         <div class="flex gap-2 flex-wrap">
           <button class="btn btn-dark text-sm" id="btn-sync-push"><i data-lucide="cloud-upload" class="w-4 h-4"></i> Envoyer mes réglages au serveur</button>
           <button class="btn btn-outline text-sm" id="btn-sync-pull"><i data-lucide="cloud-download" class="w-4 h-4"></i> Récupérer les réglages du serveur</button>
@@ -525,18 +529,18 @@
         <div id="sync-diag" class="hidden mt-3 text-xs leading-relaxed rounded-lg p-3 border"></div>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-100">
-        <div class="field-label flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4" style="color:var(--fp-accent)"></i> État du service IA (assistant &amp; scanner)</div>
-        <p class="text-sm text-slate-600 mb-3">Vérifie que l'<b>assistant</b> et le <b>scanner</b> fonctionnent (ils passent par la fonction serveur <code class="bg-slate-100 px-1 rounded text-xs">scan-doc</code> qui parle à Claude). Si c'est en panne, le test te dit <b>précisément pourquoi</b> (modèle invalide, clé API manquante, quota…). Le tableau de bord te prévient aussi tout seul par un bandeau.</p>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="sparkles"></i> État du service IA (assistant &amp; scanner)</div>
+        <p class="set-sub-d">Vérifie que l'<b>assistant</b> et le <b>scanner</b> fonctionnent. En cas de panne, le test dit <b>précisément pourquoi</b> (modèle invalide, clé API manquante, quota…). Le tableau de bord te prévient aussi par un bandeau.</p>
         <div class="flex gap-2 flex-wrap items-center">
           <button class="btn btn-dark text-sm" id="btn-ia-test"><i data-lucide="activity" class="w-4 h-4"></i> Tester l'IA maintenant</button>
         </div>
         <div id="ia-test-result" class="hidden mt-3 text-sm leading-relaxed rounded-lg p-3 border"></div>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-100">
-        <div class="field-label">Import en masse (Excel / CSV)</div>
-        <p class="text-sm text-slate-600 mb-3">Importe des <b>véhicules</b>, <b>conducteurs</b> ou <b>factures</b> depuis Excel (colle directement le tableau) ou un fichier CSV. 1ʳᵉ ligne = en-têtes. Les <b>doublons sont ignorés</b>. Teste d'abord avec quelques lignes.</p>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="table"></i> Import en masse (Excel / CSV)</div>
+        <p class="set-sub-d">Importe des <b>véhicules</b>, <b>conducteurs</b> ou <b>factures</b> depuis Excel (colle le tableau) ou un fichier CSV. 1ʳᵉ ligne = en-têtes. Les <b>doublons sont ignorés</b>. Teste d'abord avec quelques lignes.</p>
         <div class="flex gap-2 flex-wrap items-center mb-2">
           <select id="imp-type" class="field-input" style="width:auto"><option value="vehicules">Véhicules</option><option value="conducteurs">Conducteurs</option><option value="factures">Factures</option></select>
           <input type="file" id="imp-file" accept=".csv,text/csv" class="text-sm">
@@ -547,12 +551,12 @@
           <button class="btn btn-dark text-sm" id="imp-run" disabled><i data-lucide="upload" class="w-4 h-4"></i> Importer</button>
         </div>
         <div id="imp-preview" class="text-sm mt-3"></div>
-        <p class="text-xs text-slate-400 mt-2">Colonnes reconnues — <b>Véhicules</b> : immatriculation, marque, modèle, catégorie, carburant, km, mise en circulation, propriétaire, statut. <b>Conducteurs</b> : nom, prénom (ou « conducteur »). <b>Factures</b> : date, fournisseur, type (entretien/réparation/achat/leasing/cession/sinistre/autre), montant HT, TVA, TTC, n° facture, immatriculation, km, description. Formats de date acceptés : JJ/MM/AAAA ou AAAA-MM-JJ.</p>
+        <p class="set-hint">Colonnes reconnues — <b>Véhicules</b> : immatriculation, marque, modèle, catégorie, carburant, km, mise en circulation, propriétaire, statut. <b>Conducteurs</b> : nom, prénom (ou « conducteur »). <b>Factures</b> : date, fournisseur, type, montant HT, TVA, TTC, n° facture, immatriculation, km, description. Dates : JJ/MM/AAAA ou AAAA-MM-JJ.</p>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-100">
-        <div class="field-label flex items-center gap-2"><i data-lucide="trash-2" class="w-4 h-4" style="color:var(--fp-accent)"></i> Corbeille — restaurer un élément supprimé</div>
-        <p class="text-sm text-slate-600 mb-3">Les <b>véhicules</b>, <b>amendes</b>, <b>conducteurs</b>, <b>factures</b>, <b>documents</b> et <b>contrats de leasing</b> supprimés sont conservés ici <b>30 jours</b> (synchronisés sur tous tes appareils). Clique sur <b>Restaurer</b> pour les remettre. <b>Passé 30 jours — ou si tu cliques ✕ / « Vider la corbeille »</b> — la suppression devient <b>définitive</b> et les <b>fichiers (PDF, documents…) sont effacés du serveur</b> (libère l'espace). <span class="text-slate-400">Après une restauration, recharge la page (Ctrl+Maj+R) pour la voir apparaître partout.</span></p>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="trash-2"></i> Corbeille — restaurer un élément supprimé</div>
+        <p class="set-sub-d">Les <b>véhicules</b>, <b>amendes</b>, <b>conducteurs</b>, <b>factures</b>, <b>documents</b> et <b>contrats de leasing</b> supprimés sont conservés ici <b>30 jours</b> (synchronisés sur tous tes appareils). Clique sur <b>Restaurer</b> pour les remettre. <b>Passé 30 jours — ou si tu cliques ✕ / « Vider la corbeille »</b> — la suppression devient <b>définitive</b> et les fichiers (PDF, documents…) sont effacés du serveur. <span class="text-slate-400">Après une restauration, recharge la page (Ctrl+Maj+R).</span></p>
         <div id="corbeille-list" class="space-y-2"></div>
         <div class="flex gap-2 mt-3">
           <button class="btn btn-outline text-sm" id="corb-refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Rafraîchir</button>
