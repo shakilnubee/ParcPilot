@@ -5788,6 +5788,12 @@ FP.settings = {
     sinistreStatut: {}, // suivi remboursement sinistre { factureId: 'attente'|'rembourse'|'refuse' }
     permisMasque: {}, // permis intégré (FP_DOCS) masqué par l'utilisateur { conducteurKey: true }
     condDocs: {}, // documents perso d'un conducteur { conducteurKey: [ {id,type,label,url,date,createdAt} ] }
+    // CHAMPS PERSONNALISÉS (par société) : définitions + valeurs par fiche. Chaque société adapte ses fiches
+    // véhicules/conducteurs sans toucher au code. customFields = liste des définitions (fusion fine par id) ;
+    // vehCustom/condCustom = valeurs keyées par fiche (protégées anti-perte comme les autres maps de données).
+    customFields: [], // [ { id, key, label, type, entity:'vehicule'|'conducteur', required, defaultValue, options:[], order, archived } ]
+    vehCustom: {},    // { vehId:   { fieldKey: valeur } }
+    condCustom: {},   // { condKey:  { fieldKey: valeur } }
     prestataires: undefined, // garages / prestataires PROPRES À CHAQUE SOCIÉTÉ [ {id,nom,adresse,email,tel} ] — semé une fois (PXP hérite de son garage historique, autres = vide). undefined = jamais initialisé (déclenche le semis)
     // Profil PROPRE À CHAQUE SOCIÉTÉ (rempli à la création d'une société) : e-mails d'envoi des amendes,
     // nom du loueur leasing, etc. Vide par défaut ; PXP a des valeurs historiques (voir FP.societeProfil).
@@ -5889,7 +5895,8 @@ FP.settings = {
     'docTrash', 'permisMasque', 'inspections', 'reservations', 'budget', 'budgets', 'objectifs',
     'pointsManuel', 'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
     'rapprIgnore', 'tfAnomOk', 'ignores', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes',
-    'sinistreAssurance', 'sinistreDossiers', 'zoneNotes', 'corbeille'],
+    'sinistreAssurance', 'sinistreDossiers', 'zoneNotes', 'corbeille',
+    'vehCustom', 'condCustom'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -6087,7 +6094,10 @@ FP.settings = {
       'revisionIntervalleVeh',
       // — Lien du DOSSIER DE VENTE par véhicule ({ vehId → URL du dossier Drive }) : rangé le Cerfa de
       //   cession + documents de vente. Donnée keyée → fusion fine multi-appareils (jamais écrasée en bloc).
-      'vehDossierVente']);
+      'vehDossierVente',
+      // — Champs personnalisés : valeurs keyées par fiche (véhicule/conducteur) → fusion fine par clé ;
+      //   et la liste des DÉFINITIONS (tableau d'objets à id) → fusion fine par id (jamais écrasée en bloc).
+      'vehCustom', 'condCustom', 'customFields']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
     // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).
@@ -6497,6 +6507,87 @@ FP.addr = {
     return { rue: parts.slice(0, idx).join(', '), cp, ville, pays: rest.join(', ') };
   },
 };
+
+// ===== CHAMPS PERSONNALISÉS (par société) — SOURCE UNIQUE =====
+// Définitions dans settings.customFields ; valeurs dans settings.vehCustom / condCustom (keyées par fiche).
+// Utilisé par l'écran Paramètres (gestion des champs) ET le rendu sur les fiches véhicule/conducteur.
+FP.customFields = {
+  TYPES: [
+    { v: 'text',     label: 'Texte' },
+    { v: 'textarea', label: 'Texte long' },
+    { v: 'number',   label: 'Nombre' },
+    { v: 'date',     label: 'Date' },
+    { v: 'select',   label: 'Liste déroulante' },
+    { v: 'checkbox', label: 'Case à cocher' },
+    { v: 'money',    label: 'Montant (€)' },
+    { v: 'url',      label: 'Lien / e-mail' },
+  ],
+  typeLabel(t) { const x = this.TYPES.find(y => y.v === t); return x ? x.label : t; },
+  _defs() { try { const a = FP.settings.get().customFields; return Array.isArray(a) ? a : []; } catch (e) { return []; } },
+  // Définitions ACTIVES (non archivées) d'une entité ('vehicule'|'conducteur'), triées par ordre.
+  defsFor(entity) {
+    return this._defs().filter(d => d && !d.archived && d.entity === entity)
+      .sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.label || '').localeCompare(String(b.label || '')));
+  },
+  // Clé technique STABLE à partir d'un libellé (préfixe cf_ → ne percute jamais une colonne/réglage existant).
+  slug(label, existingDefs) {
+    const base = String(label || 'champ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'champ';
+    const taken = new Set((existingDefs || this._defs()).map(d => d.key));
+    let key = 'cf_' + base, i = 2; while (taken.has(key)) { key = 'cf_' + base + '_' + i; i++; }
+    return key;
+  },
+  _store(entity) { return entity === 'conducteur' ? 'condCustom' : 'vehCustom'; },
+  value(entity, id, key) {
+    try { const m = FP.settings.get()[this._store(entity)] || {}; const row = m[id] || {}; return row[key]; } catch (e) { return undefined; }
+  },
+  setValue(entity, id, key, val) {
+    const s = FP.settings.get(); const store = this._store(entity);
+    const m = (s[store] && typeof s[store] === 'object') ? s[store] : {};
+    const row = (m[id] && typeof m[id] === 'object') ? { ...m[id] } : {};
+    if (val === '' || val == null || val === false) delete row[key]; else row[key] = val;
+    m[id] = row; s[store] = m; FP.settings.save(s);
+  },
+  // Valeur formatée pour l'AFFICHAGE lecture seule (montant €, Oui/Non, date, lien…).
+  display(def, val) {
+    if (val == null || val === '') return '';
+    if (def.type === 'money') { const n = Number(val); return isFinite(n) ? (FP.euro ? FP.euro(n) : n + ' €') : String(val); }
+    if (def.type === 'checkbox') return val ? 'Oui' : 'Non';
+    if (def.type === 'date') return FP.date ? FP.date(val) : String(val);
+    if (def.type === 'number') return (FP.num ? FP.num(val) : String(val));
+    return String(val);
+  },
+  // Champ de saisie (avec data-attrs → sauvegarde auto via l'écouteur délégué plus bas).
+  _input(d, v) {
+    const da = 'data-cf-key="' + FP.esc(d.key) + '"';
+    const val = v == null ? '' : v;
+    const base = 'width:100%;margin-top:3px;font-size:13px;padding:6px 8px;border:1px solid var(--fp-border);border-radius:7px;background:var(--fp-surface);color:inherit';
+    if (d.type === 'textarea') return '<textarea class="cf-in" ' + da + ' rows="2" style="' + base + ';resize:vertical">' + FP.esc(val) + '</textarea>';
+    if (d.type === 'checkbox') return '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="cf-in" ' + da + (val ? ' checked' : '') + '> Oui</label>';
+    if (d.type === 'select') { const opts = (d.options || []).map(o => '<option' + (String(val) === String(o) ? ' selected' : '') + '>' + FP.esc(o) + '</option>').join(''); return '<select class="cf-in" ' + da + ' style="' + base + '"><option value="">—</option>' + opts + '</select>'; }
+    const t = (d.type === 'number' || d.type === 'money') ? 'number' : (d.type === 'date' ? 'date' : 'text');
+    const step = d.type === 'money' ? ' step="0.01"' : '';
+    return '<input type="' + t + '"' + step + ' class="cf-in" ' + da + ' value="' + FP.esc(val) + '" placeholder="' + FP.esc(d.defaultValue || '') + '" style="' + base + '">';
+  },
+  // Carte « Infos complémentaires » prête à insérer dans une fiche (véhicule/conducteur). Vide si aucun champ.
+  ficheSection(entity, id) {
+    const defs = this.defsFor(entity); if (!defs.length) return '';
+    const cells = defs.map(d => '<label style="display:block"><span style="font-size:.72rem;font-weight:600;color:var(--fp-muted);text-transform:uppercase;letter-spacing:.04em">' + FP.esc(d.label) + (d.required ? ' <i style="color:#ef4444;font-style:normal">*</i>' : '') + '</span>' + this._input(d, this.value(entity, id, d.key)) + '</label>').join('');
+    return '<div class="card p-4" data-cf-fiche data-cf-entity="' + FP.esc(entity) + '" data-cf-id="' + FP.esc(String(id)) + '">'
+      + '<div class="section-title" style="font-size:.95rem;margin-bottom:.8rem"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Infos complémentaires</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem">' + cells + '</div></div>';
+  },
+};
+// Écouteur délégué UNIQUE : toute saisie d'un champ perso (classe .cf-in dans une carte [data-cf-fiche])
+// est enregistrée immédiatement (persistée + synchronisée). Pas de câblage par page.
+document.addEventListener('change', function (e) {
+  const el = e.target && e.target.closest ? e.target.closest('.cf-in') : null; if (!el) return;
+  const card = el.closest('[data-cf-fiche]'); if (!card || !el.dataset || !el.dataset.cfKey) return;
+  const entity = card.getAttribute('data-cf-entity'), id = card.getAttribute('data-cf-id'), key = el.dataset.cfKey;
+  const val = el.type === 'checkbox' ? el.checked : el.value;
+  try { FP.customFields.setValue(entity, id, key, val); if (FP.toast) FP.toast('Enregistré'); }
+  catch (er) { if (FP.notifyError) FP.notifyError('Champ non enregistré — vérifie la connexion'); }
+});
 
 (function guardBackspace() {
   // Empêche la touche « Retour arrière » de déclencher « page précédente » du navigateur
