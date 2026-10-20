@@ -1,5 +1,51 @@
 # Parc Pilot — Contexte projet
 
+## 🔐 RÈGLES DE SÉCURITÉ ET DE TRAVAIL — PRIORITÉ ABSOLUE (depuis le 16/10/2026)
+
+> Ces règles **priment sur tout le reste de ce fichier**, y compris les anciennes consignes qui disaient de
+> pousser directement sur `main` ou d'exécuter un script SQL dans Supabase. Elles valent pour **toute
+> session** (Claude, Codex ou humain), sur **tous les PC**. Contexte et historique : `SUIVI-PROJET.md`.
+
+1. **Jamais de push direct sur `main`.** `main` est publiée automatiquement sur https://parc-pilot.fr.
+   Toute modification passe par **une branche dédiée** (`sujet/description-courte`) **et une pull request**,
+   fusionnée seulement quand les **tests automatiques sont verts** (`controles`, `e2e`). `main` est
+   protégée côté GitHub : un push direct sera refusé — ce n'est pas un bug, il faut ouvrir une PR.
+   Jamais de `git push --force`, jamais de suppression de branche ou d'historique sans accord explicite.
+2. **Jamais d'écriture sur la base de PRODUCTION sans accord explicite, pour chaque action.**
+   Production = projet Supabase `tzjuptlzoywjeigmyfuj`. Toute modification de **schéma, règles d'accès
+   (RLS, stockage), fonctions ou déclencheurs** :
+   - s'écrit comme une **migration versionnée** dans `supabase/migrations/AAAAMMJJHHMMSS_description.sql`
+     (idempotente, avec son retour arrière en commentaire) ;
+   - est **testée d'abord sur le staging** (projet `csvjmzwexszsbowibxut`, données fictives, voir
+     `supabase/staging/README.md`) ;
+   - n'est appliquée en production qu'**avec accord**, **après une sauvegarde vérifiée**, puis notée dans
+     `supabase/migrations/JOURNAL.md`.
+   Aucune action destructive (`DROP`, `DELETE` massif, `TRUNCATE`) sans confirmation explicite.
+3. **Ne jamais ré-exécuter les anciens scripts SQL** de `supabase/historique/` ni de `supabase/*.sql` :
+   ce sont des archives de manipulations faites à la main avant octobre 2026. Plusieurs **rouvriraient des
+   failles corrigées** (fichiers publics, accès anonyme, réglages partagés entre sociétés). Voir
+   `supabase/LISEZ-MOI.md`.
+4. **Ne jamais affaiblir les garde-fous en place** (sauf demande explicite et motivée) :
+   - stockage `scans` **privé**, rangé par société (`societes/<slug>/…`, helper `FP.storageDossierSociete`)
+     et protégé par les règles `scans_societe_*` ;
+   - vue `vehicules_public` (QR) en **lecture seule** ;
+   - ligne `app_settings` id=`global` **gelée** (déclencheur `trg_00_geler_ligne_global`) : ne jamais
+     lire ni écrire les réglages d'une société dans `global` ;
+   - **anti-vidage** des réglages (`trg_01_anti_vidage_reglages`) et fusion `FP._fusion` (rejeu des
+     écritures en attente) — couverts par `tests/unit/fusion-reglages.mjs` ;
+   - tests de sécurité : `tests/securite/acces-anonyme.mjs` (quotidien) et
+     `tests/securite/isolation-societes.mjs` (staging uniquement).
+   Si l'un de ces tests échoue après une modification, c'est la modification qu'il faut revoir.
+5. **Aucun secret dans le code, les fichiers, les commits, les PR ou les réponses** (mot de passe,
+   clé `service_role`/`sb_secret_…`, token, URL de base avec mot de passe, clé privée `AGE-SECRET-KEY-…`).
+   Les secrets vivent dans **GitHub → Settings → Secrets** et dans les secrets Supabase. Le dépôt est
+   **public** : aucune donnée personnelle non plus (voir la règle RGPD sur `data.js`).
+6. **Sauvegardes** : une sauvegarde chiffrée de la production (base + fichiers + règles du stockage) tourne
+   **chaque nuit** (`.github/workflows/sauvegarde.yml`), avec restauration d'essai automatique. Mode
+   d'emploi et restauration : `docs/SAUVEGARDES.md`. Ne pas modifier ce workflow sans le tester sur le staging.
+7. **Dans le doute, demander** plutôt que supposer — surtout pour tout ce qui touche la production.
+8. **Tenir `SUIVI-PROJET.md` à jour** à chaque étape notable (même PR que le changement).
+
 ## 🏛️ CONTRAT DE DÉVELOPPEMENT — PROMPT MAÎTRE (gravé en dur, s'applique à CHAQUE demande)
 
 > ⚠️ **Consigne explicite et permanente de l'utilisateur** : ce contrat vaut pour **toute** demande sur
@@ -37,9 +83,9 @@
 - **Backend** : Supabase (PostgreSQL + Auth)
 - **Hosting** : ✅ **GitHub Pages** (auto-déploiement depuis la branche `main`) → **domaine principal : https://parc-pilot.fr/** (GoDaddy, HTTPS forcé ; `www` redirige vers l'apex). L'ancienne URL **https://shakilnubee.github.io/Autoflotte/** redirige désormais vers `parc-pilot.fr`. ⚠️ Le fichier **`CNAME`** (racine du repo = `parc-pilot.fr`) NE DOIT PAS être supprimé, sinon le domaine se débranche. Les liens publics en dur (QR véhicules `carte.html`, e-mails d'amende `avis.html`, carte de visite `brochure.html`) pointent sur `parc-pilot.fr`.
   - ⚠️ Netlify (auto-flotte.netlify.app) = EN PAUSE (quota dépassé) — ne plus utiliser. Vercel (autoflotte.vercel.app) = version périmée — ne plus utiliser.
-  - **Règle** : chaque modif de code DOIT être mergée + poussée sur `main` (GitHub Pages publie tout seul en ~1-2 min). Toujours VÉRIFIER après push que le site live reflète bien le changement.
+  - **Règle** : chaque modif de code passe par une **branche + pull request** (tests verts), puis est **fusionnée dans `main`** (GitHub Pages publie tout seul en ~1-2 min). Jamais de push direct sur `main` (voir « 🔐 RÈGLES DE SÉCURITÉ » en haut). Toujours VÉRIFIER après fusion que le site live reflète bien le changement.
   - Les **données** (Supabase) sont en temps réel sur tous les postes, sans déploiement.
-- **Repo** : https://github.com/shakilnubee/Autoflotte  (public, branche `main`)
+- **Repo** : https://github.com/shakilnubee/ParcPilot  (public, branche `main` protégée — l'ancienne adresse `…/Autoflotte` redirige ici)
 - **Langue UI** : Français
 
 ## Fichier source Drive (référence unique)
@@ -420,22 +466,28 @@ But : Parc Pilot doit devenir **autonome, fiable, cohérent, maintenable, admini
 
 ## Workflow Git
 
+⚠️ **Jamais de push direct sur `main`** (protégée). Une branche + une pull request par sujet :
+
 ```powershell
-git pull              # Au début de chaque session (récupère les modifs des autres PC)
+git switch main
+git pull                                   # au début de chaque session (récupère les modifs des autres PC)
+git switch -c sujet/description-courte     # branche dédiée
 # ... tu modifies ...
-git add .
+git add <fichiers modifiés>                # éviter « git add . » (fichiers locaux, secrets)
 git commit -m "ton message"
-git push              # Netlify redéploie automatiquement
+git push -u origin sujet/description-courte
+gh pr create --fill                        # ou bouton « Compare & pull request » sur GitHub
 ```
+
+Fusion de la PR quand les tests (`controles`, `e2e`) sont **verts** → GitHub Pages publie `main`
+sur parc-pilot.fr en ~1-2 min. Les fonctions serveur (`supabase/functions/**`) sont déployées
+automatiquement à la fusion (`.github/workflows/deploy-edge-functions.yml`).
 
 ## Tâches en attente
 
-- [ ] Brancher Netlify à GitHub pour auto-déploiement (Site settings → Build & deploy → Link to GitHub)
-- [ ] Créer compte utilisateur Supabase (Auth → Add user → Auto Confirm User)
 - [x] Activer RLS (Row Level Security) sur les tables Supabase — ✅ confirmé le 2026-06-15 : `rowsecurity = true` sur les 9 tables + policies `tenant_*` (isolation par société) sur vehicules, amendes, factures, conducteurs, documents, emprunts, total_conso, app_settings + `profiles_self_read`. (Reste recommandé : test réel avec un compte client `is_admin=false`.)
 - [ ] Phase 3 : activer les écritures Supabase pour les mutations (drawer, bulk actions)
 - [ ] Phase 4 : page "Espace salarié"
-- [ ] Acheter domaine personnalisé (.fr ou .com) via OVH/Gandi
 - [ ] 📎 **Scanner par lot les cartes grises** (KONA + reste de la flotte) via Tableau de bord → « Scanner un document » → remplit auto co2 / puissance fiscale / carburant / date 1re immat / prochain CT / masse **ET le VIN** dans les fiches. **À faire par Shakil, plus tard — LUI RAPPELER s'il oublie.** (L'onglet Alertes → « À compléter » liste en direct ce qui manque encore.)
 - [ ] 🎬 Enregistrer la **vidéo de démonstration** (.mp4) avec voix off — **à faire par Shakil, plus tard**. Tout est prêt : la démo auto-jouée est `demo.html`, et le **script imprimable** (mode d'emploi enregistrement écran + texte à lire) est `script-demo.html`.
 - [ ] 📧 **E-MAILS — « Solution 2 » (à faire PLUS TARD, validée par l'utilisateur le 2026-09-13, en attente)** : les e-mails métier (amendes, EDL…) partiront **au NOM de chaque société** mais **depuis le domaine plateforme** Parc Pilot (from = `<Nom société> <envoi@parc-pilot.fr>`, **reply-to = l'adresse de contact du client**), au lieu d'exiger que chaque client vérifie SON domaine. Le plus **simple + pro** : onboarding instantané, une seule vérif de domaine à vie, meilleure délivrabilité. Le domaine dédié du client reste une **option premium** (déjà géré par `send-email` via `mailExpediteur`+`mailDomaineEnvoi`). **Ce qu'il RESTE à faire quand l'utilisateur dira go** : (1) modifier le **repli** de `supabase/functions/send-email/index.ts` (aujourd'hui : société sans domaine vérifié → `EMAIL_FROM` = adresse PXP) pour → `<Nom société> <envoi@parc-pilot.fr>` + reply-to = mailExpediteur de la société ; (2) INFRA (utilisateur) : **vérifier `parc-pilot.fr` dans Resend** (records DNS chez GoDaddy — le même domaine sert déjà aux invitations) + secret Supabase `EMAIL_FROM`/`INVITE_FROM` = `Parc Pilot <envoi@parc-pilot.fr>`. ⚠️ NE PAS toucher aux adresses **PXP** (`shakil.nubee@projectxparis.fr`…) qui restent celles de PXP (PXP a déjà son domaine vérifié → inchangé).
@@ -452,9 +504,9 @@ Si tu reprends ce projet :
   (revues, audits) coûtent des crédits réels → les lancer quand c'est utile et le signaler si c'est gros.
 - L'utilisateur parle **français**, garde un ton direct et simple (il n'est pas dev)
 - Il bosse sous **Windows / PowerShell 5.1** (pas Python, pas Node installés)
-- Préfère les solutions **sans terminal** quand possible (UI Supabase, UI Netlify, UI GitHub)
+- Préfère les solutions **sans terminal** quand possible (UI Supabase, UI GitHub)
 - Avant de modifier `data.js` : c'est un gros fichier, utilise Edit avec contexte précis
-- Pour toute modif déployée : `git add` → `git commit` → `git push` (Netlify redéploie tout seul)
+- Pour toute modif déployée : branche → commit → push de la branche → **pull request** → fusion quand les tests sont verts (GitHub Pages publie `main`). Jamais de push direct sur `main`.
 - ⚠️ **AUDITS À LA DEMANDE** : quand l'utilisateur dit **« fais l'audit »** (ou « lance les
   audits »), lancer **en parallèle** les 12 auditeurs documentés dans **`docs/AUDITS.md`**
   (un Agent par domaine, sortie = findings vérifiés `fichier:ligne`+gravité, NE PAS modifier),

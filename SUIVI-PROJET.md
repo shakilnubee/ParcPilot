@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **20/10/2026** (sauvegardes : essai réussi sur la production)
+> Dernière mise à jour : **20/10/2026** (sauvegardes actives chaque nuit ; organisation de GitHub préparée)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -98,7 +98,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **11 tests automatiques** reproduisent l'incident et les cas multi-appareils. Ils tournent désormais à chaque PR.
 - **Mis en production le 17/10/2026** : d'abord le garde-fou en base, actif immédiatement pour tous les navigateurs, puis le correctif du code (PR #992).
 
-### 16 → 20/10/2026 — Sauvegardes automatiques 🟡 (essai réussi sur la production, activation nocturne à valider)
+### 16 → 20/10/2026 — Sauvegardes automatiques ✅ (actives chaque nuit sur la production)
 - **Chaque nuit**, copie complète de la base (rôles, structure, données, comptes) **et de tous les fichiers**, ainsi que des règles d'accès du stockage. Ces dernières ne figurent pas dans la copie standard de Supabase.
 - **Restauration d'essai automatique** à chaque sauvegarde, dans une base vide, avec comparaison du nombre de lignes de chaque table. Si un seul chiffre diffère, ou s'il manque plus de 5 % des fichiers, la sauvegarde échoue et GitHub envoie un e-mail.
 - **Chiffrement** de chaque archive : seuls François et Shakil, détenteurs d'une clé privée, peuvent la lire.
@@ -108,7 +108,14 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Essai réussi sur la production le 20/10/2026** (lecture seule) : 30 tables copiées et restaurées avec **exactement le même nombre de lignes** ; **961 fichiers sur 961** copiés ; 4 règles du stockage sauvegardées et restaurées ; archive chiffrée d'environ 840 Mo.
 - Deux réglages techniques corrigés en route : version de l'outil Supabase figée (un blocage de GitHub empêchait son installation), et compatibilité de l'outil de copie avec le stockage de la production (les téléchargements de fichiers étaient refusés).
 - Clés de chiffrement en place pour François et Shakil (celle de Shakil est provisoire et sera remplacée).
-- **Reste à faire** : fusionner la PR #991 pour activer la sauvegarde **chaque nuit**, puis réaliser un test de restauration complet par un humain.
+- **Activées le 20/10/2026** (fusion de la PR #991) : une sauvegarde de la production chaque nuit vers 3 h 15.
+- **Reste à faire** : un test de restauration complet par un humain.
+
+### 20/10/2026 — Organisation de GitHub 🟡 (préparée, en attente de validation)
+- **Règles de travail inscrites dans `CLAUDE.md`**, lu par chaque session Claude, sur tous les PC : jamais de modification directe de la branche publiée, une PR par sujet, migrations testées sur le staging, aucun secret, ne pas affaiblir les protections en place. Les anciennes consignes contraires (publication directe, Netlify) sont corrigées.
+- **`README.md`** : présentation du projet, environnements, façon de contribuer, tests, documentation.
+- **Anciens scripts SQL rangés** : les 18 scripts de la racine sont déplacés dans `supabase/historique/`, et un guide `supabase/LISEZ-MOI.md` explique qu'ils ne doivent **plus être exécutés**. Plusieurs rouvriraient des failles corrigées.
+- **Reste à faire par Shakil**, seul administrateur du dépôt : activer la **protection de la branche `main`**. Les modifications passeront alors obligatoirement par une PR, avec des tests verts.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -125,14 +132,15 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #987 | Staging + test d'isolation | ✅ Fusionnée |
 | #988 | Cloisonnement des fichiers | ✅ Fusionnée, règle appliquée en production |
 | #992 | Anti-vidage des réglages (base + code) | ✅ Fusionnée, garde-fou actif en production |
-| #991 | Sauvegardes automatiques | Essai réussi sur la production ; à fusionner pour activer la sauvegarde nocturne |
+| #991 | Sauvegardes automatiques | ✅ Fusionnée, active chaque nuit |
+| (cette PR) | Organisation de GitHub (règles, README, scripts SQL rangés) | En attente de validation |
 
 ## 7. Prochaines étapes
 
 1. ✅ ~~Mise en production de l'anti-vidage des réglages~~ : fait le 17/10/2026.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
-3. **Sauvegardes** : essai réussi sur la production le 20/10/2026. Restent : l'activation nocturne (fusion de la #991), le remplacement de la clé provisoire de Shakil, puis un test de restauration complet par un humain.
-4. **GitHub** : protéger la branche principale (PR et tests obligatoires), ranger les anciens scripts SQL, réécrire le `README.md` et le `CLAUDE.md`.
+3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
+4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
 5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables : congés, affectations, contrats, assurances, tâches, sinistres… Suppression ensuite du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
@@ -149,7 +157,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 9. Points ouverts / à surveiller
 
-- La sauvegarde quotidienne Supabase **n'inclut pas les fichiers** : couvert par nos sauvegardes dès l'activation nocturne (étape 3).
+- La sauvegarde quotidienne Supabase **n'inclut pas les fichiers** : couvert par nos sauvegardes nocturnes depuis le 20/10/2026.
 - Une archive pèse environ 840 Mo, soit près de 30 Go conservés en permanence (30 jours) : vérifier que cela reste dans les limites de stockage GitHub du dépôt.
 - Des états des lieux vides (0 km) sont parfois créés automatiquement : à investiguer.
 - Deux dates d'affectation de véhicule à faire vérifier par Shakil.
