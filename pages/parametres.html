@@ -28,6 +28,20 @@
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
   .field-input:focus { outline: none; border-color: var(--fp-accent); box-shadow: 0 0 0 3px rgba(249,115,22,.15); }
   .section-title { font-weight: 700; font-size: 1.05rem; color: var(--fp-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: .55rem; }
+  /* En-tête d'onglet : titre + sous-titre court, aligné, pro */
+  .set-head { margin-bottom: 1.25rem; }
+  .set-head h2 { font-weight: 800; font-size: 1.15rem; color: var(--fp-primary); display: flex; align-items: center; gap: .55rem; margin: 0; }
+  .set-head h2 i { width: 20px; height: 20px; color: var(--fp-accent); }
+  .set-head p { font-size: .85rem; color: var(--fp-muted); margin: .3rem 0 0 0; }
+  /* Sous-panneau réutilisable : regroupe un bloc de réglages cohérent */
+  .set-sub { border: 1px solid var(--fp-border); border-radius: .75rem; padding: 1.1rem 1.15rem; margin-bottom: 1.1rem; background: #fff; }
+  .set-sub.muted { background: #F8FAFC; }
+  .set-sub-h { font-weight: 700; font-size: .95rem; color: var(--fp-primary); display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; }
+  .set-sub-h i { width: 17px; height: 17px; color: var(--fp-accent); }
+  .set-sub-d { font-size: .8rem; color: var(--fp-muted); margin: 0 0 .9rem 0; line-height: 1.45; }
+  .set-hint { font-size: .75rem; color: var(--fp-muted); margin-top: .35rem; line-height: 1.45; }
+  body.fp-dark .set-sub { background: #121a2b; border-color: #243044; }
+  body.fp-dark .set-sub.muted { background: #0f1726; }
   .color-input { width: 48px; height: 38px; border: 1px solid var(--fp-border); border-radius: .55rem; cursor: pointer; padding: 0; }
   .color-input::-webkit-color-swatch-wrapper { padding: 0; }
   .color-input::-webkit-color-swatch { border: none; border-radius: .45rem; }
@@ -281,34 +295,42 @@
 
     <!-- Section E-mails (envoi + modèles + testeur, propre à la société active) -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="emails">
-      <div class="section-title"><i data-lucide="mail" class="w-5 h-5"></i> E-mails</div>
-      <p class="text-sm text-slate-600 mb-4">Tout ce qui concerne les e-mails de <b>cette société</b>, au même endroit : l'<b>adresse d'envoi</b>, les <b>modèles</b> (que tu peux réécrire librement) et un <b>testeur</b> pour voir le rendu. Enregistré dans le cloud et synchronisé sur tous tes appareils.</p>
-      <div id="profil-form" class="space-y-4"></div>
-      <div class="flex gap-2 mt-5">
-        <button class="btn btn-dark text-sm" id="btn-save-emails"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer les e-mails</button>
+      <div class="set-head">
+        <h2><i data-lucide="mail"></i> E-mails</h2>
+        <p>Adresse d'envoi, modèles et testeur — propres à cette société, synchronisés sur tous tes appareils.</p>
       </div>
-      <div class="section-title mt-8" style="font-size:.95rem"><i data-lucide="mail-check" class="w-4 h-4"></i> Tester les e-mails</div>
-      <p class="text-sm text-slate-600 mb-3">Vois exactement à quoi ressemblent les e-mails (amendes, bienvenue, relevé km, état des lieux…) <b>sans aucune vraie donnée</b> : un <b>aperçu</b> dans l'app, ou un <b>vrai e-mail de test</b> envoyé à ton adresse (objet <b>[TEST]</b>). Tout nouvel e-mail de la plateforme s'ajoute ici automatiquement.</p>
-      <button class="btn btn-outline text-sm" id="btn-mail-tester" style="width:fit-content"><i data-lucide="beaker" class="w-4 h-4"></i> Ouvrir le testeur d'e-mails</button>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="send"></i> Adresse d'envoi &amp; modèles</div>
+        <p class="set-sub-d">L'expéditeur des e-mails de cette société et les modèles (amendes, bienvenue…), que tu peux réécrire librement.</p>
+        <div id="profil-form" class="space-y-4"></div>
+        <div class="flex gap-2 mt-4">
+          <button class="btn btn-dark text-sm" id="btn-save-emails"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer les e-mails</button>
+        </div>
+      </div>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="mail-check"></i> Tester les e-mails</div>
+        <p class="set-sub-d">Vois le rendu exact des e-mails <b>sans aucune vraie donnée</b> : un <b>aperçu</b> dans l'app, ou un <b>vrai e-mail de test</b> envoyé à ton adresse (objet <b>[TEST]</b>). Tout nouvel e-mail de la plateforme s'ajoute ici automatiquement.</p>
+        <button class="btn btn-outline text-sm" id="btn-mail-tester" style="width:fit-content"><i data-lucide="beaker" class="w-4 h-4"></i> Ouvrir le testeur d'e-mails</button>
+      </div>
     </div>
 
     <!-- Section Société -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="societe">
-      <div class="section-title">
-        <i data-lucide="building-2" class="w-5 h-5"></i> Sociétés
+      <div class="set-head">
+        <h2><i data-lucide="building-2"></i> Société</h2>
+        <p>Identité, assurance et barèmes propres à chaque flotte. Chaque société a ses propres véhicules et e-mails d'envoi.</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Gère tes sociétés (flottes) et les infos propres à chacune. Chaque société a ses propres véhicules, e-mails d'envoi et loueur.</p>
 
       <!-- Bascule / création de société — RÉSERVÉ AU CEO (multi-flotte) -->
-      <div id="soc-switch-block" class="p-4 rounded-lg border border-slate-200 mb-5" style="background:#F8FAFC">
-        <div class="field-label">Société active</div>
-        <div class="flex flex-wrap items-center gap-2 mt-1">
+      <div id="soc-switch-block" class="set-sub muted">
+        <div class="set-sub-h"><i data-lucide="repeat"></i> Société active</div>
+        <p class="set-sub-d">Change de flotte ou crée un nouveau client. Changer de société recharge la page avec ses données.</p>
+        <div class="flex flex-wrap items-center gap-2">
           <select class="field-input" id="soc-switch" style="width:auto;min-width:180px"></select>
           <button class="btn btn-primary text-sm" id="btn-new-societe"><i data-lucide="plus" class="w-4 h-4"></i> Nouvelle société</button>
           <button class="btn text-sm text-red-600 hover:bg-red-50 hidden" id="btn-del-societe" title="Réservé au CEO — retire une société cliente de la liste"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer une société</button>
           <button class="btn text-sm hidden" id="btn-recover-settings" title="Réservé au CEO — restaure d'anciens réglages retrouvés sur le serveur (ne remplace rien de déjà rempli)" style="border-color:#93C5FD;color:#1D4ED8;background:#EFF6FF"><i data-lucide="life-buoy" class="w-4 h-4"></i> Récupérer d'anciens réglages</button>
         </div>
-        <p class="text-xs text-slate-500 mt-2">Changer de société recharge la page avec ses données. À la création d'une nouvelle société, remplis ses infos ci-dessous.</p>
       </div>
 
       <!-- Bandeau d'onboarding : affiché juste après la création d'une nouvelle société -->
@@ -348,43 +370,49 @@
         </div>
       </div>
 
-      <p class="text-sm text-slate-600 mb-4">Utilisé dans les en-têtes d'export et les futures factures générées.</p>
-      <div class="space-y-4">
-        <div>
-          <div class="field-label">Nom de la société</div>
-          <input class="field-input" id="f-societe-nom" placeholder="Nom de la société" />
-        </div>
-        <div class="grid grid-cols-2 gap-4">
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="id-card"></i> Identité de la société</div>
+        <p class="set-sub-d">Ces informations apparaissent dans les en-têtes d'export, les PDF et les factures générées.</p>
+        <div class="space-y-4">
           <div>
-            <div class="field-label">SIRET</div>
-            <input class="field-input" id="f-societe-siret" placeholder="14 chiffres" />
+            <div class="field-label">Nom de la société</div>
+            <input class="field-input" id="f-societe-nom" placeholder="Nom de la société" />
           </div>
-          <div>
-            <div class="field-label">Adresse <span class="text-slate-400 font-normal">(une info par case)</span></div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input class="field-input sm:col-span-2" id="f-soc-adr-rue" placeholder="N° et rue" />
-              <input class="field-input" id="f-soc-adr-cp" placeholder="Code postal" />
-              <input class="field-input" id="f-soc-adr-ville" placeholder="Ville" />
-              <input class="field-input sm:col-span-2" id="f-soc-adr-pays" placeholder="Pays (optionnel)" />
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="field-label">SIRET</div>
+              <input class="field-input" id="f-societe-siret" placeholder="14 chiffres" />
+            </div>
+            <div>
+              <div class="field-label">Adresse <span class="text-slate-400 font-normal">(une info par case)</span></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input class="field-input sm:col-span-2" id="f-soc-adr-rue" placeholder="N° et rue" />
+                <input class="field-input" id="f-soc-adr-cp" placeholder="Code postal" />
+                <input class="field-input" id="f-soc-adr-ville" placeholder="Ville" />
+                <input class="field-input sm:col-span-2" id="f-soc-adr-pays" placeholder="Pays (optionnel)" />
+              </div>
             </div>
           </div>
-        </div>
-        <div>
-          <div class="field-label">Logo de la société (optionnel)</div>
-          <div class="flex items-center gap-4 mt-1">
-            <div id="soc-logo-preview" style="width:64px;height:64px;border-radius:12px;border:1px solid var(--fp-border);background:#F8FAFC;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#94A3B8;font-size:11px">Aucun</div>
-            <div class="flex flex-col gap-2">
-              <input type="file" id="soc-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" />
-              <button type="button" class="btn btn-outline text-sm" id="soc-logo-btn"><i data-lucide="upload" class="w-4 h-4"></i> Choisir un logo</button>
-              <button type="button" class="btn text-xs text-red-600 hover:bg-red-50 hidden" id="soc-logo-del" style="width:fit-content"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Retirer</button>
+          <div>
+            <div class="field-label">Logo de la société (optionnel)</div>
+            <div class="flex items-center gap-4 mt-1">
+              <div id="soc-logo-preview" style="width:64px;height:64px;border-radius:12px;border:1px solid var(--fp-border);background:#F8FAFC;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#94A3B8;font-size:11px">Aucun</div>
+              <div class="flex flex-col gap-2">
+                <input type="file" id="soc-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" />
+                <button type="button" class="btn btn-outline text-sm" id="soc-logo-btn"><i data-lucide="upload" class="w-4 h-4"></i> Choisir un logo</button>
+                <button type="button" class="btn text-xs text-red-600 hover:bg-red-50 hidden" id="soc-logo-del" style="width:fit-content"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Retirer</button>
+              </div>
             </div>
+            <p class="set-hint">Affiché dans l'en-tête du tableau de bord. Carré conseillé (PNG/SVG).</p>
           </div>
-          <p class="text-xs text-slate-400 mt-1">Affiché dans l'en-tête du tableau de bord. Carré conseillé (PNG/SVG). Propre à cette société.</p>
+          <div>
+            <div class="field-label"><i data-lucide="phone" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> Téléphone de contact — annonces de vente (QR)</div>
+            <input class="field-input" id="f-vente-tel" type="tel" inputmode="tel" placeholder="06 61 77 97 53" style="max-width:280px" />
+            <p class="set-hint">Affiché <b>publiquement</b> sur l'annonce d'un véhicule « à vendre » (boutons <b>Appeler</b> / <b>SMS</b>). Laisse vide pour ne rien afficher.</p>
+          </div>
         </div>
-        <div>
-          <div class="field-label"><i data-lucide="phone" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> Téléphone de contact — annonces de vente (QR vente)</div>
-          <input class="field-input" id="f-vente-tel" type="tel" inputmode="tel" placeholder="06 61 77 97 53" style="max-width:280px" />
-          <p class="text-xs text-slate-400 mt-1">Affiché <b>publiquement</b> sur l'annonce d'un véhicule « à vendre » (boutons <b>Appeler</b> / <b>SMS</b>). Laisse vide pour ne rien afficher.</p>
+        <div class="flex gap-2 mt-4">
+          <button class="btn btn-dark text-sm" id="btn-save-societe"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
         </div>
       </div>
 
@@ -392,18 +420,17 @@
            (envoi + modèles + testeur) → cf. section data-sec="emails" plus bas. -->
 
       <!-- Assurance : gérée dans la PAGE Assurance (multi-assureurs) — on ne duplique plus ici. -->
-      <div class="section-title mt-6" style="font-size:.95rem"><i data-lucide="shield" class="w-4 h-4"></i> Assurance &amp; assistance de la flotte</div>
-      <p class="text-sm text-slate-600 mb-3">Tout se règle dans la <b>page Assurance</b> (Contrats → Assurance → <b>⚙️ Configurer</b>) : <b>plusieurs assureurs</b>, un <b>n° de police</b>, un <b>n° d'assistance 24/7</b> et une <b>notice PDF</b> <b>par assureur</b>, puis on rattache chaque véhicule à son assureur. Le conducteur qui scanne le QR de sa voiture voit alors l'assistance et la notice de <b>SON</b> assureur — plus rien à saisir ici. Le <b>constat amiable</b> proposé au conducteur est celui de Parc Pilot (onglet Sinistres).</p>
-      <a href="contrats.html?tab=assurance" class="btn btn-outline text-sm" style="width:fit-content"><i data-lucide="external-link" class="w-4 h-4"></i> Ouvrir la page Assurance</a>
-
-      <div class="flex gap-2 mt-5">
-        <button class="btn btn-dark text-sm" id="btn-save-societe"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="shield"></i> Assurance &amp; assistance</div>
+        <p class="set-sub-d">Tout se règle dans la <b>page Assurance</b> : plusieurs assureurs, n° de police, assistance 24/7 et notice PDF <b>par assureur</b>, puis on rattache chaque véhicule au sien. Le conducteur qui scanne le QR de sa voiture voit l'assistance et la notice de <b>son</b> assureur.</p>
+        <a href="contrats.html?tab=assurance" class="btn btn-outline text-sm" style="width:fit-content"><i data-lucide="external-link" class="w-4 h-4"></i> Ouvrir la page Assurance</a>
       </div>
 
       <!-- Avantage en Nature (AEN) — barème forfaitaire réglable (URSSAF, national) -->
-      <div class="section-title mt-8" style="font-size:.95rem"><i data-lucide="badge-euro" class="w-4 h-4"></i> Avantage en Nature (AEN)</div>
-      <p class="text-sm text-slate-600 mb-1">Barème <b>forfaitaire</b> pour calculer l'avantage en nature des véhicules de fonction — affiché sur chaque fiche véhicule (net mensuel/annuel).</p>
-      <p class="text-xs text-slate-400 mb-3">⚠️ La réforme du <b>01/02/2025</b> a créé <b>deux barèmes</b>. Parc Pilot choisit <b>automatiquement</b> le bon selon la <b>date de mise à disposition</b> du véhicule au salarié : <b>avant</b> la date de bascule → <b>ancien barème</b> ; <b>depuis</b> → <b>nouveau barème</b>. (La plupart des véhicules mis à dispo avant 2025 restent donc à l'ancien barème.) Le <b>plafond d'abattement électrique</b> est revalorisé chaque année : vérifie la valeur en cours sur <a href="https://www.urssaf.fr" target="_blank" rel="noopener" style="color:var(--fp-accent);text-decoration:underline">urssaf.fr</a>. Barème <b>national</b> (même pour toutes les sociétés) — tu n'ajustes que si la loi change.</p>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="badge-euro"></i> Avantage en Nature (AEN)</div>
+        <p class="set-sub-d">Barème <b>forfaitaire</b> pour calculer l'avantage en nature des véhicules de fonction — affiché sur chaque fiche véhicule (net mensuel / annuel). Barème <b>national</b> : tu n'y touches que si la loi change.</p>
+        <p class="set-hint" style="margin-top:-.5rem;margin-bottom:.9rem">⚠️ La réforme du <b>01/02/2025</b> a créé <b>deux barèmes</b> ; Parc Pilot choisit automatiquement le bon selon la <b>date de mise à disposition</b> du véhicule (avant la bascule → ancien, depuis → nouveau). Le <b>plafond d'abattement électrique</b> est revalorisé chaque année — vérifie-le sur <a href="https://www.urssaf.fr" target="_blank" rel="noopener" style="color:var(--fp-accent);text-decoration:underline">urssaf.fr</a>.</p>
       <div class="flex flex-wrap gap-4 mb-3 text-sm">
         <label class="inline-flex items-center gap-2"><input type="checkbox" id="aen-actif"> Calcul AEN activé</label>
         <label class="inline-flex items-center gap-2"><input type="checkbox" id="aen-carb"> L'employeur fournit le carburant</label>
@@ -450,6 +477,7 @@
         <button class="btn btn-outline text-sm" id="btn-reset-aen"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Barèmes par défaut</button>
       </div>
       <div id="aen-save-status" class="text-xs mt-2"></div>
+      </div><!-- /.set-sub AEN -->
     </div>
 
     <!-- Section Données -->
