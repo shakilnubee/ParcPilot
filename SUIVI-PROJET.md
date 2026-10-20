@@ -54,6 +54,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 20/10/2026 — Fiche véhicule : photo du modèle (libre de droits)
+- La fiche véhicule affiche désormais une **photo du modèle** (ex. une vraie Dacia Spring pour une Dacia Spring), en repli automatique de la photo choisie manuellement (champ `photoUrl`, inchangé). **Source unique** via le helper `FP.vehPhoto(v)` (`assets/js/vehicule-photos.js`).
+- **28 photos libres de droits** (Wikimedia Commons, CC / CC0) hébergées dans le dépôt (`assets/vehicules/`) → servies depuis parc-pilot.fr, chargées **en différé** par fiche (aucun impact perf sur les autres pages). Crédit affiché sur la photo (obligatoire pour les CC).
+- Bouton **« Changer la photo »** sur la fiche : rechercher sur Wikimedia (côté navigateur), coller une URL, revenir à l'illustration du modèle, ou retirer.
+- Aucune modification Supabase (schéma/RLS). HTML + nouvel asset JS uniquement (pas de changement `app.js` → pas de rebuild min). Manuel mis à jour.
+
 ### 16/10/2026 — Phase 0 : audit complet (lecture seule)
 - Dépôt GitHub, code, historique Git (887 commits) et base Supabase audités. **Aucun secret** n'a été trouvé dans le code ni dans l'historique.
 - Rapport d'audit remis : constats classés par gravité et plan priorisé.
