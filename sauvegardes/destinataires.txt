@@ -10,4 +10,5 @@
 # Une clé par ligne, précédée d'un commentaire indiquant son propriétaire :
 # François (ajoutée le 16/10/2026)
 age1p48a0p97plmmktyjnuwt0yd4868ku6kk3xeal4w28evhwqntr9lqf8282r
-# (en attente de la clé de Shakil)
+# Shakil (ajoutée le 20/10/2026 — provisoire, sera remplacée par une nouvelle clé)
+age1uuv7acpktjp2v9f7kdpn7lskwrtjtm6r6xme7ywyytqmwae7tq5stez3e3
