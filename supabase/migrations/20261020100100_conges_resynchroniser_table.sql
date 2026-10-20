@@ -84,6 +84,8 @@ commit;
 
 -- ── 3) CONTRÔLE : relancer la requête de l'étape 1 → « seulement_table » et
 --       « seulement_reglages » doivent valoir 0 pour chaque société.
+--       ⚠️ Ne pas ajouter de sous-requête sur r.societe/t.societe dans ce SELECT groupé (erreur 42803) :
+--       compter les archives dans une requête à part.
 --       Congés archivés (récupérables) :
 --         select societe, cond_key, debut, fin, motif, deleted_at from public.driver_absences
 --          where deleted_at is not null order by deleted_at desc;
