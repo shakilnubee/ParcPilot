@@ -5819,6 +5819,10 @@ FP.settings = {
     customFields: [], // [ { id, key, label, type, entity:'vehicule'|'conducteur', required, defaultValue, options:[], order, archived } ]
     vehCustom: {},    // { vehId:   { fieldKey: valeur } }
     condCustom: {},   // { condKey:  { fieldKey: valeur } }
+    // DOCUMENTS OBLIGATOIRES (par société) : docRequis = config (liste des documents exigés, remplacée en bloc
+    // comme groupes) ; docRequisNA = override « non applicable » par fiche (map keyée → anti-perte).
+    docRequis: [],    // [ { id, type, cible:'vehicule'|'conducteur', suiviExpiration:bool, rappelJours:number, actif:bool } ]
+    docRequisNA: {},  // { 'vehicule:<id>:<type>' : 1 } — marqué « non applicable » sur une fiche précise
     prestataires: undefined, // garages / prestataires PROPRES À CHAQUE SOCIÉTÉ [ {id,nom,adresse,email,tel} ] — semé une fois (PXP hérite de son garage historique, autres = vide). undefined = jamais initialisé (déclenche le semis)
     // Profil PROPRE À CHAQUE SOCIÉTÉ (rempli à la création d'une société) : e-mails d'envoi des amendes,
     // nom du loueur leasing, etc. Vide par défaut ; PXP a des valeurs historiques (voir FP.societeProfil).
@@ -5921,7 +5925,7 @@ FP.settings = {
     'pointsManuel', 'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
     'rapprIgnore', 'tfAnomOk', 'ignores', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes',
     'sinistreAssurance', 'sinistreDossiers', 'zoneNotes', 'corbeille',
-    'vehCustom', 'condCustom'],
+    'vehCustom', 'condCustom', 'docRequisNA'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -6092,7 +6096,7 @@ FP.settings = {
       //   « déjà traités », anomalies conso « OK », lignes ignorées du TCO.
       'rapprIgnore', 'tfAnomOk', 'ignores',
       // — Échéances de documents + surveillances/corbeilles synchronisées (jumeaux de docStatus/docTypes) :
-      'docExpire', 'assuranceIgnore', 'amendesJustifWatch', 'docTrash', 'sinistreDossiers', 'sinistreDossiersSupprimes', 'recoverHidden',
+      'docExpire', 'assuranceIgnore', 'amendesJustifWatch', 'docTrash', 'sinistreDossiers', 'sinistreDossiersSupprimes', 'recoverHidden', 'docRequisNA',
       // — Notes de zone libres (irrécupérables, sans miroir local), liste des prestataires (garages /
       //   cartes carburant / badges péage), et corbeille de restauration synchronisée (filet anti-perte) :
       //   ce sont des maps/tableaux de DONNÉES → fusion fine multi-appareils (mergeMap/mergeArr), sinon un
@@ -6641,6 +6645,101 @@ document.addEventListener('change', function (e) {
   const val = el.type === 'checkbox' ? el.checked : el.value;
   try { FP.customFields.setValue(entity, id, key, val); if (FP.toast) FP.toast('Enregistré'); }
   catch (er) { if (FP.notifyError) FP.notifyError('Champ non enregistré — vérifie la connexion'); }
+});
+
+// ====================================================================================
+// FP.docsRequis — DOCUMENTS OBLIGATOIRES (par société). 100 % app_settings, AUCUNE table dédiée :
+//   • config      : settings.docRequis = [ {id,type,cible:'vehicule'|'conducteur',suiviExpiration,rappelJours,actif} ]
+//   • override N/A : settings.docRequisNA['<cible>:<id>:<type>'] = 1  (marqué « non applicable » sur une fiche)
+//   Le statut est calculé À PARTIR DES DOCUMENTS DÉJÀ CHARGÉS par la page (véhicule : table documents + docs
+//   intégrés + contrats leasing ; conducteur : condDocs) + dates d'expiration existantes (docExpire[docId]).
+//   5 statuts : Manquant · Valide · Expire bientôt · Expiré · Non applicable.
+// ====================================================================================
+FP.docsRequis = {
+  // Types proposés à la config — clés ALIGNÉES sur les documents réellement stockés (sinon le statut ne matche pas).
+  TYPES_VEH: [
+    { k: 'carte-grise', label: 'Carte grise' }, { k: 'controle-technique', label: 'Contrôle technique' },
+    { k: 'assurance', label: "Attestation d'assurance" }, { k: 'etat-des-lieux', label: 'État des lieux' },
+    { k: 'contrat', label: 'Contrat (leasing / location)' }, { k: 'facture-achat', label: "Facture d'achat" },
+    { k: 'code-cession', label: 'Certificat de cession' },
+  ],
+  TYPES_COND: [
+    { k: 'carte-identite', label: "Carte d'identité" }, { k: 'titre-sejour', label: 'Titre de séjour' },
+    { k: 'permis', label: 'Permis de conduire' },
+  ],
+  STATUTS: {
+    manquant: { label: 'Manquant', color: '#dc2626', bg: '#FEF2F2', bd: '#FECACA' },
+    expire:   { label: 'Expiré', color: '#dc2626', bg: '#FEF2F2', bd: '#FECACA' },
+    bientot:  { label: 'Expire bientôt', color: '#b45309', bg: '#FFFBEB', bd: '#FDE68A' },
+    valide:   { label: 'Valide', color: '#15803d', bg: '#F0FDF4', bd: '#BBF7D0' },
+    na:       { label: 'Non applicable', color: '#64748b', bg: '#F8FAFC', bd: '#E2E8F0' },
+  },
+  typesFor(cible) { return cible === 'conducteur' ? this.TYPES_COND : this.TYPES_VEH; },
+  typeLabel(cible, k) {
+    const t = this.typesFor(cible).find(x => x.k === k); if (t) return t.label;
+    try { const dt = (FP.settings.get().docTypes || {})[k]; if (dt) return dt; } catch (e) {}
+    return k || 'Document';
+  },
+  _list() { try { const a = FP.settings.get().docRequis; return Array.isArray(a) ? a : []; } catch (e) { return []; } },
+  reqFor(cible) { return this._list().filter(r => r && r.actif !== false && r.cible === cible); },
+  _naKey(cible, id, type) { return cible + ':' + String(id) + ':' + type; },
+  estNA(cible, id, type) { try { return !!(FP.settings.get().docRequisNA || {})[this._naKey(cible, id, type)]; } catch (e) { return false; } },
+  setNA(cible, id, type, val) {
+    const s = FP.settings.get(); s.docRequisNA = (s.docRequisNA && typeof s.docRequisNA === 'object') ? s.docRequisNA : {};
+    const k = this._naKey(cible, id, type); if (val) s.docRequisNA[k] = 1; else delete s.docRequisNA[k];
+    FP.settings.save(s);
+  },
+  // Date d'expiration d'un document : docExpire[id] (saisie manuelle, source unique) sinon champ du doc.
+  _expOf(doc) {
+    if (!doc) return '';
+    try { const e = (FP.settings.get().docExpire || {})[doc.id]; if (e) return String(e).slice(0, 10); } catch (e) {}
+    const d = doc.dateExpiration || doc.expiration || doc.expire || '';
+    return d ? String(d).slice(0, 10) : '';
+  },
+  // Statut d'UNE exigence pour une entité, à partir de la liste de SES documents (déjà chargée par la page).
+  statutFromDocs(req, cible, id, docs) {
+    if (this.estNA(cible, id, req.type)) return { code: 'na' };
+    const found = (docs || []).filter(d => d && d.type === req.type);
+    if (!found.length) return { code: 'manquant' };
+    if (!req.suiviExpiration) return { code: 'valide' };
+    let best = ''; found.forEach(d => { const e = this._expOf(d); if (e && (!best || e > best)) best = e; });
+    if (!best) return { code: 'valide', sansDate: true };
+    const j = FP.joursRestants ? FP.joursRestants(best) : Math.ceil((new Date(best).getTime() - Date.now()) / 86400000);
+    if (j < 0) return { code: 'expire', date: best, jours: j };
+    if (j <= (Number(req.rappelJours) || 30)) return { code: 'bientot', date: best, jours: j };
+    return { code: 'valide', date: best, jours: j };
+  },
+  // Évalue TOUTES les exigences d'une entité → [{ req, code, date?, jours?, sansDate? }].
+  evaluer(cible, id, docs) { return this.reqFor(cible).map(req => Object.assign({ req: req }, this.statutFromDocs(req, cible, id, docs))); },
+  // Exigences NON satisfaites (manquant / expiré / bientôt) → pour la checklist « À compléter » (sous-lot 2B).
+  manquants(cible, id, docs) { return this.evaluer(cible, id, docs).filter(x => x.code === 'manquant' || x.code === 'expire' || x.code === 'bientot'); },
+  // Carte « Documents obligatoires » prête à insérer sur une fiche. docs = documents de l'entité (déjà chargés).
+  ficheSection(cible, id, docs) {
+    const items = this.evaluer(cible, id, docs); if (!items.length) return '';
+    const esc = FP.esc || (s => String(s == null ? '' : s));
+    const rows = items.map(it => {
+      const st = this.STATUTS[it.code] || this.STATUTS.valide;
+      const extra = it.code === 'expire' ? (' · ' + Math.abs(it.jours) + ' j de retard')
+        : it.code === 'bientot' ? (' · dans ' + it.jours + ' j')
+        : (it.code === 'valide' && it.sansDate && it.req.suiviExpiration) ? ' · date à renseigner'
+        : (it.code === 'valide' && it.date) ? (' · ' + (FP.dateNum ? FP.dateNum(it.date) : it.date)) : '';
+      const na = it.code === 'na';
+      const naBtn = '<button type="button" class="dr-na" data-dr-na="' + (na ? '0' : '1') + '" data-dr-cible="' + esc(cible) + '" data-dr-id="' + esc(String(id)) + '" data-dr-type="' + esc(it.req.type) + '" style="font-size:11px;' + (na ? 'color:var(--fp-accent)' : 'color:#94a3b8') + ';background:none;border:none;cursor:pointer" title="' + (na ? 'Rétablir comme requis' : 'Marquer non applicable pour cette fiche') + '">' + (na ? 'rétablir' : 'N/A') + '</button>';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 9px;border:1px solid ' + st.bd + ';background:' + st.bg + ';border-radius:8px">'
+        + '<span style="font-size:13px;color:#1e293b">' + esc(this.typeLabel(cible, it.req.type)) + '</span>'
+        + '<span style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;font-weight:700;color:' + st.color + '">' + esc(st.label) + esc(extra) + '</span>' + naBtn + '</span></div>';
+    }).join('');
+    return '<div class="card p-4" data-dr-fiche data-dr-cible="' + esc(cible) + '" data-dr-id="' + esc(String(id)) + '"><div class="section-title" style="font-size:.95rem;margin-bottom:.8rem"><i data-lucide="file-check" class="w-4 h-4"></i> Documents obligatoires</div><div style="display:flex;flex-direction:column;gap:6px">' + rows + '</div></div>';
+  },
+};
+// Bouton « N/A » / « rétablir » d'une carte Documents obligatoires (délégué) → persiste + demande un re-render à la page.
+document.addEventListener('click', function (e) {
+  const b = e.target && e.target.closest ? e.target.closest('.dr-na') : null; if (!b) return;
+  try {
+    FP.docsRequis.setNA(b.getAttribute('data-dr-cible'), b.getAttribute('data-dr-id'), b.getAttribute('data-dr-type'), b.getAttribute('data-dr-na') === '1');
+    if (FP.toast) FP.toast('Enregistré');
+    document.dispatchEvent(new CustomEvent('pp:docsRequis-change', { detail: { cible: b.getAttribute('data-dr-cible'), id: b.getAttribute('data-dr-id') } }));
+  } catch (er) { if (FP.notifyError) FP.notifyError('Non enregistré — vérifie la connexion'); }
 });
 
 (function guardBackspace() {
