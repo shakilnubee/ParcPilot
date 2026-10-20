@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261020e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261020e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261020e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021a">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -839,8 +839,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261020e"></script>
-<script src="../assets/js/supabase-client.js?v=20261020e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021a"></script>
+<script src="../assets/js/supabase-client.js?v=20261021a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -856,11 +856,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261020e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261020e"></script>
+<script src="../assets/js/app.min.js?v=20261021a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -4198,7 +4198,7 @@
     // sinon localeaseContrats était écrasé EN BLOC à chaque enregistrement (même risque de perte que
     // les congés). Avec un id, chaque contrat est ajouté/modifié/supprimé individuellement, sans perte.
     list.forEach(c => { if (c && !c.id) { c.id = 'lld-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); changed = true; } });
-    if (changed) { s.localeaseContrats = list; FP.settings.save(s); }
+    if (changed) { s.localeaseContrats = list; FP.contratsLLD.sauver(s); }
     return list;
   }
   function escC(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -4619,7 +4619,7 @@
         { const tl = parseInt($('locadd-tol').value, 10); if (Number.isFinite(tl) && tl > 0) c.kmTolerance = tl; else delete c.kmTolerance; }
         { const avs = collectLocAvenants(); if (avs.length) c.avenants = avs; else delete c.avenants; }
         if (_locAddDoc) { if (!Array.isArray(c.docs)) c.docs = []; c.docs.push({ url: _locAddDoc.url, name: _locAddDoc.name }); c.pdfUrl = c.docs[0].url; }
-        s.localeaseContrats = list; FP.settings.save(s);
+        s.localeaseContrats = list; FP.contratsLLD.sauver(s);
         var createdE = autoCreateVehFromContrat(c);   // crée le véhicule si la plaque vient d'être ajoutée
       }
       closeLocAddModal(); renderLocalease(); renderKPIs();
@@ -4638,7 +4638,7 @@
     { const tl = parseInt($('locadd-tol').value, 10); if (Number.isFinite(tl) && tl > 0) rec.kmTolerance = tl; }
     { const avs = collectLocAvenants(); if (avs.length) rec.avenants = avs; }
     if (_locAddScan) { const c = locNum(_locAddScan.co2); if (c != null) rec.co2 = Math.round(c); const ml = locNum(_locAddScan.malus); if (ml != null && ml > 0) rec.malus = ml; }
-    const s = FP.settings.get(); const list = getLocalease(); list.push(rec); s.localeaseContrats = list; FP.settings.save(s);
+    const s = FP.settings.get(); const list = getLocalease(); list.push(rec); s.localeaseContrats = list; FP.contratsLLD.sauver(s);
     const created = autoCreateVehFromContrat(rec);   // ANTI-DOUBLON : crée le véhicule s'il n'existe pas
     closeLocAddModal(); renderLocalease(); renderKPIs();
     if (FP.toast) FP.toast(created ? '✓ Contrat ajouté · véhicule créé dans la flotte' : '✓ Contrat de leasing ajouté — coûts mis à jour');
@@ -4672,7 +4672,7 @@
   let _locUpIdx = null;
   const locAction = async (e)=>{
     const list = getLocalease();
-    const save = () => { const s=FP.settings.get(); s.localeaseContrats=list; FP.settings.save(s); renderLocalease(); };
+    const save = () => { const s=FP.settings.get(); s.localeaseContrats=list; FP.contratsLLD.sauver(s); renderLocalease(); };
     const ed=e.target.closest('[data-loc-edit]'); if(ed){ openLocEditModal(+ed.dataset.locEdit); return; }
     // ➕ flotte : crée le VÉHICULE dans la liste Véhicules à partir du contrat leasing
     // (un véhicule en leasing n'était enregistré que comme contrat, pas dans la table vehicules).
@@ -4742,7 +4742,7 @@
       list[i].docs.push({ url, name: (file.name || 'Document').replace(/\.[a-z0-9]+$/i, '') });
       list[i].pdfUrl = list[i].docs[0].url; // compat : 1er doc = principal
       const premier = list[i].docs.length === 1;
-      FP.settings.save(s); renderLocalease();
+      FP.contratsLLD.sauver(s); renderLocalease();
       // Lecture automatique UNIQUEMENT pour le 1er document (le contrat) — pas pour les courriers ajoutés ensuite
       if (premier && FP.scanIA) {
         if (FP.toast) FP.toast('📄 Lecture du contrat en cours…');
@@ -4757,7 +4757,7 @@
             if (num(fields.co2) != null) { c.co2 = Math.round(num(fields.co2)); maj.push('CO2'); }
             if (num(fields.malus) != null) { c.malus = num(fields.malus); }
             if (fields.offre) { c.offre = String(fields.offre).trim(); }
-            const s2 = FP.settings.get(); s2.localeaseContrats = list; FP.settings.save(s2); renderLocalease();
+            const s2 = FP.settings.get(); s2.localeaseContrats = list; FP.contratsLLD.sauver(s2); renderLocalease();
             if (FP.toast) FP.toast(maj.length ? ('✓ Contrat lu : ' + maj.join(', ') + ' mis à jour') : '✓ Contrat enregistré (rien à mettre à jour)');
           } else if (FP.toast) { FP.toast('✓ Contrat enregistré (lecture auto indisponible)'); }
         } catch (e2) { console.warn('[localease scan]', e2); }
@@ -4844,7 +4844,7 @@
       setIf('kmSupp', num(f.kmSupp), 'km sup.');
       setIf('kmTolerance', num(f.kmTolerance), 'tolérance km');
       if (f.offre && !(String(c.offre || '')).trim()) { c.offre = String(f.offre); filled.push('offre'); }
-      if (filled.length) { const s = FP.settings.get(); s.localeaseContrats = list; FP.settings.save(s); }
+      if (filled.length) { const s = FP.settings.get(); s.localeaseContrats = list; FP.contratsLLD.sauver(s); }
     } else if (lk.type === 'bpce') {
       const immat = lk.immat;
       const cur = (FP.leasingOverride ? FP.leasingOverride(immat) : {});   // lecture tolérante à la plaque
@@ -4993,7 +4993,7 @@
       if (!(await FP.confirm('Retirer ce PDF de la liste ?' + warn + '\n\nJe tente de le supprimer définitivement du stockage ; si les droits ne le permettent pas, il sera simplement masqué de cette liste (mais conservé dans le stockage).'))) return;
       try {
         // 1) détacher d'abord si relié
-        if (lk && lk.type === 'lld') { const list = getLocalease(); const c = list[lk.ci]; if (c && Array.isArray(c.docs)) { c.docs = c.docs.filter(d => d.url !== f.url); c.pdfUrl = c.docs[0] ? c.docs[0].url : null; const s = FP.settings.get(); s.localeaseContrats = list; FP.settings.save(s); } }
+        if (lk && lk.type === 'lld') { const list = getLocalease(); const c = list[lk.ci]; if (c && Array.isArray(c.docs)) { c.docs = c.docs.filter(d => d.url !== f.url); c.pdfUrl = c.docs[0] ? c.docs[0].url : null; const s = FP.settings.get(); s.localeaseContrats = list; FP.contratsLLD.sauver(s); } }
         else if (lk && lk.type === 'bpce') { setBpceDocs(lk.immat, bpceDocs(lk.immat).filter(d => d.url !== f.url)); }
         // 2) tenter la vraie suppression du fichier du stockage. On utilise le CHEMIN RÉEL du stockage
         //    (f.path) plutôt que de le déduire de l'URL (fragile si espaces/caractères spéciaux).
@@ -5037,7 +5037,7 @@
         if (!Array.isArray(list[ci].docs)) list[ci].docs = list[ci].pdfUrl ? [{ url: list[ci].pdfUrl, name: 'Contrat' }] : [];
         if (list[ci].docs.some(d => d.url === f.url)) { alert('Ce PDF est déjà lié à ce contrat.'); return; }
         list[ci].docs.push({ url: f.url, name: 'Contrat' }); list[ci].pdfUrl = list[ci].docs[0].url;
-        const s = FP.settings.get(); s.localeaseContrats = list; FP.settings.save(s);
+        const s = FP.settings.get(); s.localeaseContrats = list; FP.contratsLLD.sauver(s);
       } else if (key.slice(0, 5) === 'bpce:') {
         const immat = key.slice(5); const list = bpceDocs(immat).slice();
         if (list.some(d => d.url === f.url)) { alert('Ce PDF est déjà lié à ce véhicule.'); return; }
@@ -5093,7 +5093,7 @@
       const lk = linkedDocMap()[f.url];
       if (lk && lk.type === 'lld') {
         const list = getLocalease(); const c = list[lk.ci];
-        if (c && Array.isArray(c.docs)) { c.docs = c.docs.filter(d => d.url !== f.url); c.pdfUrl = c.docs[0] ? c.docs[0].url : null; const s = FP.settings.get(); s.localeaseContrats = list; FP.settings.save(s); }
+        if (c && Array.isArray(c.docs)) { c.docs = c.docs.filter(d => d.url !== f.url); c.pdfUrl = c.docs[0] ? c.docs[0].url : null; const s = FP.settings.get(); s.localeaseContrats = list; FP.contratsLLD.sauver(s); }
       } else if (lk && lk.type === 'bpce') {
         setBpceDocs(lk.immat, bpceDocs(lk.immat).filter(d => d.url !== f.url));
       }

@@ -154,6 +154,13 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Correction** : avant chaque envoi, l'application vérifie que l'élément est toujours en attente ; à la fin, elle ne retire de la file **que** ce qui a bien été envoyé. Tout ce qui a été ajouté entre-temps est conservé.
 - **Tests** : 6 tests automatiques, dont 2 échouaient sur l'ancien code. Aucun changement visible pour les utilisateurs.
 
+### 21/10/2026 — Migration des données, étape 3 : les contrats LLD 🟡 (prête, en attente de mise en production)
+- **Quoi** : les contrats de location longue durée de la page Contrats (loyer, durée, forfait km, documents, avenants). En production : 1 contrat (PXP).
+- **Même principe** : une table dédiée, avec un contrat par ligne. Chaque modification n'envoie **que le contrat modifié**, et deux appareils qui modifient deux contrats différents ne s'écrasent plus. Un contrat supprimé est **archivé**, jamais effacé. Le contrat est gardé en entier : rien n'est perdu.
+- **Aucun changement visible** pour les utilisateurs. La copie de sécurité dans les réglages est conservée.
+- **Tests** : 13 tests automatiques de la logique, et un test sur le staging (enregistrement, rejeu sans doublon, refus d'un contrat incohérent, isolation entre sociétés, refus sans connexion, archivage).
+- **Reste ensuite** : les 18 forfaits de leasing par plaque, qui sont l'autre moitié des contrats.
+
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
 - Le déploiement automatique des fonctions serveur **fonctionnait**. Sa condition a tout de même été rendue robuste au nom du dépôt.
@@ -175,7 +182,8 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1018 | Journal et suivi : congés en production | ✅ Fusionnée |
 | #1019 | Migration des données, étape 2 : les affectations | ✅ Fusionnée, en production |
 | #1020 | Correctif : lecture des tables sur toutes les pages + journal | ✅ Fusionnée |
-| (cette PR) | Correctif de la file d'attente des écritures | En cours |
+| #1024 | Correctif de la file d'attente des écritures | ✅ Fusionnée |
+| (cette PR) | Migration des données, étape 3 : les contrats LLD | En cours |
 
 ## 7. Prochaines étapes
 
@@ -183,7 +191,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). Ensuite : contrats, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : prête. Ensuite : forfaits de leasing, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
