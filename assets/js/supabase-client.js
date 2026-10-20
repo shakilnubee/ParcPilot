@@ -47,10 +47,27 @@
   // d'envoi configurée de la société active (FP.societeProfil().mailExpediteur), affichée
   // « <Nom société> <adresse> ». Le destinataire reçoit donc le mail DE l'adresse de la société.
   // (Resend n'accepte que les adresses d'un domaine vérifié → chaque société doit vérifier le sien.)
+  // Découpe une liste d'adresses « a@x.fr, b@y.fr ; c@z.fr » en tableau propre (garde ce qui a un @).
+  const _parseEmails = (v) => String(v == null ? '' : v).split(/[,;]+/).map(s => s.trim()).filter(s => s.includes('@'));
   FP.sendEmail = async (msg) => {
     msg = msg || {};
     try {
       const prof = (FP.societeProfil && FP.societeProfil()) || {};
+      // ⚠️ COPIE SYSTÉMATIQUE (traçabilité légale) : toute personne configurée dans Paramètres →
+      // Société → « E-mails toujours en copie » (prof.mailCopie) est mise en copie de TOUT e-mail
+      // envoyé par la plateforme — amendes, états des lieux, RÉPONSES AUX DEMANDES CONDUCTEUR, accès
+      // véhicule, relances… — pas seulement les amendes. On fusionne avec un éventuel cc explicite,
+      // on dédoublonne (insensible à la casse) et on retire les adresses déjà destinataires (to) pour
+      // ne pas copier deux fois. Centralisé ICI = aucun point d'envoi ne peut l'oublier (source unique).
+      try {
+        const seen = new Set(_parseEmails(msg.to).map(a => a.toLowerCase()));
+        const merged = [];
+        _parseEmails(msg.cc).concat(_parseEmails(prof.mailCopie)).forEach(a => {
+          const k = a.toLowerCase();
+          if (!seen.has(k)) { seen.add(k); merged.push(a); }
+        });
+        msg.cc = merged.join(', ');
+      } catch (e) {}
       const exp = String(prof.mailExpediteur || '').trim();
       if (exp) {
         // Réponses → la VRAIE adresse de la société (même quand on envoie via un domaine dédié).
@@ -599,20 +616,15 @@
     } catch (_) {}
     try {
       const q = (window.FP && FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : [];
-      let pend = null;   // dernière écriture app_settings EN ATTENTE = intention la plus récente de ce poste
-      for (let i = q.length - 1; i >= 0; i--) {
-        const it = q[i];
-        if (it && it.op === 'upsert' && it.table === 'app_settings' && it.row && it.row.data && typeof it.row.data === 'object'
-            && (!rowId || it.row.id === rowId)) { pend = it.row.data; break; }
-      }
-      if (pend) {
-        Object.keys(pend).forEach(k => {
-          const pv = pend[k];
-          if (pv && typeof pv === 'object' && !Array.isArray(pv) && shared[k] && typeof shared[k] === 'object' && !Array.isArray(shared[k])) {
-            shared[k] = Object.assign({}, shared[k], pv);   // objets (profil, notif, maps de données…) : les champs en attente priment
-          } else {
-            shared[k] = pv;   // scalaires (couleur, date de cycle, booléens) + tableaux + nouveaux objets : valeur en attente
-          }
+      // Écritures app_settings EN ATTENTE pour cette ligne, rejouées dans l'ordre sur la version serveur fraîche
+      // avec la MÊME règle que leur renvoi (FP._fusion.rejouer) : seules les clés réellement modifiées par ce poste
+      // sont appliquées ; une copie sans repère ne fait que combler des trous. ⚠️ Avant, la copie en attente était
+      // recopiée clé par clé PAR-DESSUS le serveur : une copie de réglages par défaut (cache vide à la connexion)
+      // remplaçait alors les vrais réglages à l'affichage, puis au prochain enregistrement.
+      if (window.FP && FP._fusion && FP._fusion.rejouer) {
+        q.forEach(it => {
+          if (it && it.op === 'upsert' && it.table === 'app_settings' && it.row && it.row.data && typeof it.row.data === 'object'
+              && (!rowId || it.row.id === rowId)) shared = FP._fusion.rejouer(shared, it);
         });
       }
     } catch (_) {}

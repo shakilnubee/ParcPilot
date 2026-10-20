@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -131,6 +131,7 @@
     </div>
     <div class="mb-8 flex justify-end items-start gap-3 flex-wrap">
       <div class="flex items-center gap-3 flex-wrap"><span data-data-io></span>
+        <button class="btn btn-outline text-sm" id="btn-releve-emp" title="Relevé PDF / Excel des emprunts — colonnes au choix, réordonnables, filtrable par période"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-dispo" title="Choisir quels véhicules sont disponibles pour l'emprunt (par groupe ou un par un)"><i data-lucide="list-checks" class="w-4 h-4"></i> Véhicules disponibles</button>
         <button class="btn btn-outline text-sm" id="btn-reserve" title="Planifier un véhicule pour une date à venir"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Réserver un véhicule</button>
         <button class="btn btn-primary text-sm" id="btn-new"><i data-lucide="plus" class="w-4 h-4"></i> Nouvel emprunt</button>
@@ -185,6 +186,12 @@
         <option value="emprunteur">Tri : Emprunteur</option>
       </select>
       <button id="emp-sort-dir" type="button" class="btn btn-outline text-sm !px-2.5" title="Inverser le sens du tri"><i data-lucide="arrow-down-wide-narrow" class="w-4 h-4"></i></button>
+      <span class="inline-flex items-center gap-2 text-sm text-slate-500">
+        <span>Période :</span>
+        <input id="emp-du" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Emprunts à partir du">
+        <span>→</span>
+        <input id="emp-au" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Emprunts jusqu'au">
+      </span>
     </div>
 
     <!-- Tableau -->
@@ -358,8 +365,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -375,15 +382,15 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
   const data = window.FP_DATA;
-  const state = { search: '', voirTout: false, statut: 'all', sortKey: 'date', sortDir: 'desc' };
+  const state = { search: '', voirTout: false, statut: 'all', sortKey: 'date', sortDir: 'desc', du: '', au: '' };
   const EMP_LIMIT = 15;
 
   // ---- Stockage : Supabase si dispo, sinon localStorage ----
@@ -440,7 +447,14 @@
     const all = (data.vehicules || []);
     if (!empHasConfig()) return all;
     const c = empDispoCfg();
-    return all.filter(v => c.v.has(v.id) || (Array.isArray(v.groupes) && v.groupes.some(g => c.g.has(g))));
+    // ⚠️ Appartenance au groupe via la SOURCE UNIQUE FP.vehGroupes (comme la page Véhicules) — sinon un
+    // véhicule du groupe « À vendre » (ou un véhicule stocké en `groupe` au singulier) n'était pas reconnu.
+    const grps = (v) => (window.FP && FP.vehGroupes) ? FP.vehGroupes(v) : (Array.isArray(v.groupes) ? v.groupes : (v.groupe ? [v.groupe] : []));
+    // Le groupe « À vendre » doit AUSSI inclure les véhicules « à vendre » par STATUT (pas seulement ceux
+    // rangés manuellement dans ce groupe) — c'est ce que l'utilisateur attend quand il coche « À vendre ».
+    const wantAvendre = c.g.has('a-vendre');
+    const estAvendre = (v) => { const s = String((v && v.statut) || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); return s === 'a vendre'; };
+    return all.filter(v => c.v.has(v.id) || grps(v).some(g => c.g.has(g)) || (wantAvendre && estAvendre(v)));
   }
 
   let _vehOpts = [], _empOpts = [];
@@ -538,12 +552,45 @@
   // En retard = source unique FP.empEnRetard (en cours ET emprunté depuis plus de 2 jours)
   function estEnRetard(e) { return FP.empEnRetard ? FP.empEnRetard(e) : (!e.dateRetour && joursDepuis(e.dateEmprunt) > 2); }
 
-  function render() {
+  // ---------- Relevé PDF / Excel / CSV des emprunts (colonnes au choix + réordonnables + filtre période) ----------
+  function _empDureeJ(e) {
+    if (!e.dateEmprunt) return null;
+    const fin = (e.dateRetour && e.dateRetour !== '1900-01-01') ? e.dateRetour : null;
+    const d0 = new Date(e.dateEmprunt), d1 = fin ? new Date(fin) : new Date();
+    if (isNaN(d0)) return null;
+    return Math.max(0, Math.round((d1 - d0) / 86400000));
+  }
+  const EMP_FICHE_COLS = [
+    { id: 'vehicule',    label: 'Véhicule',      def: true,  get: e => vehLabel(e.vehicule) },
+    { id: 'emprunteur',  label: 'Emprunteur',    def: true,  get: e => empNom(e.emprunteur) || '' },
+    { id: 'dateEmprunt', label: 'Emprunt le',    def: true,  get: e => e.dateEmprunt ? (FP.dateNum(e.dateEmprunt) + (e.heureEmprunt ? ' ' + e.heureEmprunt : '')) : '' },
+    { id: 'dateRetour',  label: 'Retour le',     def: true,  get: e => e.dateRetour ? (e.dateRetour === '1900-01-01' ? 'date inconnue' : (FP.dateNum(e.dateRetour) + (e.heureRetour ? ' ' + e.heureRetour : ''))) : '' },
+    { id: 'renduPar',    label: 'Rendu par',     def: false, get: e => empNom(e.renduPar) || '' },
+    { id: 'statut',      label: 'Statut',        def: true,  get: e => e.dateRetour ? 'Rendu' : (estEnRetard(e) ? ('En retard (' + joursDepuis(e.dateEmprunt) + ' j)') : 'En cours') },
+    { id: 'duree',       label: 'Durée (jours)', def: false, align: 'right', get: e => { const j = _empDureeJ(e); return j == null ? '' : String(j); }, num: e => _empDureeJ(e) },
+    { id: 'motif',       label: 'Motif / note',  def: false, get: e => e.motif || e.note || '' },
+  ];
+  { const b = document.getElementById('btn-releve-emp'); if (b) b.addEventListener('click', () => {
+      if (!(FP.fiche && FP.fiche.open)) { alert('Relevé indisponible — recharge (Ctrl+Maj+R).'); return; }
+      const rows = filteredEmprunts();   // respecte la recherche + statut + période affichés
+      if (!rows.length) { alert('Aucun emprunt à exporter (vérifie les filtres).'); return; }
+      FP.fiche.open({ key: 'emprunts', title: 'Relevé des emprunts', cols: EMP_FICHE_COLS, rows, date: e => e.dateEmprunt });
+    }); }
+
+  // Filtrage commun (recherche + statut + période) — réutilisé par l'affichage ET le relevé PDF/Excel.
+  function filteredEmprunts() {
     const q = FP.norm(state.search).trim();
-    let rows = cache.filter(e => !q || FP.norm(`${e.vehicule} ${e.emprunteur} ${e.renduPar||''}`).includes(q));
-    // Filtre par onglet de statut
-    if (state.statut === 'encours') rows = rows.filter(e => !e.dateRetour);
-    else if (state.statut === 'rendus') rows = rows.filter(e => !!e.dateRetour);
+    const du = state.du || '', au = state.au || '';
+    return cache.filter(e => {
+      if (q && !FP.norm(`${e.vehicule} ${e.emprunteur} ${e.renduPar || ''}`).includes(q)) return false;
+      if (state.statut === 'encours' && e.dateRetour) return false;
+      if (state.statut === 'rendus' && !e.dateRetour) return false;
+      if (du || au) { const d = (e.dateEmprunt || '').slice(0, 10); if (!d) return false; if (du && d < du) return false; if (au && d > au) return false; }
+      return true;
+    });
+  }
+  function render() {
+    let rows = filteredEmprunts();
     // Tri choisi par l'utilisateur (select #emp-sort-key + bouton de sens) ; par défaut date d'emprunt décroissante.
     rows = sortRowsEmp(rows);
     // Les « En cours » (non rendus) restent en tête — tri secondaire STABLE par-dessus le tri utilisateur.
@@ -899,6 +946,8 @@
 
   // ---- Wiring ----
   $('search').addEventListener('input', e => { state.search = e.target.value; render(); });
+  { const d = $('emp-du'); if (d) d.addEventListener('change', e => { state.du = e.target.value; render(); }); }
+  { const a = $('emp-au'); if (a) a.addEventListener('change', e => { state.au = e.target.value; render(); }); }
   { const ef = $('emp-filters'); if (ef) ef.addEventListener('click', e => { const b = e.target.closest('.emp-chip'); if (!b) return; state.statut = b.dataset.statut || 'all'; state.voirTout = false; render(); }); }
   // Tri par colonne (select + bouton de sens).
   (function () {
@@ -911,8 +960,9 @@
   // Bouton « Réinitialiser » de la barre de filtres (recherche + statut).
   function resetEmpFilters() {
     state.search = ''; state.statut = 'all'; state.voirTout = false;
-    state.sortKey = 'date'; state.sortDir = 'desc';
+    state.sortKey = 'date'; state.sortDir = 'desc'; state.du = ''; state.au = '';
     if ($('search')) $('search').value = '';
+    if ($('emp-du')) $('emp-du').value = ''; if ($('emp-au')) $('emp-au').value = '';
     if ($('emp-sort-key')) $('emp-sort-key').value = state.sortKey;
     { const sd = $('emp-sort-dir'), i = sd && sd.querySelector('i'); if (i) { i.setAttribute('data-lucide', 'arrow-down-wide-narrow'); try { if (window.lucide) lucide.createIcons(); } catch (e) {} } }
     document.querySelectorAll('#emp-filters .emp-chip').forEach(c => c.classList.toggle('active', c.dataset.statut === 'all'));

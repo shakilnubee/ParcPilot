@@ -59,7 +59,11 @@ Deno.serve(async (req) => {
   if (!key) {
     return json({ error: "RESEND_API_KEY absent — ajoute-le dans Supabase → Settings → Edge Functions → Secrets." }, 500);
   }
-  const envFrom = Deno.env.get("EMAIL_FROM") || "Parc Pilot <onboarding@resend.dev>";
+  // ⚠️ Repli d'expéditeur sur un domaine VÉRIFIÉ dans Resend (seul projectxparis.fr l'est aujourd'hui) :
+  // l'adresse de test onboarding@resend.dev ne peut écrire QU'au titulaire du compte Resend. N'affecte
+  // QUE les envois sans `from` de société explicite (les amendes/EDL passent déjà leur adresse scopée).
+  let envFrom = Deno.env.get("EMAIL_FROM") || "";
+  if (!envFrom || /resend\.dev/i.test(envFrom)) envFrom = "Parc Pilot <noreply@projectxparis.fr>";
 
   let msg: Record<string, unknown>;
   try {

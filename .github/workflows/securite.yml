@@ -1,0 +1,27 @@
+name: Sécurité — accès anonyme
+
+# Vérifie chaque jour qu'un visiteur NON CONNECTÉ ne peut lire aucune donnée
+# (tables + stockage) avec la seule clé publique du site.
+# 100 % lecture : n'écrit rien, ne télécharge aucun fichier, aucun secret requis.
+# Si une fuite apparaît (ex. une policy trop large ajoutée par erreur), le job
+# échoue et GitHub envoie un e-mail d'échec aux personnes qui suivent le dépôt.
+on:
+  schedule:
+    - cron: '0 5 * * *'      # tous les jours vers 7 h (heure de Paris)
+  workflow_dispatch: {}      # bouton « Run workflow » pour lancer à la demande
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'tests/securite/**'
+      - '.github/workflows/securite.yml'
+
+jobs:
+  acces-anonyme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Aucune donnée lisible sans connexion
+        run: node tests/securite/acces-anonyme.mjs

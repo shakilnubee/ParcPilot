@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -628,6 +628,7 @@
         </div>
         <span data-data-io></span>
         <span id="veh-export-mount"></span>
+        <button class="btn btn-outline text-sm" id="btn-releve-veh" title="Relevé PDF / Excel — choisis et réordonne les colonnes (groupe affiché ou sélection)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-compare" title="Comparer deux véhicules côte à côte"><i data-lucide="scale" class="w-4 h-4"></i> Comparer</button>
         <div style="position:relative;display:inline-block">
           <button class="btn btn-outline text-sm" id="btn-import-lot" title="Importer en lot des cartes grises ou des cartes mémo (rattachées aux fiches par immatriculation, sans doublon)"><i data-lucide="upload" class="w-4 h-4"></i> Importer en lot <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
@@ -1182,8 +1183,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1199,13 +1200,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261016e"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261016e"></script>
+<script src="../assets/js/fleet-docs.js?v=20261019h"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261019h"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script>
   lucide.createIcons();
 
@@ -1433,7 +1434,9 @@
       const s = FP.settings.get(); s.inspections = s.inspections || {};
       const listv = s.inspections[vehId] || [];
       const existing = listv.find(x => x && x.date === d && x.sens === sensNorm);
-      if (existing) { if (kmN != null && existing.km == null) { existing.km = kmN; created = true; } else if (!existing) { /* n/a */ } else { /* déjà présent : la date est déjà enregistrée */ } }
+      // ⚠️ MISE À JOUR du km : si l'inspection existe déjà mais avec un km ABSENT ou DIFFÉRENT de celui
+      // relu sur l'EDL (ex. 0 figé par erreur → vrai km 20), on la CORRIGE. L'EDL fait foi (c'est son relevé).
+      if (existing) { if (kmN != null && existing.km !== kmN) { existing.km = kmN; created = true; } }
       else { s.inspections[vehId] = [{ id: 'INS' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date: d, sens: sensNorm, km: kmN, items: {}, note: (kmN != null ? 'Km lu automatiquement' : 'Date lue automatiquement') + ' sur l\'état des lieux importé' }, ...listv]; created = true; }
       FP.settings.save(s);
     } catch (e) { return false; }
@@ -1453,11 +1456,13 @@
     if (!(window.FP && FP.scanEdlKm && FP.edlHisto)) { if (!silent && FP.toast) FP.toast('Lecture IA indisponible (connexion requise).'); return; }
     const docs = FP.edlHisto.docsDe(getVehDocs(vehId), vehId);
     const inspList = (FP.settings.get().inspections || {})[vehId] || [];
-    // À LIRE = aucune inspection pour cette date+sens, OU une inspection existe mais SANS km (km manquant à
-    // compléter — ex. un EDL à 0 km dont le km n'avait pas été capté avant le correctif). Dès que le km est
-    // renseigné (0 compris), l'EDL n'est plus re-scanné → pas de gaspillage de crédits.
+    // À LIRE = aucune inspection pour cette date+sens, OU une inspection dont le km est ABSENT **ou à 0**.
+    // ⚠️ 0 km = « non confirmé / à lire » (un relevé d'EDL n'est quasiment jamais 0, sauf véhicule neuf où
+    // la lecture re-confirmera 0). AVANT, 0 était pris pour « déjà lu » → l'EDL n'était jamais rescanné,
+    // donc le bouton « Lire le km » disparaissait et le vrai km (ex. 20) figé dans le PDF n'était jamais
+    // récupéré. La lecture d'un PDF à champs (AcroForm) est DÉTERMINISTE et GRATUITE (pas d'IA).
     const inspFor = (date, sensNorm) => inspList.find(x => x && x.date === date && x.sens === sensNorm);
-    const todo = docs.filter(d => { const date = FP.edlHisto.dateDe(d); const sensNorm = FP.edlHisto.sensDe(d) === 'restitution' ? 'Sortie' : 'Entrée'; if (!date) return false; const ins = inspFor(date, sensNorm); return !ins || ins.km == null; });
+    const todo = docs.filter(d => { const date = FP.edlHisto.dateDe(d); const sensNorm = FP.edlHisto.sensDe(d) === 'restitution' ? 'Sortie' : 'Entrée'; if (!date) return false; const ins = inspFor(date, sensNorm); return !ins || ins.km == null || Number(ins.km) <= 0; });
     if (!todo.length) { if (!silent && FP.toast) FP.toast('États des lieux déjà lus.'); return; }
     let ok = 0, fail = 0;
     for (let i = 0; i < todo.length; i++) {
@@ -1501,7 +1506,7 @@
       docs.forEach(d => {
         const date = FP.edlHisto.dateDe(d); const sensNorm = FP.edlHisto.sensDe(d) === 'restitution' ? 'Sortie' : 'Entrée';
         if (!date) return; const ins = inspFor(date, sensNorm);
-        if (!ins || ins.km == null) jobs.push({ v, d });
+        if (!ins || ins.km == null || Number(ins.km) <= 0) jobs.push({ v, d });   // 0 km = à (re)lire
       });
     });
     if (!jobs.length) { if (FP.toast) FP.toast('✓ Tous les km d\'état des lieux sont déjà lus.'); return; }
@@ -1948,7 +1953,7 @@
     try {
       if (FP.edlHisto) {
         const _docs = FP.edlHisto.docsDe(getVehDocs(v.id), v.id);
-        const _hasKm = (date, sn) => list.some(x => x && x.date === date && x.sens === sn && x.km != null);
+        const _hasKm = (date, sn) => list.some(x => x && x.date === date && x.sens === sn && x.km != null && Number(x.km) > 0);
         edlNoKm = _docs.filter(d => { const dt = FP.edlHisto.dateDe(d); const sn = FP.edlHisto.sensDe(d) === 'restitution' ? 'Sortie' : 'Entrée'; return dt && !_hasKm(dt, sn); }).length;
       }
     } catch (e) {}
@@ -4993,6 +4998,14 @@
     } else {
       el.addEventListener('change', () => commit(true));
     }
+    // ⚠️ CHAMPS DATE — « je clique la date, ça me quitte / ça ne me laisse pas » : avant, le 1er clic ne
+    // créait qu'un <input type=date> NATIF (il fallait RE-cliquer pour ouvrir le calendrier, et taper
+    // l'année segment par segment éjectait en pleine frappe). On ouvre maintenant DIRECTEMENT le
+    // calendrier FP.datePicker au 1er clic → 1 clic = calendrier = on choisit = enregistré. Le choix émet
+    // un 'change' (date complète valide) capté ci-dessus par commit(). Vérifié (repro Playwright).
+    if (type === 'date' && window.FP && FP.datePicker && FP.datePicker.open) {
+      try { FP.datePicker.open(el); } catch (e) {}
+    }
   }
 
   let _rowClickTimer = null;
@@ -5224,15 +5237,17 @@
     if (bz) { if (ko) bz.fail(resume); else bz.done(resume); } else if (FP.toast) FP.toast(resume);
   }
 
-  { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', () => {
-      // Si des véhicules sont COCHÉS → la fiche ne prend QUE ceux-là (priorité à la sélection).
-      const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
-      if (sel.length) { openFicheModal(sel, 'Véhicules sélectionnés'); return; }
-      const grp = state.groupe;
-      const label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp));
-      const list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp));
-      openFicheModal(list, label);
-    }); }
+  // Relevé PDF/Excel de la liste : sélection cochée en priorité, sinon le groupe/filtre affiché.
+  function openVehReleve() {
+    const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
+    if (sel.length) { openFicheModal(sel, 'Véhicules sélectionnés'); return; }
+    const grp = state.groupe;
+    const label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp));
+    const list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp));
+    openFicheModal(list, label);
+  }
+  { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', openVehReleve); }
+  { const b = $('btn-releve-veh'); if (b) b.addEventListener('click', openVehReleve); }
   // « Tous les QR (PDF) » — un PDF avec le QR de CHAQUE véhicule de la flotte (liste LIVE complète,
   // pas seulement ceux qui ont un conducteur). Même carte QR que l'impression/PNG de la fiche.
   function downloadAllVehQr() {
@@ -5989,7 +6004,23 @@
             // Lecture → complète/maj la fiche (IA prioritaire, fiable même sur un scan sans texte ; repli OCR local)
             if (!SKIP_IA.has(type)) try {
               let ia = null;
-              try { ia = await FP.scanIA(file, type === 'controle-technique' ? 'controle-technique' : 'facture'); } catch (e) {}
+              // ⚠️ CONTRÔLE TECHNIQUE : prompt DÉDIÉ (date du contrôle + date du prochain CT). Sans ça, scanIA
+              // utilisait le prompt générique « facture » → il ne renvoyait ni la date du CT ni la date limite
+              // du prochain contrôle, donc « Prochain CT » ne se mettait pas à jour. Même pipeline que les
+              // factures (couche texte d'abord, puis IA, contrôles) — seul le prompt change.
+              const CT_SCAN_PROMPT = [
+                "Ce document est un PROCES-VERBAL / certificat de CONTROLE TECHNIQUE automobile francais.",
+                "Renvoie UNIQUEMENT un objet JSON valide, sans aucun texte autour (mets null si l'info est absente) :",
+                "date : la DATE a laquelle le controle technique a ete effectue (passage au centre), format AAAA-MM-JJ.",
+                "controleTechniqueProchain : la date limite du PROCHAIN controle technique. Cherche les libelles 'prochain controle technique', 'prochaine visite', 'valable jusqu au', 'a renouveler avant le'. Format AAAA-MM-JJ. Si SEULE la date du controle figure et que le resultat est favorable, mets null (l'application ajoutera 2 ans).",
+                "resultat : 'favorable', 'defavorable' ou 'contre-visite' si c'est indique, sinon null.",
+                "Ne le confonds pas avec une date d'edition, un numero de PV, une immatriculation ou un kilometrage. Ne recopie QUE ce qui est ecrit, n'invente aucune date."
+              ].join("\n");
+              try {
+                ia = (type === 'controle-technique')
+                  ? await FP.scanIA(file, 'controle-technique', CT_SCAN_PROMPT, { maxTokens: 500 })
+                  : await FP.scanIA(file, 'facture');
+              } catch (e) {}
               let det = {};
               try { const text = await FP.ocr.fileToText(file); det = FP.detectDoc(text, data.vehicules) || {}; } catch (e) {}
               const v = data.vehicules.find(x => x.id === vehId);

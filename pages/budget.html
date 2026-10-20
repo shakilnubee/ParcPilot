@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   /* (pastilles d'échéance : composant canonique .fp-ech dans styles.css) */
 </style>
@@ -110,9 +110,13 @@
         <h1 class="text-2xl font-extrabold" style="color: var(--fp-primary)">Budget</h1>
         <p class="text-slate-500 text-sm mt-1">Ton budget prévisionnel par poste comparé au réel, + la prévision de trésorerie sur 12 mois.</p>
       </div>
-      <div>
-        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">Année</label>
-        <select id="bud-annee" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"></select>
+      <div class="flex items-end gap-3 flex-wrap">
+        <span data-data-io></span>
+        <button class="btn btn-outline text-sm" id="bud-releve" title="Relevé PDF / Excel du budget — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+        <div>
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">Année</label>
+          <select id="bud-annee" class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"></select>
+        </div>
       </div>
     </div>
 
@@ -176,8 +180,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -193,10 +197,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -204,6 +208,7 @@
   const euro = (n) => FP.euro(Math.round(Number(n) || 0));
   const nowY = new Date().getFullYear();
   let year = String(nowY);
+  let _budLast = null;   // dernier instantané {postesData, year, totPrevu, totReel} pour le relevé PDF/Excel
 
   const cfg = () => (FP.settings && FP.settings.get) ? FP.settings.get() : {};
   const normP = s => FP.normImmat(s); // source unique (retire tirets ET espaces)
@@ -394,6 +399,7 @@
       </tr>`;
     }).join('');
     $('bud-tbody').innerHTML = rows;
+    _budLast = { postesData: postesData.slice(), year, totPrevu, totReel };
     const ecTot = totPrevu - totReel;
     $('bud-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${totPrevu ? euro(totPrevu) : '—'}</td><td class="r">${euro(totReel)}</td><td class="r" style="color:${ecTot < 0 ? 'var(--fp-danger)' : '#059669'}">${totPrevu ? ((ecTot < 0 ? '−' : '+') + euro(Math.abs(ecTot))) : '—'}</td><td></td></tr>`;
 
@@ -439,6 +445,39 @@
   $('bud-tbody').addEventListener('change', (e) => { const inp = e.target.closest('.bud-in'); if (!inp) return; setBudget(year, inp.dataset.key, inp.value); render(); if (window.FP && FP.toast) FP.toast('✓ Budget enregistré'); });
   $('bud-annee').addEventListener('change', (e) => { year = e.target.value; render(); });
   if (FP.filterResetButton) FP.filterResetButton($('bud-filterbar'), { onReset: () => { year = String(nowY); buildYears(); render(); } });
+
+  // ---------- Relevé PDF / Excel du budget (colonnes au choix + réordonnables, moteur commun FP.fiche) ----------
+  const BUD_FICHE_COLS = [
+    { id: 'poste',   label: 'Poste',           def: true,  get: p => p.label + (p.annuel ? ' (annuel)' : '') },
+    { id: 'prevu',   label: 'Prévu (€/an)',    def: true,  align: 'right', get: p => p.prevu ? euro(p.prevu) : '—', num: p => p.prevu || 0, sum: p => p.prevu || 0, fmt: v => euro(v) },
+    { id: 'reel',    label: 'Réel',            def: true,  align: 'right', get: p => euro(p.reel), num: p => p.reel || 0, sum: p => p.reel || 0, fmt: v => euro(v) },
+    { id: 'ecart',   label: 'Écart',           def: true,  align: 'right', get: p => p.prevu ? ((p.prevu - p.reel < 0 ? '−' : '+') + euro(Math.abs(p.prevu - p.reel))) : '—', num: p => (p.prevu ? p.prevu - p.reel : 0), sum: p => (p.prevu ? p.prevu - p.reel : 0), fmt: v => (v < 0 ? '−' : '+') + euro(Math.abs(v)) },
+    { id: 'pct',     label: '% consommé',      def: false, align: 'right', get: p => p.prevu > 0 ? Math.min(100, Math.round(p.reel / p.prevu * 100)) + ' %' : '—' },
+    { id: 'type',    label: 'Source',          def: false, get: p => p.annuel ? 'Config annuelle' : 'Factures de l\'année' },
+    { id: 'reelN1',  label: 'Réel N-1',        def: false, align: 'right', get: p => (p.annuel || p.reelN1 == null) ? '—' : euro(p.reelN1), num: p => (p.annuel ? null : (p.reelN1 || 0)) },
+    { id: 'evo',     label: 'Évolution vs N-1', def: false, align: 'right', get: p => { if (p.annuel || p.reelN1 == null) return '—'; const d = p.reel - p.reelN1; return (d < 0 ? '−' : '+') + euro(Math.abs(d)); }, num: p => (p.annuel || p.reelN1 == null) ? null : (p.reel - p.reelN1) },
+  ];
+  $('bud-releve')?.addEventListener('click', () => {
+    if (!(FP.fiche && FP.fiche.open)) { alert('Aperçu indisponible ici.'); return; }
+    if (!_budLast || !_budLast.postesData.length) { render(); }
+    const snap = _budLast || { postesData: [], year };
+    if (!snap.postesData.length) { alert('Aucune donnée budget à exporter.'); return; }
+    FP.fiche.open({ key: 'budget', title: 'Budget ' + snap.year + ' — prévu vs réel', cols: BUD_FICHE_COLS, rows: snap.postesData });
+  });
+  // Export Excel visible (bouton « Exporter (Excel) »), comme sur les autres pages.
+  if (FP.injectDataIO) FP.injectDataIO({
+    exportOnly: true,
+    sheetName: 'Budget',
+    baseName: () => 'parc-pilot-budget-' + ((_budLast && _budLast.year) || year) + '-' + new Date().toISOString().slice(0, 10),
+    columns: [
+      { key: 'poste',  label: 'Poste' },
+      { key: 'prevu',  label: 'Prévu (€/an)', format: FP.csv.numFormat },
+      { key: 'reel',   label: 'Réel (€)',     format: FP.csv.numFormat },
+      { key: 'ecart',  label: 'Écart (€)',    format: FP.csv.numFormat },
+      { key: 'reelN1', label: 'Réel N-1 (€)', format: FP.csv.numFormat },
+    ],
+    getRows: () => { if (!_budLast) render(); return ((_budLast && _budLast.postesData) || []).map(p => ({ poste: p.label + (p.annuel ? ' (annuel)' : ''), prevu: p.prevu, reel: p.reel, ecart: p.prevu - p.reel, reelN1: (p.annuel || p.reelN1 == null) ? '' : p.reelN1 })); },
+  });
 
   function boot() { buildYears(); syncObjInputs(); render(); }
   boot();

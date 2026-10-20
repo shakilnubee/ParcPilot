@@ -2542,8 +2542,21 @@ FP.conducteurs = {
   list() { try { return (window.FP_DATA && Array.isArray(FP_DATA.conducteurs)) ? FP_DATA.conducteurs.filter(c => c && !c.masque) : []; } catch (e) { return []; } },
   displayName(c) {
     if (!c) return '';
-    const base = String(c.name || c.prenom || c.key || '').trim();
-    return (c.nom && !base.toLowerCase().includes(String(c.nom).toLowerCase())) ? (base + ' ' + c.nom).trim() : base;
+    // AFFICHAGE = PRÉNOM SEUL (choix produit explicite). Le nom de famille est stocké à part (fiche,
+    // rapprochements) mais ne s'affiche PAS — SAUF pour départager deux conducteurs ACTIFS qui portent
+    // le même prénom (homonymes), auquel cas on ajoute le nom pour ne pas les confondre.
+    const prenom = String(c.prenom || c.name || c.key || '').trim();
+    const nom = String(c.nom || '').trim();
+    if (!prenom) return nom;
+    if (!nom) return prenom;
+    if (prenom.toLowerCase().includes(nom.toLowerCase())) return prenom; // ancienne donnée: name="Prénom Nom"
+    let homonyme = false;
+    try {
+      const kp = FP.normPrenom(prenom);
+      homonyme = !!kp && FP.conducteurs.list().some(o => o && o.key !== c.key
+        && FP.normPrenom(o.prenom || o.name || o.key) === kp && String(o.nom || '').trim());
+    } catch (e) {}
+    return homonyme ? (prenom + ' ' + nom).trim() : prenom;
   },
   find(name) {
     const list = this.list();
@@ -2565,15 +2578,18 @@ FP.conducteurs = {
     info = info || {};
     // Garde-fou multi-sociétés : pas de création en vue « Toutes les sociétés ».
     if (FP.exigeSocieteChoisie && !FP.exigeSocieteChoisie('de créer un conducteur')) return null;
-    const name = String(info.name || ((info.prenom || '') + ' ' + (info.nom || ''))).trim() || String(info.prenom || '').trim();
+    // ⚠️ NOM AFFICHÉ = PRÉNOM SEUL. `name` (le libellé affiché partout) = le prénom ; le nom de famille
+    // reste dans `nom` (séparé). Le nom COMPLET ne sert qu'au calcul de la clé / anti-homonymes.
+    const fullName = String(info.name || ((info.prenom || '') + ' ' + (info.nom || ''))).trim();
+    const name = String(info.prenom || '').trim() || String(info.name || '').trim() || String(info.nom || '').trim();
     if (!name) return null;
     // Clé = prénom seul (rétro-compatible). MAIS si un homonyme de prénom existe déjà avec un nom
     // DIFFÉRENT, on prend une clé prénom+nom pour ne pas fusionner deux personnes distinctes.
-    let key = FP.normPrenom(name);
+    let key = FP.normPrenom(fullName);
     const nom = String(info.nom || '').toLowerCase().trim();
     if (nom) {
       const homonymeDiff = this.list().some(c => FP.normPrenom(c.name || c.prenom || c.key) === key && String(c.nom || '').toLowerCase().trim() && String(c.nom || '').toLowerCase().trim() !== nom);
-      if (homonymeDiff) { const kf = FP.normNomComplet(name).replace(/\s+/g, '-'); if (kf) key = kf; }
+      if (homonymeDiff) { const kf = FP.normNomComplet(fullName).replace(/\s+/g, '-'); if (kf) key = kf; }
     }
     // ⚠️ SÉCURITÉ DONNÉES : on n'inclut QUE les champs réellement fournis (pas de `|| null`). L'upsert
     // ne touche que les colonnes présentes → si ce prénom correspond en fait à une fiche DÉJÀ existante
@@ -4011,8 +4027,8 @@ FP.newConducteurModal = function (prefillName) {
         + '<button type="button" id="fp-nc-x" style="border:none;background:none;cursor:pointer;font-size:1.3rem;color:var(--fp-muted);line-height:1">✕</button></div>'
         + '<p style="font-size:.8rem;color:var(--fp-muted);margin-bottom:1rem">Ce nom n\'existe pas encore — renseigne ses infos pour l\'enregistrer.</p>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">'
-        + '<div><div class="field-label">Prénom</div><input class="field-input" id="fp-nc-prenom"></div>'
-        + '<div><div class="field-label">Nom</div><input class="field-input" id="fp-nc-nom"></div>'
+        + '<div><div class="field-label">Prénom <span style="color:var(--fp-accent);font-weight:700">(affiché partout)</span></div><input class="field-input" id="fp-nc-prenom" placeholder="Prénom uniquement"></div>'
+        + '<div><div class="field-label">Nom <span style="color:var(--fp-muted);font-weight:400;text-transform:none">(de famille)</span></div><input class="field-input" id="fp-nc-nom" placeholder="Nom de famille"></div>'
         + '<div><div class="field-label">Téléphone</div><input class="field-input" id="fp-nc-tel"></div>'
         + '<div><div class="field-label">Email</div><input class="field-input" id="fp-nc-email" type="email"></div>'
         + '<div style="grid-column:1/3"><div class="field-label">N° de permis</div><input class="field-input" id="fp-nc-permis"></div>'
@@ -4425,8 +4441,8 @@ FP.mailObjetL = function (defKey, tags, lang) {
 // Champs du profil société (rendu générique : le formulaire de Paramètres itère dessus).
 // Un champ avec `default` est PRÉ-REMPLI avec ce texte quand la valeur est vide (l'utilisateur le voit).
 FP.PROFIL_CHAMPS = [
-  { key: 'mailExpediteur',     label: "E-mail d'envoi des amendes",       type: 'email', ph: 'ex. contact@masociete.fr' },
-  { key: 'mailCopie',          label: 'E-mails en copie (séparés par ,)', type: 'text',  ph: 'ex. compta@masociete.fr, direction@masociete.fr' },
+  { key: 'mailExpediteur',     label: "E-mail d'envoi (amendes, EDL, réponses conducteur…)", type: 'email', ph: 'ex. contact@masociete.fr' },
+  { key: 'mailCopie',          label: 'E-mails TOUJOURS en copie de tous les envois (séparés par ,)', type: 'text',  ph: 'ex. compta@masociete.fr, direction@masociete.fr' },
   // Signataire côté SOCIÉTÉ pour les états des lieux (reçoit le lien Yousign pour signer « pour la
   // société »). Propre à chaque société (le titulaire change d'une société à l'autre).
   { key: 'edlSignataireNom',   label: 'États des lieux — signataire société (nom)',   type: 'text',  ph: 'ex. Prénom Nom — la personne qui signe côté société' },
@@ -5597,6 +5613,89 @@ FP.backups = {
   },
 };
 
+/*<fusion-reglages>*/
+// ⚠️⚠️ FUSION DES RÉGLAGES (app_settings) — SOURCE UNIQUE, sans dépendance (testée : tests/unit/fusion-reglages.mjs).
+// Utilisée par FP.settings._pushSettings (enregistrement), FP.persist.flush (renvoi d'une écriture restée en file)
+// et la réconciliation au chargement (supabase-client.js). Règle d'or : une écriture ne modifie QUE ce que CE poste
+// a réellement changé (par rapport à la version serveur qu'il connaissait = « base ») ; tout le reste vient du
+// serveur, y compris les suppressions et modifications faites sur un AUTRE appareil.
+FP._fusion = (function () {
+  const isPlain = x => !!x && typeof x === 'object' && !Array.isArray(x);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const collSize = v => Array.isArray(v) ? v.length : (isPlain(v) ? Object.keys(v).length : ((v == null || v === '') ? 0 : 1));
+  // Map { clé → valeur } : ajouts/modifs de ce poste appliqués sur le serveur frais ; suppressions de ce poste honorées ;
+  // entrées NON modifiées par ce poste (identiques à base) → la version serveur fait foi (même si elle a été supprimée).
+  const mergeMap = (remoteV, objV, baseV) => {
+    const out = isPlain(remoteV) ? { ...remoteV } : {};
+    const ks = new Set([...(isPlain(objV) ? Object.keys(objV) : []), ...(isPlain(baseV) ? Object.keys(baseV) : [])]);
+    ks.forEach(k => {
+      const ov = isPlain(objV) ? objV[k] : undefined, bv = isPlain(baseV) ? baseV[k] : undefined, rv = out[k];
+      if (ov === undefined) { delete out[k]; return; }                          // supprimée par ce poste
+      if (bv !== undefined && same(ov, bv)) return;                             // pas touchée ici → serveur fait foi
+      if (isPlain(ov) || isPlain(bv) || isPlain(rv)) { out[k] = mergeMap(rv, ov, bv); return; }   // sous-objet → fusion fine
+      out[k] = ov;                                                              // scalaire / tableau modifié ici
+    });
+    return out;
+  };
+  // Tableau : avec id → fusion par id ; sans id → union par valeur. Seuls les éléments AJOUTÉS ou MODIFIÉS par ce
+  // poste sont recopiés ; ses suppressions sont honorées ; un élément non touché ici suit le serveur.
+  const mergeArr = (remoteV, objV, baseV) => {
+    const rA = Array.isArray(remoteV) ? remoteV : [], oA = Array.isArray(objV) ? objV : [], bA = Array.isArray(baseV) ? baseV : [];
+    const hasIds = a => a.length > 0 && a.every(t => t && typeof t === 'object' && t.id != null);
+    if (hasIds(oA) || hasIds(rA)) {
+      const byId = new Map(); rA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });
+      const baseById = new Map(); bA.forEach(t => { if (t && t.id != null) baseById.set(t.id, JSON.stringify(t)); });
+      const objIds = new Set(oA.map(t => t && t.id).filter(v => v != null));
+      oA.forEach(t => { if (t && t.id != null && baseById.get(t.id) !== JSON.stringify(t)) byId.set(t.id, t); });   // ajoutés / modifiés ici
+      bA.forEach(t => { if (t && t.id != null && !objIds.has(t.id)) byId.delete(t.id); });                          // supprimés ici
+      return Array.from(byId.values());
+    }
+    const key = v => JSON.stringify(v);
+    const objKeys = new Set(oA.map(key)), baseKeys = new Set(bA.map(key)), seen = new Set(), out = [];
+    rA.forEach(v => { const k = key(v); if (baseKeys.has(k) && !objKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });
+    oA.forEach(v => { const k = key(v); if (baseKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });   // seulement les ajouts
+    return out;
+  };
+  const mergeCollection = (k, remoteV, objV, baseV) => {
+    if (Array.isArray(objV) || Array.isArray(remoteV)) return mergeArr(remoteV, objV, baseV);
+    if (isPlain(objV) || isPlain(remoteV)) return mergeMap(remoteV, objV, baseV);
+    return objV;   // valeur scalaire mal classée → remplacement simple, jamais transformée en {}
+  };
+  // « Combler les trous » : le serveur GAGNE sur toute valeur existante ; on n'ajoute que ce qui lui manque.
+  const gapFill = (remote, local) => {
+    const out = isPlain(remote) ? Object.assign({}, remote) : {};
+    Object.keys(local || {}).forEach(k => {
+      const lv = local[k], rv = out[k];
+      if (isPlain(lv)) out[k] = gapFill(rv, lv);
+      else if (rv === undefined || rv === null || rv === '') out[k] = lv;
+    });
+    return out;
+  };
+  // Rejoue une écriture de réglages restée en FILE (page quittée pendant l'envoi, hors-ligne…) sur la version
+  // serveur FRAÎCHE. ⚠️ JAMAIS un remplacement complet par la copie en file (cause de vidages vécus) :
+  //  • fusion « delta » → seules les clés que ce poste avait modifiées (item.fusion.cles) sont appliquées,
+  //    les collections finement (base connue), sans jamais vider entièrement une collection ;
+  //  • sans information (écriture ancienne, ou faite sans version serveur de référence) → « combler les trous ».
+  const rejouer = (remote, item) => {
+    const data = item && item.row && isPlain(item.row.data) ? item.row.data : {};
+    if (!isPlain(remote)) return JSON.parse(JSON.stringify(data));        // ligne inexistante côté serveur → création
+    const f = (item && isPlain(item.fusion)) ? item.fusion : null;
+    if (!f || f.mode !== 'delta' || !Array.isArray(f.cles)) return gapFill(remote, data);
+    const coll = new Set(Array.isArray(f.coll) ? f.coll : []), bases = isPlain(f.bases) ? f.bases : {};
+    const out = { ...remote };
+    f.cles.forEach(k => {
+      if (!(k in data)) return;
+      if (coll.has(k)) {
+        if (collSize(data[k]) === 0 && (collSize(bases[k]) > 0 || collSize(remote[k]) > 0)) return;   // jamais de vidage total
+        out[k] = mergeCollection(k, remote[k], data[k], bases[k]);
+      } else out[k] = data[k];
+    });
+    return out;
+  };
+  return { isPlain, collSize, mergeMap, mergeArr, mergeCollection, gapFill, rejouer };
+})();
+/*</fusion-reglages>*/
+
 FP.settings = {
   STORAGE_KEY: 'auto_flotte_settings',
   // Réglages (apparence : groupes, libellés, couleurs…) PROPRES À CHAQUE SOCIÉTÉ.
@@ -5830,9 +5929,12 @@ FP.settings = {
   _pushSettings(obj, prevLocal) {
     const self = this;
     let id; try { id = this._effectiveId || this._dbId(); } catch (e) { id = this._effectiveId || 'global'; }
-    const plainUpsert = (data) => {
+    // `fusion` = comment rejouer cette écriture si elle reste en file (cf. FP._fusion.rejouer) : jamais un
+    // remplacement complet de la ligne par une copie locale.
+    const GAPFILL = { mode: 'gapfill' };
+    const plainUpsert = (data, fusion) => {
       try {
-        if (FP.persist && FP.persist.upsert) FP.persist.upsert('app_settings', { id, data });
+        if (FP.persist && FP.persist.upsert) FP.persist.upsert('app_settings', { id, data }, fusion || GAPFILL);
         else if (FP.db && FP.supabase) FP.db.upsert('app_settings', { id, data });
       } catch (e) {}
     };
@@ -5847,7 +5949,7 @@ FP.settings = {
     // (prevLocal n'est donc plus utilisé comme base ; le 1er push d'une session passe en additif, sûr.)
     const base = (this._serverSnap && typeof this._serverSnap === 'object') ? this._serverSnap : null;
     // Sans Supabase : on ne peut rien lire/écrire côté serveur → file/local (comportement d'avant).
-    if (!(FP.supabase && FP.supabase.from)) { plainUpsert(obj); return; }
+    if (!(FP.supabase && FP.supabase.from)) { plainUpsert(obj, GAPFILL); return; }
     // ⚠️ AUCUN repère FIABLE (ni snapshot serveur, ni état local précédent) = tout 1er enregistrement
     // sur ce cache OU cache vidé (purge multi-sociétés / vidage navigateur) : `base` est null OU un
     // objet VIDE `{}`. ⚠️⚠️ Un base VIDE est PIÉGEUX : en mode « delta » plus bas, CHAQUE clé de `obj`
@@ -5857,18 +5959,10 @@ FP.settings = {
     // (le serveur GAGNE sur les feuilles existantes → config préservée), sans jamais réécraser.
     // Repli file d'écriture si la lecture échoue (pas de perte).
     if (!base || (typeof base === 'object' && Object.keys(base).length === 0)) {
-      const gapFill = (remote, local) => {
-        const out = (remote && typeof remote === 'object' && !Array.isArray(remote)) ? Object.assign({}, remote) : {};
-        Object.keys(local || {}).forEach(k => {
-          const lv = local[k], rv = out[k];
-          if (lv && typeof lv === 'object' && !Array.isArray(lv)) out[k] = gapFill(rv, lv);
-          else if (rv === undefined || rv === null || rv === '') out[k] = lv;   // serveur absent/vide → on comble
-        });
-        return out;
-      };
+      const gapFill = FP._fusion.gapFill;
       // Même filet anti-perte que le CAS : repli en file d'écriture AVANT le réseau, retiré à la réussite.
       let _settleUid0 = null;
-      try { if (FP.persist && FP.persist._enqueue) _settleUid0 = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj } }); } catch (e) {}
+      try { if (FP.persist && FP.persist._enqueue) _settleUid0 = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj }, fusion: GAPFILL }); } catch (e) {}
       self._serialize(id, async () => {
         try {
           const r = await FP.supabase.from('app_settings').select('data').eq('id', id).maybeSingle();
@@ -5877,8 +5971,8 @@ FP.settings = {
           self._serverSnap = JSON.parse(JSON.stringify(merged));
           try { localStorage.setItem(self._key(), JSON.stringify(merged)); } catch (_) {}
           try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (e) {}
-          plainUpsert(merged);
-        } catch (e) { try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (_) {} plainUpsert(obj); }   // échec de lecture → au moins mettre en file (ne pas perdre l'écriture)
+          plainUpsert(merged, GAPFILL);
+        } catch (e) { try { if (_settleUid0 && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid0); } catch (_) {} plainUpsert(obj, GAPFILL); }   // échec de lecture → au moins mettre en file (ne pas perdre l'écriture)
       });
       return;
     }
@@ -5901,7 +5995,7 @@ FP.settings = {
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
       'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys',
       // — Historique & données par VÉHICULE :
-      'affectations', 'antiPollDates', 'leasingDocs', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
+      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
       // — Données par SINISTRE :
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
@@ -5956,52 +6050,8 @@ FP.settings = {
       'vehDossierVente']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
-    const isPlain = x => x && typeof x === 'object' && !Array.isArray(x);
-    // Fusion par FEUILLE d'un objet-map (ajouts/modifs d'obj appliqués sur remote frais ; suppressions de CE poste honorées).
-    const mergeMap = (remoteV, objV, baseV) => {
-      const out = isPlain(remoteV) ? { ...remoteV } : {};
-      const ks = new Set([...(isPlain(objV) ? Object.keys(objV) : []), ...(isPlain(baseV) ? Object.keys(baseV) : [])]);
-      ks.forEach(k => {
-        const ov = isPlain(objV) ? objV[k] : undefined, bv = isPlain(baseV) ? baseV[k] : undefined, rv = out[k];
-        // ⚠️⚠️ CORRECTIF DE FOND (cause commune de « ça revient ») : une clé qui était dans la base chargée
-        // mais que CE poste a RETIRÉE (ov === undefined) est VRAIMENT supprimée — même si sa valeur est un
-        // OBJET. Avant, on partait en récursion et on laissait un « husk » {} (truthy) qui ressuscitait
-        // l'entrée au rechargement (RDV garage, immobilisation, anomalie « remise à vérifier »…). ⚠️ Les
-        // clés présentes SEULEMENT côté serveur (ajoutées par un AUTRE appareil) ne sont PAS dans `ks`
-        // (= clés de objV ∪ baseV) → elles restent dans `out` (parti de {...remoteV}) et ne sont JAMAIS
-        // supprimées → l'anti-perte multi-appareils est préservé.
-        if (ov === undefined) { delete out[k]; return; }
-        if (isPlain(ov) || isPlain(bv) || isPlain(rv)) { out[k] = mergeMap(rv, ov, bv); return; }  // sous-objet → fusion fine
-        if (JSON.stringify(ov) !== JSON.stringify(bv)) out[k] = ov;                                // scalaire modifié
-      });
-      return out;
-    };
-    // Fusion d'un TABLEAU (union sur remote frais ; modifs/suppressions de CE poste appliquées).
-    // • tableau d'objets AVEC id → fusion par id ; • sinon (strings, ou objets sans id) → union par
-    //   valeur (JSON) en honorant les suppressions de ce poste. ⚠️ Ne JAMAIS filtrer sur `.id` un tableau
-    //   sans id (ex. `loueurs` [{nom,prop}], `alertesMasquees` [string]) → on perdrait tout son contenu.
-    const mergeArr = (remoteV, objV, baseV) => {
-      const rA = Array.isArray(remoteV) ? remoteV : [], oA = Array.isArray(objV) ? objV : [], bA = Array.isArray(baseV) ? baseV : [];
-      const hasIds = a => a.length > 0 && a.every(t => t && typeof t === 'object' && t.id != null);
-      if (hasIds(oA) || hasIds(rA)) {
-        const byId = new Map(); rA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });
-        const objIds = new Set(oA.map(t => t && t.id).filter(v => v != null));
-        oA.forEach(t => { if (t && t.id != null) byId.set(t.id, t); });                            // ajouts/modifs de ce poste
-        bA.forEach(t => { if (t && t.id != null && !objIds.has(t.id)) byId.delete(t.id); });        // suppressions de ce poste
-        return Array.from(byId.values());
-      }
-      // Sans id : union par valeur (dédup), suppressions de ce poste (présent dans base, absent d'obj) honorées.
-      const key = v => JSON.stringify(v);
-      const objKeys = new Set(oA.map(key)), baseKeys = new Set(bA.map(key)), seen = new Set(), out = [];
-      rA.forEach(v => { const k = key(v); if (baseKeys.has(k) && !objKeys.has(k)) return; if (!seen.has(k)) { seen.add(k); out.push(v); } });
-      oA.forEach(v => { const k = key(v); if (!seen.has(k)) { seen.add(k); out.push(v); } });
-      return out;
-    };
-    const mergeCollection = (k, remoteV, objV, baseV) => {
-      if (Array.isArray(objV) || Array.isArray(remoteV)) return mergeArr(remoteV, objV, baseV);
-      if (isPlain(objV) || isPlain(remoteV)) return mergeMap(remoteV, objV, baseV);
-      return objV;   // ⚠️ SÉCURITÉ : valeur scalaire mal classée → remplacement simple, JAMAIS transformée en {}
-    };
+    // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).
+    const { isPlain, mergeMap, mergeArr, mergeCollection } = FP._fusion;
     const applyDelta = (remote) => {
       const merged = { ...remote };
       // ⚠️⚠️ ANTI-PERTE : on ne traite QUE les clés RÉELLEMENT PRÉSENTES dans le cache local (`obj`).
@@ -6056,8 +6106,14 @@ FP.settings = {
     // le réglage « disparaît ». On dépose donc D'ABORD un repli dans la file d'écriture durable (upsert
     // complet de `obj`, exactement le même dernier recours que la contention), puis on le RETIRE dès que le
     // CAS aboutit → en fonctionnement normal aucune écriture parasite ; sur abandon il repart au load suivant.
+    // Informations de rejeu : clés réellement modifiées par CE poste (obj vs base), et base des collections
+    // concernées → une écriture restée en file ne touchera QUE ces clés (cf. FP._fusion.rejouer).
+    const _cles = Object.keys(obj).filter(k => JSON.stringify(obj[k]) !== JSON.stringify(base[k]));
+    const _coll = _cles.filter(isCollKey);
+    const _bases = {}; _coll.forEach(k => { if (base[k] !== undefined) _bases[k] = base[k]; });
+    const DELTA = { mode: 'delta', cles: _cles, coll: _coll, bases: _bases };
     let _settleUid = null;
-    try { if (FP.persist && FP.persist._enqueue) _settleUid = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj } }); } catch (e) {}
+    try { if (FP.persist && FP.persist._enqueue) _settleUid = FP.persist._enqueue({ op: 'upsert', table: 'app_settings', row: { id, data: obj }, fusion: DELTA }); } catch (e) {}
     const _dropSettle = () => { try { if (_settleUid && FP.persist && FP.persist._removeUid) FP.persist._removeUid(_settleUid); } catch (e) {} };
     // (Le CAS ci-dessous est SÉRIALISÉ par id via self._serialize — voir plus bas — pour qu'il ne se
     //  chevauche jamais avec un autre enregistrement de la même ligne.)
@@ -6075,7 +6131,7 @@ FP.settings = {
         if (r2 && r2.error) throw r2.error;
         const remote2 = (r2 && r2.data && r2.data.data && typeof r2.data.data === 'object') ? r2.data.data : null;
         const merged2 = remote2 ? applyDelta(remote2) : obj;   // pas de ligne existante → insert simple d'obj
-        commit(merged2); _dropSettle(); plainUpsert(merged2);
+        commit(merged2); _dropSettle(); plainUpsert(merged2, DELTA);
       } catch (e2) {
         // Relecture impossible (hors-ligne) : on ne peut pas fusionner maintenant → l'écriture COMPLÈTE
         // reste dans la file durable (déjà déposée en tête de _pushSettings) et sera retentée ; le
@@ -6097,9 +6153,9 @@ FP.settings = {
           if (r && r.error) throw r.error;
           const remote = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : null;
           const remoteRev = (r && r.data && typeof r.data.rev === 'number') ? r.data.rev : null;
-          if (!remote) { self._serverSnap = JSON.parse(JSON.stringify(obj)); _dropSettle(); plainUpsert(obj); return; } // pas encore de ligne → insert simple
+          if (!remote) { self._serverSnap = JSON.parse(JSON.stringify(obj)); _dropSettle(); plainUpsert(obj, DELTA); return; } // pas encore de ligne → insert simple
           const merged = applyDelta(remote);
-          if (remoteRev === null) { commit(merged); _dropSettle(); plainUpsert(merged); return; } // colonne rev absente → fusion sans CAS (comme avant)
+          if (remoteRev === null) { commit(merged); _dropSettle(); plainUpsert(merged, DELTA); return; } // colonne rev absente → fusion sans CAS (comme avant)
           // Écrit seulement si rev inchangé ; .select() renvoie les lignes réellement modifiées.
           const w = await FP.supabase.from('app_settings').update({ data: merged }).eq('id', id).eq('rev', remoteRev).select('id');
           if (w && w.error) throw w.error;
@@ -8242,20 +8298,25 @@ FP.affectations = {
       const sv = String(sens || '').toLowerCase();
       const isSortie = sv.indexOf('resti') >= 0 || sv.indexOf('sort') >= 0;
       let did = false;
-      // ⚠️ FILL-ONLY STRICT : le lien EDL → période ne REMPLIT QUE LE VIDE (km de début/fin absent). Il ne
-      // REMPLACE JAMAIS un km déjà présent (saisi à la main OU posé par un précédent EDL) — sinon un scan
-      // d'un EDL d'une autre période (ex. 0 km) écrasait la vraie valeur et faisait « revenir » les données.
-      // Une correction d'un km déjà posé se fait en cliquant sur le km de la période (saisie manuelle).
+      // ⚠️ L'EDL FAIT AUTORITÉ sur la période (demande utilisateur : « l'IA lit le PDF de l'EDL »). On MET À
+      // JOUR le km de début/fin avec la valeur LUE sur l'état des lieux — y compris pour corriger une valeur
+      // parasite déjà présente (ex. 6709 remis à 0 pour un véhicule neuf dont l'EDL dit 0). C'est SÛR ici car
+      // applyEdlKm n'est appelé QUE sur une action DÉLIBÉRÉE (bouton « Lire le(s) km » / import) ET l'appelant
+      // garde `al.length === 1` (une seule période → pas d'ambiguïté). Le ré-ancrage AUTOMATIQUE au chargement
+      // (reanchorCurrent/reanchorEdlOnce) reste, lui, FILL-ONLY (c'est lui qui causait le « revenir »).
       if (k != null) {
-        if (isSortie) { if (list[idx].kmFin == null) { list[idx].kmFin = k; list[idx].kmFinManuel = true; did = true; } }
-        else { if (list[idx].kmDebut == null) { list[idx].kmDebut = k; list[idx].kmDebutManuel = true; did = true; } }
+        if (isSortie) { if (list[idx].kmFin !== k) { list[idx].kmFin = k; list[idx].kmFinManuel = true; did = true; } }
+        else { if (list[idx].kmDebut !== k) { list[idx].kmDebut = k; list[idx].kmDebutManuel = true; did = true; } }
       }
       // 🔗 DATE DE REMISE (demande utilisateur) : la date de l'état des lieux de remise SIGNÉ devient la
       // date de début de la période — comme le km. On l'applique quand elle est VALIDE (AAAA-MM-JJ complète)
       // et qu'elle remplace une date AUTO (mise en circulation / estimation) ; on NE touche JAMAIS une date
       // SAISIE À LA MAIN (debutManuel). Ainsi on est sûr de ne pas se tromper : c'est la date du document.
       const d = (date && /^\d{4}-\d{2}-\d{2}$/.test(String(date).slice(0, 10))) ? String(date).slice(0, 10) : null;
-      if (!isSortie && d && !list[idx].debutManuel && list[idx].debut !== d) { list[idx].debut = d; did = true; }
+      // ⚠️ DATE : on ne REMPLIT que si la date de début est VIDE, ou on CORRIGE seulement vers une date PLUS
+      // ANCIENNE. On ne POUSSE JAMAIS le début vers l'avant — sinon un EDL généré lors d'une COLLECTE de km
+      // (daté du jour de la collecte) écrasait la vraie date de remise et faussait la période (bug signalé).
+      if (!isSortie && d && !list[idx].debutManuel && (!list[idx].debut || d < list[idx].debut)) { list[idx].debut = d; did = true; }
       if (did || k != null) FP.settings.save(s);                       // on persiste aussi le marqueur « manuel »
       return did;
     } catch (e) { return false; }
@@ -9603,7 +9664,10 @@ FP.buildAlertes = (data) => {
         const t = (f.type || '').toLowerCase();
         let amt = 0;
         if (COUT.includes(t)) amt = Number(f.montantTTC) || 0;
-        else if (t === 'sinistre') { const _ss = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : ''; if (_ss !== 'rembourse' && _ss !== 'pec') amt = Number(f.montantTTC) || 0; }
+        // Sinistre : coût RÉEL via la source unique FP.coutSinistre (0 si remboursé / pris en charge / devis) —
+        // comme tous les KPI de coût. Évite de déclencher une alerte « budget dépassé » sur un devis ou un
+        // sinistre déjà remboursé.
+        else if (t === 'sinistre') { amt = FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0); }
         const _k = FP.normImmat(f.vehiculeImmat); if (amt && _k) spendByImmat[_k] = (spendByImmat[_k] || 0) + amt; // clé plaque NORMALISÉE (source unique)
       });
       const over = [];
@@ -11477,7 +11541,18 @@ FP.persist = {
   // Chaque écriture : on tente la base ; si ça échoue, on garde en file locale
   // (filet de sécurité) et on renverra automatiquement plus tard.
   async insert(table, row) { return this._write({ op: 'insert', table, row }, () => FP.db.insert(table, row)); },
-  async upsert(table, row) { return this._write({ op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
+  async upsert(table, row, fusion) { return this._write(fusion ? { op: 'upsert', table, row, fusion } : { op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
+  // ⚠️ Renvoi d'une écriture de RÉGLAGES restée en file : relit la ligne serveur et FUSIONNE (FP._fusion.rejouer),
+  // au lieu de remplacer toute la ligne par la copie en file (cause de vidages complets vécus le 17/10/2026).
+  async _rejouerReglages(it) {
+    const id = it.row && it.row.id;
+    if (!id) return { error: null };
+    if (id === 'global') { try { console.warn('[FP.persist] écriture obsolète vers la ligne « global » (gelée) abandonnée'); } catch (e) {} return { error: null };}
+    const r = await FP.supabase.from('app_settings').select('data').eq('id', id).maybeSingle();
+    if (r && r.error) return r;
+    const remote = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : null;
+    return FP.db.upsert('app_settings', { id, data: FP._fusion.rejouer(remote, it) });
+  },
   async update(table, id, fields) { return this._write({ op: 'update', table, id, fields }, () => FP.db.update(table, id, fields)); },
   // record (optionnel) = copie complète de l'élément supprimé → déposée dans la Corbeille (FP.trash)
   // pour pouvoir le RESTAURER depuis Paramètres. Rétro-compatible : sans record, aucune capture.
@@ -11501,7 +11576,8 @@ FP.persist = {
       if (force) { it.failed = false; } // on redonne sa chance (ex. colonne ajoutée entre-temps)
       try {
         let r;
-        if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
+        if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
+        else if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
         else if (it.op === 'update') r = await FP.db.update(it.table, it.id, it.fields);
         else if (it.op === 'delete') r = await FP.db.delete(it.table, it.id);
         if (r && r.error) throw r.error;
@@ -11655,6 +11731,18 @@ if (typeof window !== 'undefined') {
 // pour pouvoir le revoir à tout moment depuis n'importe quel PC.
 // Le bucket "scans" doit exister et être public (voir supabase-storage.sql).
 FP.SCAN_BUCKET = 'scans';
+// ⚠️⚠️ CLOISONNEMENT DES FICHIERS PAR SOCIÉTÉ (17/10/2026) — SOURCE UNIQUE du rangement : tout nouveau
+// fichier va dans « societes/<dossier-société>/<dossier>/… ». Les policies storage (fp_storage_acces) ne
+// laissent un compte agir QUE dans le dossier de SA société (le CEO voit tout ; les anciens fichiers hors
+// « societes/ » restent réservés à PXP). FP.storageSlug DOIT rester identique à public.fp_slug (SQL,
+// supabase/migrations/20261017090000_storage_cloisonnement_societes.sql) et à fpSlug (Edge Functions).
+FP.storageSlug = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'societe';
+FP.storageDossierSociete = () => {
+  let soc = 'PXP';
+  try { soc = (FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch (e) {}
+  if (soc === '__all__') soc = 'PXP';   // CEO en vue « toutes sociétés » : rangé chez PXP (sa société)
+  return 'societes/' + FP.storageSlug(soc);
+};
 
 // Compresse une photo avant l'envoi (pour économiser l'espace de stockage).
 // - Ne touche PAS aux PDF ni aux fichiers non-image : renvoyés tels quels.
@@ -12293,8 +12381,10 @@ FP.uploadScan = async function (file, folder, opts) {
   let path, named = false;
   // opts.name : nomme le fichier de façon lisible (ex. n° de contravention) au lieu d'un nom aléatoire
   const slug = opts.name ? String(opts.name).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) : '';
-  if (slug) { path = `${folder || 'divers'}/${slug}${ext}`; named = true; }
-  else { const rand = Math.random().toString(36).slice(2, 8); path = `${folder || 'divers'}/${Date.now()}-${rand}${ext}`; }
+  // Rangé dans le dossier de la société active (cloisonnement storage, cf. FP.storageDossierSociete).
+  const base = FP.storageDossierSociete() + '/' + (folder || 'divers');
+  if (slug) { path = `${base}/${slug}${ext}`; named = true; }
+  else { const rand = Math.random().toString(36).slice(2, 8); path = `${base}/${Date.now()}-${rand}${ext}`; }
   // ⚠️ RETENTE AUTOMATIQUE (jusqu'à 3 essais) sur erreur TRANSITOIRE (réseau coupé, serveur occupé,
   // jeton d'auth en cours de rafraîchissement) : un échec passager ne doit PLUS obliger l'utilisateur à
   // recommencer son téléversement (bug vécu : permis qui « ne part pas au 1er coup »). Le MÊME `path` est
@@ -12389,9 +12479,7 @@ FP.hostSocieteLogo = async function () {
       blob = new Blob([arr], { type: mime });
     }
     const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg');
-    let soc = 'PXP'; try { soc = localStorage.getItem('fp_societe') || 'PXP'; } catch (e) {} if (soc === '__all__') soc = 'PXP';
-    const slug = String(soc).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'soc';
-    const path = 'logos/' + slug + '.' + ext;
+    const path = FP.storageDossierSociete() + '/logos/logo.' + ext;   // cloisonné par société
     const up = await FP.supabase.storage.from(FP.SCAN_BUCKET).upload(path, blob, { upsert: true, contentType: mime });
     if (up && up.error) { console.warn('[hostSocieteLogo upload]', up.error); return ''; }
     const { data } = await FP.supabase.storage.from(FP.SCAN_BUCKET).createSignedUrl(path, 315360000); // ~10 ans
@@ -15941,12 +16029,22 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       + '<button id="fp-fiche-x" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button></div>'
       + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin:14px 0 4px">Titre de la fiche</label>'
       + '<input id="fp-fiche-title" type="text" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;font-size:14px;color:#0f172a">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px"><span style="font-size:12px;font-weight:600;color:#64748b">Colonnes</span>'
+      + '<div id="fp-fiche-period" style="display:none;margin-top:13px">'
+      + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px">Période <span style="font-weight:400;color:#94a3b8">(vide = tout)</span></label>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span style="font-size:13px;color:#64748b">Du</span><input id="fp-fiche-du" type="date" style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 10px;font-size:14px;color:#0f172a">'
+      + '<span style="font-size:13px;color:#64748b">au</span><input id="fp-fiche-au" type="date" style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 10px;font-size:14px;color:#0f172a">'
+      + '<button id="fp-fiche-period-clear" type="button" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer;font-size:13px">Tout</button></div></div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 4px"><span style="font-size:12px;font-weight:600;color:#64748b">Colonnes</span>'
       + '<span style="font-size:12px"><button id="fp-fiche-all" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer">Tout</button> · <button id="fp-fiche-none" style="background:none;border:none;color:#64748b;font-weight:600;cursor:pointer">Rien</button></span></div>'
-      + '<div id="fp-fiche-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:5px 14px"></div>'
-      + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap">'
+      + '<p style="font-size:11.5px;color:#94a3b8;margin:0 0 7px">Coche pour inclure · glisse <b>⠿</b> pour changer l\'ordre.</p>'
+      + '<div id="fp-fiche-cols" style="display:flex;flex-direction:column;gap:3px;max-height:46vh;overflow:auto"></div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap">'
       + '<button id="fp-fiche-cancel" class="btn btn-outline text-sm">Annuler</button>'
-      + '<button id="fp-fiche-apercu" class="btn btn-dark text-sm"><i data-lucide="eye" class="w-4 h-4"></i> Aperçu</button></div></div>';
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button id="fp-fiche-xlsx" class="btn btn-outline text-sm"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel</button>'
+      + '<button id="fp-fiche-csv" class="btn btn-outline text-sm">CSV</button>'
+      + '<button id="fp-fiche-apercu" class="btn btn-dark text-sm"><i data-lucide="eye" class="w-4 h-4"></i> Aperçu PDF</button></div></div></div>';
     document.body.appendChild(el);
     modal = el;
     const close = () => { el.style.display = 'none'; };
@@ -15956,6 +16054,23 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     el.querySelector('#fp-fiche-all').onclick = () => el.querySelectorAll('#fp-fiche-cols input').forEach(i => { i.checked = true; });
     el.querySelector('#fp-fiche-none').onclick = () => el.querySelectorAll('#fp-fiche-cols input').forEach(i => { i.checked = false; });
     el.querySelector('#fp-fiche-apercu').onclick = openPreview;
+    el.querySelector('#fp-fiche-xlsx').onclick = () => doExport('xlsx');
+    el.querySelector('#fp-fiche-csv').onclick = () => doExport('csv');
+    // Réordonnancement des colonnes par glisser-déposer (la ligne glissée se repositionne dans la liste).
+    const colsBox = el.querySelector('#fp-fiche-cols');
+    let dragEl = null;
+    colsBox.addEventListener('dragstart', (e) => { const row = e.target.closest('.fp-fcol-row'); if (!row) return; dragEl = row; row.style.opacity = '.4'; try { e.dataTransfer.effectAllowed = 'move'; } catch (x) {} });
+    colsBox.addEventListener('dragend', () => { if (dragEl) { dragEl.style.opacity = ''; dragEl = null; } });
+    colsBox.addEventListener('dragover', (e) => {
+      if (!dragEl) return; e.preventDefault();
+      const row = e.target.closest('.fp-fcol-row'); if (!row || row === dragEl) return;
+      const r = row.getBoundingClientRect(); const after = (e.clientY - r.top) / r.height > 0.5;
+      colsBox.insertBefore(dragEl, after ? row.nextSibling : row);
+    });
+    // Filtre par PÉRIODE (quand la page fournit une date par ligne) : met à jour le compteur en direct.
+    el.querySelector('#fp-fiche-period-clear').onclick = () => { el.querySelector('#fp-fiche-du').value = ''; el.querySelector('#fp-fiche-au').value = ''; updateScope(); };
+    el.querySelector('#fp-fiche-du').addEventListener('change', updateScope);
+    el.querySelector('#fp-fiche-au').addEventListener('change', updateScope);
 
     // --- Modale 2 : aperçu PDF plein écran ---
     const pv = document.createElement('div');
@@ -15988,16 +16103,60 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     }, true);
   }
 
+  // Filtre les lignes selon la période saisie (si la page a fourni une date par ligne via config.date).
+  function periodFilter(rows) {
+    if (!cur || !cur.date || !modal) return rows;
+    const du = modal.querySelector('#fp-fiche-du').value, au = modal.querySelector('#fp-fiche-au').value;
+    if (!du && !au) return rows;
+    return rows.filter(r => { let d = cur.date(r); if (!d) return false; d = String(d).slice(0, 10); return (!du || d >= du) && (!au || d <= au); });
+  }
+  function periodLabelTxt() {
+    if (!cur || !cur.date || !modal) return '';
+    const du = modal.querySelector('#fp-fiche-du').value, au = modal.querySelector('#fp-fiche-au').value;
+    const f = (s) => s ? s.split('-').reverse().join('/') : '';
+    if (du && au) return ' · du ' + f(du) + ' au ' + f(au);
+    if (du) return ' · depuis le ' + f(du);
+    if (au) return ' · jusqu\'au ' + f(au);
+    return '';
+  }
+  function updateScope() {
+    if (!modal || !cur) return;
+    const n = periodFilter(cur.rows).length;
+    const sc = modal.querySelector('#fp-fiche-scope'); if (sc) sc.textContent = n + ' ligne(s)';
+  }
+
   function ctx() {
-    const ids = Array.from(modal.querySelectorAll('#fp-fiche-cols input:checked')).map(i => i.value);
+    // Ordre = ordre DES LIGNES dans la liste (réordonnées au glisser) ; inclusion = cases cochées.
+    const rowEls = Array.from(modal.querySelectorAll('#fp-fiche-cols .fp-fcol-row'));
+    const allIds = rowEls.map(r => r.dataset.id);
+    const ids = rowEls.filter(r => { const i = r.querySelector('input'); return i && i.checked; }).map(r => r.dataset.id);
     if (!ids.length) { alert('Choisis au moins une colonne.'); return null; }
-    try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheCols[cur.key] = ids; FP.settings.save(s); } catch (e) {}
+    // Persistance (synchronisée) : colonnes cochées (ordre) + ordre complet de TOUTES les colonnes.
+    try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = ids; s.ficheColsOrder[cur.key] = allIds; FP.settings.save(s); } catch (e) {}
+    const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
+    const rows = periodFilter(cur.rows);
+    if (!rows.length) { alert('Aucune ligne sur cette période — élargis les dates (ou clique « Tout »).'); return null; }
     return {
-      cols: cur.cols.filter(c => ids.includes(c.id)),
-      title: (modal.querySelector('#fp-fiche-title').value || '').trim() || cur.title,
-      rows: cur.rows,
+      cols: ids.map(id => byId[id]).filter(Boolean),   // dans l'ordre choisi
+      title: ((modal.querySelector('#fp-fiche-title').value || '').trim() || cur.title) + periodLabelTxt(),
+      rows: rows,
       today: new Date().toLocaleDateString('fr-FR'),
     };
+  }
+
+  // Export du contenu choisi (mêmes colonnes + même ordre que le PDF) en Excel ou CSV.
+  function doExport(kind) {
+    const c = ctx(); if (!c) return;
+    const cols = c.cols.map(col => ({ label: col.label, value: (r) => (col.num ? col.num(r) : col.get(r)), number: !!col.num }));
+    const base = (clean(c.title).replace(/[^\wÀ-ÿ \-]+/g, '').trim().replace(/\s+/g, '-') || 'export') + '_' + c.today.split('/').reverse().join('-');
+    try {
+      if (kind === 'xlsx') {
+        FP.xlsx.download(base + '.xlsx', cols, c.rows, { title: c.title, sheetName: clean(c.title).slice(0, 28) || 'Export' });
+      } else {
+        const ccols = c.cols.map((col, i) => ({ key: '_' + i, label: col.label, format: (_, r) => (col.num ? col.num(r) : col.get(r)) }));
+        FP.csv.download(base + '.csv', ccols, c.rows, { title: c.title });
+      }
+    } catch (e) { alert('Export impossible : ' + (e && e.message || e)); }
   }
 
   // Construit le PDF « à la sauce Parc Pilot » (bandeau arrondi, logo, accent, statuts colorés).
@@ -16037,7 +16196,17 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const _fs = _nc > 12 ? 8 : 9;
     const _pad = _nc > 12 ? 2 : 2.6;
     const columnStyles = { 0: { halign: 'left', textColor: [148, 163, 184], cellWidth: _nc > 13 ? 9 : 12, cellPadding: { top: _pad, right: 1.2, bottom: _pad, left: 1.6 }, overflow: 'visible' } };
-    cols.forEach((col, idx) => { columnStyles[idx + 1] = { halign: col.align === 'right' ? 'right' : 'left', font: col.mono ? 'courier' : 'helvetica' }; });
+    // ⚠️ ADAPTER les largeurs aux colonnes CHOISIES : une colonne COURTE (date, montant, plaque, statut,
+    // n°…) prend la largeur de SON CONTENU et n'est JAMAIS tronquée ; une colonne LONGUE (description,
+    // intitulé…) reste flexible et passe à la ligne. Fini les « 1 999,… » / « CAR WORLD… » coupés.
+    cols.forEach((col, idx) => {
+      const st = { halign: col.align === 'right' ? 'right' : 'left', font: col.mono ? 'courier' : 'helvetica' };
+      let maxLen = clean(col.label).length;
+      for (const r of rows) { const l = clean(col.get(r)).length; if (l > maxLen) maxLen = l; }
+      // Numérique / mono / courte → largeur au contenu (cellWidth 'wrap' = ne rétrécit jamais sous le contenu).
+      if (col.align === 'right' || col.mono || maxLen <= 24) st.cellWidth = 'wrap';
+      columnStyles[idx + 1] = st;
+    });
     // Ligne de total (si au moins une colonne a une fonction `sum`) → pied de tableau « TOTAL ».
     let foot = null;
     if (cols.some(c => typeof c.sum === 'function')) {
@@ -16062,7 +16231,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       foot: foot || undefined,
       footStyles: { fillColor: [241, 245, 249], textColor: [15, 30, 61], fontStyle: 'bold', fontSize: 9, lineColor: [203, 213, 225], lineWidth: 0.1 },
       startY: 36, margin: { top: 36, left: 10, right: 10 }, tableWidth: pageW - 20, theme: 'grid',
-      styles: { fontSize: _fs, cellPadding: { top: _pad, right: _pad + 0.4, bottom: _pad, left: _pad + 0.4 }, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1, valign: 'middle', overflow: 'ellipsize' },
+      styles: { fontSize: _fs, cellPadding: { top: _pad, right: _pad + 0.4, bottom: _pad, left: _pad + 0.4 }, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1, valign: 'middle', overflow: 'linebreak' },
       headStyles: { fillColor: [15, 30, 61], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: Math.max(6.5, _fs - 0.5), lineColor: [15, 30, 61], lineWidth: 0, cellPadding: { top: _pad + 0.4, right: _pad + 0.4, bottom: _pad + 0.4, left: _pad + 0.4 }, overflow: 'linebreak' },
       alternateRowStyles: { fillColor: [247, 249, 252] },
       columnStyles: columnStyles,
@@ -16101,12 +16270,27 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   FP.fiche = {
     open(config) {
       build();
-      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche' };
+      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche', date: (typeof config.date === 'function') ? config.date : null };
       if (!cur.rows.length) { alert('Aucune ligne à imprimer (vérifie les filtres / la sélection).'); return; }
-      let saved; try { saved = (FP.settings.get().ficheCols || {})[cur.key]; } catch (e) {}
-      if (!saved || !saved.length) saved = cur.cols.filter(c => c.def).map(c => c.id);
-      modal.querySelector('#fp-fiche-cols').innerHTML = cur.cols.map(c =>
-        '<label style="display:flex;align-items:center;gap:7px;font-size:14.5px;color:#334155;padding:5px 6px;border-radius:6px;cursor:pointer"><input type="checkbox" value="' + c.id + '"' + (saved.indexOf(c.id) >= 0 ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label>').join('');
+      // Bloc « Période » : affiché seulement si la page fournit une date par ligne (config.date). Remis à zéro.
+      { const pb = modal.querySelector('#fp-fiche-period'); if (pb) pb.style.display = cur.date ? 'block' : 'none'; const du = modal.querySelector('#fp-fiche-du'), au = modal.querySelector('#fp-fiche-au'); if (du) du.value = ''; if (au) au.value = ''; }
+      let savedChecked, savedOrder;
+      try { const st = FP.settings.get(); savedChecked = (st.ficheCols || {})[cur.key]; savedOrder = (st.ficheColsOrder || {})[cur.key]; } catch (e) {}
+      // Ordre d'affichage = ordre mémorisé (colonnes connues), puis toute NOUVELLE colonne ajoutée à la fin ;
+      // par défaut (jamais configuré) = l'ordre fourni par la page (« comme c'est actuellement »).
+      let order;
+      if (savedOrder && savedOrder.length) {
+        order = savedOrder.filter(id => cur.cols.some(c => c.id === id));
+        cur.cols.forEach(c => { if (order.indexOf(c.id) < 0) order.push(c.id); });
+      } else order = cur.cols.map(c => c.id);
+      // Cases cochées = config mémorisée, sinon les colonnes `def` (défaut d'origine).
+      const checkedSet = (savedChecked && savedChecked.length) ? new Set(savedChecked) : new Set(cur.cols.filter(c => c.def).map(c => c.id));
+      const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
+      modal.querySelector('#fp-fiche-cols').innerHTML = order.map(id => { const c = byId[id]; if (!c) return '';
+        return '<div class="fp-fcol-row" draggable="true" data-id="' + escH(c.id) + '" style="display:flex;align-items:center;gap:8px;font-size:14.5px;color:#334155;padding:6px 7px;border:1px solid #eef2f7;border-radius:8px;background:#fff;cursor:grab">'
+          + '<span style="color:#cbd5e1;font-size:15px;cursor:grab;user-select:none" title="Glisser pour réordonner">⠿</span>'
+          + '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;margin:0"><input type="checkbox" value="' + escH(c.id) + '"' + (checkedSet.has(c.id) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label></div>';
+      }).join('');
       modal.querySelector('#fp-fiche-scope').textContent = cur.rows.length + ' ligne(s)';
       modal.querySelector('#fp-fiche-h').textContent = cur.title;
       modal.querySelector('#fp-fiche-title').value = cur.title;
@@ -16115,6 +16299,21 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     },
   };
 })();
+
+// Convertit des colonnes d'export CSV/Excel ({key,label,format?,value?}) en colonnes FP.fiche
+// ({id,label,get,num,align}) → une page qui a déjà son export Excel obtient son Relevé PDF sans redéfinir
+// les colonnes. `format === FP.csv.numFormat` ⇒ colonne numérique (aligne à droite + valeur num pour Excel).
+FP.ficheColsFromExport = function (cols) {
+  return (cols || []).map(c => {
+    const isNum = c.format === FP.csv.numFormat;
+    const raw = (r) => (typeof c.value === 'function') ? c.value(r) : r[c.key];
+    return {
+      id: c.key, label: c.label, def: c.def !== false, align: isNum ? 'right' : undefined, mono: !!c.mono,
+      get: (r) => { const v = raw(r); if (v == null || v === '') return ''; return c.format ? c.format(v) : String(v); },
+      num: isNum ? (r) => { const n = Number(raw(r)); return isNaN(n) ? null : n; } : undefined,
+    };
+  });
+};
 
 // Aperçu PDF générique (réutilisable par n'importe quelle page) : montre un doc jsPDF dans une
 // iframe, avec Télécharger (un clic) + Imprimer + Fermer. Usage : FP.pdfPreview(doc, 'fichier.pdf', 'sous-titre').

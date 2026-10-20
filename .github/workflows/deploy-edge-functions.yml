@@ -20,7 +20,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Ne tourne que si le token est présent → tant qu'il n'est pas ajouté, aucun échec bruyant.
-    if: ${{ github.repository == 'shakilnubee/Autoflotte' }}
+    if: ${{ github.repository == 'shakilnubee/ParcPilot' || github.repository == 'shakilnubee/Autoflotte' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

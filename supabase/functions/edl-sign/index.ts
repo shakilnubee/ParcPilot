@@ -31,6 +31,10 @@ function admin() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 const BUCKET = "scans";
+// ⚠️ CLOISONNEMENT DES FICHIERS PAR SOCIÉTÉ (17/10/2026) : tout fichier va dans
+// « societes/<dossier-société>/… ». fpSlug DOIT rester identique à public.fp_slug (SQL) et FP.storageSlug (app.js).
+function fpSlug(s: unknown): string { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "societe"; }
+function dossierSociete(societe: unknown): string { return "societes/" + fpSlug(societe || "PXP"); }
 
 // Extrait {bucket, path} d'une URL Supabase Storage (public|sign|authenticated) → pour re-signer.
 function storagePath(url: string): { bucket: string; path: string } | null {
@@ -276,7 +280,7 @@ Deno.serve(async (req) => {
       try {
         const bytes = b64ToBytes(m[1]);
         if (bytes.length > 4_000_000) return json({ error: "Signature trop volumineuse." }, 400);
-        const path = "edl-signatures/" + docToken + "/" + who + "-" + Date.now().toString(36) + ".png";
+        const path = dossierSociete(row.societe) + "/edl-signatures/" + docToken + "/" + who + "-" + Date.now().toString(36) + ".png";
         const up = await db.storage.from(BUCKET).upload(path, bytes, { contentType: "image/png", upsert: true });
         if (!up.error) { const pub = db.storage.from(BUCKET).getPublicUrl(path); sigUrl = (pub && pub.data && pub.data.publicUrl) || ""; }
       } catch { /* best-effort */ }
@@ -298,7 +302,7 @@ Deno.serve(async (req) => {
         const signedBytes = await buildSignedPdf(db, row, signers);
         if (signedBytes) {
           try {
-            const path = "documents/etat-des-lieux-signe-" + docToken + ".pdf";
+            const path = dossierSociete(row.societe) + "/documents/etat-des-lieux-signe-" + docToken + ".pdf";
             const up = await db.storage.from(BUCKET).upload(path, signedBytes, { contentType: "application/pdf", upsert: true });
             if (!up.error) {
               const { data: su } = await db.storage.from(BUCKET).createSignedUrl(path, 315360000); // ~10 ans

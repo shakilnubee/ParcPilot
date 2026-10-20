@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -369,6 +369,7 @@
     </div>
     <div class="mb-8 flex justify-end items-start gap-3 flex-wrap">
       <div class="flex items-center gap-3 flex-wrap"><span data-data-io></span>
+        <button class="btn btn-outline text-sm" id="btn-releve" title="Relevé PDF / Excel — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm !px-2.5" data-history-undo title="Annuler (Ctrl+Z)" disabled><i data-lucide="undo-2" class="w-4 h-4"></i></button>
         <button class="btn btn-outline text-sm !px-2.5" data-history-redo title="Refaire (Ctrl+Y)" disabled><i data-lucide="redo-2" class="w-4 h-4"></i></button>
         <button class="btn btn-outline text-sm" id="btn-reread-all" title="Relit les scans de permis et corrige les dates (rubrique 4a + 15 ans)"><i data-lucide="scan-line" class="w-4 h-4"></i> Relire les permis</button>
@@ -487,8 +488,8 @@
     <form id="driver-form" class="space-y-4" style="max-height:72vh;overflow-y:auto">
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <div class="field-label">Prénom *</div>
-          <input class="field-input" id="f-prenom" placeholder="Prénom" required />
+          <div class="field-label">Prénom * <span style="color:var(--fp-accent);font-weight:700;text-transform:none">(affiché partout)</span></div>
+          <input class="field-input" id="f-prenom" placeholder="Prénom uniquement" required />
         </div>
         <div>
           <div class="field-label">Nom</div>
@@ -674,8 +675,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -691,12 +692,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261016e"></script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/fleet-docs.js?v=20261019h"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1321,7 +1322,7 @@
         <div class="flex items-center gap-3 pr-6">
           <div class="driver-avatar" style="background:${avatarColor(d)}">${initials(d.name)}</div>
           <div class="min-w-0 flex-1">
-            <div class="font-bold text-slate-900 truncate">${escapeHtml(d.name)}</div>
+            <div class="font-bold text-slate-900 truncate">${escapeHtml(FP.conducteurs.displayName(d))}</div>
             <div class="text-xs text-slate-500 truncate">${grp ? `<span style="color:${col}">●</span> ${grp} · ` : ''}${d.vehicules.length} véhicule${d.vehicules.length > 1 ? 's' : ''}</div>
           </div>
         </div>
@@ -1367,7 +1368,7 @@
           <div class="cc-head">
             <div class="cc-av" style="background:${avatarColor(d)}">${initials(d.name)}</div>
             <div class="cc-headtxt">
-              <div class="cc-name">${escapeHtml(d.name)}</div>
+              <div class="cc-name">${escapeHtml(FP.conducteurs.displayName(d))}</div>
               <div class="cc-role">${posteTxt}</div>
             </div>
             ${conge ? '<span class="cc-conge">🌴 Congé</span>' : ''}
@@ -1635,11 +1636,9 @@
     // Nom complet : « prénom (d.name) + nom de famille ». ⚠️ On n'ajoute le nom QUE s'il n'est pas DÉJÀ
     // contenu dans d.name (sinon « Shakil NUBEE » + nom « NUBEE » → « Shakil NUBEE NUBEE »). Robuste aux
     // accents/casse via FP.norm.
-    {
-      const _nm = (d.name || '').trim(), _nom = (d.nom || '').trim();
-      const _n = (s) => (FP.norm ? FP.norm(s) : String(s || '').toLowerCase());
-      $('drawer-name').textContent = (_nom && !_n(_nm).includes(_n(_nom))) ? `${_nm} ${_nom}` : _nm;
-    }
+    // Titre de la fiche = PRÉNOM seul (source unique FP.conducteurs.displayName) — le nom de famille
+    // reste visible dans la section « Informations » (champ NOM), pas dans le titre.
+    $('drawer-name').textContent = FP.conducteurs.displayName(d);
     // Poste (+ groupe) sous le nom, à la couleur du groupe
     const posteEl = $('drawer-poste');
     const posteTxt = [d.poste, hdrGrp].filter(Boolean).join(' · ');
@@ -2157,15 +2156,18 @@
     e.preventDefault();
     const prenom = ($('f-prenom') ? $('f-prenom').value : '').trim();
     const nom = ($('f-nom') ? $('f-nom').value : '').trim();
-    const name = (prenom + ' ' + nom).trim();
+    // ⚠️ NOM AFFICHÉ = PRÉNOM SEUL. `name` (libellé affiché partout) = le prénom ; le nom de famille
+    // reste séparé dans `nom`. Le nom COMPLET ne sert qu'à la clé / l'anti-homonymes.
+    const fullName = (prenom + ' ' + nom).trim();
+    const name = prenom || fullName;
     if (!name) { alert('Indique au moins un prénom.'); return; }
-    let key = normPrenom(name);
+    let key = normPrenom(fullName);
     // ⚠️ ANTI-FUSION D'HOMONYMES (même logique que FP.conducteurs.create) : si un conducteur
     // EXISTANT partage ce prénom mais porte un nom complet DIFFÉRENT, on lui donne une clé
     // prénom-nom distincte — sinon upsertCond écraserait/fusionnerait deux personnes différentes
     // (ex. « Julien Martin » et « Julien Bernard » deviendraient un seul « julien »).
     try {
-      const full = FP.normNomComplet ? FP.normNomComplet(name) : name.toLowerCase().trim();
+      const full = FP.normNomComplet ? FP.normNomComplet(fullName) : fullName.toLowerCase().trim();
       if (full && full.indexOf(' ') !== -1) {
         const list = (FP.conducteurs && FP.conducteurs.list) ? FP.conducteurs.list() : [];
         const homonymeDiff = list.some(c => {
@@ -2267,6 +2269,15 @@
   });
   $('drawer-prev')?.addEventListener('click', () => { const k = $('drawer-prev').dataset.targetKey; if (k) openDrawer(k); });
   $('drawer-next')?.addEventListener('click', () => { const k = $('drawer-next').dataset.targetKey; if (k) openDrawer(k); });
+  // Navigation clavier ← / → entre fiches conducteurs (parité avec la fiche véhicule), quand la fiche
+  // est ouverte et qu'on n'est pas en train de taper dans un champ.
+  document.addEventListener('keydown', (e) => {
+    if (!$('drawer') || !$('drawer').classList.contains('open')) return;
+    const ae = document.activeElement; if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+    if (ae && ae.isContentEditable) return;
+    if (e.key === 'ArrowLeft')  { const k = $('drawer-prev').dataset.targetKey; if (k) { e.preventDefault(); openDrawer(k); } }
+    if (e.key === 'ArrowRight') { const k = $('drawer-next').dataset.targetKey; if (k) { e.preventDefault(); openDrawer(k); } }
+  });
   $('drawer-backdrop').addEventListener('click', closeDrawer);
 
   // « Voir » = ouvre DIRECTEMENT le PDF concerné (plus d'aperçu intégré) — comportement unique
@@ -3229,6 +3240,42 @@
       drivers = buildDrivers(); renderKPIs(); renderGrid();
       alert(`Import terminé ✓\n${added} ajout(s), ${updated} mise(s) à jour.`);
     },
+  });
+
+  // ---------- Relevé PDF / Excel de la LISTE des conducteurs (colonnes au choix + réordonnables) ----------
+  // Même moteur que le relevé PDF des Amendes / Sinistres (FP.fiche) : choix des colonnes, glisser pour
+  // réordonner, aperçu PDF « sauce Parc Pilot », téléchargement PDF / Excel / CSV.
+  const _condAge = (d) => { try { const r = condRow(d.key) || {}; const v = r.dateNaissance || d.dateNaissance; if (!v) return null; const dt = new Date(v); if (isNaN(dt)) return null; const n = new Date(); let a = n.getFullYear() - dt.getFullYear(); if (n.getMonth() < dt.getMonth() || (n.getMonth() === dt.getMonth() && n.getDate() < dt.getDate())) a--; return (a >= 0 && a < 120) ? a : null; } catch (e) { return null; } };
+  const _condPoints = (d) => (d.amendes || []).reduce((s, a) => s + (Number(a.points) || 0), 0);
+  const _condMontantDu = (a) => { try { return FP.montantDu ? Number(FP.montantDu(a)) || 0 : (Number(a.montant) || 0); } catch (e) { return Number(a.montant) || 0; } };
+  const _condCout = (d) => (d.amendes || []).reduce((s, a) => s + _condMontantDu(a), 0);
+  const _condAPayer = (d) => (d.amendes || []).filter(a => { try { return FP.estAPayer ? FP.estAPayer(a) : false; } catch (e) { return false; } }).reduce((s, a) => s + _condMontantDu(a), 0);
+  const _cr = (d) => condRow(d.key) || {};
+  const COND_FICHE_COLS = [
+    { id: 'prenom',    label: 'Prénom',            def: true,  get: d => FP.conducteurs.displayName(d) || d.name || '' },
+    { id: 'nom',       label: 'Nom',               def: true,  get: d => _cr(d).nom || d.nom || '' },
+    { id: 'poste',     label: 'Poste',             def: true,  get: d => _cr(d).poste || d.poste || '' },
+    { id: 'groupe',    label: 'Groupe',            def: true,  get: d => driverGroupLabel(d) || '' },
+    { id: 'vehicules', label: 'Véhicule(s)',       def: true,  get: d => (d.vehicules || []).map(v => (FP.immatFmt ? FP.immatFmt(v.immat) : v.immat)).join(', ') },
+    { id: 'tel',       label: 'Téléphone',         def: true,  get: d => _cr(d).tel || '' },
+    { id: 'email',     label: 'Email',             def: true,  get: d => _cr(d).email || '' },
+    { id: 'adresse',   label: 'Adresse',           def: false, get: d => _cr(d).adresse || d.adresse || '' },
+    { id: 'naissance', label: 'Naissance',         def: false, get: d => { const v = _cr(d).dateNaissance || d.dateNaissance; return v ? FP.dateNum(v) : ''; } },
+    { id: 'age',       label: 'Âge',               def: false, align: 'right', get: d => { const a = _condAge(d); return a != null ? a + ' ans' : ''; }, num: d => _condAge(d) },
+    { id: 'permisNum', label: 'Permis n°',         def: false, mono: true, get: d => _cr(d).permisNumero || '' },
+    { id: 'permisExp', label: 'Permis expire le',  def: false, get: d => { const v = _cr(d).permisExpiration; return v ? FP.dateNum(v) : ''; } },
+    { id: 'nbAmendes', label: 'Nb amendes',        def: true,  align: 'right', get: d => String((d.amendes || []).length), num: d => (d.amendes || []).length },
+    { id: 'points',    label: 'Points retirés',    def: true,  align: 'right', get: d => String(_condPoints(d)), num: d => _condPoints(d) },
+    { id: 'aPayer',    label: 'À payer',           def: false, align: 'right', get: d => FP.euro(_condAPayer(d)), num: d => _condAPayer(d), sum: d => _condAPayer(d), fmt: v => FP.euro(v) },
+    { id: 'coutTotal', label: 'Coût total généré', def: false, align: 'right', get: d => FP.euro(_condCout(d)), num: d => _condCout(d), sum: d => _condCout(d), fmt: v => FP.euro(v) },
+    // Colonne technique : l'identifiant interne du conducteur (sert à relier congés, cartes, docs…). Décochée par défaut.
+    { id: 'cle',       label: 'Clé (identifiant interne)', def: false, mono: true, get: d => d.key || '' },
+  ];
+  document.getElementById('btn-releve')?.addEventListener('click', () => {
+    if (!(FP.fiche && FP.fiche.open)) { alert('Aperçu indisponible ici.'); return; }
+    const rows = (drivers || []).slice();
+    if (!rows.length) { alert('Aucun conducteur à exporter.'); return; }
+    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS, rows });
   });
 
   // Résout un conducteur par clé/nom normalisé ; s'il n'a pas de fiche, en FABRIQUE une à la

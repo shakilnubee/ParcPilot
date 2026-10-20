@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -203,6 +203,7 @@
     </div>
     <div class="flex flex-wrap justify-end items-center gap-4 mb-8">
       <div class="flex items-center gap-3">
+        <button id="btn-releve-contrat" type="button" class="btn btn-outline text-sm" title="Relevé PDF / Excel de l'onglet affiché — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <span data-data-io></span>
       </div>
     </div>
@@ -838,8 +839,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -855,11 +856,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -974,16 +975,44 @@
     try { const CK = window.FP_CACHE_KEY; const c = CK && JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Array.isArray(c.vehicules)) { const cv = c.vehicules.find(x => x.id === v.id); if (cv) { cv.proprietaire = v.proprietaire; localStorage.setItem(CK, JSON.stringify(c)); } } } catch (e) {}
     return true;
   }
+  // ⚠️ NOM PROPRE d'un document de contrat (source unique, BPCE + Localease) : un fichier televerse garde
+  // parfois son nom brut (« 5528091_TJMAX___Completez_avec_Docusign… ») → on affiche « Contrat de leasing.pdf »
+  // pour un nom manifestement technique/long, sinon on garde le nom s'il est deja court et lisible. Le vrai
+  // nom de fichier reste au survol (title).
+  function cleanContratDocName(nm){
+    const s = String(nm || '').trim();
+    if (!s) return 'Contrat de leasing.pdf';
+    if (s.length > 26 || /_{2,}|docusign|compl[eé]tez|^\d{6,}/i.test(s)) return 'Contrat de leasing.pdf';
+    return s;
+  }
   function bpceDocsHtml(immat){
     const docs = allContratDocs(immat); // Contrats + fiche véhicule fusionnés (source unique)
     const links = docs.map(d => {
       const delAttr = d.src === 'doc' ? `data-fiche-doc-del="${escC(d.docId)}"` : `data-bpce-doc-del="${escC(immat)}::${d.idx}"`;
       return `<div class="flex items-center gap-1" style="margin-bottom:2px;max-width:170px">
-        <button type="button" data-bpce-doc="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(d.name || 'Contrat')}</button>
+        <button type="button" data-bpce-doc="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</button>
         <button type="button" ${delAttr} class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
       </div>`;
     }).join('');
-    return links + `<button type="button" class="btn btn-outline text-xs !px-2" data-bpce-up="${escC(immat)}" title="Téléverser le contrat de leasing (PDF)" style="margin-top:2px"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
+    // ⚠️ N° DE CONTRAT (demande utilisateur) : petite zone éditable qui affiche le numéro de contrat/dossier
+    // de leasing. Saisie MANUELLE (clic) OU lecture par l'IA depuis le PDF du contrat (bouton 🤖). Stocké
+    // par immat dans settings.leasingNumero (synchronisé anti-perte, présent dans COLLECTION_KEYS).
+    const _nkey = FP.normImmat(immat);
+    const _num = ((FP.settings.get().leasingNumero) || {})[_nkey] || '';
+    const numZone = `<div class="flex items-center gap-1" style="margin-bottom:4px;max-width:180px">
+        <span style="font-size:10px;color:var(--fp-muted);flex-shrink:0">N°</span>
+        <button type="button" data-contrat-num="${escC(immat)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:${_num ? 'var(--fp-text)' : 'var(--fp-accent)'};font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;font-weight:${_num ? '600' : '400'}" title="Cliquer pour saisir / modifier le n° de contrat">${_num ? escC(_num) : '+ n° de contrat'}</button>
+        ${docs.length ? `<button type="button" data-contrat-num-ai="${escC(immat)}" class="text-slate-400 hover:text-indigo-600 flex-shrink-0" title="Lire le n° de contrat depuis le PDF (IA)" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;line-height:1">🤖</button>` : ''}
+      </div>`;
+    return numZone + links + `<button type="button" class="btn btn-outline text-xs !px-2" data-bpce-up="${escC(immat)}" title="Téléverser le contrat de leasing (PDF)" style="margin-top:2px"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
+  }
+  // Enregistre (ou efface) le n° de contrat de leasing d'un véhicule, par immatriculation. Synchronisé.
+  function setContratNumero(immat, numero){
+    const k = FP.normImmat(immat); if (!k) return;
+    const s = FP.settings.get(); s.leasingNumero = (s.leasingNumero && typeof s.leasingNumero === 'object') ? s.leasingNumero : {};
+    const val = String(numero == null ? '' : numero).trim();
+    if (val) s.leasingNumero[k] = val; else delete s.leasingNumero[k];
+    FP.settings.save(s);
   }
   // ===== Filtre par loueur (partagé BPCE + Localease) =====
   let leasingLoueurFilter = 'all';
@@ -2135,7 +2164,9 @@
   // Lignes d'export CSV/Excel = assurance (1 ligne/véhicule) + TOUTES les unités leasing (source unique).
   // Onglet actif (Leasing / Assurance) — l'export ne sort QUE les données de l'onglet affiché
   // (leasing → aucune ligne assurance, et inversement). Consigne explicite de l'utilisateur.
-  function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : 'leasing'; } catch (e) { return 'leasing'; } }
+  // ⚠️ Onglet ACTIF réel (pour que l'export/relevé concerne CE qu'on regarde) : assurance / cadre / leasing.
+  // Avant, seul « assurance » était reconnu → sur l'onglet « Contrats cadre » l'export sortait du LEASING (bug).
+  function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : (t === 'cadre') ? 'cadre' : 'leasing'; } catch (e) { return 'leasing'; } }
   // Lignes LEASING (toutes les unités : BPCE + Ayvens/LLD, source unique leasingUnitsAll).
   function leasingExportRows() {
     return leasingUnitsAll().map(u => ({
@@ -2184,13 +2215,64 @@
     { key: 'primeHT',   label: 'Prime HT/an (€)', format: FP.csv.numFormat },
     { key: 'primeTTC',  label: 'Prime TTC/an (€)', format: FP.csv.numFormat },
   ];
+  // Lignes CONTRATS CADRE (accords prestataires) — source unique FP.contratsCadre (synchro + anti-perte).
+  function cadreExportRows() {
+    return (FP.contratsCadre && FP.contratsCadre.list ? FP.contratsCadre.list() : []).map(c => ({
+      intitule: String(c.intitule || '').trim() || (FP.contratCadreTypeLabel ? FP.contratCadreTypeLabel(c.type) : (c.type || '')),
+      type: FP.contratCadreTypeLabel ? FP.contratCadreTypeLabel(c.type) : (c.type || ''),
+      prestataire: c.prestataire || '',
+      numero: c.numero || '',
+      debut: c.dateDebut ? _fmtDateExp(c.dateDebut) : '',
+      fin: c.dateFin ? _fmtDateExp(c.dateFin) : '',
+      montant: (c.montant != null && c.montant !== '') ? c.montant : '',
+      periode: c.periode === 'mois' ? 'par mois' : 'par an',
+      coutAnnuel: (FP.contratCadreCoutAnnuel ? Math.round(FP.contratCadreCoutAnnuel(c)) : ''),
+      paysEntite: c.paysEntite || '',
+      perimetre: (Array.isArray(c.vehicules) && c.vehicules.length) ? c.vehicules.join(' · ') : 'Toute la flotte',
+      statut: (c.statut && c.statut !== 'actif') ? (c.statut === 'resilie' ? 'résilié' : 'en renégociation') : 'actif',
+      garanties: c.garanties || '',
+    }));
+  }
+  const CADRE_COLS = [
+    { key: 'intitule',    label: 'Intitulé' },
+    { key: 'type',        label: 'Type' },
+    { key: 'prestataire', label: 'Prestataire' },
+    { key: 'numero',      label: 'N° de contrat' },
+    { key: 'debut',       label: 'Début' },
+    { key: 'fin',         label: 'Fin' },
+    { key: 'montant',     label: 'Montant (€)', format: FP.csv.numFormat },
+    { key: 'periode',     label: 'Périodicité' },
+    { key: 'coutAnnuel',  label: 'Coût annuel (€)', format: FP.csv.numFormat },
+    { key: 'paysEntite',  label: 'Pays / entité' },
+    { key: 'perimetre',   label: 'Périmètre' },
+    { key: 'statut',      label: 'Statut' },
+    { key: 'garanties',   label: 'Garanties' },
+  ];
+  function ctabCols()  { const t = activeCtab(); return t === 'assurance' ? ASSUR_COLS : t === 'cadre' ? CADRE_COLS : LEASING_COLS; }
+  function ctabRows()  { const t = activeCtab(); return t === 'assurance' ? assuranceExportRows() : t === 'cadre' ? cadreExportRows() : leasingExportRows(); }
+  function ctabTitle() { const t = activeCtab(); return t === 'assurance' ? 'Assurance — état de parc' : t === 'cadre' ? 'Contrats cadre' : 'Contrats de leasing'; }
   FP.injectDataIO({
     exportOnly: true,
     // Nom de fichier + colonnes + lignes = ceux de l'onglet AFFICHÉ (évalués au clic sur Exporter).
     filename: () => `parc-pilot-${activeCtab()}-${new Date().toISOString().slice(0, 10)}.csv`,
-    columns: () => activeCtab() === 'assurance' ? ASSUR_COLS : LEASING_COLS,
-    getRows: () => activeCtab() === 'assurance' ? assuranceExportRows() : leasingExportRows(),
+    columns: ctabCols,
+    getRows: ctabRows,
   });
+  // Relevé PDF / Excel / CSV configurable (colonnes au choix + réordonnables) — concerne l'ONGLET ACTIF.
+  function toFicheCols(cols) {
+    return cols.map(c => { const isNum = c.format === FP.csv.numFormat; return {
+      id: c.key, label: c.label, def: true, align: isNum ? 'right' : undefined,
+      get: r => { const v = r[c.key]; if (v == null || v === '') return ''; return c.format ? c.format(v) : String(v); },
+      num: isNum ? (r => { const n = Number(r[c.key]); return isNaN(n) ? null : n; }) : undefined,
+    }; });
+  }
+  function openContratReleve() {
+    if (!(FP.fiche && FP.fiche.open)) { alert('Relevé indisponible — recharge la page (Ctrl+Maj+R).'); return; }
+    const rows = ctabRows();
+    if (!rows.length) { if (FP.toast) FP.toast('Aucune ligne à exporter sur cet onglet.'); else alert('Aucune ligne à exporter.'); return; }
+    FP.fiche.open({ key: 'contrats-' + activeCtab(), title: ctabTitle(), cols: toFicheCols(ctabCols()), rows });
+  }
+  { const b = document.getElementById('btn-releve-contrat'); if (b) b.addEventListener('click', openContratReleve); }
 
   // ---------- Édition du forfait leasing ----------
   let leaseEditImmat = null;
@@ -2373,6 +2455,52 @@
       const apply = (nm) => { if (setVehChauffeur(immat, nm)) { rebuildLeasingData(); renderKPIs(); renderLeasing(); if (FP.toast) FP.toast('Conducteur affecté ✓'); } else { renderLeasing(); } };
       if (FP.conducteurPicker) FP.conducteurPicker(inp, { onPick: (c) => apply((c && FP.conducteurs && FP.conducteurs.displayName) ? FP.conducteurs.displayName(c) : inp.value.trim()) });
       inp.addEventListener('blur', () => setTimeout(() => { if (document.getElementById('veh-cond-edit') === inp) apply(inp.value.trim()); }, 200));
+      return;
+    }
+    // N° de contrat — SAISIE MANUELLE (clic sur le n° / « + n° de contrat »).
+    const bNum = e.target.closest('[data-contrat-num]');
+    if (bNum) {
+      const immat = bNum.getAttribute('data-contrat-num');
+      const cur = ((FP.settings.get().leasingNumero) || {})[FP.normImmat(immat)] || '';
+      let v; try { v = FP.prompt ? await FP.prompt('N° de contrat de leasing :', cur) : prompt('N° de contrat de leasing :', cur); } catch (e2) { v = null; }
+      if (v == null) return;
+      setContratNumero(immat, v); renderLeasing();
+      if (FP.toast) FP.toast(String(v).trim() ? 'N° de contrat enregistré ✓' : 'N° de contrat effacé');
+      return;
+    }
+    // N° de contrat — LECTURE PAR L'IA depuis le PDF du contrat (bouton 🤖).
+    const bNumAi = e.target.closest('[data-contrat-num-ai]');
+    if (bNumAi) {
+      const immat = bNumAi.getAttribute('data-contrat-num-ai');
+      let d0 = (allContratDocs(immat) || [])[0];
+      // Repli LOCALEASE (LLD) : les contrats Ayvens/Localease stockent leurs PDF sur l'objet contrat (c.docs).
+      if (!d0 || !d0.url) {
+        try {
+          const lc = (getLocalease() || []).find(c => FP.normImmat(c && (c.immat || (typeof autoImmatLoc === 'function' ? autoImmatLoc(c) : ''))) === FP.normImmat(immat));
+          const dd = lc && (Array.isArray(lc.docs) ? lc.docs : (lc.pdfUrl ? [{ url: lc.pdfUrl }] : []));
+          if (dd && dd[0] && dd[0].url) d0 = dd[0];
+        } catch (e) {}
+      }
+      if (!d0 || !d0.url) { if (FP.toast) FP.toast('Aucun PDF de contrat à lire.'); return; }
+      if (!(window.FP && FP.scanIA)) { if (FP.toast) FP.toast('Lecture IA indisponible (connexion requise).'); return; }
+      const PROMPT = [
+        "Ce document est un CONTRAT DE LEASING / LLD (location longue duree) de vehicule, ou son recapitulatif.",
+        "Renvoie UNIQUEMENT un objet JSON valide, sans aucun texte autour (mets null si l'info est absente) :",
+        "numeroContrat : le NUMERO DE CONTRAT ou de DOSSIER de ce leasing. Ancre-toi sur les libelles : 'N° de contrat', 'Numero de contrat', 'Reference contrat', 'Contrat n°', 'N° de dossier', 'Dossier', 'Reference'. C'est une reference alphanumerique.",
+        "Ne le confonds JAMAIS avec : une immatriculation, un VIN, un IBAN, un numero de client, un montant, une date, un numero de TVA ou de SIRET.",
+        "Ne recopie QUE ce qui est ecrit. N'invente aucun numero."
+      ].join("\n");
+      const busy = FP.busy ? FP.busy('Lecture du n° de contrat…') : null;
+      try {
+        const u = FP.signedScanUrl ? (await FP.signedScanUrl(d0.url, 600)) : d0.url;
+        const resp = await fetch(u); const blob = await resp.blob();
+        const isPdf = /pdf/i.test(blob.type || '') || /\.pdf($|\?)/i.test(d0.url || '');
+        const file = new File([blob], isPdf ? 'contrat.pdf' : 'contrat.jpg', { type: blob.type || (isPdf ? 'application/pdf' : 'image/jpeg') });
+        const f = await FP.scanIA(file, 'contrat-leasing', PROMPT, { maxTokens: 300 });
+        const num = (f && (f.numeroContrat || f.numero)) ? String(f.numeroContrat || f.numero).trim() : '';
+        if (num) { setContratNumero(immat, num); renderLeasing(); if (busy) busy.done('N° lu : ' + num); else if (FP.toast) FP.toast('N° lu : ' + num); }
+        else { const m = 'N° de contrat introuvable dans le PDF — saisis-le à la main.'; if (busy) busy.fail(m); else if (FP.toast) FP.toast(m); }
+      } catch (err) { const m = 'Lecture impossible : ' + (err && (err.message || err)); if (busy) busy.fail(m); else alert(m); }
       return;
     }
     const bUp = e.target.closest('[data-bpce-up]');
@@ -4216,8 +4344,8 @@
         : null;
       const totalVerseEst = debutSource === 'mec' || debutSource === 'histo';   // date de début déduite (pas saisie) → total estimé
       const docs = Array.isArray(c.docs) ? c.docs : (c.pdfUrl ? [{ url: c.pdfUrl, name: 'Contrat' }] : []);
-      const docsHtml = docs.map((d, di) => `<div class="flex items-center gap-1 justify-center" style="margin-bottom:2px;max-width:170px;margin-left:auto;margin-right:auto">
-          <a href="${escC((window.FP && FP.safeUrl) ? FP.safeUrl(d.url) : d.url)}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escC(d.name || 'Document')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(d.name || 'Document')}</a>
+      const docsHtml = docs.map((d, di) => `<div class="flex items-center gap-1" style="margin-bottom:2px;max-width:170px">
+          <a href="${escC((window.FP && FP.safeUrl) ? FP.safeUrl(d.url) : d.url)}" target="_blank" rel="noopener" class="hover:underline" style="color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escC(d.name || 'Document')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</a>
           <button type="button" data-loc-doc-assur="${i}:${di}" class="text-slate-300 hover:text-teal-600 flex-shrink-0" title="Déplacer vers l'Assurance de la fiche véhicule (mémo assurance)" style="font-size:12px;line-height:1">🛡</button>
           <button type="button" data-loc-doc-del="${i}:${di}" class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
         </div>`).join('');
@@ -4226,7 +4354,14 @@
       const _restitImmat = c.immat || autoImmatLoc(c);
       const _restitInFleet = _restitImmat && (data.vehicules || []).some(v => normPlaque(v.immat) === normPlaque(_restitImmat));
       const restitBtn = _restitInFleet ? ` <button type="button" class="btn btn-outline" style="padding:2px 8px;font-size:11px;margin-top:2px" data-loc-restit="${escC(_restitImmat)}" title="Checklist de restitution (compte à rebours 120/90/60/30 j)"><i data-lucide="clipboard-check" class="w-3 h-3"></i> Restitution</button>` : '';
-      const lienCell = docsHtml
+      // N° de contrat (même zone éditable que les lignes BPCE) — clé par immat du contrat Localease.
+      const _locNum = _restitImmat ? (((FP.settings.get().leasingNumero) || {})[FP.normImmat(_restitImmat)] || '') : '';
+      const locNumZone = _restitImmat ? `<div class="flex items-center gap-1" style="margin-bottom:4px;max-width:180px">
+          <span style="font-size:10px;color:var(--fp-muted);flex-shrink:0">N°</span>
+          <button type="button" data-contrat-num="${escC(_restitImmat)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:${_locNum ? 'var(--fp-text)' : 'var(--fp-accent)'};font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;font-weight:${_locNum ? '600' : '400'}" title="Cliquer pour saisir / modifier le n° de contrat">${_locNum ? escC(_locNum) : '+ n° de contrat'}</button>
+          ${docs.length ? `<button type="button" data-contrat-num-ai="${escC(_restitImmat)}" class="text-slate-400 hover:text-indigo-600 flex-shrink-0" title="Lire le n° de contrat depuis le PDF (IA)" style="background:none;border:none;padding:0;cursor:pointer;font-size:12px;line-height:1">🤖</button>` : ''}
+        </div>` : '';
+      const lienCell = locNumZone + docsHtml
         + `<button type="button" class="btn btn-outline" style="padding:2px 9px;font-size:11px;margin-top:2px" data-loc-up="${i}"><i data-lucide="upload" class="w-3 h-3"></i> ${docs.length ? 'Ajouter un doc' : '+ téléverser'}</button>`
         + restitBtn
         + ` <button type="button" class="btn btn-outline" style="padding:2px 8px;font-size:11px;margin-top:2px" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3 h-3 text-red-600"></i></button>`;
@@ -4259,7 +4394,7 @@
       // avaient des boutons différents dans la dernière colonne.
       const _upBtn = `<button type="button" class="btn btn-outline text-xs !px-2" data-loc-up="${i}" title="Téléverser le contrat de leasing (PDF)"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ${docs.length ? 'Ajouter un doc' : 'Contrat'}</button>`;
       const _restitBtn2 = _restitInFleet ? `<button type="button" class="btn btn-outline text-xs !px-2" data-loc-restit="${escC(_restitImmat)}" title="Checklist de restitution (compte à rebours 120/90/60/30 j)"><i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i></button>` : '';
-      const actionsHtml = `${docsHtml}${_upBtn}${_restitBtn2}<button type="button" class="btn btn-outline text-xs !px-2" data-loc-edit="${i}" title="Modifier le contrat (forfait km, durée, loyer, dates…)"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button><button type="button" class="btn btn-outline text-xs !px-2" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-600"></i></button>`;
+      const actionsHtml = `${locNumZone}${docsHtml}${_upBtn}${_restitBtn2}<button type="button" class="btn btn-outline text-xs !px-2" data-loc-edit="${i}" title="Modifier le contrat (forfait km, durée, loyer, dates…)"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button><button type="button" class="btn btn-outline text-xs !px-2" data-loc-del="${i}" title="Supprimer ce contrat"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-600"></i></button>`;
       // ⚠️ MÊMES CLASSES DE CELLULES QUE LES LIGNES BPCE (l'alignement des colonnes est géré une seule
       // fois par le CSS scopé [data-section="leasing"] → pas de text-align inline à ré-appliquer ici).
       const tr = `<tr>
@@ -4644,14 +4779,22 @@
       // on réserve cette récupération de PDF orphelins au CEO (qui voit déjà tout). Un compte client ne
       // liste donc jamais les fichiers d'un autre client.
       if (!(window.FP && FP.isCEO && FP.isCEO())) return [];
-      const { data, error } = await FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans').list('contrats-leasing', { limit: 300, sortBy: { column: 'name', order: 'asc' } });
-      if (error || !Array.isArray(data)) return [];
+      // Deux emplacements : l'ancien dossier partagé (fichiers d'avant le 17/10/2026, tous PXP) et le
+      // dossier de la société active (cloisonnement storage, cf. FP.storageDossierSociete).
+      const bucket = FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans');
+      const dossiers = ['contrats-leasing', (FP.storageDossierSociete ? FP.storageDossierSociete() : 'societes/pxp') + '/contrats-leasing'];
       const hidden = recoverHiddenSet();
-      return data.filter(f => f && f.name && /\.pdf$/i.test(f.name) && !hidden.has('contrats-leasing/' + f.name)).map(f => ({
-        name: f.name,
-        path: 'contrats-leasing/' + f.name,   // ⚠️ chemin RÉEL du stockage (pour remove) — plus fiable que déduire de l'URL
-        url: FP.supabase.storage.from(FP.SCAN_BUCKET || 'scans').getPublicUrl('contrats-leasing/' + f.name).data.publicUrl,
-      }));
+      const out = [];
+      for (const dir of dossiers) {
+        const { data, error } = await bucket.list(dir, { limit: 300, sortBy: { column: 'name', order: 'asc' } });
+        if (error || !Array.isArray(data)) continue;
+        data.filter(f => f && f.name && /\.pdf$/i.test(f.name) && !hidden.has(dir + '/' + f.name)).forEach(f => out.push({
+          name: f.name,
+          path: dir + '/' + f.name,   // ⚠️ chemin RÉEL du stockage (pour remove) — plus fiable que déduire de l'URL
+          url: bucket.getPublicUrl(dir + '/' + f.name).data.publicUrl,
+        }));
+      }
+      return out;
     } catch (e) { console.warn('[listContratPdfs]', e); return []; }
   }
   // Cibles possibles pour relier un PDF : contrats LLD saisis + véhicules en leasing dérivés (BPCE…).

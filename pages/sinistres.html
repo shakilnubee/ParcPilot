@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261016e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261016e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019h">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -419,8 +419,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261016e"></script>
-<script src="../assets/js/supabase-client.js?v=20261016e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019h"></script>
+<script src="../assets/js/supabase-client.js?v=20261019h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -436,11 +436,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261016e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261016e"></script>
+<script src="../assets/js/app.min.js?v=20261019h"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -764,7 +764,7 @@
             </div>
             <div class="sin-courrier-status text-xs mt-1" data-key="${g.key}"></div>
             <div class="sin-constat-status text-xs mt-1" data-key="${g.key}"></div>
-            ${g.cost ? `<div class="text-xs text-slate-500 mt-2">Coût ${FP.euroPrecis(g.cost)}${Number(dv.rembourse) ? ` · remboursé ${FP.euroPrecis(dv.rembourse)}` : ''} → <b style="color:${reste > 0 ? '#b45309' : '#047857'}">reste à charge ${FP.euroPrecis(Math.max(0, reste))}</b></div>` : ''}
+            ${g.cost ? `<div class="text-xs text-slate-500 mt-2">Coût ${FP.euroPrecis(g.cost)}${Number(dv.rembourse) ? ` · remboursé ${FP.euroPrecis(dv.rembourse)}` : ((cur === 'rembourse' || cur === 'pec') ? ` · <span style="color:#047857;font-weight:700">${cur === 'pec' ? 'pris en charge (assurance)' : 'remboursé (assurance)'}</span>` : '')} → <b style="color:${reste > 0 ? '#b45309' : '#047857'}">reste à charge ${FP.euroPrecis(Math.max(0, reste))}</b></div>` : ''}
             <div class="mt-2">
               <button type="button" class="sin-cloturer" data-key="${g.key}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;border-radius:8px;padding:4px 10px;cursor:pointer;${dv.dateCloture ? 'color:#475569;background:#fff;border:1px solid var(--fp-border)' : 'color:#047857;background:#ECFDF5;border:1px solid #A7F3D0'}"><i data-lucide="${dv.dateCloture ? 'rotate-ccw' : 'check-circle-2'}" class="w-3.5 h-3.5"></i> ${dv.dateCloture ? 'Rouvrir le dossier' : 'Clôturer le dossier'}</button>
             </div>
@@ -813,7 +813,7 @@
                 <button type="button" data-sin-depose="${s.id}" data-key="${g.key}" title="Déposer la facture de réparation de CET accident : l'IA lit le montant et la rattache à cet incident (sans créer de doublon)" class="inline-flex items-center gap-1 text-xs font-semibold" style="color:var(--fp-accent)"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer la facture</button>
                 <button type="button" data-sin-assoc="${g.key}" title="Associer un devis / une facture déjà enregistré" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Associer</button>
                 ${multi ? '' : docLink(s.fileId, false)}
-                ${multi ? '' : `<button type="button" data-sin-pdf="${s.id}" title="Générer le rapport PDF (avec photos) à envoyer à l'assurance" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>`}
+                <button type="button" data-sin-pdf="${s.id}" title="Générer le rapport PDF (avec photos) à envoyer à l'assurance" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>
                 ${multi ? '' : `<button type="button" data-sin-del="${s.id}" title="Supprimer ce sinistre" class="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>`}
               </div>
             </div>
@@ -1164,6 +1164,16 @@
       const attMap = new Map();
       allDocs.forEach(x => { if (x.url) attMap.set(x.url, { url: x.url, label: x.label || '', isConstat: /constat/i.test(x.label || '') }); });
       if (dv.constatUrl) { const ex = attMap.get(dv.constatUrl); if (ex) ex.isConstat = true; else attMap.set(dv.constatUrl, { url: dv.constatUrl, label: 'Constat amiable', isConstat: true }); }
+      // ⚠️ Inclure AUSSI les photos envoyées par le conducteur depuis le QR (table declarations_conducteur) :
+      // selon le parcours de création, elles ne sont pas toujours recopiées dans les documents du dossier.
+      // On les ajoute ici (dédoublonnées par URL via attMap) → le rapport montre TOUJOURS toutes les photos
+      // du conducteur. Source : DeclCond.rows (toutes les déclarations de la société, même traitées).
+      try {
+        (DeclCond.rows || []).filter(dcl => dcl && dcl.plaque && (FP.immatEq ? FP.immatEq(dcl.plaque, s.vehiculeImmat) : (FP.normImmat(dcl.plaque) === FP.normImmat(s.vehiculeImmat)))).forEach(dcl => {
+          let ph = []; try { ph = Array.isArray(dcl.photos) ? dcl.photos : JSON.parse(dcl.photos || '[]'); } catch (_) { ph = []; }
+          ph.forEach(u => { if (u && !attMap.has(u)) attMap.set(u, { url: u, label: 'Photo conducteur' }); });
+        });
+      } catch (_) {}
       const attachments = [...attMap.values()];
       DeclCond.exportPdf({ id: s.id, type: 'sinistre', plaque: s.vehiculeImmat || '', created_at: s.date || '', date_incident: s.date ? FP.date(s.date) : '', lieu: dv.lieu || '', description: desc, tiers: tiers, conducteur: dv.conducteur || '', blesses: '', attachments: attachments }, sinPdf);
       return;
@@ -2082,7 +2092,7 @@
     { v: 'traite', label: 'Résolu', emo: '✅' }
   ];
   const DeclCond = {
-    rows: [], showTraites: false,
+    rows: [], showTraites: false, search: '',
     async load() {
       if (!(window.FP && FP.supabase)) return;
       try {
@@ -2169,9 +2179,15 @@
         // dans FP.msg.open dès qu'une adresse est connue. (La réponse ÉCRITE persistée reste le bouton dédié.)
         smsBtn = `<button type="button" class="btn btn-outline text-xs" data-msg-open data-msg-phone="${FP.esc(tel)}" data-msg-email="${FP.esc(email)}" data-msg-nom="${FP.esc(prenom)}" data-msg-title="${FP.esc((isQuestion ? 'Répondre à ' : 'Prévenir ') + (prenom || 'le conducteur'))}" data-msg-text="${FP.esc(msgTxt)}"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> ${isQuestion ? 'Répondre' : 'SMS / WhatsApp / Email'}</button>`;
       }
-      return `<div style="border:1px solid ${borderCol};border-radius:12px;padding:12px 14px;background:${bgCol}" data-decl="${FP.esc(d.id)}">
-        <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
-          <div class="flex items-center gap-2 flex-wrap">${tag}<b class="text-sm">${FP.esc(d.plaque || '')}</b><span class="text-xs text-slate-400">reçu le ${FP.esc(when)}</span>${stageChip}</div>
+      // Véhicule concerné (marque + modèle) pour bien distinguer les demandes de véhicules différents.
+      const _vehObj = (data.vehicules || []).find(v => FP.immatEq ? FP.immatEq(v.immat, d.plaque || '') : (FP.normImmat(v.immat) === FP.normImmat(d.plaque || '')));
+      const _vehTxt = _vehObj ? [_vehObj.marque, _vehObj.modele].filter(Boolean).join(' ') : '';
+      return `<div style="border:1px solid ${borderCol};border-left:5px solid ${isInfo ? infoBorder : (traite ? '#CBD5E1' : '#EF4444')};border-radius:12px;padding:14px 16px;background:${bgCol};box-shadow:0 2px 8px -4px rgba(15,30,61,.18)" data-decl="${FP.esc(d.id)}">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="font-mono font-extrabold text-sm" style="background:#0F1E3D;color:#fff;padding:3px 11px;border-radius:7px;letter-spacing:.5px">${FP.esc(d.plaque || '—')}</span>
+            ${_vehTxt ? `<b class="text-sm text-slate-700">${FP.esc(_vehTxt)}</b>` : ''}
+            ${tag}<span class="text-xs text-slate-400">reçu le ${FP.esc(when)}</span>${stageChip}</div>
         </div>
         ${line('Quand', d.date_incident)}${line('Lieu', d.lieu)}
         <div class="text-sm mt-1">${FP.esc(d.description || '')}</div>
@@ -2196,21 +2212,65 @@
         </div>
       </div>`;
     },
+    // Normalisation (accents/casse) pour une recherche tolérante, comme ailleurs sur la plateforme.
+    _norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); },
+    // Recherche simple : plaque, véhicule (marque/modèle/chauffeur), description, lieu, tiers,
+    // réponse écrite, type de demande (sinistre / problème / km / état des lieux / question).
+    _matchSearch(d, nq) {
+      if (!nq) return true;
+      const t = (d.type || 'sinistre');
+      const typeLbl = t === 'etat_lieux' ? 'etat des lieux edl' : (t === 'km' ? 'releve km kilometrage' : (t === 'question' ? 'question' : (t === 'probleme' ? 'probleme panne' : 'sinistre accident')));
+      const veh = (data.vehicules || []).find(v => FP.immatEq ? FP.immatEq(v.immat, d.plaque || '') : (FP.normImmat(v.immat) === FP.normImmat(d.plaque || '')));
+      const vehTxt = veh ? [veh.marque, veh.modele, veh.chauffeur].filter(Boolean).join(' ') : '';
+      const hay = this._norm([d.plaque, vehTxt, d.description, d.lieu, d.tiers, d.date_incident, d.reponse, typeLbl, (d.statut === 'traite' ? 'traite' : 'en attente a traiter')].filter(Boolean).join(' • '));
+      return nq.split(/\s+/).every(w => hay.includes(w));
+    },
     render() {
       const box = document.getElementById('decl-cond-banner'); if (!box) return;
+      if (!this.rows.length) { box.innerHTML = ''; return; }
       const nouv = this.rows.filter(d => d.statut !== 'traite');
       const traites = this.rows.filter(d => d.statut === 'traite');
-      if (!this.rows.length) { box.innerHTML = ''; return; }
-      const shown = this.showTraites ? this.rows : nouv;
-      const head = `<div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div class="font-extrabold flex items-center gap-2" style="color:var(--fp-primary)"><i data-lucide="inbox" class="w-5 h-5"></i> Demandes conducteur ${nouv.length ? `<span style="background:#EF4444;color:#fff;border-radius:9999px;padding:0 8px;font-size:12px">${nouv.length}</span>` : ''}</div>
-          ${traites.length ? `<button type="button" id="decl-toggle-traites" class="btn btn-outline text-xs">${this.showTraites ? 'Masquer les traités' : `Voir les traités (${traites.length})`}</button>` : ''}
+      // En-tête soigné : pastille icône + titre + résumé « N en attente · M traité ».
+      const resume = [
+        nouv.length ? `<b style="color:#B91C1C">${nouv.length}</b> en attente` : '<span style="color:#16a34a;font-weight:700">tout est traité 🎉</span>',
+        traites.length ? `<b>${traites.length}</b> traité${traites.length > 1 ? 's' : ''}` : ''
+      ].filter(Boolean).join(' <span style="color:var(--fp-border)">·</span> ');
+      const head = `<div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <span style="flex:none;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#FEE2E2,#FECACA);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #FCA5A5">
+              <i data-lucide="inbox" class="w-5 h-5" style="color:#DC2626"></i>
+            </span>
+            <div class="min-w-0">
+              <div class="font-extrabold leading-tight" style="color:var(--fp-primary);font-size:15px">Demandes conducteur ${nouv.length ? `<span style="background:#EF4444;color:#fff;border-radius:9999px;padding:1px 8px;font-size:12px;vertical-align:1px">${nouv.length}</span>` : ''}</div>
+              <div class="text-xs text-slate-500 mt-0.5">${resume}</div>
+            </div>
+          </div>
+          ${traites.length ? `<button type="button" id="decl-toggle-traites" class="btn btn-outline text-xs">${this.showTraites ? '↩ Masquer les traités' : `✓ Voir les traités (${traites.length})`}</button>` : ''}
         </div>`;
-      const body = shown.length ? `<div class="space-y-3">${shown.map(d => this.cardHTML(d)).join('')}</div>`
-        : '<div class="text-sm text-slate-400">Aucune demande en attente. 🎉</div>';
-      box.innerHTML = `<div class="card p-5" style="border-left:4px solid #EF4444">${head}${body}</div>`;
+      // Barre de recherche simple (apparaît dès qu'il y a de quoi filtrer), style identique au reste du site.
+      const searchBar = this.rows.length > 1 ? `<div style="position:relative;margin-bottom:12px">
+          <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:#94a3b8;pointer-events:none"></i>
+          <input id="decl-search" type="search" placeholder="Rechercher (plaque, véhicule, lieu, description, réponse…)" value="${FP.esc(this.search || '')}" style="width:100%;padding:9px 12px 9px 38px;font-size:14px;border:1px solid var(--fp-border);border-radius:10px;background:var(--fp-surface);color:inherit">
+        </div>` : '';
+      box.innerHTML = `<div class="card p-5" style="border-left:4px solid #EF4444">${head}${searchBar}<div id="decl-list" class="space-y-4"></div></div>`;
+      // Saisie → re-rend UNIQUEMENT la liste (l'input garde le focus, pas de perte de frappe).
+      const si = document.getElementById('decl-search');
+      if (si) si.addEventListener('input', () => { this.search = si.value; this.renderList(); });
+      this.renderList();
       if (window.lucide) lucide.createIcons();
-      this.signPhotos(box);
+    },
+    // Rend la liste seule (filtrée par « traités » + recherche) → focus préservé pendant la frappe.
+    renderList() {
+      const listEl = document.getElementById('decl-list'); if (!listEl) return;
+      const nouv = this.rows.filter(d => d.statut !== 'traite');
+      const scope = this.showTraites ? this.rows.slice() : nouv;
+      const nq = this._norm(this.search);
+      const shown = nq ? scope.filter(d => this._matchSearch(d, nq)) : scope;
+      listEl.innerHTML = shown.length
+        ? shown.map(d => this.cardHTML(d)).join('')
+        : `<div class="text-sm text-slate-400" style="padding:4px 2px">${nq ? 'Aucune demande ne correspond à « ' + FP.esc(this.search) + ' ».' : 'Aucune demande en attente. 🎉'}</div>`;
+      if (window.lucide) lucide.createIcons();
+      this.signPhotos(listEl);
     },
     async setStatut(id, statut) {
       // UI optimiste PUIS écriture DURABLE (file FP.persist → retente + pastille de sync ; plus d'échec
@@ -2462,6 +2522,12 @@
         cardBlock('Circonstances déclarées', d.description);
         y += 3;
 
+        // --- Réponse envoyée au conducteur (celle qu'il voit aussi dans son espace « Mes signalements ») ---
+        if (d.reponse && String(d.reponse).trim()) {
+          cardBlock('Réponse envoyée au conducteur' + (d.reponse_at ? ' (le ' + FP.date(String(d.reponse_at).slice(0, 10)) + ')' : ''), d.reponse);
+          y += 3;
+        }
+
         // --- Pièces jointes : IMAGES en vignettes groupées, PDF (constat, courrier assureur, tout
         //     document PDF déposé sur le dossier) rendus en PAGE PLEINE et lisibles. ---
         // On classe chaque pièce à la lecture du blob (type MIME) → fiable même avec une URL signée.
@@ -2578,7 +2644,11 @@
   document.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('[data-decl-traite],[data-decl-untraite],[data-decl-del],[data-decl-sin],[data-decl-pdf],[data-decl-reply],#decl-toggle-traites');
     if (!t) return;
-    if (t.id === 'decl-toggle-traites') { DeclCond.showTraites = !DeclCond.showTraites; DeclCond.render(); return; }
+    if (t.id === 'decl-toggle-traites') {
+      DeclCond.showTraites = !DeclCond.showTraites;
+      t.innerHTML = DeclCond.showTraites ? '↩ Masquer les traités' : `✓ Voir les traités (${DeclCond.rows.filter(d => d.statut === 'traite').length})`;
+      DeclCond.renderList(); return;
+    }
     if (t.hasAttribute('data-decl-reply')) DeclCond.reply(t.getAttribute('data-decl-reply'));
     else if (t.hasAttribute('data-decl-traite')) DeclCond.setStatut(t.getAttribute('data-decl-traite'), 'traite');
     else if (t.hasAttribute('data-decl-untraite')) DeclCond.setStatut(t.getAttribute('data-decl-untraite'), 'nouveau');
@@ -2669,6 +2739,7 @@
       key: 'sinistres',
       title: 'Relevé des sinistres',
       rows: rows,
+      date: s => s.date,
       cols: [
         { id: 'date',          label: 'Date',        def: true,  get: s => s.date ? FP.dateNum(s.date) : '—' },
         { id: 'vehiculeImmat', label: 'Véhicule',    def: true,  mono: true, get: s => s.vehiculeImmat || '—' },

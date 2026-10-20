@@ -1,0 +1,45 @@
+name: Sécurité — isolation entre sociétés (staging)
+
+# Vérifie, sur le projet STAGING (données fictives), qu'un compte de la société
+# TEST-A ne voit / ne modifie rien de TEST-B, et inversement (lecture, écriture,
+# profil). Voir supabase/staging/README.md.
+# Les identifiants des 2 comptes de test sont des SECRETS GitHub (jamais dans le
+# code). Tant qu'ils ne sont pas configurés, le job s'arrête avec un avertissement.
+on:
+  schedule:
+    - cron: '30 5 * * *'     # tous les jours vers 7 h 30 (heure de Paris) — garde aussi le staging éveillé
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'tests/securite/**'
+      - 'assets/js/supabase-client.js'
+      - '.github/workflows/isolation.yml'
+
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    env:
+      STAGING_URL: https://csvjmzwexszsbowibxut.supabase.co
+      STAGING_PUBLISHABLE_KEY: sb_publishable_6mV5Zbs1Bl_crlQgo5gOgg_rh-iT6Dr
+      TEST_A_EMAIL: ${{ secrets.TEST_A_EMAIL }}
+      TEST_A_PASSWORD: ${{ secrets.TEST_A_PASSWORD }}
+      TEST_B_EMAIL: ${{ secrets.TEST_B_EMAIL }}
+      TEST_B_PASSWORD: ${{ secrets.TEST_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Accès anonyme au staging
+        env:
+          SUPABASE_URL: ${{ env.STAGING_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.STAGING_PUBLISHABLE_KEY }}
+        run: node tests/securite/acces-anonyme.mjs
+      - name: Isolation entre sociétés
+        run: |
+          if [ -z "$TEST_A_EMAIL" ] || [ -z "$TEST_B_EMAIL" ]; then
+            echo "::warning::Comptes de test non configurés (secrets TEST_A_* / TEST_B_*) — voir supabase/staging/README.md."
+            exit 0
+          fi
+          node tests/securite/isolation-societes.mjs
