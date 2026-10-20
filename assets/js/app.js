@@ -5823,6 +5823,10 @@ FP.settings = {
     // comme groupes) ; docRequisNA = override « non applicable » par fiche (map keyée → anti-perte).
     docRequis: [],    // [ { id, type, cible:'vehicule'|'conducteur', suiviExpiration:bool, rappelJours:number, actif:bool } ]
     docRequisNA: {},  // { 'vehicule:<id>:<type>' : 1 } — marqué « non applicable » sur une fiche précise
+    // AUTOMATISATIONS (par société) : règles (config, remplacée en bloc), journal d'exécution, anti-doublon.
+    automations: [],    // [ { id, nom, actif, trigger:{type,params}, groupe?, action:{type,params} } ]
+    automationLog: [],  // historique borné des exécutions (50 dernières)
+    automationDone: {}, // anti-doublon { 'ruleId|itemKey|AAAA-MM' : 1 } (map de données → fusion fine)
     prestataires: undefined, // garages / prestataires PROPRES À CHAQUE SOCIÉTÉ [ {id,nom,adresse,email,tel} ] — semé une fois (PXP hérite de son garage historique, autres = vide). undefined = jamais initialisé (déclenche le semis)
     // Profil PROPRE À CHAQUE SOCIÉTÉ (rempli à la création d'une société) : e-mails d'envoi des amendes,
     // nom du loueur leasing, etc. Vide par défaut ; PXP a des valeurs historiques (voir FP.societeProfil).
@@ -5925,7 +5929,7 @@ FP.settings = {
     'pointsManuel', 'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
     'rapprIgnore', 'tfAnomOk', 'ignores', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes',
     'sinistreAssurance', 'sinistreDossiers', 'zoneNotes', 'corbeille',
-    'vehCustom', 'condCustom', 'docRequisNA'],
+    'vehCustom', 'condCustom', 'docRequisNA', 'automationDone'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -6713,6 +6717,35 @@ FP.docsRequis = {
   evaluer(cible, id, docs) { return this.reqFor(cible).map(req => Object.assign({ req: req }, this.statutFromDocs(req, cible, id, docs))); },
   // Exigences NON satisfaites (manquant / expiré / bientôt) → pour la checklist « À compléter » (sous-lot 2B).
   manquants(cible, id, docs) { return this.evaluer(cible, id, docs).filter(x => x.code === 'manquant' || x.code === 'expire' || x.code === 'bientot'); },
+  // SOURCE UNIQUE des documents d'un VÉHICULE pour le contrôle (fiche ET checklist ET alertes). On fusionne :
+  //   • les documents de la table `documents` (passés en argument — déjà chargés par la page) ;
+  //   • la carte grise intégrée (v.cgUrl / v.cgFileId) et l'attestation d'assurance intégrée (window.FP_DOCS) ;
+  //   • les contrats de leasing (settings.leasingDocs par plaque + settings.localeaseContrats).
+  vehDocs(v, tableDocs) {
+    const out = Array.isArray(tableDocs) ? tableDocs.slice() : [];
+    if (!v) return out;
+    try { if (v.cgUrl || v.cgFileId) out.push({ type: 'carte-grise', id: 'cg:' + v.id }); } catch (e) {}
+    try {
+      const A = (typeof window !== 'undefined' && window.FP_DOCS && window.FP_DOCS.assurance) ? window.FP_DOCS.assurance : null;
+      if (A) { const k = FP.normImmat ? FP.normImmat(v.immat) : String(v.immat || ''); if (A[k] || A[v.immat]) out.push({ type: 'assurance', id: 'assur:' + v.id }); }
+    } catch (e) {}
+    try {
+      const s = FP.settings.get(); const immatN = FP.normImmat ? FP.normImmat(v.immat || '') : String(v.immat || '');
+      const ld = (s.leasingDocs && typeof s.leasingDocs === 'object') ? s.leasingDocs : {};
+      let hasC = false; Object.keys(ld).forEach(kk => { if ((FP.normImmat ? FP.normImmat(kk) : kk) === immatN && ld[kk]) hasC = true; });
+      const lc = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : [];
+      lc.forEach(c => { if (c && (FP.normImmat ? FP.normImmat(c.immat || '') : (c.immat || '')) === immatN && Array.isArray(c.docs) && c.docs.length) hasC = true; });
+      if (hasC) out.push({ type: 'contrat', id: 'lease:' + v.id });
+    } catch (e) {}
+    return out;
+  },
+  // SOURCE UNIQUE des documents d'un CONDUCTEUR : condDocs (date = expiration) + le permis (vit sur la fiche).
+  condDocs(c) {
+    let out = [];
+    try { out = ((FP.settings.get().condDocs || {})[c.key] || []).map(x => ({ type: x.type, id: x.id, dateExpiration: x.date || x.dateExpiration })); } catch (e) {}
+    if (c && (c.permisNumero || c.permisType || c.permisUrl)) out.push({ type: 'permis', id: 'permis:' + c.key, dateExpiration: c.permisExpiration || '' });
+    return out;
+  },
   // Carte « Documents obligatoires » prête à insérer sur une fiche. docs = documents de l'entité (déjà chargés).
   ficheSection(cible, id, docs) {
     const items = this.evaluer(cible, id, docs); if (!items.length) return '';
@@ -6741,6 +6774,137 @@ document.addEventListener('click', function (e) {
     document.dispatchEvent(new CustomEvent('pp:docsRequis-change', { detail: { cible: b.getAttribute('data-dr-cible'), id: b.getAttribute('data-dr-id') } }));
   } catch (er) { if (FP.notifyError) FP.notifyError('Non enregistré — vérifie la connexion'); }
 });
+
+// ====================================================================================
+// FP.automations — MOTEUR DE RÈGLES (déclencheur → condition → action). 100 % app_settings, exécution
+//   DANS L'APP (pas d'Edge Function / cron). Réutilise les helpers FP.* existants (SOURCE UNIQUE : aucune
+//   logique métier dupliquée). Actions : créer une TÂCHE (sûr, auto) ou envoyer un E-MAIL (manuel seulement).
+//   Anti-doublon par (règle + élément + période), historique borné, mode test (aperçu sans rien exécuter).
+//   config : settings.automations = [ {id,nom,actif,trigger:{type,params},groupe?,action:{type,params}} ]
+// ====================================================================================
+FP.automations = {
+  // Déclencheurs curatés — chacun renvoie la liste des éléments concernés via les helpers FP.* (jamais recalculé à la main).
+  TRIGGERS: [
+    { t: 'ct', label: 'Contrôle technique à échéance', param: 'jours', paramLabel: 'Jours avant le CT', def: 30, cible: 'vehicule' },
+    { t: 'doc-manquant', label: 'Document obligatoire manquant / expiré', param: null, cible: 'les deux' },
+    { t: 'amende-apayer', label: 'Amende à payer en retard', param: 'jours', paramLabel: 'Jours depuis la date', def: 30, cible: 'amende' },
+  ],
+  ACTIONS: [{ a: 'tache', label: 'Créer une tâche' }, { a: 'email', label: 'Envoyer un e-mail (manuel uniquement)' }],
+  triggerDef(t) { return this.TRIGGERS.find(x => x.t === t) || null; },
+  triggerLabel(t) { const d = this.triggerDef(t); return d ? d.label : t; },
+  _list() { try { const a = FP.settings.get().automations; return Array.isArray(a) ? a : []; } catch (e) { return []; } },
+  rules() { return this._list().filter(r => r && r.actif !== false); },
+  _vehActifs() { try { return (FP_DATA.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v))); } catch (e) { return (typeof FP_DATA !== 'undefined' && FP_DATA.vehicules) || []; } },
+  _grpOk(v, groupe) { if (!groupe || groupe === 'all') return true; try { return (FP.poolDe ? FP.poolDe(v) : v.pool) === groupe; } catch (e) { return true; } },
+  // Évalue UNE règle → [{ key, label, vehId?, immat?, condKey?, email?, amendeId? }]. key = identifiant stable anti-doublon.
+  // ctx.docsMap = { vehId: [documents de la table] } (chargé par run() pour le déclencheur doc-manquant).
+  evaluer(rule, ctx) {
+    const out = []; ctx = ctx || {}; const docsMap = ctx.docsMap || {};
+    if (!rule || !rule.trigger) return out;
+    const tp = rule.trigger.params || {};
+    try {
+      if (rule.trigger.type === 'ct') {
+        const seuil = Number(tp.jours) || 30;
+        this._vehActifs().forEach(v => {
+          if (!this._grpOk(v, rule.groupe)) return;
+          if (!v.prochainCT || v.prochainCT === '—') return;
+          if (FP.ctIgnored && FP.ctIgnored(v)) return;
+          const j = FP.joursRestants ? FP.joursRestants(v.prochainCT) : null;
+          if (j != null && j >= 0 && j <= seuil) out.push({ key: 'ct:' + v.id, label: (v.immat || '?') + ' — CT dans ' + j + ' j', vehId: v.id, immat: v.immat });
+        });
+      } else if (rule.trigger.type === 'doc-manquant') {
+        if (!(FP.docsRequis && FP.docsRequis.manquants)) return out;
+        this._vehActifs().forEach(v => {
+          if (!this._grpOk(v, rule.groupe)) return;
+          const docs = FP.docsRequis.vehDocs(v, docsMap[v.id] || []);
+          FP.docsRequis.manquants('vehicule', v.id, docs).forEach(m => out.push({ key: 'doc:v:' + v.id + ':' + m.req.type, label: (v.immat || '?') + ' — ' + FP.docsRequis.typeLabel('vehicule', m.req.type) + ' (' + (m.code === 'expire' ? 'expiré' : m.code === 'bientot' ? 'expire bientôt' : 'manquant') + ')', vehId: v.id, immat: v.immat }));
+        });
+        try {
+          (FP_DATA.conducteurs || []).filter(c => c && c.masque !== true).forEach(c => {
+            const docs = FP.docsRequis.condDocs(c);
+            FP.docsRequis.manquants('conducteur', c.key, docs).forEach(m => out.push({ key: 'doc:c:' + c.key + ':' + m.req.type, label: ((c.prenom || c.nom || c.key) + ' — ' + FP.docsRequis.typeLabel('conducteur', m.req.type) + ' (' + (m.code === 'expire' ? 'expiré' : m.code === 'bientot' ? 'expire bientôt' : 'manquant') + ')'), condKey: c.key, email: c.email || '' }));
+          });
+        } catch (e) {}
+      } else if (rule.trigger.type === 'amende-apayer') {
+        const seuil = Number(tp.jours) || 30;
+        try {
+          (FP_DATA.amendes || []).forEach(a => {
+            if (!(FP.estAPayer && FP.estAPayer(a))) return;
+            if (!a.date) return;
+            const j = FP.joursRestants ? -FP.joursRestants(a.date) : null; // jours ÉCOULÉS depuis la date
+            if (j != null && j >= seuil) out.push({ key: 'am:' + a.id, label: (a.prenom || 'Amende') + ' — ' + (FP.euro ? FP.euro(FP.montantDu ? FP.montantDu(a) : a.montant) : '') + ' dû depuis ' + j + ' j', amendeId: a.id });
+          });
+        } catch (e) {}
+      }
+    } catch (e) {}
+    return out;
+  },
+  _period() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }, // dédoublonnage mensuel
+  _doneKey(ruleId, itemKey) { return ruleId + '|' + itemKey + '|' + this._period(); },
+  _isDone(ruleId, itemKey) { try { return !!(FP.settings.get().automationDone || {})[this._doneKey(ruleId, itemKey)]; } catch (e) { return false; } },
+  _markDone(ruleId, itemKey) { const s = FP.settings.get(); s.automationDone = (s.automationDone && typeof s.automationDone === 'object') ? s.automationDone : {}; s.automationDone[this._doneKey(ruleId, itemKey)] = 1; FP.settings.save(s); },
+  _log(entry) {
+    try { const s = FP.settings.get(); const l = Array.isArray(s.automationLog) ? s.automationLog : []; l.unshift(entry); s.automationLog = l.slice(0, 50); FP.settings.save(s); } catch (e) {}
+  },
+  logList() { try { const l = FP.settings.get().automationLog; return Array.isArray(l) ? l : []; } catch (e) { return []; } },
+  // Crée une tâche (settings.taches) pour un élément — anti-doublon par automationDone.
+  _creerTache(rule, item) {
+    const s = FP.settings.get(); const arr = Array.isArray(s.taches) ? s.taches.slice() : [];
+    arr.push({ id: 'T' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), titre: (rule.nom || 'Automatisation') + ' — ' + item.label, type: 'action', statut: 'todo', fait: false, auto: true, vehiculeId: item.vehId || null, etiquettes: ['auto'], sousTaches: [], commentaires: [], createdAt: new Date().toISOString(), historique: [{ txt: 'Créée par automatisation « ' + (rule.nom || '') + ' »', at: new Date().toISOString() }] });
+    s.taches = arr.filter(t => t && !t._virtuel); FP.settings.save(s);
+  },
+  // Exécute les règles. opts : { test:true (aperçu, rien exécuté) | auto:true (chargement : tâches seulement, pas d'e-mail) | ruleId }.
+  async run(opts) {
+    opts = opts || {}; const rules = this.rules().filter(r => !opts.ruleId || r.id === opts.ruleId);
+    const resume = []; let totalTache = 0, totalMail = 0, totalSkip = 0; const mails = [];
+    // Déclencheur « doc-manquant » : on charge la table documents UNE fois (sinon faux « manquant » pour les docs de la table).
+    let docsMap = {};
+    if (rules.some(r => r.trigger && r.trigger.type === 'doc-manquant') && FP.db && FP.db.select) {
+      try { const r = await FP.db.select('documents'); (r && r.data || []).forEach(d => { if (d && d.vehiculeId) (docsMap[d.vehiculeId] = docsMap[d.vehiculeId] || []).push(d); }); } catch (e) {}
+    }
+    for (const rule of rules) {
+      const items = this.evaluer(rule, { docsMap: docsMap }); const act = (rule.action && rule.action.type) || 'tache';
+      const neufs = items.filter(it => !this._isDone(rule.id, it.key));
+      resume.push({ rule: rule.nom || rule.id, trigger: rule.trigger.type, total: items.length, neufs: neufs.length, action: act });
+      if (opts.test) continue; // aperçu seulement
+      for (const it of neufs) {
+        if (act === 'tache') { try { this._creerTache(rule, it); this._markDone(rule.id, it.key); totalTache++; } catch (e) { totalSkip++; } }
+        else if (act === 'email') {
+          if (opts.auto) { totalSkip++; continue; } // JAMAIS d'e-mail automatique (décision utilisateur) : manuel uniquement
+          if (!it.email) { totalSkip++; continue; }
+          mails.push({ rule, it });
+        }
+      }
+    }
+    // Envoi des e-mails (uniquement hors auto) — regroupés, avec gestion d'échec visible (jamais de « ✓ » menteur).
+    for (const m of mails) {
+      try {
+        if (!(FP.sendEmail)) { totalSkip++; continue; }
+        const prof = (FP.settings.get().profil) || {};
+        const esc = FP.esc || (x => String(x == null ? '' : x));
+        const sujet = (m.rule.nom || 'Rappel') + ' — Parc Pilot';
+        const html = '<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:560px">'
+          + '<div style="background:#0F1E3D;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-weight:800">' + esc(m.rule.nom || 'Rappel') + '</div>'
+          + '<div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px;padding:16px 18px"><p>' + esc(m.it.label) + '</p></div></div>';
+        await FP.sendEmail({ to: m.it.email, subject: sujet, html: html, text: m.it.label, replyTo: prof.mailExpediteur || '' });
+        this._markDone(m.rule.id, m.it.key); totalMail++;
+      } catch (e) { totalSkip++; }
+    }
+    if (!opts.test) this._log({ at: new Date().toISOString(), auto: !!opts.auto, taches: totalTache, mails: totalMail, ignores: totalSkip, detail: resume });
+    return { resume, totalTache, totalMail, totalSkip };
+  },
+};
+// Exécution AUTOMATIQUE au chargement (tâches seulement, jamais d'e-mail) — 1×/jour max, après chargement des données.
+document.addEventListener('fp:data-ready', function () {
+  try {
+    if (!(FP.automations && FP.automations.rules().length)) return;
+    const key = 'fp_autorun_' + (localStorage.getItem('fp_societe') || 'PXP');
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(key) === today) return; // déjà passé aujourd'hui sur ce poste
+    localStorage.setItem(key, today);
+    setTimeout(() => { try { FP.automations.run({ auto: true }); } catch (e) {} }, 2500);
+  } catch (e) {}
+}, { once: true });
 
 (function guardBackspace() {
   // Empêche la touche « Retour arrière » de déclencher « page précédente » du navigateur

@@ -169,11 +169,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Tests** : 14 tests automatiques. Le manuel est à jour. Aucune modification de la base n'est nécessaire.
 - **Vérifié en ligne, sans rien écrire** : une simulation sur les versions serveur réelles a montré qu'une même donnée écrite autrement (ordre des champs, indicateur à « faux ») passait pour une modification. C'est corrigé : les versions récentes donnent maintenant 0 changement, et celle du matin 1 véhicule, une vraie modification de la journée.
 
-### 20/10/2026 — Migration des données, étape 4 : les forfaits de leasing 🟡 (prête, en attente de mise en production)
+### 20/10/2026 — Migration des données, étape 4 : les forfaits de leasing ✅ (en production)
 - **Quoi** : les forfaits de leasing saisis par plaque (forfait km, durée, date de début, prix du km supplémentaire, loyer…), visibles dans la page Contrats et la fiche véhicule. En production : 18 plaques (PXP).
 - **Même principe** : une table dédiée, avec une plaque par ligne. La plaque est gardée **telle qu'elle a été saisie**, avec ou sans tirets, pour ne rien rendre orphelin. Un forfait retiré, ou un doublon de format fusionné, est **archivé**, jamais effacé. La restauration des versions de réglages couvre aussi ces forfaits.
 - **Aucun changement visible** pour les utilisateurs. La copie de sécurité dans les réglages est conservée.
 - **Tests** : 8 tests automatiques de la logique, 1 de plus pour la restauration, et un test sur le staging (enregistrement, rejeu sans doublon, refus d'un forfait illisible, isolation entre sociétés, refus sans connexion, archivage).
+- **Mis en production le 20/10/2026** : table créée, puis recopie lancée par François : 18 forfaits, 0 écart.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -201,7 +202,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1025 | Migration des données, étape 3 : les contrats LLD | ✅ Fusionnée, en production |
 | #1032 | Restauration des versions de réglages branchée sur les tables | ✅ Fusionnée |
 | #1033 | Restauration : comparaison sur le contenu | ✅ Fusionnée |
-| (cette PR) | Migration des données, étape 4 : les forfaits de leasing | En cours |
+| #1034 | Migration des données, étape 4 : les forfaits de leasing | ✅ Fusionnée, en production |
 
 ## 7. Prochaines étapes
 
@@ -209,7 +210,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : prête. Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
