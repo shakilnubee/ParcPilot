@@ -424,7 +424,16 @@
         // reconnexions auto « se souvenir de moi » et tout changement de session hors login.html).
         try {
           const prevUid = localStorage.getItem('fp_last_uid');
-          if (prevUid && prevUid !== u.id && FP.purgeTenantCache) FP.purgeTenantCache();
+          if (prevUid && prevUid !== u.id) {
+            if (FP.purgeTenantCache) FP.purgeTenantCache();
+            // 🔒 SÉCURITÉ : changement de compte sur ce navigateur → on PURGE le profil de droits en cache
+            // (fp_profile) AVANT de lire celui du nouveau compte. Sinon le profil (rôle / is_admin) du compte
+            // précédent survivait → un Gestionnaire pouvait hériter des droits CEO du compte utilisé juste
+            // avant (outils propriétaire, sélecteur multi-sociétés, config). Fail-closed : sans profil
+            // confirmé, l'UI sensible reste masquée jusqu'à la lecture du bon profil.
+            try { localStorage.removeItem('fp_profile'); } catch (e2) {}
+            FP.profile = null;
+          }
           localStorage.setItem('fp_last_uid', u.id);
         } catch (e) {}
         // Mémorise l'e-mail de connexion (sert au gating de l'onglet privé « JIS », CEO only).

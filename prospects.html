@@ -7,10 +7,10 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Prospects — Parc Pilot</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261019h">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261019j">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="assets/js/lucide.min.js?v=20261019h"></script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261019h">
+<script defer src="assets/js/lucide.min.js?v=20261019j"></script>
+<link rel="stylesheet" href="assets/css/styles.css?v=20261019j">
 <script>
 // Garde PROPRIÉTAIRE (JIS) — pipeline commercial interne : seul l'e-mail du propriétaire peut ouvrir, même par URL.
 (function(){
@@ -20,7 +20,7 @@
     try { var t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token') || 'null');
       if (t && t.access_token && !(t.expires_at && t.expires_at*1000 < Date.now()) && t.user && t.user.email) email = t.user.email; } catch(e){}
     if (!email) { try { email = localStorage.getItem('fp_email') || ''; } catch(e){} }
-    if (OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
+    var _ceo=false; try{var _pp=JSON.parse(localStorage.getItem('fp_profile')||'null'); _ceo=!!(_pp&&_pp.is_admin===true);}catch(e){} if (!_ceo || OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
   } catch(e){ document.documentElement.style.display='none'; window.location.replace('login.html'); }
 })();
 </script>
@@ -45,7 +45,7 @@
     <div id="p-list" class="space-y-3"><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:82%"></div></div><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:64%"></div></div><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:73%"></div></div></div>
   </div>
 
-  <script src="assets/js/vendor/supabase.js?v=20261019h"></script>
+  <script src="assets/js/vendor/supabase.js?v=20261019j"></script>
   <!-- Fenêtres modales « à la sauce Parc Pilot » (remplacent alert/confirm/prompt natifs) -->
   <script>
   (function(){
@@ -101,7 +101,8 @@
       const { data: { session } } = await client.auth.getSession();
       const email = session && session.user && (session.user.email || '').toLowerCase();
       if (!email) { window.location.replace('login.html'); return; }
-      if (OWNERS.indexOf(email) === -1) {
+      var _ceo2=false; try{var _pp2=JSON.parse(localStorage.getItem('fp_profile')||'null'); _ceo2=!!(_pp2&&_pp2.is_admin===true);}catch(e){}
+      if (!_ceo2 || OWNERS.indexOf(email) === -1) {
         $('p-list').innerHTML = '<div class="p-card">Accès réservé au propriétaire de la plateforme.</div>';
         $('p-sub').textContent = '';
         if (window.lucide) lucide.createIcons();

@@ -7,10 +7,10 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Barème tarifaire — JIS</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261019h">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261019j">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="assets/js/lucide.min.js?v=20261019h"></script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261019h">
+<script defer src="assets/js/lucide.min.js?v=20261019j"></script>
+<link rel="stylesheet" href="assets/css/styles.css?v=20261019j">
 <script>
 // Garde PROPRIÉTAIRE (JIS) — barème interne : seul l'e-mail du propriétaire peut ouvrir, même par URL.
 (function(){
@@ -20,7 +20,7 @@
     try { var t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token') || 'null');
       if (t && t.access_token && !(t.expires_at && t.expires_at*1000 < Date.now()) && t.user && t.user.email) email = t.user.email; } catch(e){}
     if (!email) { try { email = localStorage.getItem('fp_email') || ''; } catch(e){} }
-    if (OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
+    var _ceo=false; try{var _pp=JSON.parse(localStorage.getItem('fp_profile')||'null'); _ceo=!!(_pp&&_pp.is_admin===true);}catch(e){} if (!_ceo || OWNERS.indexOf(String(email||'').trim().toLowerCase()) === -1) { document.documentElement.style.display='none'; window.location.replace('login.html'); }
   } catch(e){ document.documentElement.style.display='none'; window.location.replace('login.html'); }
 })();
 </script>
@@ -119,8 +119,8 @@
     </div>
   </div>
 
-  <script src="assets/js/vendor/supabase.js?v=20261019h"></script>
-<script src="assets/js/bareme.js?v=20261019h"></script>
+  <script src="assets/js/vendor/supabase.js?v=20261019j"></script>
+<script src="assets/js/bareme.js?v=20261019j"></script>
   <script>
     lucide.createIcons();
     var $ = function (id) { return document.getElementById(id); };

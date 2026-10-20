@@ -2233,7 +2233,12 @@ FP.CEO_ONLY_NAV = ['brochure.html', 'prix.html'];
 // ⚠️ Consigne explicite : personne d'autre ne doit y avoir accès.
 FP.userEmail = (() => { try { return (localStorage.getItem('fp_email') || '').trim().toLowerCase(); } catch (e) { return ''; } })();
 FP.JIS_OWNERS = ['shakil.nubee@projectxparis.fr', 'jis.nubee@gmail.com'];
-FP.isJisOwner = () => FP.JIS_OWNERS.indexOf((FP.userEmail || '').trim().toLowerCase()) !== -1;
+// ⚠️ SÉCURITÉ : les outils PROPRIÉTAIRE (barème, kit commercial, devis, contrats, prospects…) ne sont
+// réservés QU'au propriétaire de la plateforme = un CEO (super-admin, is_admin=true) dont l'e-mail est
+// dans la liste. On exige le RÔLE **en plus** de l'e-mail : sinon un compte Gestionnaire créé avec un
+// e-mail propriétaire (ex. shakil.nubee@projectxparis.fr utilisé comme gestionnaire) héritait de l'accès
+// — ce qui est interdit. Le rôle (is_admin via profiles) fait foi, pas l'e-mail seul.
+FP.isJisOwner = () => FP.isSuperAdmin() && FP.JIS_OWNERS.indexOf((FP.userEmail || '').trim().toLowerCase()) !== -1;
 
 // === Sélecteur CHERCHABLE (RÈGLE PROJET) =====================================
 // Tout choix de véhicule / conducteur / plaque DOIT être filtrable au clavier (taper pour
@@ -6688,38 +6693,18 @@ FP.navKeysOrdered = () => {
   const missing = allKeys.filter(k => !valid.includes(k));
   return [...valid, ...missing];
 };
-// Réorganise les liens du menu (sidebar) selon l'ordre choisi par l'utilisateur
-FP.applyNavOrder = () => {
-  const order = FP.settings.get().navOrder;
-  if (!Array.isArray(order) || !order.length) return;
-  document.querySelectorAll('aside nav').forEach(nav => {
-    const links = Array.from(nav.querySelectorAll('a[data-nav]'));
-    if (!links.length) return;
-    const byKey = {};
-    links.forEach(a => { byKey[a.dataset.nav] = a; });
-    const ordered = [];
-    order.forEach(k => { if (byKey[k]) { ordered.push(byKey[k]); delete byKey[k]; } });
-    links.forEach(a => { if (byKey[a.dataset.nav]) ordered.push(a); }); // onglets non listés à la fin
-    ordered.forEach(a => {
-      nav.appendChild(a); // ré-insère dans le nouvel ordre
-      // ⚠️ Emporte le sous-menu déplié (.fp-subnav) juste APRÈS son parent : sinon, comme on déplace
-      // les <a> à la fin par appendChild, la box restait à son ancienne position et « flottait » en
-      // haut de la sidebar (bug visuel signalé). On la recolle immédiatement sous son onglet.
-      const box = nav.querySelector('.fp-subnav[data-for="' + (a.dataset.nav || '').replace(/"/g, '') + '"]');
-      if (box) nav.appendChild(box);
-    });
-  });
-};
+// Ordre des onglets du menu CODÉ EN DUR (éditeur « Onglets du menu » retiré à la demande de l'utilisateur) :
+// on ne réordonne plus selon un choix utilisateur. L'ordre vient de l'ordre des liens dans le HTML + des
+// familles (applyNavGroups). Fonction conservée (appelée ailleurs) mais inerte.
+FP.applyNavOrder = () => { /* no-op : onglets codés en dur */ };
 // Onglets toujours visibles (on ne peut pas masquer Paramètres, sinon plus moyen de revenir)
 FP.NAV_ALWAYS_VISIBLE = ['parametres.html'];
-// Masque les onglets choisis par l'utilisateur (sans les supprimer)
+// Onglets CODÉS EN DUR : plus de masquage d'onglet (éditeur retiré). On force l'affichage de TOUS les
+// liens du menu → les onglets sont toujours présents. ⚠️ Le filtrage par RÔLE (pages réservées au CEO via
+// CEO_ONLY_NAV, outils propriétaire « JIS » via buildJisMenu/isJisOwner) RETIRE ces liens du DOM pour les
+// comptes non autorisés : « tout afficher » ici respecte donc quand même les rôles (on ne ressuscite rien).
 FP.applyNavVisibility = () => {
-  const hidden = FP.settings.get().navHidden;
-  const set = new Set(Array.isArray(hidden) ? hidden : []);
-  document.querySelectorAll('a[data-nav]').forEach(a => {
-    const k = a.dataset.nav;
-    a.style.display = (set.has(k) && !FP.NAV_ALWAYS_VISIBLE.includes(k)) ? 'none' : '';
-  });
+  document.querySelectorAll('a[data-nav]').forEach(a => { a.style.display = ''; });
 };
 // Onglets de la section « Compte » (bas de la sidebar).
 FP.NAV_ACCOUNT = ['guide.html', 'manuel.html', 'aide.html', 'parametres.html', 'brochure.html', 'prix.html'];
