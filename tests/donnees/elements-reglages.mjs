@@ -3,7 +3,7 @@
 //  Parc Pilot — Test des ÉLÉMENTS DE RÉGLAGES en table générique (fp_element_enregistrer / _archiver) — STAGING uniquement
 // ============================================================================
 //  Avec les deux comptes de test (TEST-A, TEST-B), exactement comme le fait l'application :
-//    1) ENREGISTRER une prime, un assureur et une plaque ignorée : valeur complète conservée, clé gardée
+//    1) ENREGISTRER une prime, un assureur, une plaque ignorée, une tâche et un rappel coché : valeur complète conservée, clé gardée
 //       telle quelle ; rejouer = aucun doublon ; modifier = la même ligne est mise à jour ;
 //    2) collection hors liste, ou valeur manquante : REFUSÉ, rien de modifié ;
 //    3) ISOLATION : TEST-B ne peut ni archiver, ni modifier, ni créer, ni lire les éléments de TEST-A ;
@@ -76,6 +76,14 @@ try {
   l = await lire(reqA, 'TEST-A', 'assuranceIgnore', CLE);
   if (l && l.length === 1 && l[0].valeur === true) ok('plaque ignorée enregistrée'); else ko(`plaque ignorée inattendue : ${JSON.stringify(l)}`);
 
+  const TACHE = { id: CLE, titre: 'Tâche de test', echeance: '2026-11-01', vehId: 'V-TEST', fait: false };
+  await enregistrer(reqA, 'TEST-A', 'taches', CLE, TACHE, 0);
+  l = await lire(reqA, 'TEST-A', 'taches', CLE);
+  if (l && l.length === 1 && l[0].valeur.titre === 'Tâche de test' && l[0].valeur.fait === false) ok('tâche : contenu conservé (valeur « faux » comprise)'); else ko(`tâche inattendue : ${JSON.stringify(l)}`);
+  await enregistrer(reqA, 'TEST-A', 'rappelsFaits', CLE, { '2026-10': '2026-10-20' }, 0);
+  l = await lire(reqA, 'TEST-A', 'rappelsFaits', CLE);
+  if (l && l.length === 1 && l[0].valeur['2026-10'] === '2026-10-20') ok('rappel coché : valeur imbriquée conservée'); else ko(`rappel coché inattendu : ${JSON.stringify(l)}`);
+
   console.log('\n2) Données refusées');
   r = await enregistrer(reqA, 'TEST-A', 'collectionInconnue', CLE, { x: 1 }, 0);
   l = await lire(reqA, 'TEST-A', 'collectionInconnue', CLE);
@@ -106,7 +114,7 @@ try {
 
   console.log('\n5) Archivage (compte A)');
   let toutOk = true;
-  for (const col of ['assurancePrimes', 'assureurs', 'assuranceIgnore']) {
+  for (const col of ['assurancePrimes', 'assureurs', 'assuranceIgnore', 'taches', 'rappelsFaits']) {
     r = await archiver(reqA, 'TEST-A', col, CLE);
     l = await lire(reqA, 'TEST-A', col, CLE);
     if (!(r.ok && l && l.length === 0)) toutOk = false;
