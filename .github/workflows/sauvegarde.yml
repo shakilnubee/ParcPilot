@@ -41,6 +41,10 @@ jobs:
     timeout-minutes: 60
     env:
       CIBLE: ${{ inputs.cible || (github.event_name == 'pull_request' && 'staging') || 'production' }}
+      # Sommes de contrôle « nouvelles » d'AWS CLI désactivées (envoyées seulement si exigées) : certaines
+      # versions du stockage S3 de Supabase refusent alors le téléchargement des fichiers.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
       # ⚠️ Les deux jeux d'accès sont passés SÉPARÉMENT et choisis explicitement dans « Paramètres de la
       # cible » : jamais d'expression « cond && A || B », qui renverrait B (la PRODUCTION) si A était vide.
       S_STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
