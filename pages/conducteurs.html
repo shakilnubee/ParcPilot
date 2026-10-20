@@ -1882,7 +1882,22 @@
           ${gCell('Nom', 'nom', 'text', d.nom)}${gCell('Prénom', 'prenom', 'text', d.prenom)}
           ${gCell('Naissance', 'dateNaissance', 'date', dnPlain)}${gCell('Téléphone', 'tel', 'text', d.tel)}
           ${gCell('Email', 'email', 'text', d.email, true)}
-          ${gCell('Adresse', 'adresse', 'text', d.adresse, true)}
+          ${(() => {
+            // Adresse : affichage STRUCTURÉ pour bien distinguer les parties (sans ajouter de libellés) —
+            // ligne 1 = n° + rue (+ complément), ligne 2 = code postal (mis en avant) · ville. Le clic
+            // pour modifier reste branché via data-cf/data-ct (on édite toujours la chaîne complète).
+            const s = d.adresse || '';
+            if (!s) return gCell('Adresse', 'adresse', 'text', '', true);
+            const a = (window.FP && FP.addr) ? FP.addr.parse(s) : { rue: s, cp: '', ville: '' };
+            const rue = escapeHtml(a.rue || ''), cp = escapeHtml(a.cp || ''), ville = escapeHtml(a.ville || '');
+            let disp;
+            if (!cp && !ville) { disp = escapeHtml(s); }
+            else {
+              const l2 = [cp ? `<b style="color:var(--fp-primary)">${cp}</b>` : '', ville].filter(Boolean).join(' <span style="color:#cbd5e1">·</span> ');
+              disp = (rue ? `<span>${rue}</span>` : '') + (rue && l2 ? '<br>' : '') + l2;
+            }
+            return `<div class="cf-row fiche-cell col-span-2" data-cf="adresse" data-ct="text" title="Cliquer pour modifier"><div class="fcell-label">Adresse</div><div class="cf-val font-medium" style="line-height:1.5">${disp}</div></div>`;
+          })()}
         </div>`)}`;
 
     // Barre d'actions FIGÉE au bas du tiroir (reste visible au scroll) — même
