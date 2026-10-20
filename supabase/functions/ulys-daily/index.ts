@@ -186,7 +186,11 @@ Deno.serve(async (req) => {
 
   const owner = (Deno.env.get("ULYS_SOCIETE") || "PXP").trim();
   const RESEND_KEY = (Deno.env.get("RESEND_API_KEY") || "").trim();
-  const envFrom = Deno.env.get("EMAIL_FROM") || "Parc Pilot <onboarding@resend.dev>";
+  // ⚠️ Repli sur un domaine VÉRIFIÉ dans Resend (seul projectxparis.fr l'est aujourd'hui) : l'adresse de
+  // test onboarding@resend.dev ne peut écrire QU'au titulaire du compte → échec vers un destinataire tiers.
+  // N'affecte QUE le repli (une société avec mailExpediteur configuré garde son adresse scopée ci-dessous).
+  let envFrom = Deno.env.get("EMAIL_FROM") || "";
+  if (!envFrom || /resend\.dev/i.test(envFrom)) envFrom = "Parc Pilot <noreply@projectxparis.fr>";
   const BASE = "https://parc-pilot.fr";
 
   const admin = createClient(SUPA, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
