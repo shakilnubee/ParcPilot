@@ -1207,6 +1207,7 @@
 <script src="../assets/js/vendor/qrcode.js?v=20261021i"></script>
   <script>window.FP_PDF=1;</script>
 <script src="../assets/js/app.min.js?v=20261021i"></script>
+<script src="../assets/js/vehicule-photos.js?v=20261021i"></script>
 <script>
   lucide.createIcons();
 
@@ -3132,19 +3133,126 @@
     const col = p.ok === true ? ['#dcfce7', '#166534'] : p.ok === false ? ['#fee2e2', '#b91c1c'] : ['#fef3c7', '#92400e'];
     return `<span title="${(p.detail || '').replace(/"/g, '&quot;')}" style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 10px;border-radius:9999px;font-size:12.5px;font-weight:800;background:${col[0]};color:${col[1]}">🅿️ ${p.txt}</span>`;
   }
+  // Photo de la fiche = SOURCE UNIQUE : photo choisie manuellement (v.photoUrl) EN PRIORITÉ,
+  // sinon photo d'illustration du MODÈLE (FP.vehPhoto → libre de droits, avec crédit). Bouton « Changer ».
   function renderDrawerPhoto(v) {
     const box = $('drawer-photo');
-    // La bande photo ne s'affiche QUE si une vraie photo est renseignée
-    if (v.photoUrl) {
+    if (!box) return;
+    const manual = (v.photoUrl || '').trim();
+    const model = (!manual && window.FP && FP.vehPhoto) ? FP.vehPhoto(v) : null;
+    const url = manual || (model ? ('../' + model.img) : '');
+    if (!url) {
+      // Aucune photo connue (modèle non répertorié) : petit bandeau pour en ajouter une.
       box.style.display = '';
-      box.innerHTML = '<img alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">';
-      const img = box.querySelector('img');
-      img.onerror = () => { box.style.display = 'none'; box.innerHTML = ''; };
-      img.src = v.photoUrl;
-    } else {
-      box.style.display = 'none';
-      box.innerHTML = '';
+      box.style.height = '60px';
+      box.innerHTML = '<button type="button" id="veh-photo-add" class="w-full h-full flex items-center justify-center gap-2 text-sm font-semibold" style="color:#64748b;background:#f1f5f9;border:0;cursor:pointer">'
+        + '<i data-lucide="image-plus" class="w-4 h-4"></i> Ajouter une photo du véhicule</button>';
+      try { lucide.createIcons(); } catch (e) {}
+      const b = $('veh-photo-add'); if (b) b.onclick = () => openPhotoModal(v);
+      return;
     }
+    box.style.display = '';
+    box.style.height = '176px';
+    // Crédit : obligatoire pour une photo de modèle (CC) ; discret pour une photo Wikimedia choisie à la main.
+    let credit = '';
+    if (model) {
+      credit = '<a href="' + FP.esc(model.src) + '" target="_blank" rel="noopener" title="Photo d\'illustration du modèle — source et licence"'
+        + ' style="position:absolute;left:8px;bottom:8px;font-size:10.5px;line-height:1.1;color:#fff;background:rgba(11,18,32,.55);padding:3px 7px;border-radius:999px;text-decoration:none">'
+        + 'Illustration · ' + FP.esc(model.lic) + ' · Wikimedia</a>';
+    } else if (/wikimedia\.org|wikipedia\.org/.test(manual)) {
+      credit = '<a href="' + FP.esc(manual) + '" target="_blank" rel="noopener"'
+        + ' style="position:absolute;left:8px;bottom:8px;font-size:10.5px;line-height:1.1;color:#fff;background:rgba(11,18,32,.55);padding:3px 7px;border-radius:999px;text-decoration:none">'
+        + 'Wikimedia Commons · CC</a>';
+    }
+    box.innerHTML = '<div style="position:relative;width:100%;height:100%">'
+      + '<img alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
+      + '<button type="button" id="veh-photo-edit" title="Changer la photo du véhicule" '
+      + 'style="position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#0f1e3d;background:rgba(255,255,255,.92);border:0;border-radius:999px;padding:5px 11px;cursor:pointer;box-shadow:0 2px 8px rgba(11,18,32,.25)">'
+      + '<i data-lucide="camera" class="w-4 h-4"></i> Changer</button>'
+      + credit + '</div>';
+    const img = box.querySelector('img');
+    img.onerror = () => {
+      // La photo ne charge pas : si c'était une photo manuelle ET qu'un modèle existe, on bascule sur le modèle (affichage seul).
+      if (manual && window.FP && FP.vehPhoto && FP.vehPhoto(v)) { const keep = v.photoUrl; v.photoUrl = ''; renderDrawerPhoto(v); v.photoUrl = keep; }
+      else { box.style.display = 'none'; box.innerHTML = ''; }
+    };
+    img.src = url;
+    try { lucide.createIcons(); } catch (e) {}
+    const edit = $('veh-photo-edit'); if (edit) edit.onclick = () => openPhotoModal(v);
+  }
+
+  // Modale « Changer la photo » : chercher sur Wikimedia (libre de droits), coller une URL,
+  // revenir à la photo d'illustration du modèle, ou retirer. Écrit le champ v.photoUrl (persisté).
+  function openPhotoModal(v) {
+    let ov = document.getElementById('veh-photo-ov');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'veh-photo-ov'; ov.className = 'fiche-ov';
+      ov.innerHTML = '<div class="fiche-card" style="max-width:640px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:16px;padding:20px"><div id="veh-photo-ov-body"></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+    }
+    const body = ov.querySelector('#veh-photo-ov-body');
+    const model = (window.FP && FP.vehPhoto) ? FP.vehPhoto(v) : null;
+    const titre = FP.esc(((v.marque || '') + ' ' + (v.modele || '')).trim() || 'ce véhicule');
+    body.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px">'
+      + '<h3 style="font-size:1.15rem;font-weight:800;margin:0">Photo du véhicule</h3>'
+      + '<button type="button" id="vp-close" class="btn btn-outline text-sm" style="padding:.3rem .6rem">Fermer</button></div>'
+      + '<p style="color:#64748b;font-size:.85rem;margin:.2rem 0 1rem">Cherche une photo de <b>' + titre + '</b> (images libres de droits), colle un lien, ou reviens à l\'illustration du modèle.</p>'
+      + '<div style="display:flex;gap:8px;margin-bottom:10px">'
+      + '<input id="vp-q" type="text" value="' + titre + '" placeholder="Marque + modèle" style="flex:1;min-width:0;padding:.5rem .7rem;border:1px solid #e2e8f0;border-radius:9px;font:inherit">'
+      + '<button type="button" id="vp-search" class="btn btn-primary text-sm">Chercher</button></div>'
+      + '<div id="vp-results" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:10px;margin-bottom:12px"></div>'
+      + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+      + '<input id="vp-url" type="url" placeholder="…ou colle l\'URL d\'une image (https://…)" style="flex:1;min-width:0;padding:.5rem .7rem;border:1px solid #e2e8f0;border-radius:9px;font:inherit">'
+      + '<button type="button" id="vp-url-ok" class="btn btn-outline text-sm">Utiliser</button></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #eef1f6;padding-top:12px">'
+      + (model ? '<button type="button" id="vp-model" class="btn btn-outline text-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Illustration du modèle</button>' : '')
+      + ((v.photoUrl || '').trim() ? '<button type="button" id="vp-remove" class="btn text-sm text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="w-4 h-4"></i> Retirer la photo</button>' : '')
+      + '</div>';
+    ov.classList.add('open');
+    try { lucide.createIcons(); } catch (e) {}
+
+    const apply = (url) => {
+      v.photoUrl = (url || '').trim();
+      try { persistVehFields(v, 'photoUrl'); } catch (e) {}
+      renderDrawerPhoto(v);
+      ov.classList.remove('open');
+    };
+    const close = () => ov.classList.remove('open');
+    const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    bind('vp-close', close);
+    bind('vp-url-ok', () => { const u = (document.getElementById('vp-url').value || '').trim(); if (u) apply(u); });
+    bind('vp-model', () => apply(''));        // vide photoUrl → repli sur la photo du modèle
+    bind('vp-remove', () => apply(''));
+    const doSearch = async () => {
+      const q = (document.getElementById('vp-q').value || '').trim();
+      const grid = document.getElementById('vp-results');
+      if (!q) return;
+      grid.innerHTML = '<div style="grid-column:1/-1;color:#64748b;font-size:.85rem">Recherche…</div>';
+      try {
+        const api = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=320&format=json&origin=*&gsrsearch=' + encodeURIComponent(q + ' car');
+        const r = await fetch(api); const d = await r.json();
+        const pages = (d.query && d.query.pages) ? Object.values(d.query.pages) : [];
+        const imgs = pages.map(p => (p.imageinfo || [])[0]).filter(x => x && x.thumburl).slice(0, 12);
+        if (!imgs.length) { grid.innerHTML = '<div style="grid-column:1/-1;color:#64748b;font-size:.85rem">Aucune image trouvée — essaie un autre libellé ou colle une URL.</div>'; return; }
+        grid.innerHTML = '';
+        imgs.forEach(ii => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.style.cssText = 'padding:0;border:2px solid #e2e8f0;border-radius:9px;overflow:hidden;cursor:pointer;aspect-ratio:4/3;background:#f1f5f9';
+          b.innerHTML = '<img loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" src="' + FP.esc(ii.thumburl) + '">';
+          b.onclick = () => apply(ii.thumburl);
+          grid.appendChild(b);
+        });
+      } catch (e) {
+        grid.innerHTML = '<div style="grid-column:1/-1;color:#b91c1c;font-size:.85rem">Recherche indisponible (réseau). Tu peux coller une URL d\'image à la place.</div>';
+      }
+    };
+    bind('vp-search', doSearch);
+    const qi = document.getElementById('vp-q'); if (qi) qi.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+    doSearch();
   }
 
   function openDrawer(id) {
