@@ -94,7 +94,7 @@ jobs:
           age --version; psql --version; aws --version
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.121.0   # version figée : « latest » interroge l'API GitHub et peut échouer (limite de requêtes)
 
       # ── 1) Base de données : méthode officielle Supabase (rôles + structure + données) ──
       - name: Copier la base
