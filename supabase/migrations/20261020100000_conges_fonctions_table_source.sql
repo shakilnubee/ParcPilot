@@ -14,6 +14,8 @@
 --      jamais de doublon ni de mélange entre deux appareils) ;
 --    • fp_conges_renommer(société, ancienne clé, nouvelle clé) : suit le
 --      renommage d'un conducteur (mêmes règles que FP.migrateCondKey).
+--  Les lignes ARCHIVÉES (deleted_at renseigné) ne sont jamais touchées : elles restent
+--  récupérables (voir la recopie 20261020100100).
 --  SECURITY INVOKER : les règles d'accès (RLS) de driver_absences s'appliquent
 --  telles quelles → une société ne peut ni lire, ni effacer, ni créer les congés
 --  d'une autre.
@@ -43,7 +45,7 @@ begin
   -- Un seul remplacement à la fois pour un même conducteur (deux appareils en même temps).
   perform pg_advisory_xact_lock(hashtext('fp_conges:' || p_societe || ':' || p_cond_key));
 
-  delete from public.driver_absences where societe = p_societe and cond_key = p_cond_key;
+  delete from public.driver_absences where societe = p_societe and cond_key = p_cond_key and deleted_at is null;
 
   insert into public.driver_absences (societe, cond_key, debut, fin, motif)
   select p_societe, p_cond_key, (e ->> 'debut')::date, (e ->> 'fin')::date, coalesce(e ->> 'motif', '')
@@ -71,11 +73,11 @@ begin
 
   -- Même règle que FP.migrateCondKey : si la nouvelle clé a déjà des congés, ils sont gardés et ceux
   -- de l'ancienne clé sont abandonnés ; sinon les congés de l'ancienne clé passent sous la nouvelle.
-  if exists (select 1 from public.driver_absences where societe = p_societe and cond_key = p_nouvelle) then
-    delete from public.driver_absences where societe = p_societe and cond_key = p_ancienne;
+  if exists (select 1 from public.driver_absences where societe = p_societe and cond_key = p_nouvelle and deleted_at is null) then
+    delete from public.driver_absences where societe = p_societe and cond_key = p_ancienne and deleted_at is null;
   else
     update public.driver_absences set cond_key = p_nouvelle, updated_at = now()
-     where societe = p_societe and cond_key = p_ancienne;
+     where societe = p_societe and cond_key = p_ancienne and deleted_at is null;
   end if;
   get diagnostics n = row_count;
   return n;

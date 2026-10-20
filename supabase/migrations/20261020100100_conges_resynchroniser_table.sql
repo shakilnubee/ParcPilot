@@ -13,8 +13,10 @@
 --
 --  Étapes :
 --    1) COMPARAISON (lecture seule) : à lancer seule d'abord, pour voir les écarts ;
---    2) RECOPIE (dans une transaction) : pour chaque société ayant des réglages,
---       efface ses lignes de driver_absences puis réinsère les congés des réglages ;
+--    2) RECOPIE (dans une transaction), pour chaque société ayant des réglages :
+--       a) ARCHIVE (deleted_at = maintenant) les congés présents SEULEMENT dans la
+--          table : rien n'est effacé, ils restent récupérables (jamais affichés) ;
+--       b) efface ses autres lignes, puis réinsère les congés des réglages ;
 --    3) CONTRÔLE : même comparaison, doit afficher 0 écart partout.
 --  La ligne « global » (archive gelée) est ignorée.
 -- ============================================================================
@@ -47,9 +49,28 @@ select coalesce(r.societe, t.societe) as societe,
 -- ── 2) RECOPIE (écrit dans la base) ────────────────────────────────────────
 begin;
 
+-- a) Archiver ce qui n'existe que dans la table (ex. congé supprimé dans l'app dont l'effacement
+--    n'avait pas atteint la table… ou congé perdu des réglages : on ne tranche pas, on garde).
+with reglages as (
+  select s.id as societe, k.cond_key,
+         (c ->> 'debut')::date as debut, (c ->> 'fin')::date as fin, coalesce(c ->> 'motif', '') as motif
+    from public.app_settings s
+    cross join lateral jsonb_each(case when jsonb_typeof(s.data::jsonb -> 'condConges') = 'object'
+                                       then s.data::jsonb -> 'condConges' else '{}'::jsonb end) as k(cond_key, liste)
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(k.liste) = 'array' then k.liste else '[]'::jsonb end) c
+   where s.id <> 'global' and nullif(c ->> 'debut', '') is not null and nullif(c ->> 'fin', '') is not null
+)
+update public.driver_absences d set deleted_at = now(), updated_at = now()
+ where d.deleted_at is null
+   and d.societe in (select id from public.app_settings where id <> 'global')
+   and not exists (select 1 from reglages r
+                    where r.societe = d.societe and r.cond_key = d.cond_key and r.debut = d.debut
+                      and r.fin = d.fin and r.motif = coalesce(d.motif, ''));
+
+-- b) Repartir des réglages pour tout le reste.
 delete from public.driver_absences d
  using public.app_settings s
- where d.societe = s.id and s.id <> 'global';
+ where d.societe = s.id and s.id <> 'global' and d.deleted_at is null;
 
 insert into public.driver_absences (societe, cond_key, debut, fin, motif)
 select s.id, k.cond_key, (c ->> 'debut')::date, (c ->> 'fin')::date, coalesce(c ->> 'motif', '')
@@ -63,8 +84,14 @@ commit;
 
 -- ── 3) CONTRÔLE : relancer la requête de l'étape 1 → « seulement_table » et
 --       « seulement_reglages » doivent valoir 0 pour chaque société.
+--       Congés archivés (récupérables) :
+--         select societe, cond_key, debut, fin, motif, deleted_at from public.driver_absences
+--          where deleted_at is not null order by deleted_at desc;
+--       Pour en RÉTABLIR un : passer par l'application (le ressaisir) — la table et les réglages
+--       restent ainsi d'accord.
 
 -- ============================================================================
 --  RETOUR ARRIÈRE : inutile côté données (les réglages, intacts, restent la copie de
---  référence) ; en cas de besoin, relancer l'étape 2 recopie à nouveau les réglages.
+--  référence ; les congés présents seulement dans la table sont archivés, pas effacés).
+--  En cas de besoin, relancer l'étape 2 recopie à nouveau les réglages.
 -- ============================================================================
