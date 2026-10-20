@@ -8452,6 +8452,15 @@ document.addEventListener('DOMContentLoaded', () => {
 FP.restauration = {
   _plain(x) { return !!x && typeof x === 'object' && !Array.isArray(x); },
   _copie(x) { return JSON.parse(JSON.stringify(x)); },
+  // Forme canonique pour COMPARER (jamais pour écrire) : champs triés, valeurs vides/null/false ignorées — la
+  // table ne note pas un indicateur à false ni l'ordre des champs, la copie des réglages si. Sans cela, une
+  // version identique passait pour « modifiée » partout.
+  _canon(x) {
+    if (Array.isArray(x)) return '[' + x.map(v => this._canon(v)).join(',') + ']';
+    if (this._plain(x)) return '{' + Object.keys(x).filter(k => !(x[k] === null || x[k] === undefined || x[k] === false || x[k] === '')).sort().map(k => JSON.stringify(k) + ':' + this._canon(x[k])).join(',') + '}';
+    return JSON.stringify(x === undefined ? null : x);
+  },
+  _egal(a, b) { return this._canon(a) === this._canon(b); },
   // Map { clé → liste } (congés par conducteur, affectations par véhicule). `norm` : nettoyage de la liste.
   parCle(actuel, version, norm) {
     const out = this._plain(actuel) ? Object.assign({}, actuel) : {};
@@ -8461,7 +8470,7 @@ FP.restauration = {
       if (!Array.isArray(v)) return;
       v = norm ? norm(this._copie(v)) : this._copie(v);
       if (!v.length) return;                                     // une liste vide n'efface rien
-      if (JSON.stringify(out[k] || []) === JSON.stringify(v)) return;
+      if (this._egal(out[k] || [], v)) return;
       out[k] = v; changes.push(k);
     });
     return { valeur: out, changes };
@@ -8474,7 +8483,7 @@ FP.restauration = {
       if (!c || typeof c !== 'object') return;
       if (!c.id) { ignores++; return; }
       const i = out.findIndex(x => x && x.id === c.id);
-      if (i >= 0 && JSON.stringify(out[i]) === JSON.stringify(c)) return;
+      if (i >= 0 && this._egal(out[i], c)) return;
       if (i >= 0) out[i] = this._copie(c); else out.push(this._copie(c));
       changes.push(c.id);
     });
