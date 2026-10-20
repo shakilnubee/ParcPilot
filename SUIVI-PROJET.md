@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **20/10/2026** (migration des données : les congés, prêts et testés sur le staging)
+> Dernière mise à jour : **20/10/2026** (migration des données : les congés sont en production)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -117,14 +117,21 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Anciens scripts SQL rangés** : les 18 scripts de la racine sont déplacés dans `supabase/historique/`, et un guide `supabase/LISEZ-MOI.md` explique qu'ils ne doivent **plus être exécutés**. Plusieurs rouvriraient des failles corrigées.
 - **Reste à faire par Shakil**, seul administrateur du dépôt : activer la **protection de la branche `main`**. Les modifications passeront alors obligatoirement par une PR, avec des tests verts.
 
-### 20/10/2026 — Migration des données, étape 1 : les congés 🟡 (prête et testée sur le staging, pas encore en production)
+### 20/10/2026 — Migration des données, étape 1 : les congés ✅ (en production)
 - **Avant** : les congés vivaient dans le gros bloc de réglages. Une seule mauvaise écriture pouvait tous les effacer. Une table dédiée existait déjà, mais n'était qu'une copie « au mieux », qui pouvait différer. C'était le cas sur le staging.
 - **Après** : la table des congés devient **la référence**, avec un congé par ligne, isolée par société. Chaque modification ne touche que les congés **d'un seul conducteur**, en une seule opération côté serveur : jamais de doublon, même si deux appareils écrivent en même temps. Les écritures passent par la file d'attente durable : rien n'est perdu en cas de coupure ou de changement de page, et une erreur est toujours visible.
 - **Aucun changement visible** pour les utilisateurs : les écrans lisent les congés exactement comme avant.
 - **Filet de sécurité** : pendant la transition, les congés restent aussi copiés dans les réglages, ce qui permet un retour arrière immédiat.
 - **Staging d'abord, automatisé** : toute nouvelle migration d'une PR est désormais appliquée automatiquement sur le staging, puis testée.
 - **Tests** : 10 tests automatiques de la logique, et 10 contrôles sur le staging (remplacement, rejeu sans doublon, renommage, refus d'accès entre sociétés et sans connexion). Tous verts.
-- **Reste à faire, avec accord** : mettre en production, en vérifiant d'abord l'écart entre la table et les réglages, puis en recopiant les congés une seule fois ; ensuite, vérifier dans l'application ; plus tard, retirer la copie de transition.
+- **Mis en production le 20/10/2026** :
+  - fonctions installées, puis comparaison : 34 congés dans les réglages et 35 dans la table, avec 3 écarts ;
+  - recopie unique lancée par François. Les **2 congés présents seulement dans la table ont été archivés, pas effacés** : ils dataient de septembre et n'étaient plus affichés dans l'app ;
+  - résultat : 0 écart ;
+  - vérification dans l'application : lecture, ajout, suppression et rechargement conformes.
+- **Reste à faire** :
+  - Shakil confirme si les 2 congés archivés étaient réels ; s'ils l'étaient, il les ressaisit ;
+  - dans quelques semaines, retirer la copie de transition dans les réglages.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -143,7 +150,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #992 | Anti-vidage des réglages (base + code) | ✅ Fusionnée, garde-fou actif en production |
 | #991 | Sauvegardes automatiques | ✅ Fusionnée, active chaque nuit |
 | #1012 | Organisation de GitHub (règles, README, scripts SQL rangés) | ✅ Fusionnée |
-| #1014 | Migration des données, étape 1 : les congés | Testée sur le staging ; en attente d'accord pour la production |
+| #1014 | Migration des données, étape 1 : les congés | ✅ Fusionnée, en production |
 
 ## 7. Prochaines étapes
 
@@ -151,7 +158,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : prête (PR #1014). Ensuite : affectations, contrats, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). Ensuite : affectations, contrats, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
