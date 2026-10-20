@@ -140,7 +140,11 @@ Deno.serve(async (req) => {
 
       // 1) Créer le compte s'il n'existe pas (sinon = ré-invitation : on garde le compte, on met à jour le profil).
       let userId = "";
-      const rndPw = crypto.randomUUID() + "A9!" + crypto.randomUUID();
+      // ⚠️ Mot de passe TEMPORAIRE (l'invité choisira le sien via le lien) : il doit rester ≤ 72 caractères,
+      // limite de Supabase/GoTrue (bcrypt) — sinon createUser échoue avec « Password cannot be longer than 72
+      // characters » et l'invitation ne part jamais. Un seul UUID (122 bits d'entropie) + suffixe = 40 car.,
+      // largement sous la limite et avec maj/min/chiffre/symbole.
+      const rndPw = crypto.randomUUID() + "aA9!";
       const { data: created, error: cErr } = await admin.auth.admin.createUser({ email, password: rndPw, email_confirm: true });
       if (created?.user) {
         userId = created.user.id;
