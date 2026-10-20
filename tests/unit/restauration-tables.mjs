@@ -54,6 +54,15 @@ test('la version n\'est pas modifiée (copie)', () => {
   assert.equal(v.alice[0].motif, 'Congés');
 });
 
+test('même contenu écrit autrement (ordre des champs, indicateur à false) → rien à envoyer', () => {
+  const table = { veh: [{ conducteur: 'X', debut: '2026-01-01', fin: null, kmDebut: 10, kmFin: null }] };
+  const copie = { veh: [{ kmFinManuel: false, kmFin: null, kmDebut: 10, fin: null, debut: '2026-01-01', conducteur: 'X' }] };
+  assert.deepEqual(R.parCle(table, copie).changes, []);
+});
+test('une vraie différence reste détectée (indicateur passé à vrai)', () => {
+  const r = R.parCle({ veh: [{ conducteur: 'X', kmFin: 5 }] }, { veh: [{ conducteur: 'X', kmFin: 5, kmFinManuel: true }] });
+  assert.deepEqual(r.changes, ['veh']);
+});
 console.log('\nContrats LLD (par identifiant)');
 const A = { id: 'a', loyerTTC: 400 }, B = { id: 'b', loyerTTC: 500 };
 test('contrat supprimé depuis la version → il revient', () => {
@@ -67,6 +76,9 @@ test('contrat modifié depuis la version → reprend la valeur de la version', (
 test('contrat créé depuis la version → conservé', () => {
   const r = R.parId([A, { id: 'c' }], [A]);
   assert.deepEqual(r.valeur.map(c => c.id), ['a', 'c']); assert.deepEqual(r.changes, []);
+});
+test('contrat identique mais champs dans un autre ordre (relu de la base) → rien à envoyer', () => {
+  assert.deepEqual(R.parId([{ loyerTTC: 400, id: 'a' }], [A]).changes, []);
 });
 test('contrat sans identifiant dans la version → ignoré et compté', () => {
   const r = R.parId([A], [{ loyerTTC: 1 }]);
