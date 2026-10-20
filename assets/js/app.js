@@ -3028,6 +3028,27 @@ FP.removePrestataire = (id) => { if (!id) return; const s = FP.settings.get(); s
 FP.condNum = (condKey, numKey) => { try { const v = (FP.settings.get()[numKey] || {})[condKey]; if (v) return v; } catch (e) {} return (FP.numCarteConducteur && (numKey === 'condCarteTotal' || numKey === 'condBadgeUlys')) ? (FP.numCarteConducteur(condKey, numKey) || '') : ''; };
 FP.setCondNum = (condKey, numKey, val) => { if (!condKey || !numKey) return; const s = FP.settings.get(); s[numKey] = s[numKey] || {}; val = (val || '').trim(); if (val) s[numKey][condKey] = val; else delete s[numKey][condKey]; FP.settings.save(s); };
 
+// ================= DONNÉES DE TRAVAIL EN TABLES DÉDIÉES — mécanisme commun =========
+// Migration progressive du bloc app_settings vers de vraies tables (1 élément = 1 ligne, RLS par société).
+// Chaque donnée migrée (congés, affectations…) fournit un objet { cle, charger(client, soc), projeter(shared, rows, soc) }
+// enregistré ici : supabase-client lit TOUTES les tables en parallèle des réglages, puis remplace dans les
+// réglages chargés la clé concernée par le contenu de sa table (+ écritures encore en file). Les écrans
+// continuent de lire settings.<clé> sans changement. `_charge` = la table a été lue avec succès dans cette page
+// (les traitements AUTOMATIQUES qui écrivent doivent attendre ce feu vert : jamais d'écriture depuis un cache périmé).
+FP.projections = {
+  liste: [],
+  ajouter(p) { if (p && this.liste.indexOf(p) < 0) this.liste.push(p); },
+  charger(client, soc) {
+    return Promise.all(this.liste.map(p => Promise.resolve().then(() => p.charger(client, soc)).then(rows => ({ p, rows }), () => ({ p, rows: null }))));
+  },
+  projeter(shared, lus, soc) {
+    (Array.isArray(lus) ? lus : []).forEach(({ p, rows }) => {
+      try { shared = p.projeter(shared, rows, soc); if (Array.isArray(rows)) p._charge = true; } catch (e) {}
+    });
+    return shared;
+  },
+};
+
 // ================= CONGÉS / ABSENCES DES CONDUCTEURS (par société) =========
 // But : repérer une conso carte carburant PENDANT un congé (interdit). On enregistre les périodes
 // d'absence PAR CONDUCTEUR (clé = key du conducteur).
@@ -3095,6 +3116,7 @@ FP.congesTable.projeter = (shared, rows, soc) => {
   shared.condConges = FP.congesTable.appliquerFile(FP.congesTable.versMap(rows), q, soc);
   return shared;
 };
+FP.projections.ajouter(FP.congesTable);
 FP.getAllConges = () => { try { const m = FP.settings.get().condConges; return (m && typeof m === 'object') ? m : {}; } catch (e) { return {}; } };
 FP.getConges = (condKey) => { const a = FP.getAllConges()[condKey]; return Array.isArray(a) ? a : []; };
 FP.setConges = (condKey, arr) => {
@@ -8110,12 +8132,91 @@ FP.leasingInfo = (v) => {
 };
 
 // ===== HISTORIQUE D'AFFECTATION véhicule ↔ conducteur =====
-// Journal DATÉ de « qui conduit quel véhicule et depuis quand ». Stocké par société
-// dans app_settings (settings.affectations = { [vehId]: [ {conducteur, debut, fin} ] }) —
-// pas de nouvelle table. La dernière entrée avec fin=null = affectation EN COURS.
+// Journal DATÉ de « qui conduit quel véhicule et depuis quand » : settings.affectations =
+// { [vehId]: [ {conducteur, debut, fin, kmDebut, kmFin, …} ] }. La dernière entrée avec fin=null = EN COURS.
 // Alimenté automatiquement à chaque changement de conducteur d'un véhicule (fiche véhicule).
+// ⚠️ SOURCE DE VÉRITÉ (depuis le 20/10/2026) : la TABLE `vehicle_assignments` (1 période = 1 ligne, ordre
+// conservé, isolée par société). settings.affectations n'en est qu'une PROJECTION (FP.projections) + une copie
+// de transition. TOUTE écriture passe par FP.affectations._sauver → RPC `fp_affectations_remplacer` (remplace
+// atomiquement les périodes d'UN véhicule) via la file durable FP.persist. Ne jamais écrire
+// settings.affectations ailleurs que dans ce module.
+/*<affectations-table>*/
+FP.affectationsTable = {
+  cle: 'affectations',
+  FN_REMPLACER: 'fp_affectations_remplacer',
+  // Ligne de la table → période (même forme que l'ancien settings.affectations[vehId][i]).
+  versPeriode(r) {
+    const a = Object.assign({}, (r && r.extra && typeof r.extra === 'object' && !Array.isArray(r.extra)) ? r.extra : {});
+    a.conducteur = r.conducteur;
+    a.debut = r.debut ? String(r.debut).slice(0, 10) : null;
+    a.fin = r.fin ? String(r.fin).slice(0, 10) : null;
+    a.kmDebut = (r.km_debut == null) ? null : Number(r.km_debut);
+    a.kmFin = (r.km_fin == null) ? null : Number(r.km_fin);
+    if (r.km_debut_manuel) a.kmDebutManuel = true;
+    if (r.km_fin_manuel) a.kmFinManuel = true;
+    if (r.debut_manuel) a.debutManuel = true;
+    return a;
+  },
+  // Lignes → { vehId: [périodes dans l'ordre enregistré] }.
+  versMap(rows) {
+    const g = {};
+    (Array.isArray(rows) ? rows : []).forEach(r => { if (r && r.veh_id != null && r.conducteur) (g[r.veh_id] = g[r.veh_id] || []).push(r); });
+    const m = {};
+    Object.keys(g).forEach(k => {
+      m[k] = g[k].slice().sort((x, y) => ((+x.ordre || 0) - (+y.ordre || 0)) || ((+x.id || 0) - (+y.id || 0))).map(r => this.versPeriode(r));
+    });
+    return m;
+  },
+  // Écritures encore EN FILE (pas encore confirmées) ré-appliquées dans l'ordre, pour la société lue.
+  appliquerFile(map, q, soc) {
+    map = (map && typeof map === 'object') ? map : {};
+    (Array.isArray(q) ? q : []).forEach(it => {
+      if (!it || it.op !== 'rpc' || it.fn !== this.FN_REMPLACER || !it.args || it.args.p_societe !== soc || it.args.p_veh_id == null) return;
+      const liste = Array.isArray(it.args.p_periodes) ? it.args.p_periodes.filter(a => a && a.conducteur) : [];
+      if (liste.length) map[it.args.p_veh_id] = JSON.parse(JSON.stringify(liste)); else delete map[it.args.p_veh_id];
+    });
+    return map;
+  },
+};
+/*</affectations-table>*/
+FP.affectationsTable.charger = async (client, soc) => {
+  const rows = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const r = await client.from('vehicle_assignments')
+      .select('id,veh_id,ordre,conducteur,debut,fin,km_debut,km_fin,km_debut_manuel,km_fin_manuel,debut_manuel,extra')
+      .eq('societe', soc).is('deleted_at', null).order('id').range(from, from + PAGE - 1);
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
+    if (!r.data || r.data.length < PAGE) break;
+  }
+  return rows;
+};
+FP.affectationsTable.projeter = (shared, rows, soc) => {
+  if (!shared || typeof shared !== 'object' || !Array.isArray(rows)) return shared;
+  let q = []; try { q = (FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : []; } catch (e) {}
+  shared.affectations = FP.affectationsTable.appliquerFile(FP.affectationsTable.versMap(rows), q, soc);
+  return shared;
+};
+// Envoie les périodes d'UN véhicule à la table (remplacement atomique), via la file durable.
+FP.affectationsTable.enregistrer = (vehId, liste) => {
+  if (vehId == null || !(FP.persist && FP.persist.rpc)) return;
+  const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
+  const periodes = JSON.parse(JSON.stringify((Array.isArray(liste) ? liste : []).filter(a => a && a.conducteur)));
+  FP.persist.rpc(FP.affectationsTable.FN_REMPLACER, { p_societe: soc, p_veh_id: String(vehId), p_periodes: periodes },
+    { table: 'vehicle_assignments', remplace: 'affect:' + soc + ':' + vehId });
+};
+FP.projections.ajouter(FP.affectationsTable);
 FP.affectations = {
   _norm(n) { return (n == null ? '' : String(n)).trim(); },
+  // Enregistre : réglages (affichage immédiat + copie de transition) PUIS table (source), véhicule par véhicule.
+  _sauver(s, vehIds) {
+    FP.settings.save(s);
+    const map = (s && s.affectations && typeof s.affectations === 'object') ? s.affectations : {};
+    Array.from(new Set((vehIds || []).filter(v => v != null).map(String))).forEach(v => FP.affectationsTable.enregistrer(v, map[v] || []));
+  },
+  // Les traitements AUTOMATIQUES (création/raccord au chargement) n'écrivent que si la table a été lue dans
+  // cette page : sinon ils partiraient d'un cache possiblement périmé et remplaceraient les vraies périodes.
+  _autoOk() { return !!(FP.affectationsTable && FP.affectationsTable._charge); },
   all() { const s = FP.settings.get(); return (s.affectations && typeof s.affectations === 'object') ? s.affectations : {}; },
   forVeh(vehId) { const a = this.all()[vehId]; return Array.isArray(a) ? a.slice() : []; },
   // Affectation EN COURS (fin === null) d'un véhicule, ou null.
@@ -8131,6 +8232,7 @@ FP.affectations = {
     if (!ch || ch === '—') return null;
     const cur = this.courante(veh.id);
     if (cur) return cur;                                   // une affectation est déjà ouverte
+    if (!this._autoOk()) return null;                      // table pas encore lue → on réessaiera au prochain rendu
     // ⚠️ Point de départ = ÉTAT DES LIEUX de remise (km + date signés par le conducteur), sinon 1re mise
     //    en circulation. JAMAIS un relevé km (sinon la date « bougerait » à chaque relevé — bug signalé).
     const rem = this._remise(veh.id, null);
@@ -8240,7 +8342,7 @@ FP.affectations = {
       if (encours) { encours.fin = jour; if (kmN != null && encours.kmFin == null) encours.kmFin = kmN; changed = true; } // on clôt l'affectation précédente
       if (!vide) { list.push({ conducteur: nom, debut: jour, fin: null, kmDebut: kmN }); changed = true; }
     }
-    if (changed) { s.affectations[vehId] = list; FP.settings.save(s); }
+    if (changed) { s.affectations[vehId] = list; this._sauver(s, [vehId]); }
   },
   // --- Édition manuelle (crayon dans la fiche véhicule) ---
   // Modifie les dates début/fin (et km début/fin) d'une entrée (index = position dans le tableau stocké).
@@ -8258,7 +8360,7 @@ FP.affectations = {
     if ('kmDebut' in patch) { list[index].kmDebut = this._km(patch.kmDebut); list[index].kmDebutManuel = (list[index].kmDebut != null); }
     if ('kmFin' in patch) { list[index].kmFin = this._km(patch.kmFin); list[index].kmFinManuel = (list[index].kmFin != null); }
     if ('conducteur' in patch && this._norm(patch.conducteur)) list[index].conducteur = this._norm(patch.conducteur);
-    FP.settings.save(s);
+    this._sauver(s, [vehId]);
   },
   // Supprime une entrée de l'historique (index dans le tableau stocké).
   removeEntry(vehId, index) {
@@ -8267,7 +8369,7 @@ FP.affectations = {
     if (!list || !list[index]) return;
     list.splice(index, 1);
     if (!list.length) delete s.affectations[vehId];
-    FP.settings.save(s);
+    this._sauver(s, [vehId]);
   },
   // Ajoute une période à la main (backfill : conducteur connu à une date connue + km début/fin optionnels).
   addEntry(vehId, conducteur, debut, fin, kmDebut, kmFin, opts) {
@@ -8282,7 +8384,7 @@ FP.affectations = {
     // ne passent PAS ce drapeau → leur date reste raccordable à l'état des lieux de remise.
     list.push({ conducteur: nom, debut: debut || null, fin: fin || null, kmDebut: this._km(kmDebut), kmFin: this._km(kmFin), kmDebutManuel: this._km(kmDebut) != null, kmFinManuel: this._km(kmFin) != null, debutManuel: !!(opts && opts.debutManuel) && !!debut });
     s.affectations[vehId] = list;
-    FP.settings.save(s);
+    this._sauver(s, [vehId]);
   },
   // ⚠️ INITIALISATION (non destructive, IDEMPOTENTE) du point de départ des conducteurs ACTUELS des
   // véhicules NON-LEASING. Le km ET la date de début sont ancrés sur l'ÉTAT DES LIEUX de remise (prise
@@ -8291,10 +8393,11 @@ FP.affectations = {
   // d'un conducteur. On ne remplit QUE les champs VIDES et on n'utilise JAMAIS un relevé km → une fois
   // posée, la date de début ne bouge plus. Les LEASINGS sont exclus (0 km auto, cf. kmPeriode).
   initDebutsNonLeasing(data) {
+    if (!this._autoOk()) return 0;                                 // table pas encore lue → au prochain chargement
     data = data || (typeof window !== 'undefined' ? window.FP_DATA : null) || {};
     const s = FP.settings.get();
     s.affectations = (s.affectations && typeof s.affectations === 'object') ? s.affectations : {};
-    let changed = 0;
+    let changed = 0; const touches = [];
     (data.vehicules || []).forEach(v => {
       if (!v || v.id == null) return;
       if (FP.horsFlotte && FP.horsFlotte(v)) return;
@@ -8305,15 +8408,15 @@ FP.affectations = {
       let cur = [...list].reverse().find(x => !x.fin) || null;
       if (!cur) {
         // Pas d'affectation ouverte : on en crée une (début rempli plus bas depuis la remise / MEC).
-        cur = { conducteur: ch, debut: null, fin: null }; list.push(cur); s.affectations[v.id] = list; changed++;
+        cur = { conducteur: ch, debut: null, fin: null }; list.push(cur); s.affectations[v.id] = list; changed++; touches.push(v.id);
       }
       // Remise (état des lieux d'entrée) de la période en cours = km + date de prise en main signés.
       const rem = this._remise(v.id, cur.debut);
       // On ne REMPLIT QUE le vide (jamais d'écrasement d'une valeur saisie/corrigée). Sources STABLES.
-      if (cur.kmDebut == null && rem.km != null) { cur.kmDebut = this._km(rem.km); changed++; }
-      if (!cur.debut) { const d = rem.date || v.dateMiseEnCirculation || null; if (d) { cur.debut = d; changed++; } }
+      if (cur.kmDebut == null && rem.km != null) { cur.kmDebut = this._km(rem.km); changed++; touches.push(v.id); }
+      if (!cur.debut) { const d = rem.date || v.dateMiseEnCirculation || null; if (d) { cur.debut = d; changed++; touches.push(v.id); } }
     });
-    if (changed) FP.settings.save(s);                              // n'écrit QUE si quelque chose a été posé
+    if (changed) this._sauver(s, touches);                         // n'écrit QUE si quelque chose a été posé
     return changed;
   },
   // ⚠️ RÉ-ANCRAGE UNIQUE (one-shot, sécurisé) des débuts figés PAR ERREUR par l'ancienne logique (km/date
@@ -8323,6 +8426,7 @@ FP.affectations = {
   // véhicules à plusieurs périodes (ambigu → correction manuelle) ; (3) drapeau persistant → ne tourne
   // qu'UNE fois ; (4) ne touche RIEN sans état des lieux. Exécuté après chargement des données (vehicules.html).
   reanchorEdlOnce(data) {
+    if (!this._autoOk()) return 0;                                 // table pas encore lue → au prochain chargement
     const s = FP.settings.get();
     if (s._edlReanchorV1) return 0;                                 // déjà fait
     data = data || (typeof window !== 'undefined' ? window.FP_DATA : null) || {};
@@ -8330,7 +8434,7 @@ FP.affectations = {
     s.affectations = (s.affectations && typeof s.affectations === 'object') ? s.affectations : {};
     // Sauvegarde de sécurité (une seule fois) → tout est restaurable si besoin.
     if (!s._affectBackupPreEdl) { try { s._affectBackupPreEdl = JSON.parse(JSON.stringify(s.affectations)); } catch (e) {} }
-    let changed = 0, touchedVeh = 0, skippedMulti = 0, noEdl = 0;
+    let changed = 0, touchedVeh = 0, skippedMulti = 0, noEdl = 0; const touches = [];
     (data.vehicules || []).forEach(v => {
       if (!v || v.id == null) return;
       if (FP.horsFlotte && FP.horsFlotte(v)) return;
@@ -8348,10 +8452,10 @@ FP.affectations = {
       // la date de début (et donc les km parcourus) à chaque chargement = oscillation visible à l'écran.
       if (rem.km != null && cur.kmDebut == null) { cur.kmDebut = this._km(rem.km); changed++; did = true; }
       if (rem.date && !cur.debut) { cur.debut = rem.date; changed++; did = true; }
-      if (did) touchedVeh++;
+      if (did) { touchedVeh++; touches.push(v.id); }
     });
     s._edlReanchorV1 = true;                                        // drapeau persistant → une seule fois
-    FP.settings.save(s);
+    this._sauver(s, touches);
     try { FP._edlReanchorStats = { touchedVeh, skippedMulti, noEdl, changed }; } catch (e) {}
     return touchedVeh;
   },
@@ -8380,6 +8484,7 @@ FP.affectations = {
   // sur la remise (état des lieux d'entrée) désormais connue. Source UNIQUE utilisée par la fiche véhicule.
   reanchorCurrent(vehId) {
     try {
+      if (!this._autoOk()) return false;                                     // table pas encore lue
       const s = FP.settings.get(); const al = (s.affectations || {})[vehId];
       if (!Array.isArray(al) || al.length !== 1 || al[0].fin) return false;   // 1 seule période ouverte
       const rem = this._remise(vehId, null); let did = false;
@@ -8387,7 +8492,7 @@ FP.affectations = {
       // réécrit JAMAIS un km ou une date déjà posés → plus d'oscillation « 42 000 / 2026 » ↔ « 0 / 2019 ».
       if (rem.km != null && al[0].kmDebut == null) { al[0].kmDebut = this._km(rem.km); did = true; }
       if (rem.date && !al[0].debut) { al[0].debut = rem.date; did = true; }
-      if (did) FP.settings.save(s);
+      if (did) this._sauver(s, [vehId]);
       return did;
     } catch (e) { return false; }
   },
@@ -8428,7 +8533,7 @@ FP.affectations = {
       // ANCIENNE. On ne POUSSE JAMAIS le début vers l'avant — sinon un EDL généré lors d'une COLLECTE de km
       // (daté du jour de la collecte) écrasait la vraie date de remise et faussait la période (bug signalé).
       if (!isSortie && d && !list[idx].debutManuel && (!list[idx].debut || d < list[idx].debut)) { list[idx].debut = d; did = true; }
-      if (did || k != null) FP.settings.save(s);                       // on persiste aussi le marqueur « manuel »
+      if (did || k != null) this._sauver(s, [vehId]);                  // on persiste aussi le marqueur « manuel »
       return did;
     } catch (e) { return false; }
   },
@@ -8437,11 +8542,11 @@ FP.affectations = {
     const from = this._norm(oldName).toLowerCase(); const to = this._norm(newName);
     if (!from || !to) return;
     const s = FP.settings.get(); const map = s.affectations; if (!map || typeof map !== 'object') return;
-    let touched = false;
+    const touches = [];
     Object.keys(map).forEach(vehId => (Array.isArray(map[vehId]) ? map[vehId] : []).forEach(a => {
-      if (this._norm(a.conducteur).toLowerCase() === from) { a.conducteur = to; touched = true; }
+      if (this._norm(a.conducteur).toLowerCase() === from) { a.conducteur = to; touches.push(vehId); }
     }));
-    if (touched) FP.settings.save(s);
+    if (touches.length) this._sauver(s, touches);
   },
 };
 
@@ -11640,7 +11745,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');

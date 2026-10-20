@@ -24,7 +24,7 @@ const KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_KC3TZ1zda-ja
 const TABLES = [
   'vehicules', 'amendes', 'factures', 'conducteurs', 'documents', 'emprunts',
   'total_conso', 'total_conso_tx', 'ulys_conso', 'app_settings', 'app_settings_history',
-  'audit_log', 'profiles', 'controle_findings', 'declarations_conducteur', 'driver_absences',
+  'audit_log', 'profiles', 'controle_findings', 'declarations_conducteur', 'driver_absences', 'vehicle_assignments',
   'edl_signatures', 'km_qr', 'km_requests', 'messages', 'offres_achat', 'prospects',
   'push_log', 'push_subscriptions', 'qr_scans', 'scans',
 ];
