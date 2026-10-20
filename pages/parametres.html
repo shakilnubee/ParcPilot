@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261019k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261019j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261019k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261019j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261019k">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -79,6 +79,17 @@
   .nav-row.drop-below { box-shadow: inset 0 -2px 0 0 var(--fp-accent); }
   .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: .75rem 1.2rem; border-radius: .55rem; font-weight: 600; background: var(--fp-ok); color: white; box-shadow: 0 12px 30px -10px rgba(15,30,61,.3); transform: translateY(150%); transition: transform .25s; z-index: 100; }
   .toast.show { transform: translateY(0); }
+  /* Champs personnalisés */
+  .cf-ent-btn { border: none; background: none; padding: .42rem .85rem; border-radius: 7px; font-weight: 700; font-size: .85rem; color: var(--fp-muted); cursor: pointer; transition: background .12s, color .12s; }
+  .cf-ent-btn.active { background: #fff; color: var(--fp-primary); box-shadow: 0 1px 3px rgba(15,30,61,.14); }
+  body.fp-dark .cf-ent-btn.active { background: #243044; color: #e6edf6; }
+  .cf-item { display: flex; align-items: center; gap: .7rem; padding: .7rem .9rem; border: 1px solid var(--fp-border); border-radius: 10px; margin-bottom: .5rem; background: var(--fp-surface); }
+  .cf-item.cf-archived { opacity: .6; }
+  .cf-item-main { flex: 1; min-width: 0; }
+  .cf-item-label { font-weight: 700; color: var(--fp-primary); font-size: .92rem; }
+  .cf-item-meta { font-size: .74rem; color: var(--fp-muted); margin-top: 1px; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .cf-chip { font-size: .68rem; font-weight: 700; background: #EEF2FF; color: #4338CA; border-radius: 999px; padding: 1px 8px; }
+  body.fp-dark .cf-chip { background: #312E81; color: #C7D2FE; }
 </style>
 <script>
 (function(){
@@ -182,6 +193,7 @@
     <div class="settings-tabs" id="settings-tabs">
       <button class="set-tab active" data-sec="groupes"><i data-lucide="users"></i> Groupes</button>
       <button class="set-tab" data-sec="affichage"><i data-lucide="layout-list"></i> Affichage</button>
+      <button class="set-tab" data-sec="champs"><i data-lucide="sliders-horizontal"></i> Champs perso</button>
       <button class="set-tab" data-sec="societe"><i data-lucide="building-2"></i> Société</button>
       <button class="set-tab" data-sec="emails"><i data-lucide="mail"></i> E-mails</button>
       <button class="set-tab" data-sec="donnees"><i data-lucide="database"></i> Données</button>
@@ -252,6 +264,20 @@
     </div>
 
     <!-- La section « Garages & concessionnaires » a été DÉPLACÉE dans l'onglet Entretiens (plus de doublon ici). -->
+
+    <!-- Section Champs personnalisés (Admin/CEO) : adapter les fiches véhicules & conducteurs, par société -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="champs">
+      <div class="section-title"><i data-lucide="sliders-horizontal" class="w-5 h-5"></i> Champs personnalisés</div>
+      <p class="text-sm text-slate-600 mb-4">Ajoute tes propres champs aux fiches <b>véhicules</b> et <b>conducteurs</b> (ex. « Centre de coûts », « Référence interne »). Ils n'apparaissent que pour ta société et sont éditables directement sur chaque fiche. <b>Supprimer = archiver</b> : les valeurs déjà saisies sont conservées.</p>
+      <div class="flex items-center gap-2 mb-4 flex-wrap">
+        <div style="display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:3px" id="cf-entity-switch">
+          <button type="button" class="cf-ent-btn active" data-ent="vehicule">🚗 Véhicules</button>
+          <button type="button" class="cf-ent-btn" data-ent="conducteur">👤 Conducteurs</button>
+        </div>
+        <button type="button" class="btn btn-dark text-sm" id="cf-add" style="margin-left:auto"><i data-lucide="plus" class="w-4 h-4"></i> Ajouter un champ</button>
+      </div>
+      <div id="cf-list"></div>
+    </div>
 
     <!-- Section E-mails (envoi + modèles + testeur, propre à la société active) -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="emails">
@@ -783,8 +809,8 @@
 <!-- Toast -->
 <div class="toast" id="toast">Enregistré ✓</div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261019j"></script>
-<script src="../assets/js/supabase-client.js?v=20261019j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261019k"></script>
+<script src="../assets/js/supabase-client.js?v=20261019k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -800,10 +826,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261019k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261019j"></script>
+<script src="../assets/js/app.min.js?v=20261019k"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -2123,6 +2149,86 @@
     } catch (e) { st.style.color = '#DC2626'; st.textContent = 'Échec : ' + (e.message || e); }
   });
 
+  // ===== Champs personnalisés (Admin/CEO) : gérer les définitions par société =====
+  function initCustomFields() {
+    const wrap = $('cf-list'); if (!wrap || !(window.FP && FP.customFields)) return;
+    const switchEl = $('cf-entity-switch'), addBtn = $('cf-add');
+    let curEntity = 'vehicule';
+    const esc2 = s => (window.FP && FP.esc) ? FP.esc(s) : String(s == null ? '' : s);
+    const allDefs = () => (FP.settings.get().customFields || []).filter(d => d && typeof d === 'object');
+    const entDefs = () => allDefs().filter(d => d.entity === curEntity).sort((a, b) => (a.order || 0) - (b.order || 0));
+    function render() {
+      if (switchEl) switchEl.querySelectorAll('.cf-ent-btn').forEach(b => b.classList.toggle('active', b.dataset.ent === curEntity));
+      const list = entDefs();
+      if (!list.length) {
+        wrap.innerHTML = '<div class="text-sm text-slate-400" style="padding:.4rem 0">Aucun champ pour les ' + (curEntity === 'vehicule' ? 'véhicules' : 'conducteurs') + ' pour l\'instant. Clique « Ajouter un champ ».</div>';
+        return;
+      }
+      wrap.innerHTML = list.map(d => '<div class="cf-item' + (d.archived ? ' cf-archived' : '') + '" data-id="' + esc2(d.id) + '">'
+        + '<div class="cf-item-main"><div class="cf-item-label">' + esc2(d.label) + (d.required ? ' <i style="color:#ef4444;font-style:normal" title="Obligatoire">*</i>' : '') + '</div>'
+        + '<div class="cf-item-meta"><span class="cf-chip">' + esc2(FP.customFields.typeLabel(d.type)) + '</span>' + (d.required ? '<span>obligatoire</span>' : '') + (d.archived ? '<b style="color:#b45309">archivé</b>' : '') + '</div></div>'
+        + '<button type="button" class="btn btn-outline text-xs" data-cf-edit="' + esc2(d.id) + '">Modifier</button>'
+        + (d.archived
+          ? '<button type="button" class="btn btn-outline text-xs" data-cf-un="' + esc2(d.id) + '">Rétablir</button>'
+          : '<button type="button" class="btn btn-outline text-xs" data-cf-arch="' + esc2(d.id) + '">Archiver</button>')
+        + '</div>').join('');
+    }
+    function openForm(existing) {
+      const d = existing || { label: '', type: 'text', required: false, options: [], defaultValue: '' };
+      const bk = document.createElement('div');
+      bk.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:1.25rem;background:rgba(5,7,13,.6)';
+      bk.innerHTML = '<div class="card p-5" style="width:100%;max-width:460px;max-height:90vh;overflow:auto">'
+        + '<div class="section-title" style="font-size:1rem;margin-bottom:1rem">' + (existing ? 'Modifier le champ' : 'Nouveau champ') + ' · ' + (curEntity === 'vehicule' ? 'véhicules' : 'conducteurs') + '</div>'
+        + '<label class="field-label">Libellé affiché</label><input id="cff-label" class="field-input" value="' + esc2(d.label) + '" placeholder="ex. Centre de coûts">'
+        + '<label class="field-label" style="margin-top:.8rem">Type de champ</label><select id="cff-type" class="field-input">' + FP.customFields.TYPES.map(t => '<option value="' + t.v + '"' + (t.v === d.type ? ' selected' : '') + '>' + t.label + '</option>').join('') + '</select>'
+        + '<div id="cff-opts-wrap" style="margin-top:.8rem;display:none"><label class="field-label">Options de la liste (une par ligne)</label><textarea id="cff-opts" class="field-input" rows="3" placeholder="Option A&#10;Option B">' + esc2((d.options || []).join('\n')) + '</textarea></div>'
+        + '<label class="field-label" style="margin-top:.8rem">Valeur par défaut (facultatif)</label><input id="cff-def" class="field-input" value="' + esc2(d.defaultValue || '') + '">'
+        + '<label style="display:inline-flex;align-items:center;gap:.5rem;margin-top:.9rem;font-size:.9rem;cursor:pointer"><input type="checkbox" id="cff-req"' + (d.required ? ' checked' : '') + '> Champ obligatoire</label>'
+        + '<div class="flex gap-2 justify-end" style="margin-top:1.3rem"><button type="button" class="btn btn-outline text-sm" id="cff-cancel">Annuler</button><button type="button" class="btn btn-dark text-sm" id="cff-save">' + (existing ? 'Enregistrer' : 'Ajouter le champ') + '</button></div>'
+        + '</div>';
+      document.body.appendChild(bk);
+      const close = () => bk.remove();
+      bk.addEventListener('click', e => { if (e.target === bk) close(); });
+      const typeSel = bk.querySelector('#cff-type'), optsWrap = bk.querySelector('#cff-opts-wrap');
+      const syncOpts = () => { optsWrap.style.display = typeSel.value === 'select' ? '' : 'none'; };
+      typeSel.addEventListener('change', syncOpts); syncOpts();
+      bk.querySelector('#cff-cancel').addEventListener('click', close);
+      bk.querySelector('#cff-save').addEventListener('click', () => {
+        const label = bk.querySelector('#cff-label').value.trim();
+        if (!label) { alert('Donne un libellé au champ.'); return; }
+        const type = typeSel.value;
+        const options = type === 'select' ? bk.querySelector('#cff-opts').value.split('\n').map(x => x.trim()).filter(Boolean) : [];
+        const required = bk.querySelector('#cff-req').checked;
+        const defaultValue = bk.querySelector('#cff-def').value.trim();
+        const list = allDefs();
+        if (existing) {
+          const i = list.findIndex(x => x.id === existing.id);
+          if (i !== -1) list[i] = { ...list[i], label, type, options, required, defaultValue }; // la clé technique ne change jamais
+        } else {
+          const maxOrder = Math.max(0, ...entDefs().map(x => x.order || 0));
+          list.push({ id: 'cf' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: FP.customFields.slug(label, list), label, type, entity: curEntity, required, defaultValue, options, order: maxOrder + 1, archived: false });
+        }
+        const s = FP.settings.get(); s.customFields = list; FP.settings.save(s);
+        close(); render(); showToast(existing ? 'Champ modifié.' : 'Champ ajouté.');
+      });
+      setTimeout(() => { try { bk.querySelector('#cff-label').focus(); } catch (e) {} }, 40);
+    }
+    function setArchived(id, val) {
+      const list = allDefs(), i = list.findIndex(x => x.id === id); if (i === -1) return;
+      list[i] = { ...list[i], archived: val };
+      const s = FP.settings.get(); s.customFields = list; FP.settings.save(s);
+      render(); showToast(val ? 'Champ archivé (valeurs conservées).' : 'Champ rétabli.');
+    }
+    if (switchEl) switchEl.addEventListener('click', e => { const b = e.target.closest('.cf-ent-btn'); if (!b) return; curEntity = b.dataset.ent; render(); });
+    if (addBtn) addBtn.addEventListener('click', () => openForm(null));
+    wrap.addEventListener('click', e => {
+      const ed = e.target.closest('[data-cf-edit]'); if (ed) { const d = allDefs().find(x => x.id === ed.getAttribute('data-cf-edit')); if (d) openForm(d); return; }
+      const ar = e.target.closest('[data-cf-arch]'); if (ar) { setArchived(ar.getAttribute('data-cf-arch'), true); return; }
+      const un = e.target.closest('[data-cf-un]'); if (un) { setArchived(un.getAttribute('data-cf-un'), false); return; }
+    });
+    render();
+  }
+
   // Init
   setupSettingsTabs();
   initColorPicker();
@@ -2131,6 +2237,7 @@
   loadSociete();
   renderPreview();
   renderJournal();
+  initCustomFields();
   lucide.createIcons();
   checkOnboard(); // bandeau de bienvenue si on vient de créer une société
 
