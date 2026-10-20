@@ -1086,6 +1086,7 @@
   // Réordonnancement des onglets du menu par glisser-déposer (DOM ; persisté au clic « Enregistrer »)
   (function setupNavDnD() {
     const form = $('nav-labels-form');
+    if (!form) return;   // éditeur d'onglets retiré (onglets codés en dur) → plus de glisser-déposer ici
     let dragRow = null;
     const clearInd = () => form.querySelectorAll('.row-dragging, .drop-above, .drop-below').forEach(el => el.classList.remove('row-dragging', 'drop-above', 'drop-below'));
     form.addEventListener('dragstart', (e) => {
