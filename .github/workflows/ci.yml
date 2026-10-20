@@ -37,6 +37,8 @@ jobs:
       #    modifications d'un autre appareil sont respectées (incident du 17/10/2026 reproduit en test).
       - name: Tests de la fusion des réglages
         run: node tests/unit/fusion-reglages.mjs
+      - name: Tests de la projection des congés
+        run: node tests/unit/conges-table.mjs
 
   # Tests « fumée » Playwright : chaque page clé se charge-t-elle sans erreur JS ? (page blanche = JS cassé)
   # Job séparé car il installe un navigateur (plus lourd) ; reste bloquant pour une PR.

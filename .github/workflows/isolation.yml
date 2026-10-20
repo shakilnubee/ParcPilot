@@ -43,3 +43,9 @@ jobs:
             exit 0
           fi
           node tests/securite/isolation-societes.mjs
+      # Sur une PR, ce test tourne dans « Migrations — essai sur le STAGING », APRÈS l'application des migrations.
+      - name: Congés en table (fonctions serveur)
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -z "$TEST_A_EMAIL" ] || [ -z "$TEST_B_EMAIL" ]; then echo "::warning::Comptes de test non configurés."; exit 0; fi
+          node tests/donnees/conges-table.mjs

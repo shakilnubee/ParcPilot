@@ -1,0 +1,87 @@
+name: Migrations — essai sur le STAGING
+
+# « Staging d'abord » automatisé : à chaque pull request qui AJOUTE un fichier dans
+# supabase/migrations/, ce workflow l'applique sur le projet STAGING (données fictives),
+# puis lance les tests de sécurité et de données contre le staging. Une migration qui
+# échoue ou qui casse l'isolation entre sociétés fait échouer la PR.
+# Lancement manuel possible (Actions → Run workflow) avec un nom de fichier.
+# ⛔ Ne vise JAMAIS la production : seul le secret STAGING_DB_URL est utilisé, et le job
+# s'arrête si l'adresse ne désigne pas le projet staging. Les migrations doivent être
+# idempotentes (elles sont rejouées à chaque mise à jour de la PR).
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'tests/donnees/**'
+      - '.github/workflows/migration-staging.yml'
+  workflow_dispatch:
+    inputs:
+      fichier:
+        description: 'Nom du fichier dans supabase/migrations/ (ex. 20261020100000_conges_fonctions_table_source.sql)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DB_URL: ${{ secrets.STAGING_DB_URL }}
+      STAGING_URL: https://csvjmzwexszsbowibxut.supabase.co
+      STAGING_PUBLISHABLE_KEY: sb_publishable_6mV5Zbs1Bl_crlQgo5gOgg_rh-iT6Dr
+      TEST_A_EMAIL: ${{ secrets.TEST_A_EMAIL }}
+      TEST_A_PASSWORD: ${{ secrets.TEST_A_PASSWORD }}
+      TEST_B_EMAIL: ${{ secrets.TEST_B_EMAIL }}
+      TEST_B_PASSWORD: ${{ secrets.TEST_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Vérifications
+        run: |
+          if [ -z "$DB_URL" ]; then echo "::error::Secret STAGING_DB_URL absent."; exit 1; fi
+          if ! echo "$DB_URL" | grep -q "csvjmzwexszsbowibxut"; then
+            echo "::error::STAGING_DB_URL ne désigne pas le projet staging (csvjmzwexszsbowibxut). Arrêt."; exit 1
+          fi
+          if echo "$DB_URL" | grep -q "tzjuptlzoywjeigmyfuj"; then echo "::error::Adresse de PRODUCTION refusée."; exit 1; fi
+      - name: Migrations à appliquer
+        env:
+          FICHIER: ${{ inputs.fichier }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ -n "$FICHIER" ]; then
+            case "$FICHIER" in */*|*..*) echo "::error::Nom de fichier invalide : $FICHIER"; exit 1;; esac
+            echo "supabase/migrations/$FICHIER" > /tmp/migrations.txt
+          else
+            git diff --name-only --diff-filter=A "origin/$BASE...HEAD" -- 'supabase/migrations/*.sql' | sort > /tmp/migrations.txt
+          fi
+          while read -r f; do test -f "$f" || { echo "::error::Fichier introuvable : $f"; exit 1; }; done < /tmp/migrations.txt
+          echo "Migrations :"; cat /tmp/migrations.txt; [ -s /tmp/migrations.txt ] || echo "(aucune nouvelle migration)"
+      - name: Installer psql
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client > /dev/null
+      - name: Appliquer sur le staging
+        run: |
+          while read -r f; do
+            [ -n "$f" ] || continue
+            echo "::group::$f"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -X -q -f "$f"
+            echo "::endgroup::"
+          done < /tmp/migrations.txt
+      - name: Tests contre le staging
+        run: |
+          if [ -z "$TEST_A_EMAIL" ] || [ -z "$TEST_B_EMAIL" ]; then echo "::warning::Comptes de test non configurés."; exit 0; fi
+          SUPABASE_URL="$STAGING_URL" SUPABASE_PUBLISHABLE_KEY="$STAGING_PUBLISHABLE_KEY" node tests/securite/acces-anonyme.mjs
+          node tests/securite/isolation-societes.mjs
+          for t in tests/donnees/*.mjs; do echo "── $t"; node "$t"; done

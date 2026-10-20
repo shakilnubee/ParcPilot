@@ -9,7 +9,7 @@
 
 | Dossier / fichier | Rôle |
 |---|---|
-| `migrations/` | **Seule voie** pour modifier la base (schéma, règles d'accès, stockage, fonctions, déclencheurs). Un fichier par changement : `AAAAMMJJHHMMSS_description.sql`, idempotent, retour arrière en commentaire. |
+| `migrations/` | **Seule voie** pour modifier la base (schéma, règles d'accès, stockage, fonctions, déclencheurs). Un fichier par changement : `AAAAMMJJHHMMSS_description.sql`, idempotent, retour arrière en commentaire. Ajouté dans une PR, il est **appliqué automatiquement sur le staging puis testé** (`.github/workflows/migration-staging.yml`). |
 | `migrations/JOURNAL.md` | Trace de chaque intervention sur la production (date, accord, sauvegarde, vérification). |
 | `staging/` | Projet de test (données fictives) : copie du schéma de production, jeu de données, mode d'emploi. |
 | `functions/` | Fonctions serveur (Edge Functions), déployées automatiquement à la fusion dans `main`. |
