@@ -1,0 +1,14 @@
+# Parc Pilot — clés PUBLIQUES de chiffrement des sauvegardes (format age : « age1… »).
+#
+# Chaque sauvegarde est chiffrée pour TOUTES les clés listées ici : n'importe laquelle des clés
+# PRIVÉES correspondantes peut la déchiffrer. Une clé publique ne permet PAS de déchiffrer :
+# elle peut être publiée sans risque (le dépôt est public).
+#
+# Les clés PRIVÉES ne sont JAMAIS dans ce dépôt : chacun garde la sienne dans son gestionnaire
+# de mots de passe. Procédure de création : docs/SAUVEGARDES.md (« 1. Créer sa clé »).
+#
+# Une clé par ligne, précédée d'un commentaire indiquant son propriétaire :
+# François (ajoutée le 16/10/2026)
+age1p48a0p97plmmktyjnuwt0yd4868ku6kk3xeal4w28evhwqntr9lqf8282r
+# Shakil (ajoutée le 20/10/2026 — provisoire, sera remplacée par une nouvelle clé)
+age1uuv7acpktjp2v9f7kdpn7lskwrtjtm6r6xme7ywyytqmwae7tq5stez3e3

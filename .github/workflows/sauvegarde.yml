@@ -1,0 +1,207 @@
+name: Sauvegarde (base + fichiers, chiffrée, restauration testée)
+
+# Chaque nuit : copie complète de la base Supabase (rôles, structure, données) ET de tous les
+# fichiers du stockage, puis RESTAURATION D'ESSAI dans une base vide avec comparaison du nombre de
+# lignes de chaque table. Si tout concorde, l'ensemble est chiffré (age) puis conservé comme
+# artefact GitHub : 30 jours, ou 90 jours (maximum GitHub) pour la sauvegarde du 1er du mois.
+# Toute anomalie fait échouer le job → e-mail d'échec de GitHub.
+# Procédure complète (clés, restauration) : docs/SAUVEGARDES.md
+#
+# Secrets requis (Settings → Secrets and variables → Actions), par cible :
+#   production : PROD_DB_URL, PROD_S3_ACCESS_KEY_ID, PROD_S3_SECRET_ACCESS_KEY
+#   staging    : STAGING_DB_URL, STAGING_S3_ACCESS_KEY_ID, STAGING_S3_SECRET_ACCESS_KEY
+# + au moins une clé publique dans sauvegardes/destinataires.txt
+on:
+  schedule:
+    - cron: '15 1 * * *'        # chaque nuit vers 3 h 15 (heure de Paris) — production
+  workflow_dispatch:
+    inputs:
+      cible:
+        description: 'Base à sauvegarder'
+        type: choice
+        options: [production, staging]
+        default: staging
+  # Sur une PR qui modifie la sauvegarde : essai complet sur le STAGING (jamais la production).
+  pull_request:
+    paths:
+      - '.github/workflows/sauvegarde.yml'
+      - 'scripts/sauvegarde/**'
+      - 'sauvegardes/**'
+
+concurrency:
+  group: sauvegarde-${{ inputs.cible || (github.event_name == 'pull_request' && 'staging') || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sauvegarde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CIBLE: ${{ inputs.cible || (github.event_name == 'pull_request' && 'staging') || 'production' }}
+      # Sommes de contrôle « nouvelles » d'AWS CLI désactivées (envoyées seulement si exigées) : certaines
+      # versions du stockage S3 de Supabase refusent alors le téléchargement des fichiers.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      # ⚠️ Les deux jeux d'accès sont passés SÉPARÉMENT et choisis explicitement dans « Paramètres de la
+      # cible » : jamais d'expression « cond && A || B », qui renverrait B (la PRODUCTION) si A était vide.
+      S_STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+      S_STAGING_S3_ID: ${{ secrets.STAGING_S3_ACCESS_KEY_ID }}
+      S_STAGING_S3_SECRET: ${{ secrets.STAGING_S3_SECRET_ACCESS_KEY }}
+      S_PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+      S_PROD_S3_ID: ${{ secrets.PROD_S3_ACCESS_KEY_ID }}
+      S_PROD_S3_SECRET: ${{ secrets.PROD_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Paramètres de la cible
+        run: |
+          if [ "$CIBLE" = "staging" ]; then
+            echo "REF=csvjmzwexszsbowibxut" >> "$GITHUB_ENV"; echo "AWS_DEFAULT_REGION=eu-west-1" >> "$GITHUB_ENV"
+            DB="$S_STAGING_DB_URL"; ID="$S_STAGING_S3_ID"; SEC="$S_STAGING_S3_SECRET"
+          elif [ "$CIBLE" = "production" ]; then
+            echo "REF=tzjuptlzoywjeigmyfuj" >> "$GITHUB_ENV"; echo "AWS_DEFAULT_REGION=eu-central-1" >> "$GITHUB_ENV"
+            DB="$S_PROD_DB_URL"; ID="$S_PROD_S3_ID"; SEC="$S_PROD_S3_SECRET"
+          else
+            echo "::error::Cible inconnue : $CIBLE"; exit 1
+          fi
+          # Garde-fou : l'adresse de la base doit désigner le BON projet (sa référence y figure toujours,
+          # dans l'hôte ou l'utilisateur « postgres.<ref> » du pooler) — jamais la prod à la place du staging.
+          REF_ATTENDUE=$([ "$CIBLE" = "staging" ] && echo csvjmzwexszsbowibxut || echo tzjuptlzoywjeigmyfuj)
+          if [ -n "$DB" ] && ! echo "$DB" | grep -q "$REF_ATTENDUE"; then
+            echo "::error::L'adresse de la base fournie pour « $CIBLE » ne désigne pas le projet attendu ($REF_ATTENDUE). Arrêt."; exit 1
+          fi
+          # Valeurs transmises aux étapes suivantes (masquées dans les journaux).
+          for v in "$DB" "$ID" "$SEC"; do [ -n "$v" ] && echo "::add-mask::$v"; done
+          { echo "DB_URL=$DB"; echo "AWS_ACCESS_KEY_ID=$ID"; echo "AWS_SECRET_ACCESS_KEY=$SEC"; } >> "$GITHUB_ENV"
+          echo "HORODATAGE=$(date -u +%Y-%m-%d_%H%M)" >> "$GITHUB_ENV"
+          # 1er du mois → conservation maximale (90 jours) ; sinon 30 jours.
+          if [ "$(date -u +%d)" = "01" ]; then echo "CONSERVATION=90" >> "$GITHUB_ENV"; else echo "CONSERVATION=30" >> "$GITHUB_ENV"; fi
+
+      - name: Vérifier la configuration
+        run: |
+          manque=""
+          [ -n "$DB_URL" ] || manque="$manque URL de la base,"
+          [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] || manque="$manque clés S3 du stockage,"
+          grep -qE '^age1[0-9a-z]+' sauvegardes/destinataires.txt || manque="$manque clé publique de chiffrement (sauvegardes/destinataires.txt),"
+          if [ -n "$manque" ]; then
+            echo "::error::Configuration incomplète pour la cible « $CIBLE » :$manque — voir docs/SAUVEGARDES.md"
+            exit 1
+          fi
+
+      - name: Installer les outils (CLI Supabase, psql, age)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age postgresql-client > /dev/null
+          age --version; psql --version; aws --version
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0   # version figée : « latest » interroge l'API GitHub et peut échouer (limite de requêtes)
+
+      # ── 1) Base de données : méthode officielle Supabase (rôles + structure + données) ──
+      - name: Copier la base
+        run: |
+          mkdir -p sauvegarde/base
+          supabase db dump --db-url "$DB_URL" -f sauvegarde/base/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f sauvegarde/base/schema.sql
+          supabase db dump --db-url "$DB_URL" -f sauvegarde/base/data.sql --use-copy --data-only \
+            -x 'storage.buckets_vectors' -x 'storage.vectors'
+          # Le dump officiel ignore le schéma storage : ses règles d'accès sont exportées à part.
+          psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/regles-stockage.sql > sauvegarde/base/regles-stockage.sql
+          psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/compter.sql > sauvegarde/base/comptes-source.txt
+          ls -la sauvegarde/base
+          echo "Tables comptées : $(wc -l < sauvegarde/base/comptes-source.txt)"
+
+      # ── 2) Fichiers du stockage (protocole S3 de Supabase) ──
+      - name: Copier les fichiers
+        run: |
+          mkdir -p sauvegarde/fichiers
+          # Un fichier référencé en base mais absent du stockage (supprimé, ou entrée de test sans contenu)
+          # ne doit pas bloquer TOUTE la sauvegarde : il est listé en avertissement. Le contrôle de l'étape
+          # de restauration fait échouer la sauvegarde si plus de 5 % des fichiers manquent.
+          set +e
+          aws s3 sync "s3://scans" "sauvegarde/fichiers/scans" \
+            --endpoint-url "https://$REF.storage.supabase.co/storage/v1/s3" --only-show-errors 2> /tmp/s3-erreurs.txt
+          set -e
+          echxs=$(grep -c "download failed" /tmp/s3-erreurs.txt || true)
+          if [ "$echxs" -gt 0 ]; then
+            echo "::warning::$echxs fichier(s) référencé(s) introuvable(s) dans le stockage (liste dans sauvegarde/fichiers/introuvables.txt)."
+            grep "download failed" /tmp/s3-erreurs.txt | sed -E 's#^download failed: s3://scans/([^ ]+) to .*#\1#' > sauvegarde/fichiers/introuvables.txt
+            # Motifs d'échec regroupés, SANS les noms de fichiers (journaux publics : dépôt public).
+            echo "Motifs d'échec :"; grep "download failed" /tmp/s3-erreurs.txt | grep -oE '(An error occurred|[A-Za-z]+Error)[^:]*(: .{0,80})?' | sort | uniq -c | sort -rn | head -5
+          fi
+          if grep -v "download failed" /tmp/s3-erreurs.txt | grep -qiE "error|denied|forbidden"; then
+            echo "::error::Accès au stockage impossible :"; grep -v "download failed" /tmp/s3-erreurs.txt | head -5; exit 1
+          fi
+          n=$(find sauvegarde/fichiers -type f ! -name introuvables.txt | wc -l)
+          echo "$n" > sauvegarde/fichiers/nombre.txt
+          echo "Fichiers copiés : $n"
+
+      # ── 3) RESTAURATION D'ESSAI dans une base Supabase vide (locale au job) ──
+      - name: Restaurer dans une base vide et comparer
+        run: |
+          mkdir -p /tmp/essai && cd /tmp/essai && supabase init --force > /dev/null
+          supabase db start
+          # Compte administrateur de la base LOCALE de test (supabase_admin) : seul lui peut rejouer certains
+          # réglages de rôles présents dans roles.sql (ex. log_min_messages). Base jetable, propre au job.
+          LOCAL="postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres"
+          cd "$GITHUB_WORKSPACE"
+          psql "$LOCAL" -q --single-transaction -v ON_ERROR_STOP=1 \
+            -f sauvegarde/base/roles.sql \
+            -f sauvegarde/base/schema.sql \
+            -c 'SET session_replication_role = replica' \
+            -f sauvegarde/base/data.sql \
+            -c 'SET session_replication_role = origin' \
+            -f sauvegarde/base/regles-stockage.sql > /tmp/essai/restauration.log 2>&1 \
+            || { echo "::error::La restauration d'essai a échoué"; tail -40 /tmp/essai/restauration.log; exit 1; }
+          n_src=$(grep -c '^create policy' sauvegarde/base/regles-stockage.sql || true)
+          n_rest=$(psql "$LOCAL" -At -c "select count(*) from pg_policies where schemaname = 'storage'")
+          echo "Règles d'accès du stockage : $n_src sauvegardées, $n_rest présentes après restauration."
+          [ "$n_rest" -ge "$n_src" ] || { echo "::error::Règles d'accès du stockage manquantes après restauration."; exit 1; }
+          psql "$LOCAL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/compter.sql > sauvegarde/base/comptes-restauration.txt
+          if diff -u sauvegarde/base/comptes-source.txt sauvegarde/base/comptes-restauration.txt; then
+            echo "✅ Restauration d'essai : les $(wc -l < sauvegarde/base/comptes-source.txt) tables ont exactement le même nombre de lignes."
+          else
+            echo "::error::Les nombres de lignes diffèrent entre la base et la restauration (voir ci-dessus)."
+            exit 1
+          fi
+          nb_objets=$(grep '^storage.objects|' sauvegarde/base/comptes-source.txt | cut -d'|' -f2)
+          nb_fichiers=$(cat sauvegarde/fichiers/nombre.txt)
+          echo "Fichiers référencés en base : ${nb_objets:-?} — fichiers copiés : $nb_fichiers"
+          # Tolérance : la base peut référencer quelques entrées sans contenu (fichier supprimé, entrée de
+          # test). Au-delà de 5 % manquants (minimum toléré : 1), la sauvegarde est jugée incomplète.
+          if [ -n "$nb_objets" ]; then
+            manquants=$(( nb_objets - nb_fichiers )); [ "$manquants" -lt 0 ] && manquants=0
+            tolere=$(( nb_objets * 5 / 100 )); [ "$tolere" -lt 1 ] && tolere=1
+            echo "Fichiers manquants : $manquants (toléré : $tolere)"
+            if [ "$manquants" -gt "$tolere" ]; then
+              echo "::error::Trop de fichiers manquants ($manquants sur $nb_objets, toléré $tolere)."
+              exit 1
+            fi
+          fi
+
+      # ── 4) Chiffrement + conservation ──
+      - name: Chiffrer
+        run: |
+          NOM="parc-pilot-$CIBLE-$HORODATAGE.tar.gz.age"
+          tar czf - sauvegarde | age -R sauvegardes/destinataires.txt -o "$NOM"
+          rm -rf sauvegarde
+          echo "NOM=$NOM" >> "$GITHUB_ENV"
+          ls -la "$NOM"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOM }}
+          path: ${{ env.NOM }}
+          retention-days: ${{ env.CONSERVATION }}
+          compression-level: 0
+          if-no-files-found: error
+      - name: Résumé
+        run: |
+          {
+            echo "### Sauvegarde $CIBLE — $HORODATAGE"
+            echo "- Base : copiée et **restauration d'essai réussie** (mêmes nombres de lignes)."
+            echo "- Fichiers : copiés."
+            echo "- Archive chiffrée : \`$NOM\` — conservée $CONSERVATION jours."
+          } >> "$GITHUB_STEP_SUMMARY"
