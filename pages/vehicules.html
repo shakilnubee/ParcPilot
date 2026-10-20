@@ -630,13 +630,6 @@
         <span id="veh-export-mount"></span>
         <button class="btn btn-outline text-sm" id="btn-releve-veh" title="Relevé PDF / Excel — choisis et réordonne les colonnes (groupe affiché ou sélection)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-compare" title="Comparer deux véhicules côte à côte"><i data-lucide="scale" class="w-4 h-4"></i> Comparer</button>
-        <div style="position:relative;display:inline-block">
-          <button class="btn btn-outline text-sm" id="btn-import-lot" title="Importer en lot des cartes grises ou des cartes mémo (rattachées aux fiches par immatriculation, sans doublon)"><i data-lucide="upload" class="w-4 h-4"></i> Importer en lot <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
-          <div id="import-lot-menu" class="hidden" style="position:absolute;right:0;top:110%;z-index:40;background:#fff;border:1px solid var(--fp-border);border-radius:10px;box-shadow:0 12px 30px -12px rgba(15,30,61,.4);min-width:220px;overflow:hidden">
-            <button type="button" id="il-cg" class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2"><i data-lucide="file-badge" class="w-4 h-4 text-slate-500"></i> Cartes grises</button>
-            <button type="button" id="il-memo" class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2 border-t border-slate-100"><i data-lucide="sticky-note" class="w-4 h-4 text-slate-500"></i> Cartes mémo</button>
-          </div>
-        </div>
         <input type="file" id="f-cg-top" accept="image/*,application/pdf" class="hidden" multiple />
         <button class="btn btn-primary text-sm" id="btn-new" data-quickadd><i data-lucide="plus" class="w-4 h-4"></i> Nouveau véhicule</button>
       </div>
@@ -734,13 +727,20 @@
         <div class="relative ml-auto" id="veh-tools">
           <button id="veh-tools-btn" type="button" class="btn btn-outline text-sm" title="Outils : relevé km, accès conducteurs, cartes grises, fiche PDF, QR"><i data-lucide="wrench" class="w-4 h-4"></i> Outils <i data-lucide="chevron-down" class="w-4 h-4"></i></button>
           <div id="veh-tools-menu" class="hidden absolute right-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-sm">
-            <button id="btn-km-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer par e-mail une demande de relevé kilométrique aux chauffeurs du groupe affiché QUI N'ONT PAS ENCORE RÉPONDU (les véhicules déjà à jour sont ignorés) — le chauffeur répond en un clic"><i data-lucide="mail" class="w-4 h-4 text-slate-400"></i> Demander le km par mail</button>
-            <button id="btn-acces-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer d'un coup l'e-mail d'ACCÈS (espace véhicule · QR : km, documents, signalement, état des lieux) à TOUS les conducteurs du groupe affiché (ou de la sélection) qui ont un e-mail"><i data-lucide="send" class="w-4 h-4 text-slate-400"></i> Envoyer l'accès à tous</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Importer en lot</div>
+            <button id="il-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes grises (rattachées aux fiches par immatriculation, sans doublon) — remplit marque, modèle, VIN, CO₂, puissance, masse, carburant, dates"><i data-lucide="file-badge" class="w-4 h-4 text-slate-400"></i> Cartes grises</button>
+            <button id="il-memo" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes mémo (rattachées à la bonne fiche par immatriculation, sans doublon)"><i data-lucide="sticky-note" class="w-4 h-4 text-slate-400"></i> Cartes mémo</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Lire &amp; compléter</div>
             <button id="btn-completer-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire les cartes grises déjà stockées et remplir automatiquement les champs manquants (carburant, CO₂, puissance, masse, VIN, dates)"><i data-lucide="wand-sparkles" class="w-4 h-4 text-slate-400"></i> Compléter depuis les cartes grises</button>
             <button id="btn-lire-km-edl" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire le kilométrage de TOUS les états des lieux importés (PDF/photo) qui n'ont pas encore de km — en une seule fois, sans ouvrir chaque fiche. Les km déjà connus ne sont pas relus (aucun crédit gaspillé)."><i data-lucide="gauge" class="w-4 h-4 text-slate-400"></i> Lire tous les km des états des lieux</button>
+            <button id="btn-lire-fa" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire toutes les factures d'achat déjà importées et renseigner le PRIX D'ACHAT des véhicules où il manque (montant TTC vérifié HT+TVA=TTC ; aucune valeur saisie n'est écrasée)"><i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i> Lire toutes les factures d'achat</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Prévenir les conducteurs</div>
+            <button id="btn-km-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer par e-mail une demande de relevé kilométrique aux chauffeurs du groupe affiché QUI N'ONT PAS ENCORE RÉPONDU (les véhicules déjà à jour sont ignorés) — le chauffeur répond en un clic"><i data-lucide="mail" class="w-4 h-4 text-slate-400"></i> Demander le km par mail</button>
+            <button id="btn-acces-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer d'un coup l'e-mail d'ACCÈS (espace véhicule · QR : km, documents, signalement, état des lieux) à TOUS les conducteurs du groupe affiché (ou de la sélection) qui ont un e-mail"><i data-lucide="send" class="w-4 h-4 text-slate-400"></i> Envoyer l'accès à tous</button>
+            <button id="btn-msg-veh" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Écrire un message et l'envoyer par e-mail (au nom de ta société) aux conducteurs des véhicules choisis"><i data-lucide="mail-plus" class="w-4 h-4 text-slate-400"></i> Envoyer un message</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Exporter</div>
             <button id="btn-fiche-groupe" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Télécharger la liste des véhicules du groupe affiché (ou Tous) en PDF"><i data-lucide="file-down" class="w-4 h-4 text-slate-400"></i> Télécharger la fiche</button>
             <button id="btn-qr-hub" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Tous les QR à imprimer / partager : QR de la liste des véhicules à vendre, et QR de chaque véhicule (PDF)."><i data-lucide="qr-code" class="w-4 h-4 text-slate-400"></i> QR codes</button>
-            <button id="btn-msg-veh" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Écrire un message et l'envoyer par e-mail (au nom de ta société) aux conducteurs des véhicules choisis"><i data-lucide="mail-plus" class="w-4 h-4 text-slate-400"></i> Envoyer un message</button>
           </div>
         </div>
       </div>
@@ -5283,6 +5283,72 @@
   { const b = $('btn-completer-cg'); if (b) b.addEventListener('click', () => { completerDepuisCG().catch(e => { console.error(e); alert('Erreur pendant la complétion.'); const btn = $('btn-completer-cg'); if (btn) btn.disabled = false; }); }); }
   { const b = $('btn-lire-km-edl'); if (b) b.addEventListener('click', () => { const m = $('veh-tools-menu'); if (m) m.classList.add('hidden'); scanAllEdlKm().catch(e => { console.error(e); if (FP.toast) FP.toast('Erreur pendant la lecture des km.'); }); }); }
 
+  // ===== Outils → « Lire toutes les factures d'achat » : lit en lot les factures d'achat déjà importées
+  //       (document type 'facture-achat' sur la fiche) et renseigne le PRIX D'ACHAT (valeurAchat) des
+  //       véhicules où il manque. Même pipeline que « Compléter depuis les cartes grises » (lecture
+  //       parallèle bornée, écritures séquentielles). On NE remplit QUE si le prix est vide, et on contrôle
+  //       la cohérence HT + TVA ≈ TTC + une fourchette réaliste (jamais un montant parasite). =====
+  async function lireFacturesAchat() {
+    const m = $('veh-tools-menu'); if (m) m.classList.add('hidden');
+    const cibles = []; let dejaOk = 0, sansFac = 0, onDrive = 0;
+    data.vehicules.forEach(v => {
+      const hasPrix = v.valeurAchat != null && v.valeurAchat !== '' && Number(v.valeurAchat) > 0;
+      const fa = getVehDocs(v.id).find(d => d && d.type === 'facture-achat' && d.url);
+      if (!fa) { if (!hasPrix) sansFac++; return; }
+      if (hasPrix) { dejaOk++; return; }
+      if (/drive\.google\.com/.test(fa.url)) { onDrive++; return; }
+      cibles.push({ v, url: fa.url });
+    });
+    if (!cibles.length) {
+      alert("Aucune facture d'achat à lire."
+        + (dejaOk ? `\n• ${dejaOk} véhicule(s) ont déjà un prix d'achat.` : '')
+        + (sansFac ? `\n• ${sansFac} véhicule(s) sans facture d'achat importée → importe-la d'abord (fiche → Documents, type « Facture d'achat »).` : '')
+        + (onDrive ? `\n• ${onDrive} facture(s) sur Google Drive (non lisibles par le site) → à re-déposer dans la fiche.` : ''));
+      return;
+    }
+    if (!(await FP.confirm(`Lire ${cibles.length} facture(s) d'achat et renseigner le PRIX D'ACHAT des véhicules où il manque ?\n\nSeul un prix VIDE est rempli — aucune valeur saisie n'est écrasée. Chaque montant lu est vérifié (HT + TVA ≈ TTC, fourchette réaliste).`))) return;
+    const btn = $('btn-lire-fa'); const lbl = btn ? btn.innerHTML : '';
+    if (btn) btn.disabled = true;
+    let done = 0, fail = 0, douteux = 0, processed = 0;
+    const CONC = 3; const results = new Array(cibles.length); let next = 0;
+    async function reader() {
+      for (;;) {
+        const i = next++; if (i >= cibles.length) return;
+        const v = cibles[i].v;
+        try {
+          const u = (window.FP && FP.signedScanUrl) ? await FP.signedScanUrl(cibles[i].url) : cibles[i].url;
+          const resp = await fetch(u); if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const blob = await resp.blob();
+          const file = new File([blob], 'achat.' + ((blob.type || '').includes('pdf') ? 'pdf' : 'jpg'), { type: blob.type || 'application/octet-stream' });
+          const ai = FP.scanIA ? await FP.scanIA(file, 'facture') : null;
+          results[i] = { v, ai: ai || null };
+        } catch (e) { console.warn('[lireFA lecture]', v.immat, e); results[i] = { v, err: true }; fail++; }
+        processed++; if (btn) btn.textContent = `Lecture ${processed}/${cibles.length}…`;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONC, cibles.length) }, () => reader()));
+    for (const r of results) {
+      if (!r || r.err || !r.ai) continue;
+      const v = r.v, ai = r.ai;
+      // Le prix d'achat = le montant TTC de la facture. On LIT le TTC (jamais le plus grand nombre au hasard).
+      const ttc = Number(ai.montantTTC), ht = Number(ai.montantHT), tva = Number(ai.montantTVA);
+      let coherent = true;
+      if (Number.isFinite(ht) && Number.isFinite(tva) && Number.isFinite(ttc) && Math.abs((ht + tva) - ttc) > 1) coherent = false;
+      const plausible = Number.isFinite(ttc) && ttc >= 1500 && ttc <= 400000; // fourchette réaliste d'un véhicule
+      if (!plausible || !coherent) { douteux++; continue; }
+      if (v.valeurAchat == null || v.valeurAchat === '' || Number(v.valeurAchat) === 0) {
+        v.valeurAchat = Math.round(ttc);
+        try { await persistVehFields(v, ['valeurAchat']); done++; } catch (e) { console.warn('[lireFA écriture]', v.immat, e); }
+      }
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
+    renderTable(); renderKPIs();
+    alert(`✓ ${done} prix d'achat renseigné(s) depuis les factures d'achat.`
+      + (douteux ? `\n⚠️ ${douteux} facture(s) au montant incohérent ou hors fourchette — non appliquées (à vérifier à la main).` : '')
+      + (fail ? `\n${fail} facture(s) illisible(s) ou en erreur.` : ''));
+  }
+  { const b = $('btn-lire-fa'); if (b) b.addEventListener('click', () => { lireFacturesAchat().catch(e => { console.error(e); alert("Erreur pendant la lecture des factures d'achat."); const btn = $('btn-lire-fa'); if (btn) btn.disabled = false; }); }); }
+
   // === Demander le km par mail (LOT) : au groupe affiché (ou à la sélection cochée) ===
   { const b = $('btn-km-mail'); if (b) {
     const peutEnvoyer = (FP.isAdmin && FP.isAdmin()) || (FP.isGestionnaire && FP.isGestionnaire());
@@ -6751,9 +6817,23 @@
   // Menu « Outils » (regroupe km/accès/cartes grises/fiche/QR) — ouverture/fermeture simple, ferme au clic dehors.
   { const _tb = $('veh-tools-btn'), _tm = $('veh-tools-menu');
     if (_tb && _tm) {
-      _tb.addEventListener('click', (e) => { e.stopPropagation(); _tm.classList.toggle('hidden'); });
+      // Positionnement FIXE sous le bouton + hauteur bornée à l'écran (défilement INTERNE) : le menu ne
+      // déborde plus sous l'écran (plus de scroll de page), ne passe plus sous le bouton « + » flottant.
+      const _place = () => {
+        const r = _tb.getBoundingClientRect();
+        _tm.style.position = 'fixed';
+        _tm.style.top = (r.bottom + 6) + 'px';
+        _tm.style.left = 'auto';
+        _tm.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        _tm.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 16) + 'px';
+        _tm.style.overflowY = 'auto';
+        _tm.style.zIndex = '1000';
+      };
+      _tb.addEventListener('click', (e) => { e.stopPropagation(); if (_tm.classList.contains('hidden')) { _tm.classList.remove('hidden'); _place(); } else { _tm.classList.add('hidden'); } });
       _tm.addEventListener('click', () => _tm.classList.add('hidden')); // un clic sur une action referme le menu
       document.addEventListener('click', () => _tm.classList.add('hidden'));
+      window.addEventListener('resize', () => { if (!_tm.classList.contains('hidden')) _place(); });
+      window.addEventListener('scroll', () => { if (!_tm.classList.contains('hidden')) _place(); }, true);
     } }
 
   // ===== Outils → « Envoyer un message » : e-mail LIBRE (écrit le jour même) aux conducteurs des
@@ -7660,13 +7740,11 @@
 
   // Bouton « Importer en lot » de la barre (visible sans ouvrir « Nouveau véhicule »).
   (function importLotMenu() {
-    const btn = $('btn-import-lot'), menu = $('import-lot-menu');
-    if (!btn || !menu) return;
-    const close = () => menu.classList.add('hidden');
-    btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
-    document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== btn) close(); });
-    if ($('il-cg')) $('il-cg').addEventListener('click', () => { close(); $('f-cg-top').click(); });
-    if ($('il-memo')) $('il-memo').addEventListener('click', () => { close(); $('f-memo-file').click(); });
+    // Les entrées « Cartes grises » / « Cartes mémo » vivent désormais dans le menu « Outils »
+    // (section « Importer en lot ») : on garde les mêmes id (il-cg / il-memo) → mêmes handlers.
+    // Le menu Outils se referme tout seul au clic sur une action, pas besoin de le fermer ici.
+    if ($('il-cg') && $('f-cg-top')) $('il-cg').addEventListener('click', () => { $('f-cg-top').click(); });
+    if ($('il-memo') && $('f-memo-file')) $('il-memo').addEventListener('click', () => { $('f-memo-file').click(); });
     // Depuis la barre, on va TOUJOURS dans l'import en lot (même pour 1 seule carte grise).
     if ($('f-cg-top')) $('f-cg-top').addEventListener('change', (e) => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleCarteGriseBatch(files); });
   })();
