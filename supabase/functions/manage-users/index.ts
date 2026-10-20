@@ -132,6 +132,9 @@ Deno.serve(async (req) => {
       const email = String(body.email || "").trim().toLowerCase();
       const acces = String(body.acces || "gestionnaire");
       const societe = isCEO ? (body.societe ? String(body.societe) : null) : mySociete;
+      // resetOnly = « Envoyer un lien de réinitialisation » à un compte EXISTANT : même mécanique (lien
+      // recovery + e-mail Parc Pilot) mais on ne crée rien et on ne change AUCUN rôle/société.
+      const resetOnly = body.resetOnly === true;
       // ⚠️ L'invité clique le lien sur SON appareil : il doit TOUJOURS viser le site en PRODUCTION, jamais
       // le localhost/dev de l'admin qui a lancé l'invitation (sinon « ERR_CONNECTION_REFUSED »). On n'accepte
       // donc un redirectTo fourni par le navigateur que s'il pointe sur le domaine de production ; sinon on
@@ -141,31 +144,39 @@ Deno.serve(async (req) => {
       const _rt = String(body.redirectTo || "").trim();
       const redirectTo = /^https:\/\/(www\.)?parc-pilot\.fr(\/|$)/i.test(_rt) ? _rt : "https://parc-pilot.fr/login.html";
       if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "E-mail valide requis." }, 400);
-      if (acces !== "ceo" && !societe) return json({ error: "Société requise pour un Admin/Gestionnaire." }, 400);
-      const scopeErr = guardScope(acces, societe);
-      if (scopeErr) return json({ error: scopeErr }, 403);
 
-      // 1) Créer le compte s'il n'existe pas (sinon = ré-invitation : on garde le compte, on met à jour le profil).
+      // 1) Résoudre le compte.
       let userId = "";
-      // ⚠️ Mot de passe TEMPORAIRE (l'invité choisira le sien via le lien) : il doit rester ≤ 72 caractères,
-      // limite de Supabase/GoTrue (bcrypt) — sinon createUser échoue avec « Password cannot be longer than 72
-      // characters » et l'invitation ne part jamais. Un seul UUID (122 bits d'entropie) + suffixe = 40 car.,
-      // largement sous la limite et avec maj/min/chiffre/symbole.
-      const rndPw = crypto.randomUUID() + "aA9!";
-      const { data: created, error: cErr } = await admin.auth.admin.createUser({ email, password: rndPw, email_confirm: true });
-      if (created?.user) {
-        userId = created.user.id;
-        const prof = accesToProfile(acces, societe);
-        const { error: pErr } = await admin.from("profiles").upsert({ id: userId, email, ...prof });
-        if (pErr) return json({ error: "Compte créé mais profil non enregistré : " + pErr.message }, 500);
-      } else {
+      if (resetOnly) {
+        // Réinitialisation d'un compte EXISTANT : on ne crée rien et on ne touche à aucun rôle.
         const { data: ex } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
-        if (!ex?.id) return json({ error: cErr?.message || "Compte existant introuvable." }, 400);
+        if (!ex?.id) return json({ error: "Compte introuvable pour cet e-mail." }, 400);
         const scopeErr2 = await canTouchTarget(ex.id);
         if (scopeErr2) return json({ error: scopeErr2 }, 403);
         userId = ex.id;
-        const prof = accesToProfile(acces, societe);
-        await admin.from("profiles").update(prof).eq("id", userId);
+      } else {
+        if (acces !== "ceo" && !societe) return json({ error: "Société requise pour un Admin/Gestionnaire." }, 400);
+        const scopeErr = guardScope(acces, societe);
+        if (scopeErr) return json({ error: scopeErr }, 403);
+        // Créer le compte s'il n'existe pas (sinon = ré-invitation : on garde le compte, on met à jour le profil).
+        // ⚠️ Mot de passe TEMPORAIRE (l'invité choisira le sien via le lien) : ≤ 72 caractères (limite bcrypt de
+        // Supabase/GoTrue). Un seul UUID (122 bits d'entropie) + suffixe = 40 car., avec maj/min/chiffre/symbole.
+        const rndPw = crypto.randomUUID() + "aA9!";
+        const { data: created, error: cErr } = await admin.auth.admin.createUser({ email, password: rndPw, email_confirm: true });
+        if (created?.user) {
+          userId = created.user.id;
+          const prof = accesToProfile(acces, societe);
+          const { error: pErr } = await admin.from("profiles").upsert({ id: userId, email, ...prof });
+          if (pErr) return json({ error: "Compte créé mais profil non enregistré : " + pErr.message }, 500);
+        } else {
+          const { data: ex } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+          if (!ex?.id) return json({ error: cErr?.message || "Compte existant introuvable." }, 400);
+          const scopeErr2 = await canTouchTarget(ex.id);
+          if (scopeErr2) return json({ error: scopeErr2 }, 403);
+          userId = ex.id;
+          const prof = accesToProfile(acces, societe);
+          await admin.from("profiles").update(prof).eq("id", userId);
+        }
       }
 
       // 2) Lien personnel de définition de mot de passe (login.html capte l'événement PASSWORD_RECOVERY).
@@ -198,7 +209,9 @@ Deno.serve(async (req) => {
         if (pr && pr.mailObjetInvitation) inviteObjet = String(pr.mailObjetInvitation);
       } catch (_) { /* repli défaut */ }
       const DEF_INVITE = "Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗";
-      const inviteBody = String((inviteMsg && inviteMsg.trim()) ? inviteMsg : DEF_INVITE)
+      const DEF_RESET = "Bonjour,\n\nUne réinitialisation de ton mot de passe Parc Pilot a été demandée.\n\nChoisis un nouveau mot de passe en un clic (bouton juste en dessous).\n\nTon identifiant : {email}\n\nSi tu n'es pas à l'origine de cette demande, ignore simplement cet e-mail.";
+      // En réinitialisation, on utilise TOUJOURS le message dédié (le modèle d'invitation parle de « bienvenue »).
+      const inviteBody = String((inviteMsg && inviteMsg.trim() && !resetOnly) ? inviteMsg : (resetOnly ? DEF_RESET : DEF_INVITE))
         .replace(/ ?\{email\}/gi, email ? " " + email : "").replace(/\n{3,}/g, "\n\n").trim();
       const inviteBodyHtml = '<div style="white-space:pre-wrap;line-height:1.55">' + esc(inviteBody).replace(/\n/g, "<br>") + "</div>";
       // Design BRANDÉ (même en-tête sombre que le relevé km / les amendes), robuste au mode sombre Gmail
@@ -222,7 +235,7 @@ Deno.serve(async (req) => {
         '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">' +
         '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:22px 24px;border-radius:14px 14px 0 0">' +
         '<div>' + ppLogo + '</div>' +
-        '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">Bienvenue !</div>' +
+        '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + (resetOnly ? 'Nouveau mot de passe' : 'Bienvenue !') + '</div>' +
         '</div>' +
         '<div style="border:1px solid #E7EBF0;border-top:none;padding:22px;color:#0F1E3D">' +
         inviteBodyHtml +
@@ -234,7 +247,7 @@ Deno.serve(async (req) => {
         '</div></div>');
       const text = inviteBody + "\n\nDéfinis ton mot de passe ici :\n" + actionLink + "\n\nParc Pilot · parc-pilot.fr";
       // Objet ÉDITABLE (Paramètres → E-mails → « Objet — invitation »), balise {email} ; repli défaut.
-      const inviteSubject = String((inviteObjet && inviteObjet.trim()) ? inviteObjet : "Ton accès à Parc Pilot · définis ton mot de passe")
+      const inviteSubject = String((inviteObjet && inviteObjet.trim() && !resetOnly) ? inviteObjet : (resetOnly ? "Réinitialise ton mot de passe Parc Pilot" : "Ton accès à Parc Pilot · définis ton mot de passe"))
         .replace(/ ?\{email\}/gi, email ? " " + email : "").replace(/[ \t]{2,}/g, " ").trim();
       try {
         const r = await fetch("https://api.resend.com/emails", {
