@@ -3052,7 +3052,7 @@ FP.projections = {
   },
 };
 
-// ================= ÉLÉMENTS DE RÉGLAGES EN TABLE GÉNÉRIQUE (assurances…) =========
+// ================= ÉLÉMENTS DE RÉGLAGES EN TABLE GÉNÉRIQUE (assurances, tâches…) =========
 // SOURCE (depuis le 21/10/2026) des collections listées dans COLLECTIONS : la TABLE `settings_items` (1 élément =
 // 1 ligne : société, collection, clé ; valeur complète en jsonb ; RLS par société). Les écrans lisent toujours
 // settings.<collection> : c'est une PROJECTION de la table (+ écritures encore en file).
@@ -3065,7 +3065,12 @@ FP.projections = {
 FP.elementsReglages = {
   FN_ENREGISTRER: 'fp_element_enregistrer',
   FN_ARCHIVER: 'fp_element_archiver',
-  COLLECTIONS: { assureurs: 'liste-id', assureurVeh: 'map', assuranceEcheance: 'map', assurancePrimes: 'map', assuranceIgnore: 'ensemble' },
+  COLLECTIONS: {
+    // assurances (20261021110000)
+    assureurs: 'liste-id', assureurVeh: 'map', assuranceEcheance: 'map', assurancePrimes: 'map', assuranceIgnore: 'ensemble',
+    // tâches (20261021120000)
+    taches: 'liste-id', rappelsPerso: 'liste-id', tachesAutoFaites: 'map', rappelsFaits: 'map', automationDone: 'map',
+  },
   _plain(x) { return !!x && typeof x === 'object' && !Array.isArray(x); },
   // Forme canonique (champs triés) : la base renvoie le jsonb avec ses champs réordonnés.
   canon(x) {
@@ -8894,7 +8899,7 @@ FP.restaurerReglages.texte = (b) => {
   if (b && b.affectations) p.push(b.affectations + ' véhicule(s) : affectations');
   if (b && b.contrats) p.push(b.contrats + ' contrat(s) LLD');
   if (b && b.forfaits) p.push(b.forfaits + ' forfait(s) de leasing');
-  if (b && b.assurances) p.push(b.assurances + ' élément(s) d\'assurance');
+  if (b && b.assurances) p.push(b.assurances + ' élément(s) d\'assurance ou de tâche');
   return p.length ? ' — remis aussi en base : ' + p.join(', ') : '';
 };
 FP.affectations = {
@@ -12437,7 +12442,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing', settings_items: 'assurance' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing', settings_items: 'réglage (assurance, tâche…)' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');

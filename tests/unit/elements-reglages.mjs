@@ -48,6 +48,23 @@ test('map : valeur vide (null) ignorée ; liste-id : élément sans identifiant 
   assert.deepEqual(Object.keys(E.elements('liste-id', [{ nom: 'sans id' }, { id: 'a3' }])), ['a3']);
 });
 
+test('collections des tâches déclarées avec la bonne forme', () => {
+  assert.equal(E.COLLECTIONS.taches, 'liste-id'); assert.equal(E.COLLECTIONS.rappelsPerso, 'liste-id');
+  assert.equal(E.COLLECTIONS.tachesAutoFaites, 'map'); assert.equal(E.COLLECTIONS.rappelsFaits, 'map'); assert.equal(E.COLLECTIONS.automationDone, 'map');
+});
+test('rappels cochés (valeurs imbriquées) : aller-retour fidèle, cocher un mois n\'envoie que ce rappel', () => {
+  const RF = { r1: { '2026-09': '2026-09-30', '2026-10': '2026-10-20' }, r2: { '2026-10': '2026-10-02' } };
+  assert.deepEqual(E.depuisLignes('map', viaBase('map', RF)), RF);
+  const v = copie(RF); v.r2['2026-11'] = '2026-11-01';
+  assert.deepEqual(E.ecarts('map', E.empreintes('map', RF), v).map(x => x.cle), ['r2']);
+});
+test('tâche terminée (fait: false → true) → seule cette tâche est envoyée', () => {
+  const T = [{ id: 1, titre: 'A', fait: false }, { id: 2, titre: 'B', fait: false }];
+  const v = copie(T); v[1].fait = true;
+  const e = E.ecarts('liste-id', E.empreintes('liste-id', T), v);
+  assert.deepEqual(e.map(x => [x.op, x.cle]), [['enregistrer', '2']]);
+});
+
 console.log('\nCe qui est envoyé après un enregistrement');
 test('rien de changé → rien envoyé, même si la base a réordonné les champs', () => {
   const ref = E.empreintes('map', E.depuisLignes('map', viaBase('map', PRIMES)));
