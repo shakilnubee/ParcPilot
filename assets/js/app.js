@@ -17470,7 +17470,8 @@ FP.injectDataIO = function (cfg) {
         + '<div style="font-weight:800;color:var(--fp-primary)"><i data-lucide="clipboard-paste" class="w-4 h-4" style="display:inline;vertical-align:-2px"></i> Importer par collage (Excel / Google Sheets)</div>'
         + '<button id="fp-io-close" style="border:none;background:transparent;cursor:pointer;color:#94A3B8;font-size:20px;line-height:1">&times;</button></div>'
         + '<div style="padding:18px;overflow:auto">'
-        + '<p style="font-size:13px;color:#475569;margin-bottom:8px">Dans Excel/Sheets, sélectionne les cellules <b>avec la ligne d\'en-têtes</b>, copie (Ctrl+C) puis colle ici (Ctrl+V). Colonnes reconnues : <b>' + esc(cols.map(c => c.label).join(' · ')) + '</b>. <button id="fp-io-tpl" type="button" style="border:none;background:transparent;color:var(--fp-accent,#F97316);font-weight:700;cursor:pointer;padding:0">Copier la ligne d\'en-têtes</button></p>'
+        + '<p style="font-size:13px;color:#475569;margin-bottom:8px">Dans Excel/Sheets, sélectionne les cellules <b>avec la ligne d\'en-têtes</b>, copie (Ctrl+C) puis colle ici (Ctrl+V). Colonnes reconnues : <b>' + esc(cols.map(c => c.label).join(' · ')) + '</b>.</p>'
+        + '<p style="font-size:12.5px;color:#475569;margin-bottom:10px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 10px">📄 <b>Nouveau client ?</b> <button id="fp-io-dl" type="button" style="border:none;background:transparent;color:var(--fp-accent,#F97316);font-weight:800;cursor:pointer;padding:0">Télécharger un modèle vierge (CSV)</button> à remplir dans Excel : les colonnes sont déjà dans le bon ordre, rien à deviner. Une <b>case vide n\'écrase jamais</b> une valeur, et le reste se complète ensuite (scans, IA). <button id="fp-io-tpl" type="button" style="border:none;background:transparent;color:#64748b;font-weight:700;cursor:pointer;padding:0">ou copier juste la ligne d\'en-têtes</button></p>'
         + '<textarea id="fp-io-text" placeholder="Colle ici tes cellules…" style="width:100%;min-height:120px;border:1px solid #CBD5E1;border-radius:8px;padding:8px 10px;font-family:ui-monospace,monospace;font-size:12px;resize:vertical"></textarea>'
         + '<div style="display:flex;align-items:center;gap:10px;margin:8px 0 12px"><label style="font-size:12px;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i data-lucide="file-up" class="w-4 h-4"></i> …ou charger un fichier CSV <input id="fp-io-file" type="file" accept=".csv,text/csv,text/plain" style="display:none"></label></div>'
         + '<div id="fp-io-preview"></div>'
@@ -17490,6 +17491,24 @@ FP.injectDataIO = function (cfg) {
       ov.querySelector('#fp-io-tpl').onclick = () => {
         try { navigator.clipboard && navigator.clipboard.writeText(headerModel); } catch (e) {}
         if (FP.toast) FP.toast('✓ Ligne d\'en-têtes copiée — colle-la en 1re ligne de ton tableau si besoin');
+      };
+      // Modèle VIERGE téléchargeable (CSV) = la ligne d'en-têtes dans le bon ordre, prête à remplir
+      // dans Excel puis à réimporter ici. Séparateur « ; » + BOM UTF-8 (Excel FR). Donnable à un client.
+      ov.querySelector('#fp-io-dl').onclick = () => {
+        // Modèle vierge = colonnes importables SAUF les champs techniques (ex. « ID », interne) qu'un
+        // nouveau client n'a pas à remplir — ils restent reconnus à l'import (mise à jour), juste absents du modèle.
+        const tplCols = cols.filter(c => !/^(id)$/i.test(c.key));
+        const line = tplCols.map(c => { const s = String(c.label == null ? '' : c.label); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';');
+        const csv = '﻿' + line + '\n';
+        const base = (typeof cfg.baseName === 'function' ? cfg.baseName() : cfg.baseName) || (typeof cfg.filename === 'function' ? cfg.filename() : cfg.filename) || 'import';
+        const name = 'modele-' + String(base).replace(/\.(csv|xlsx|xls)$/i, '').replace(/[^\w-]+/g, '-').toLowerCase() + '.csv';
+        try {
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch (e) {} a.remove(); }, 120);
+          if (FP.toast) FP.toast('✓ Modèle vierge téléchargé — remplis-le dans Excel puis réimporte-le ici.');
+        } catch (e) { if (FP.toast) FP.toast('Téléchargement indisponible sur ce navigateur.'); }
       };
       ov.querySelector('#fp-io-file').addEventListener('change', (e) => {
         const f = (e.target.files || [])[0]; if (!f) return;
