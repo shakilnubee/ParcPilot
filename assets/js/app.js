@@ -3023,20 +3023,87 @@ FP.removePrestataire = (id) => { if (!id) return; const s = FP.settings.get(); s
 FP.condNum = (condKey, numKey) => { try { const v = (FP.settings.get()[numKey] || {})[condKey]; if (v) return v; } catch (e) {} return (FP.numCarteConducteur && (numKey === 'condCarteTotal' || numKey === 'condBadgeUlys')) ? (FP.numCarteConducteur(condKey, numKey) || '') : ''; };
 FP.setCondNum = (condKey, numKey, val) => { if (!condKey || !numKey) return; const s = FP.settings.get(); s[numKey] = s[numKey] || {}; val = (val || '').trim(); if (val) s[numKey][condKey] = val; else delete s[numKey][condKey]; FP.settings.save(s); };
 
-// ================= CONGÉS / ABSENCES DES CONDUCTEURS (par société, synchronisé app_settings) =========
+// ================= CONGÉS / ABSENCES DES CONDUCTEURS (par société) =========
 // But : repérer une conso carte carburant PENDANT un congé (interdit). On enregistre les périodes
-// d'absence PAR CONDUCTEUR (clé = key du conducteur). Stockage partagé (tous les postes) :
-//   settings.condConges = { [condKey]: [ { debut:'AAAA-MM-JJ', fin:'AAAA-MM-JJ', motif:'' } ] }.
+// d'absence PAR CONDUCTEUR (clé = key du conducteur).
+// ⚠️ SOURCE DE VÉRITÉ (depuis le 20/10/2026) : la TABLE `driver_absences` (1 congé = 1 ligne, isolée par
+// société, RLS). L'application LIT toujours `settings.condConges` = { [condKey]: [ {debut, fin, motif} ] },
+// mais c'est désormais une PROJECTION de la table : au chargement et à chaque re-synchro, supabase-client
+// remplace settings.condConges par le contenu de la table (+ écritures encore en file) — cf. FP.congesTable.
+// ÉCRITURE : FP.setConges → RPC `fp_conges_remplacer` (remplace atomiquement les congés d'UN conducteur)
+// via la file DURABLE FP.persist (jamais perdue, erreur visible), + copie de transition dans
+// app_settings.condConges (filet de retour arrière ; à retirer à l'étape suivante de la migration).
+/*<conges-table>*/
+FP.congesTable = {
+  FN_REMPLACER: 'fp_conges_remplacer',
+  FN_RENOMMER: 'fp_conges_renommer',
+  // Normalisation UNIQUE d'une liste de congés (saisie, table, file d'attente) : dates AAAA-MM-JJ, triées.
+  nettoyer(arr) {
+    return (Array.isArray(arr) ? arr : []).filter(c => c && c.debut && c.fin)
+      .map(c => ({ debut: String(c.debut).slice(0, 10), fin: String(c.fin).slice(0, 10), motif: c.motif || '' }))
+      .sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+  },
+  // Lignes de la table → { condKey: [congés] } (même forme que l'ancien settings.condConges).
+  versMap(rows) {
+    const m = {};
+    (Array.isArray(rows) ? rows : []).forEach(r => { if (r && r.cond_key) (m[r.cond_key] = m[r.cond_key] || []).push(r); });
+    Object.keys(m).forEach(k => { m[k] = this.nettoyer(m[k]); if (!m[k].length) delete m[k]; });
+    return m;
+  },
+  // Ré-applique les écritures de congés ENCORE EN FILE (pas encore confirmées par le serveur) sur la
+  // version lue dans la table, dans l'ordre — sinon un congé saisi juste avant un rechargement « disparaît »
+  // (ou un congé supprimé « revient ») jusqu'à l'envoi effectif. Seules les écritures de la société lue comptent.
+  appliquerFile(map, q, soc) {
+    map = (map && typeof map === 'object') ? map : {};
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    (Array.isArray(q) ? q : []).forEach(it => {
+      if (!it || it.op !== 'rpc' || !it.args || it.args.p_societe !== soc) return;
+      if (it.fn === this.FN_REMPLACER && it.args.p_cond_key) {
+        const a = this.nettoyer(it.args.p_conges);
+        if (a.length) map[it.args.p_cond_key] = a; else delete map[it.args.p_cond_key];
+      } else if (it.fn === this.FN_RENOMMER) {
+        const o = it.args.p_ancienne, n = it.args.p_nouvelle;
+        if (o && n && o !== n && has(map, o)) { if (!has(map, n)) map[n] = map[o]; delete map[o]; }
+      }
+    });
+    return map;
+  },
+};
+/*</conges-table>*/
+// Lecture de la table (toutes les pages de 1000 lignes : limite par requête de Supabase). Lève en cas d'erreur
+// → l'appelant garde alors la copie de transition (app_settings.condConges), jamais un affichage vide.
+FP.congesTable.charger = async (client, soc) => {
+  const rows = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const r = await client.from('driver_absences').select('cond_key,debut,fin,motif')
+      .eq('societe', soc).is('deleted_at', null).order('id').range(from, from + PAGE - 1);
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
+    if (!r.data || r.data.length < PAGE) break;
+  }
+  return rows;
+};
+// Projection : remplace shared.condConges par la table (+ file). `rows` null (lecture échouée) → inchangé.
+FP.congesTable.projeter = (shared, rows, soc) => {
+  if (!shared || typeof shared !== 'object' || !Array.isArray(rows)) return shared;
+  let q = []; try { q = (FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : []; } catch (e) {}
+  shared.condConges = FP.congesTable.appliquerFile(FP.congesTable.versMap(rows), q, soc);
+  return shared;
+};
 FP.getAllConges = () => { try { const m = FP.settings.get().condConges; return (m && typeof m === 'object') ? m : {}; } catch (e) { return {}; } };
 FP.getConges = (condKey) => { const a = FP.getAllConges()[condKey]; return Array.isArray(a) ? a : []; };
 FP.setConges = (condKey, arr) => {
   if (!FP.settings || !condKey) return;
   const s = FP.settings.get(); const m = (s.condConges && typeof s.condConges === 'object') ? s.condConges : {};
-  const clean = (Array.isArray(arr) ? arr : []).filter(c => c && c.debut && c.fin).map(c => ({ debut: String(c.debut).slice(0, 10), fin: String(c.fin).slice(0, 10), motif: c.motif || '' }))
-    .sort((a, b) => String(a.debut).localeCompare(String(b.debut)));
+  const clean = FP.congesTable.nettoyer(arr);
   if (clean.length) m[condKey] = clean; else delete m[condKey];
-  s.condConges = m; FP.settings.save(s);            // SOURCE actuelle + miroir/repli (app_settings, synchronisé)
-  try { FP._mirrorCongesToDb(condKey, clean); } catch (e) {}  // + table dédiée driver_absences (best-effort)
+  s.condConges = m; FP.settings.save(s);            // affichage immédiat + copie de transition (app_settings)
+  // SOURCE : table driver_absences, via la file durable (rejouée si la page est quittée / hors-ligne).
+  if (FP.persist && FP.persist.rpc) {
+    const soc = FP._condSocForDb();
+    FP.persist.rpc(FP.congesTable.FN_REMPLACER, { p_societe: soc, p_cond_key: condKey, p_conges: clean },
+      { table: 'driver_absences', remplace: 'conges:' + soc + ':' + condKey });
+  }
 };
 // Jeton SECRET non devinable (pour liens publics : signature EDL, etc.). ⚠️ TOUJOURS un CSPRNG
 // (crypto), JAMAIS Date.now()+Math.random() (prévisible/forgeable → un tiers pourrait tomber sur le
@@ -3048,41 +3115,8 @@ FP.secureToken = (prefix) => {
   if (!r) r = Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   return (prefix || '') + r;
 };
-// ── MIROIR des congés vers la table dédiée `driver_absences` (transition « sortir condConges ») ──────
-// La LECTURE reste sur settings.condConges (aucune régression) ; on maintient EN PLUS la table dédiée,
-// isolée par société (RLS), 1 congé = 1 ligne. Best-effort, non bloquant : si ça échoue, la source
-// (app_settings) garde tout → jamais de perte. Remplacement par clé (supprime les lignes de la clé, réinsère).
+// Société des lignes de congés = la société des réglages (même ligne que app_settings : règle « deux tiroirs »).
 FP._condSocForDb = () => { try { let s = (FP.settings && FP.settings._soc) ? FP.settings._soc() : ((FP.activeSociete && FP.activeSociete()) || 'PXP'); return (s === '__all__') ? 'PXP' : s; } catch (e) { return 'PXP'; } };
-FP._mirrorCongesToDb = (condKey, arr) => {
-  try {
-    if (!(FP.supabase && FP.supabase.from) || !condKey) return;
-    const soc = FP._condSocForDb();
-    FP.supabase.from('driver_absences').delete().eq('societe', soc).eq('cond_key', condKey).then(() => {
-      const rows = (Array.isArray(arr) ? arr : []).filter(c => c && c.debut && c.fin)
-        .map(c => ({ societe: soc, cond_key: condKey, debut: String(c.debut).slice(0, 10), fin: String(c.fin).slice(0, 10), motif: c.motif || '' }));
-      if (rows.length) FP.supabase.from('driver_absences').insert(rows).then(() => {}, () => {});
-    }, () => {});
-  } catch (e) {}
-};
-// Amorçage unique : si la table est VIDE pour cette société mais que des congés existent dans
-// app_settings, on recopie tout dans driver_absences (une fois). N'écrase jamais des lignes existantes.
-FP._seedCongesTableOnce = () => {
-  try {
-    if (!(FP.supabase && FP.supabase.from)) return;
-    const soc = FP._condSocForDb();
-    FP.supabase.from('driver_absences').select('id', { count: 'exact', head: true }).eq('societe', soc)
-      .then((r) => {
-        if (r && !r.error && (r.count || 0) === 0) {
-          const all = FP.getAllConges();
-          const rows = [];
-          Object.keys(all || {}).forEach(k => (Array.isArray(all[k]) ? all[k] : []).forEach(c => {
-            if (c && c.debut && c.fin) rows.push({ societe: soc, cond_key: k, debut: String(c.debut).slice(0, 10), fin: String(c.fin).slice(0, 10), motif: c.motif || '' });
-          }));
-          if (rows.length) FP.supabase.from('driver_absences').insert(rows).then(() => {}, () => {});
-        }
-      }, () => {});
-  } catch (e) {}
-};
 FP.addConge = (condKey, conge) => { if (!conge || !conge.debut || !conge.fin) return; const a = FP.getConges(condKey).slice(); a.push({ debut: conge.debut, fin: conge.fin, motif: conge.motif || '' }); FP.setConges(condKey, a); };
 FP.removeConge = (condKey, idx) => { const a = FP.getConges(condKey).slice(); if (idx >= 0 && idx < a.length) { a.splice(idx, 1); FP.setConges(condKey, a); } };
 // ── Migration / purge de TOUS les réglages keyés par clé conducteur ──────────────────────────
@@ -3114,8 +3148,8 @@ FP.migrateCondKey = function (oldKey, newKey) {
       }
     });
     if (changed) FP.settings.save(s);
-    // Miroir table dédiée : déplacer les congés de l'ancienne clé vers la nouvelle (sinon lignes orphelines).
-    try { const cc = (s.condConges && typeof s.condConges === 'object') ? s.condConges : {}; FP._mirrorCongesToDb(oldKey, []); FP._mirrorCongesToDb(newKey, cc[newKey] || []); } catch (e) {}
+    // Table des congés (source) : déplacer les congés de l'ancienne clé vers la nouvelle (sinon lignes orphelines).
+    try { if (FP.persist && FP.persist.rpc) FP.persist.rpc(FP.congesTable.FN_RENOMMER, { p_societe: FP._condSocForDb(), p_ancienne: oldKey, p_nouvelle: newKey }, { table: 'driver_absences' }); } catch (e) {}
   } catch (e) { console.warn('[migrateCondKey]', e); }
 };
 FP.purgeCondKey = function (key) {
@@ -3127,7 +3161,8 @@ FP.purgeCondKey = function (key) {
       if (m && typeof m === 'object' && Object.prototype.hasOwnProperty.call(m, key)) { delete m[key]; changed = true; }
     });
     if (changed) FP.settings.save(s);
-    try { FP._mirrorCongesToDb(key, []); } catch (e) {}   // miroir : supprime aussi les congés de la table dédiée
+    // Table des congés (source) : supprime aussi les congés de ce conducteur.
+    try { if (FP.persist && FP.persist.rpc) { const soc = FP._condSocForDb(); FP.persist.rpc(FP.congesTable.FN_REMPLACER, { p_societe: soc, p_cond_key: key, p_conges: [] }, { table: 'driver_absences', remplace: 'conges:' + soc + ':' + key }); } } catch (e) {}
   } catch (e) { console.warn('[purgeCondKey]', e); }
 };
 // Le conducteur `condKey` est-il en congé à la date ISO (bornes incluses) ? Renvoie le congé couvrant, ou null.
@@ -11529,10 +11564,10 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
-      const act = it.op === 'delete' ? 'suppression' : (it.op === 'update' ? 'modification' : 'ajout');
+      const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');
       return `• ${act} ${quoi} : ${it.error || 'erreur inconnue'}`;
     }).join('\n');
   },
@@ -11554,6 +11589,18 @@ FP.persist = {
     return FP.db.upsert('app_settings', { id, data: FP._fusion.rejouer(remote, it) });
   },
   async update(table, id, fields) { return this._write({ op: 'update', table, id, fields }, () => FP.db.update(table, id, fields)); },
+  // Appel d'une fonction serveur (RPC) avec la MÊME garantie que les autres écritures (file durable, retente,
+  // erreur visible). `meta.remplace` : clé d'une écriture « remplace tout » (ex. tous les congés d'un conducteur) —
+  // une écriture plus récente de même clé REMPLACE la précédente encore en file (sinon l'ancienne, renvoyée après
+  // coup, écraserait la nouvelle).
+  async rpc(fn, args, meta) {
+    meta = meta || {};
+    if (meta.remplace) {
+      const q = this._loadQ(); const n = q.filter(it => !(it && it.op === 'rpc' && it.remplace === meta.remplace));
+      if (n.length !== q.length) this._saveQ(n);
+    }
+    return this._write({ op: 'rpc', fn, args, table: meta.table || fn, remplace: meta.remplace || null }, () => FP.supabase.rpc(fn, args));
+  },
   // record (optionnel) = copie complète de l'élément supprimé → déposée dans la Corbeille (FP.trash)
   // pour pouvoir le RESTAURER depuis Paramètres. Rétro-compatible : sans record, aucune capture.
   async delete(table, id, record) {
@@ -11576,7 +11623,8 @@ FP.persist = {
       if (force) { it.failed = false; } // on redonne sa chance (ex. colonne ajoutée entre-temps)
       try {
         let r;
-        if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
+        if (it.op === 'rpc') r = await FP.supabase.rpc(it.fn, it.args);
+        else if ((it.op === 'insert' || it.op === 'upsert') && it.table === 'app_settings') r = await this._rejouerReglages(it);
         else if (it.op === 'insert' || it.op === 'upsert') r = await FP.db.upsert(it.table, it.row);
         else if (it.op === 'update') r = await FP.db.update(it.table, it.id, it.fields);
         else if (it.op === 'delete') r = await FP.db.delete(it.table, it.id);

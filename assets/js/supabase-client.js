@@ -452,9 +452,12 @@
     // ⚡ PERF : la requête app_settings (réglages société) ne dépend QUE du profil (déjà résolu
     // ci-dessus), pas des données. On la lance EN PARALLÈLE de loadAll au lieu d'attendre après —
     // économise un aller-retour réseau séquentiel (latence mobile) avant d'appliquer thème/réglages.
-    let _settingsPromise = null;
+    let _settingsPromise = null, _congesPromise = null, _sid = 'PXP';
     try {
-      const _sid = (FP.settings && FP.settings._dbId) ? FP.settings._dbId() : 'PXP';
+      _sid = (FP.settings && FP.settings._dbId) ? FP.settings._dbId() : 'PXP';
+      // Congés : SOURCE = table driver_absences (projetée dans settings.condConges ci-dessous). Lancée en
+      // parallèle ; null si la lecture échoue → on garde la copie de transition d'app_settings.
+      _congesPromise = Promise.resolve().then(() => (FP.congesTable && FP.congesTable.charger) ? FP.congesTable.charger(client, _sid) : null).catch(() => null);
       _settingsPromise = client.from('app_settings').select('data').eq('id', _sid).maybeSingle()
         .then((sres) => {
           // ⚠️⚠️ UNE SEULE LIGNE PAR SOCIÉTÉ (correctif « deux tiroirs », 16/10/2026) : les réglages d'une
@@ -545,6 +548,7 @@
           //   (file durable) AVANT d'écraser le cache — sinon un pull serveur fait « revenir » une alerte
           //   cochée ou « repartir » un réglage saisi (mails, rappels km…).
           shared = _reconcileServerSettings(shared, _prevSettingsRaw, FP.settings && FP.settings._effectiveId);
+          try { if (FP.congesTable) shared = FP.congesTable.projeter(shared, _congesPromise ? await _congesPromise : null, _sid); } catch (_) {}
           const _freshSettingsRaw = JSON.stringify(shared);
           settingsChanged = (_prevSettingsRaw !== _freshSettingsRaw);
           localStorage.setItem(key, _freshSettingsRaw);
@@ -559,9 +563,6 @@
           if (FP.applyNavOrder) FP.applyNavOrder();
           if (FP.applyNavVisibility) FP.applyNavVisibility();
           if (FP.applyCustomTexts) FP.applyCustomTexts();
-          // Amorçage unique de la table dédiée des congés (driver_absences) : recopie les congés
-          // d'app_settings s'ils n'y sont pas encore. Best-effort, différé (ne bloque pas l'affichage).
-          try { if (FP._seedCongesTableOnce) (window.requestIdleCallback ? requestIdleCallback(() => FP._seedCongesTableOnce(), { timeout: 4000 }) : setTimeout(() => FP._seedCongesTableOnce(), 1500)); } catch (_) {}
         }
       } catch (e) { /* table absente ou hors-ligne : on garde les réglages locaux */ }
       // On ne déclenche le re-rendu des pages QUE si les données OU les réglages ont réellement
@@ -645,7 +646,8 @@
       // Toujours la ligne de LA société (plus de repli 'global' : cf. correctif « deux tiroirs » au chargement).
       let sid = 'PXP';
       try { sid = FP.settings._dbId ? FP.settings._dbId() : 'PXP'; } catch (e) {}
-      return FP.supabase.from('app_settings').select('data').eq('id', sid).maybeSingle().then((r) => {
+      const congesP = (FP.congesTable && FP.congesTable.charger) ? FP.congesTable.charger(FP.supabase, sid).catch(() => null) : Promise.resolve(null);
+      return Promise.all([FP.supabase.from('app_settings').select('data').eq('id', sid).maybeSingle(), congesP]).then(([r, congesRows]) => {
         if (r && r.error) throw r.error;
         const shared = r && r.data && r.data.data;
         if (!shared || typeof shared !== 'object') return release(false);   // rien de fiable → on garde l'existant
@@ -656,6 +658,7 @@
         //   le cache SANS préserver ni les accusés « ✓ Vu » (→ alertes qui reviennent) ni les réglages
         //   encore en attente d'envoi (→ mails / rappels km qui « repartent »). On réconcilie AVANT d'écraser.
         shared = _reconcileServerSettings(shared, prev, sid);
+        try { if (FP.congesTable) shared = FP.congesTable.projeter(shared, congesRows, sid); } catch (e) {}   // congés : source = table
         const fresh = JSON.stringify(shared);
         const changed = (prev !== fresh);
         try { localStorage.setItem(key, fresh); } catch (e) {}

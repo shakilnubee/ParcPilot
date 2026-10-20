@@ -13,6 +13,7 @@ on:
     paths:
       - 'supabase/**'
       - 'tests/securite/**'
+      - 'tests/donnees/**'
       - 'assets/js/supabase-client.js'
       - '.github/workflows/isolation.yml'
 
@@ -43,3 +44,7 @@ jobs:
             exit 0
           fi
           node tests/securite/isolation-societes.mjs
+      - name: Congés en table (fonctions serveur)
+        run: |
+          if [ -z "$TEST_A_EMAIL" ] || [ -z "$TEST_B_EMAIL" ]; then echo "::warning::Comptes de test non configurés."; exit 0; fi
+          node tests/donnees/conges-table.mjs
