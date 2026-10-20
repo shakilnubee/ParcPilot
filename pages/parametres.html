@@ -218,10 +218,10 @@
 
     <!-- Section Groupes -->
     <div class="card p-6 mb-6 settings-section" data-sec="groupes">
-      <div class="section-title">
-        <i data-lucide="users" class="w-5 h-5"></i> Groupes de véhicules
+      <div class="set-head">
+        <h2><i data-lucide="users"></i> Groupes de véhicules</h2>
+        <p>Renomme, recolore, réordonne (glisser ⋮⋮) et masque les groupes. Tu peux aussi créer tes propres groupes (ex. « Direction », « Utilitaires ») et supprimer les tiens.</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Renomme, recolore, réordonne (glisser ⋮⋮) et masque les groupes. Tu peux aussi <b>créer tes propres groupes</b> (ex. « Direction », « Utilitaires ») et supprimer ceux que tu as créés. Clique « Enregistrer » pour appliquer.</p>
 
       <div id="groupes-form"></div>
 
@@ -239,41 +239,48 @@
          CODÉS EN DUR — toujours présents, ordre fixe, plus de masquage/renommage. Le filtrage par RÔLE
          (pages réservées au CEO, outils propriétaire « JIS ») reste géré dans app.js. -->
 
-    <!-- Section Couleur de l'interface (onglet Affichage) -->
+    <!-- Section Affichage (couleur, thème, densité) -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="affichage">
-      <div class="section-title">
-        <i data-lucide="palette" class="w-5 h-5"></i> Couleur de l'interface
+      <div class="set-head">
+        <h2><i data-lucide="palette"></i> Affichage</h2>
+        <p>Couleur de l'interface, thème clair / sombre et densité des tableaux.</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Change la couleur de base de la plateforme (menu de gauche, titres, boutons foncés). Les couleurs des groupes de véhicules ne sont pas modifiées.</p>
 
-      <div class="flex items-center gap-3 flex-wrap">
-        <input type="color" id="f-platform-color" class="color-input" />
-        <code id="platform-color-hex" class="bg-slate-100 px-2 py-1 rounded text-xs">—</code>
-        <div class="flex gap-2 ml-auto">
-          <button class="btn btn-outline text-sm" id="btn-reset-color"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Couleur par défaut</button>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="palette"></i> Couleur de l'interface</div>
+        <p class="set-sub-d">Change la couleur de base de la plateforme (menu de gauche, titres, boutons foncés). Les couleurs des groupes de véhicules ne changent pas.</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <input type="color" id="f-platform-color" class="color-input" />
+          <code id="platform-color-hex" class="bg-slate-100 px-2 py-1 rounded text-xs">—</code>
+          <div class="flex gap-2 ml-auto">
+            <button class="btn btn-outline text-sm" id="btn-reset-color"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Couleur par défaut</button>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="field-label">Suggestions</div>
+          <div class="flex flex-wrap gap-2 mt-1" id="color-presets"></div>
+        </div>
+        <p class="set-hint">L'aperçu est appliqué en direct. La couleur est enregistrée dans le cloud et synchronisée sur tous tes PC.</p>
+      </div>
+
+      <div class="set-sub">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="set-sub-h" style="margin-bottom:.2rem"><i data-lucide="moon"></i> Mode sombre</div>
+            <p class="set-sub-d" style="margin-bottom:0">Interface foncée, plus reposante pour les yeux. Mémorisé et partagé sur tous tes PC.</p>
+          </div>
+          <button id="btn-dark-toggle" type="button" class="btn btn-outline text-sm"><i data-lucide="moon" class="w-4 h-4"></i> <span id="dark-label">Activer</span></button>
         </div>
       </div>
 
-      <div class="mt-4">
-        <div class="field-label">Suggestions</div>
-        <div class="flex flex-wrap gap-2 mt-1" id="color-presets"></div>
-      </div>
-      <p class="text-xs text-slate-400 mt-3">L'aperçu est appliqué en direct (menu de gauche). La couleur est enregistrée dans le cloud et synchronisée sur tous tes PC.</p>
-
-      <div class="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="moon" class="w-4 h-4"></i> Mode sombre</div>
-          <p class="text-xs text-slate-500 mt-0.5">Interface foncée, plus reposante pour les yeux. Mémorisé et partagé sur tous tes PC.</p>
+      <div class="set-sub">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="set-sub-h" style="margin-bottom:.2rem"><i data-lucide="rows-3"></i> Affichage compact</div>
+            <p class="set-sub-d" style="margin-bottom:0">Lignes des tableaux plus serrées (plus d'infos à l'écran). Mémorisé sur ce poste.</p>
+          </div>
+          <button id="btn-density-toggle" type="button" class="btn btn-outline text-sm"><i data-lucide="rows-3" class="w-4 h-4"></i> <span id="density-label">Activer</span></button>
         </div>
-        <button id="btn-dark-toggle" type="button" class="btn btn-outline text-sm"><i data-lucide="moon" class="w-4 h-4"></i> <span id="dark-label">Activer</span></button>
-      </div>
-
-      <div class="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div class="font-semibold text-slate-900 flex items-center gap-2"><i data-lucide="rows-3" class="w-4 h-4"></i> Affichage compact</div>
-          <p class="text-xs text-slate-500 mt-0.5">Lignes des tableaux plus serrées (plus d'infos à l'écran). Mémorisé sur ce poste.</p>
-        </div>
-        <button id="btn-density-toggle" type="button" class="btn btn-outline text-sm"><i data-lucide="rows-3" class="w-4 h-4"></i> <span id="density-label">Activer</span></button>
       </div>
     </div>
 
@@ -281,8 +288,10 @@
 
     <!-- Section Champs personnalisés (Admin/CEO) : adapter les fiches véhicules & conducteurs, par société -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="champs">
-      <div class="section-title"><i data-lucide="sliders-horizontal" class="w-5 h-5"></i> Champs personnalisés</div>
-      <p class="text-sm text-slate-600 mb-4">Ajoute tes propres champs aux fiches <b>véhicules</b> et <b>conducteurs</b> (ex. « Centre de coûts », « Référence interne »). Ils n'apparaissent que pour ta société et sont éditables directement sur chaque fiche. <b>Supprimer = archiver</b> : les valeurs déjà saisies sont conservées.</p>
+      <div class="set-head">
+        <h2><i data-lucide="sliders-horizontal"></i> Champs personnalisés</h2>
+        <p>Ajoute tes propres champs aux fiches véhicules et conducteurs (ex. « Centre de coûts »). Propres à ta société, éditables sur chaque fiche. <b>Supprimer = archiver</b> : les valeurs saisies sont conservées.</p>
+      </div>
       <div class="flex items-center gap-2 mb-4 flex-wrap">
         <div style="display:inline-flex;background:#F1F5F9;border-radius:9px;padding:3px;gap:3px" id="cf-entity-switch">
           <button type="button" class="cf-ent-btn active" data-ent="vehicule">🚗 Véhicules</button>
@@ -567,10 +576,10 @@
 
     <!-- Section Journal des modifications -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="journal">
-      <div class="section-title">
-        <i data-lucide="history" class="w-5 h-5"></i> Journal des modifications
+      <div class="set-head">
+        <h2><i data-lucide="history"></i> Journal des modifications</h2>
+        <p>Historique des ajouts, modifications et suppressions enregistrés en base — qui a changé quoi et quand.</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Historique des ajouts, modifications et suppressions enregistrés en base — utile pour vérifier qui a changé quoi et quand (par ex. en cas de modif par erreur).</p>
 
       <div class="flex flex-wrap items-center gap-3 mb-4">
         <div class="relative flex-1 min-w-[200px]">
@@ -603,15 +612,15 @@
 
     <!-- Section Notifications & seuils -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="notifications">
-      <div class="section-title">
-        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i> Quand te prévenir (délais d'alerte)
+      <div class="set-head">
+        <h2><i data-lucide="bell"></i> Notifications &amp; seuils d'alerte</h2>
+        <p>Chaque réglage dit combien de temps à l'avance (ou à partir de quel seuil) la plateforme te prévient dans <b>Alertes</b>. Dans le doute, laisse la valeur par défaut (en gris dans la case).</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Chaque réglage dit <b>combien de temps à l'avance</b> (ou à partir de quel seuil) la plateforme te prévient dans <b>Alertes</b>. Sous chaque case, un exemple explique à quoi elle sert. <b>Dans le doute, laisse la valeur par défaut</b> (indiquée en gris dans la case).</p>
 
       <!-- Notifications push : recevoir les alertes conducteur sur cet appareil (même appli fermée) -->
-      <div class="rounded-xl border border-slate-200 p-4 mb-6" style="background:linear-gradient(135deg,#F8FAFF,#EFF6FF);max-width:640px">
-        <div class="section-title" style="font-size:.95rem;margin-bottom:.5rem"><i data-lucide="bell-ring" class="w-4 h-4"></i> Notifications push (sur cet appareil)</div>
-        <p class="text-sm text-slate-600 mb-3">Reçois une notification sur ce téléphone / cet ordinateur — <strong>même l'appli fermée</strong> — dès qu'un conducteur t'envoie quelque chose via son QR&nbsp;: relevé km, sinistre ou problème, question, état des lieux. <strong>Tu reçois aussi les rappels de tes tâches</strong>&nbsp;: un résumé du jour le matin, et un rappel quelques heures avant chaque rendez-vous (comme un agenda). À activer sur chaque appareil où tu veux être alerté.</p>
+      <div class="set-sub" style="border-color:#BFDBFE;background:linear-gradient(135deg,#F8FAFF,#EFF6FF);max-width:640px">
+        <div class="set-sub-h"><i data-lucide="bell-ring"></i> Notifications push (sur cet appareil)</div>
+        <p class="set-sub-d">Reçois une notification sur ce téléphone / cet ordinateur — <strong>même l'appli fermée</strong> — dès qu'un conducteur t'envoie quelque chose via son QR&nbsp;: relevé km, sinistre, question, état des lieux. <strong>Et les rappels de tes tâches</strong>&nbsp;: un résumé le matin, et un rappel quelques heures avant chaque rendez-vous. À activer sur chaque appareil.</p>
         <div id="push-toggle-mount"><span class="text-sm text-slate-400">…</span></div>
       </div>
 
@@ -722,30 +731,33 @@
         <span id="notif-status" class="text-xs"></span>
       </div>
 
-      <hr class="my-6 border-slate-200" />
-      <div class="section-title" style="font-size:.95rem"><i data-lucide="repeat" class="w-4 h-4"></i> Rappels récurrents</div>
-      <p class="text-sm text-slate-600">Des tâches qui reviennent chaque période (relevé des kilométrages, saisie des congés des collaborateurs…) à <b>cocher chaque mois</b> sur la page Tâches. Ajoute, modifie ou désactive ces rappels ici.</p>
-      <div class="flex items-center gap-3 mt-3 flex-wrap">
-        <a href="taches.html?config=1" class="btn btn-dark text-sm"><i data-lucide="repeat" class="w-4 h-4"></i> Configurer les rappels récurrents</a>
-        <a href="taches.html" class="btn btn-outline text-sm"><i data-lucide="list-todo" class="w-4 h-4"></i> Voir les tâches &amp; rappels</a>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="repeat"></i> Rappels récurrents</div>
+        <p class="set-sub-d">Des tâches qui reviennent chaque période (relevé des kilométrages, congés des collaborateurs…) à <b>cocher chaque mois</b> sur la page Tâches. Ajoute, modifie ou désactive ces rappels ici.</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <a href="taches.html?config=1" class="btn btn-dark text-sm"><i data-lucide="repeat" class="w-4 h-4"></i> Configurer les rappels récurrents</a>
+          <a href="taches.html" class="btn btn-outline text-sm"><i data-lucide="list-todo" class="w-4 h-4"></i> Voir les tâches &amp; rappels</a>
+        </div>
       </div>
 
-      <hr class="my-6 border-slate-200" />
-      <div class="section-title" style="font-size:.95rem"><i data-lucide="mail" class="w-4 h-4"></i> Récapitulatif par e-mail</div>
-      <p class="text-sm text-slate-600">Envoie-toi un récapitulatif des échéances à venir (CT, révisions, amendes à payer) par e-mail.</p>
-      <div class="flex items-center gap-3 mt-3 flex-wrap">
-        <button class="btn btn-dark text-sm" id="btn-notif-recap"><i data-lucide="send" class="w-4 h-4"></i> M'envoyer le récap maintenant</button>
-        <span id="recap-status" class="text-xs"></span>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="mail"></i> Récapitulatif par e-mail</div>
+        <p class="set-sub-d">Envoie-toi un récapitulatif des échéances à venir (CT, révisions, amendes à payer) par e-mail.</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button class="btn btn-dark text-sm" id="btn-notif-recap"><i data-lucide="send" class="w-4 h-4"></i> M'envoyer le récap maintenant</button>
+          <span id="recap-status" class="text-xs"></span>
+        </div>
+        <p class="set-hint">💡 L'envoi <b>automatique</b> (ex. tous les lundis) nécessite une tâche programmée côté serveur — à mettre en place quand tu veux. Pour l'instant, l'envoi est manuel via ce bouton.</p>
       </div>
-      <p class="text-xs text-slate-400 mt-2">💡 L'envoi <b>automatique</b> (ex. tous les lundis) nécessite une tâche programmée côté serveur — je peux la mettre en place quand tu veux. Pour l'instant, l'envoi est manuel via ce bouton.</p>
     </div>
 
     <!-- Section Compte & utilisateurs -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="compte">
-      <div class="section-title">
-        <i data-lucide="user-cog" class="w-5 h-5"></i> Mon compte
+      <div class="set-head">
+        <h2><i data-lucide="user-cog"></i> Compte</h2>
+        <p>Ton profil, ton mot de passe, ta session et — pour les administrateurs — la gestion des utilisateurs.</p>
       </div>
-      <div class="mb-5 p-4 rounded-lg border border-slate-200 flex items-center gap-4 flex-wrap" style="background:#F8FAFC">
+      <div class="set-sub muted flex items-center gap-4 flex-wrap">
         <div id="acct-avatar" style="width:64px;height:64px;flex-shrink:0"></div>
         <div class="flex-1 min-w-[180px]">
           <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Connecté en tant que</div>
@@ -759,25 +771,27 @@
         </div>
       </div>
 
-      <div class="mb-2 font-semibold text-slate-800 text-sm">Changer mon mot de passe</div>
-      <div class="space-y-3" style="max-width:420px">
-        <input class="field-input" id="acct-pw1" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe (min. 8 caractères)" />
-        <input class="field-input" id="acct-pw2" type="password" autocomplete="new-password" placeholder="Confirmer le nouveau mot de passe" />
-        <div class="flex items-center gap-3 flex-wrap">
-          <button class="btn btn-dark text-sm" id="btn-acct-pw"><i data-lucide="key-round" class="w-4 h-4"></i> Mettre à jour le mot de passe</button>
-          <span id="acct-pw-status" class="text-xs"></span>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="key-round"></i> Changer mon mot de passe</div>
+        <div class="space-y-3" style="max-width:420px">
+          <input class="field-input" id="acct-pw1" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe (min. 8 caractères)" />
+          <input class="field-input" id="acct-pw2" type="password" autocomplete="new-password" placeholder="Confirmer le nouveau mot de passe" />
+          <div class="flex items-center gap-3 flex-wrap">
+            <button class="btn btn-dark text-sm" id="btn-acct-pw"><i data-lucide="key-round" class="w-4 h-4"></i> Mettre à jour le mot de passe</button>
+            <span id="acct-pw-status" class="text-xs"></span>
+          </div>
         </div>
       </div>
 
-      <hr class="my-6 border-slate-200" />
-      <div class="mb-2 font-semibold text-slate-800 text-sm">Session</div>
-      <button class="btn btn-outline text-sm" id="btn-acct-logout"><i data-lucide="log-out" class="w-4 h-4"></i> Se déconnecter</button>
+      <div class="set-sub">
+        <div class="set-sub-h"><i data-lucide="log-out"></i> Session</div>
+        <button class="btn btn-outline text-sm" id="btn-acct-logout"><i data-lucide="log-out" class="w-4 h-4"></i> Se déconnecter</button>
+      </div>
 
-      <hr class="my-6 border-slate-200" />
       <!-- Gestion des comptes (CEO / Admin uniquement) -->
-      <div id="users-admin" style="display:none">
-        <div class="section-title" style="font-size:.95rem"><i data-lucide="users-round" class="w-4 h-4"></i> Utilisateurs & accès</div>
-        <p class="text-sm text-slate-600 mb-1">Crée et gère les accès à la plateforme. Tout est appliqué automatiquement (aucune manipulation Supabase).</p>
+      <div id="users-admin" class="set-sub" style="display:none">
+        <div class="set-sub-h"><i data-lucide="users-round"></i> Utilisateurs &amp; accès</div>
+        <p class="set-sub-d" style="margin-bottom:.4rem">Crée et gère les accès à la plateforme. Tout est appliqué automatiquement (aucune manipulation Supabase).</p>
         <ul class="text-xs text-slate-500 mb-4" style="line-height:1.75;list-style:disc;padding-left:1.1rem">
           <li><b>Admin</b> — sa société : tous les droits + configuration + gestion des comptes.</li>
           <li><b>Gestionnaire</b> — sa société : ajoute / modifie / supprime les données, mais pas la configuration ni les comptes.</li>
@@ -807,16 +821,18 @@
           </div>
         </div>
       </div>
-      <div id="users-admin-denied" style="display:none">
-        <div class="section-title" style="font-size:.95rem"><i data-lucide="users-round" class="w-4 h-4"></i> Utilisateurs & accès</div>
-        <p class="text-sm text-slate-500">La gestion des comptes est réservée au CEO et aux administrateurs de la société.</p>
+      <div id="users-admin-denied" class="set-sub" style="display:none">
+        <div class="set-sub-h"><i data-lucide="users-round"></i> Utilisateurs &amp; accès</div>
+        <p class="set-sub-d" style="margin-bottom:0">La gestion des comptes est réservée au CEO et aux administrateurs de la société.</p>
       </div>
     </div>
 
     <!-- Présentation & marketing (accès rapide) — onglet Compte -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="compte" id="marketing-card">
-      <div class="section-title"><i data-lucide="sparkles" class="w-5 h-5"></i> Présentation &amp; marketing</div>
-      <p class="text-sm text-slate-600 mb-4">Tes supports pour présenter Parc Pilot (s'ouvrent dans un nouvel onglet).</p>
+      <div class="set-head" style="margin-bottom:.9rem">
+        <h2><i data-lucide="sparkles"></i> Présentation &amp; marketing</h2>
+        <p>Tes supports pour présenter Parc Pilot (s'ouvrent dans un nouvel onglet).</p>
+      </div>
       <div class="flex flex-wrap gap-2">
         <a href="../brochure.html" target="_blank" rel="noopener" class="btn btn-outline text-sm"><i data-lucide="book-open" class="w-4 h-4"></i> Brochure</a>
         <a href="../prix.html" target="_blank" rel="noopener" class="btn btn-outline text-sm"><i data-lucide="badge-euro" class="w-4 h-4"></i> Tarifs</a>
@@ -828,10 +844,10 @@
 
     <!-- Section Aperçu (rattachée à l'onglet Groupes) -->
     <div class="card p-6 settings-section" data-sec="groupes">
-      <div class="section-title">
-        <i data-lucide="eye" class="w-5 h-5"></i> Aperçu en direct
+      <div class="set-head" style="margin-bottom:.9rem">
+        <h2><i data-lucide="eye"></i> Aperçu en direct</h2>
+        <p>Les modifications des groupes sont appliquées instantanément dans cet aperçu.</p>
       </div>
-      <p class="text-sm text-slate-600 mb-4">Les modifications sont appliquées instantanément dans cet aperçu.</p>
       <div class="flex flex-wrap gap-2" id="preview-pills"></div>
     </div>
 
