@@ -1339,7 +1339,7 @@
     if (!realChanges.length) { alert("Rien à restaurer : les anciens enregistrements ne contiennent pas d'infos qui vous manquent aujourd'hui."); return; }
     const apercu = realChanges.slice(0, 12).map(c => '• ' + c).join('\n') + (realChanges.length > 12 ? '\n… et ' + (realChanges.length - 12) + ' autre(s)' : '');
     if (!await FP.confirm('🛟 ' + realChanges.length + " réglage(s) retrouvé(s) à restaurer :\n\n" + apercu + "\n\n⚠️ On ne remplace RIEN de ce qui est déjà rempli — on ne fait que combler les trous.\n\nRestaurer ?")) return;
-    FP.settings.save(restored);
+    FP.restaurerReglages(restored);
     await _flushSettingsSafe();
     alert('✓ ' + realChanges.length + ' réglage(s) restauré(s). La page va se recharger.');
     location.reload();
@@ -1616,9 +1616,9 @@
       const sum = (FP.backups.summary) ? FP.backups.summary(data) : 'réglages';
       if (!await FP.confirm('Restaurer cette version depuis le serveur ?\n\n(' + sum + ')\n\n✅ Sûr : la restauration COMPLÈTE tes réglages, elle ne supprime rien de plus récent. La page se rechargera.')) return;
       try { FP.history.commit(); } catch (er) {}
-      FP.settings.save(data);
-      showToast('Version restaurée ✓');
-      setTimeout(() => location.reload(), 700);
+      const bilan = FP.restaurerReglages(data);
+      showToast('Version restaurée ✓' + FP.restaurerReglages.texte(bilan));
+      setTimeout(() => location.reload(), 1500);
       return;
     }
   });
@@ -1640,9 +1640,9 @@
       const sum = (FP.backups.summary) ? FP.backups.summary(data) : 'réglages';
       if (!await FP.confirm('Restaurer la version du ' + _bakFmtDate(ts) + ' ?\n\n(' + sum + ')\n\n✅ Sûr : la restauration COMPLÈTE tes réglages, elle ne supprime rien de plus récent. La page se rechargera.')) return;
       try { FP.history.commit(); } catch (er) {}
-      FP.settings.save(data);
-      showToast('Version restaurée ✓');
-      setTimeout(() => location.reload(), 700);
+      const bilan = FP.restaurerReglages(data);
+      showToast('Version restaurée ✓' + FP.restaurerReglages.texte(bilan));
+      setTimeout(() => location.reload(), 1500);
       return;
     }
   });
@@ -1657,11 +1657,11 @@
       try {
         const obj = JSON.parse(ev.target.result);
         FP.history.commit();
-        FP.settings.save(obj);
+        const bilan = FP.restaurerReglages(obj);
         renderGroupesForm();
         loadSociete();
         renderPreview();
-        showToast('Paramètres importés ✓');
+        showToast('Paramètres importés ✓' + FP.restaurerReglages.texte(bilan));
       } catch {
         alert('Fichier invalide.');
       }

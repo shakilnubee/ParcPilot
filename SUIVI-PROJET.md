@@ -163,6 +163,11 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Mis en production le 20/10/2026** : table créée, puis recopie lancée par François : 1 contrat, 0 écart.
 - **Reste ensuite** : les 18 forfaits de leasing par plaque, qui sont l'autre moitié des contrats.
 
+### 20/10/2026 — Restauration des versions de réglages, branchée sur les tables 🟡 (prête)
+- **Problème** : depuis la migration, restaurer une version des réglages (Paramètres → Données), importer un fichier de paramètres ou récupérer d'anciens réglages ne changeait plus rien aux congés, aux affectations ni aux contrats LLD. La version allait dans les réglages, mais l'écran relisait les tables, qui restaient inchangées.
+- **Correction** : les quatre points d'entrée passent par une seule fonction. Pour ces trois données, la restauration se fait **élément par élément** : chaque conducteur, véhicule ou contrat présent dans la version reprend sa valeur, **dans la table aussi** ; ce qui a été créé depuis est conservé ; rien n'est supprimé. Le message indique combien d'éléments ont été remis en base.
+- **Tests** : 11 tests automatiques. Le manuel est à jour. Aucune modification de la base n'est nécessaire.
+
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
 - Le déploiement automatique des fonctions serveur **fonctionnait**. Sa condition a tout de même été rendue robuste au nom du dépôt.
@@ -187,6 +192,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1024 | Correctif de la file d'attente des écritures | ✅ Fusionnée |
 | #1026 | Sauvegardes : version de l'outil AWS figée | ✅ Fusionnée, essai production réussi |
 | #1025 | Migration des données, étape 3 : les contrats LLD | ✅ Fusionnée, en production |
+| (cette PR) | Restauration des versions de réglages branchée sur les tables | En cours |
 
 ## 7. Prochaines étapes
 

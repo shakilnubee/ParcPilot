@@ -8440,6 +8440,76 @@ FP.contratsLLD = {
 document.addEventListener('DOMContentLoaded', () => {
   try { if (!FP.contratsLLDTable._ref && FP.settings) FP.contratsLLDTable._ref = FP.contratsLLDTable.empreintes(FP.settings.get().localeaseContrats); } catch (e) {}
 });
+// ================= RESTAURATION D'UNE VERSION DES RÉGLAGES (données en tables) =========
+// Les écrans « Historique automatique » (versions locales et serveur), l'import d'un fichier de paramètres et la
+// récupération d'anciens réglages passent TOUS par FP.restaurerReglages(data). Sans cela, une version restaurée
+// n'allait que dans les réglages : au rechargement, les écrans relisaient les TABLES (congés, affectations,
+// contrats LLD), inchangées → la restauration semblait sans effet.
+// Règle, par ÉLÉMENT (un conducteur, un véhicule, un contrat) : un élément présent dans la version reprend la
+// valeur de cette version, dans les réglages ET dans sa table ; un élément absent de la version (créé depuis)
+// est CONSERVÉ ; une liste vide dans la version n'efface rien. Rien n'est jamais supprimé par une restauration.
+/*<restauration-tables>*/
+FP.restauration = {
+  _plain(x) { return !!x && typeof x === 'object' && !Array.isArray(x); },
+  _copie(x) { return JSON.parse(JSON.stringify(x)); },
+  // Map { clé → liste } (congés par conducteur, affectations par véhicule). `norm` : nettoyage de la liste.
+  parCle(actuel, version, norm) {
+    const out = this._plain(actuel) ? Object.assign({}, actuel) : {};
+    const changes = [];
+    if (this._plain(version)) Object.keys(version).forEach(k => {
+      let v = version[k];
+      if (!Array.isArray(v)) return;
+      v = norm ? norm(this._copie(v)) : this._copie(v);
+      if (!v.length) return;                                     // une liste vide n'efface rien
+      if (JSON.stringify(out[k] || []) === JSON.stringify(v)) return;
+      out[k] = v; changes.push(k);
+    });
+    return { valeur: out, changes };
+  },
+  // Liste d'éléments à identifiant stable (contrats LLD). Sans identifiant : ignoré (impossible à rapprocher).
+  parId(actuel, version) {
+    const out = Array.isArray(actuel) ? actuel.slice() : [];
+    const changes = []; let ignores = 0;
+    (Array.isArray(version) ? version : []).forEach(c => {
+      if (!c || typeof c !== 'object') return;
+      if (!c.id) { ignores++; return; }
+      const i = out.findIndex(x => x && x.id === c.id);
+      if (i >= 0 && JSON.stringify(out[i]) === JSON.stringify(c)) return;
+      if (i >= 0) out[i] = this._copie(c); else out.push(this._copie(c));
+      changes.push(c.id);
+    });
+    return { valeur: out, changes, ignores };
+  },
+};
+/*</restauration-tables>*/
+// Restaure une version des réglages. Renvoie le nombre d'éléments remis dans les tables.
+FP.restaurerReglages = (data) => {
+  const bilan = { conges: 0, affectations: 0, contrats: 0, contratsIgnores: 0 };
+  if (!data || typeof data !== 'object' || !FP.settings) return bilan;
+  const R = FP.restauration, avant = FP.settings.get() || {};
+  const c = R.parCle(avant.condConges, data.condConges, l => FP.congesTable.nettoyer(l));
+  const a = R.parCle(avant.affectations, data.affectations, l => l.filter(x => x && typeof x === 'object' && x.conducteur));
+  const l = R.parId(avant.localeaseContrats, data.localeaseContrats);
+  data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur;
+  // Réglages + contrats LLD (n'envoie que les contrats changés depuis l'affichage ; aucun archivage : liste ⊇ actuelle).
+  if (FP.contratsLLD) FP.contratsLLD.sauver(data); else FP.settings.save(data);
+  const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
+  if (FP.persist && FP.persist.rpc) {
+    c.changes.forEach(k => FP.persist.rpc(FP.congesTable.FN_REMPLACER, { p_societe: soc, p_cond_key: k, p_conges: data.condConges[k] },
+      { table: 'driver_absences', remplace: 'conges:' + soc + ':' + k }));
+  }
+  a.changes.forEach(v => FP.affectationsTable.enregistrer(v, data.affectations[v]));
+  bilan.conges = c.changes.length; bilan.affectations = a.changes.length;
+  bilan.contrats = l.changes.length; bilan.contratsIgnores = l.ignores;
+  return bilan;
+};
+FP.restaurerReglages.texte = (b) => {
+  const p = [];
+  if (b && b.conges) p.push(b.conges + ' conducteur(s) : congés');
+  if (b && b.affectations) p.push(b.affectations + ' véhicule(s) : affectations');
+  if (b && b.contrats) p.push(b.contrats + ' contrat(s) LLD');
+  return p.length ? ' — remis aussi en base : ' + p.join(', ') : '';
+};
 FP.affectations = {
   _norm(n) { return (n == null ? '' : String(n)).trim(); },
   // Enregistre : réglages (affichage immédiat + copie de transition) PUIS table (source), véhicule par véhicule.
