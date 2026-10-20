@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021k">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -630,13 +630,6 @@
         <span id="veh-export-mount"></span>
         <button class="btn btn-outline text-sm" id="btn-releve-veh" title="Relevé PDF / Excel — choisis et réordonne les colonnes (groupe affiché ou sélection)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-compare" title="Comparer deux véhicules côte à côte"><i data-lucide="scale" class="w-4 h-4"></i> Comparer</button>
-        <div style="position:relative;display:inline-block">
-          <button class="btn btn-outline text-sm" id="btn-import-lot" title="Importer en lot des cartes grises ou des cartes mémo (rattachées aux fiches par immatriculation, sans doublon)"><i data-lucide="upload" class="w-4 h-4"></i> Importer en lot <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
-          <div id="import-lot-menu" class="hidden" style="position:absolute;right:0;top:110%;z-index:40;background:#fff;border:1px solid var(--fp-border);border-radius:10px;box-shadow:0 12px 30px -12px rgba(15,30,61,.4);min-width:220px;overflow:hidden">
-            <button type="button" id="il-cg" class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2"><i data-lucide="file-badge" class="w-4 h-4 text-slate-500"></i> Cartes grises</button>
-            <button type="button" id="il-memo" class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2 border-t border-slate-100"><i data-lucide="sticky-note" class="w-4 h-4 text-slate-500"></i> Cartes mémo</button>
-          </div>
-        </div>
         <input type="file" id="f-cg-top" accept="image/*,application/pdf" class="hidden" multiple />
         <button class="btn btn-primary text-sm" id="btn-new" data-quickadd><i data-lucide="plus" class="w-4 h-4"></i> Nouveau véhicule</button>
       </div>
@@ -734,13 +727,20 @@
         <div class="relative ml-auto" id="veh-tools">
           <button id="veh-tools-btn" type="button" class="btn btn-outline text-sm" title="Outils : relevé km, accès conducteurs, cartes grises, fiche PDF, QR"><i data-lucide="wrench" class="w-4 h-4"></i> Outils <i data-lucide="chevron-down" class="w-4 h-4"></i></button>
           <div id="veh-tools-menu" class="hidden absolute right-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-sm">
-            <button id="btn-km-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer par e-mail une demande de relevé kilométrique aux chauffeurs du groupe affiché QUI N'ONT PAS ENCORE RÉPONDU (les véhicules déjà à jour sont ignorés) — le chauffeur répond en un clic"><i data-lucide="mail" class="w-4 h-4 text-slate-400"></i> Demander le km par mail</button>
-            <button id="btn-acces-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer d'un coup l'e-mail d'ACCÈS (espace véhicule · QR : km, documents, signalement, état des lieux) à TOUS les conducteurs du groupe affiché (ou de la sélection) qui ont un e-mail"><i data-lucide="send" class="w-4 h-4 text-slate-400"></i> Envoyer l'accès à tous</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8">Importer en lot</div>
+            <button id="il-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes grises (rattachées aux fiches par immatriculation, sans doublon) — remplit marque, modèle, VIN, CO₂, puissance, masse, carburant, dates"><i data-lucide="file-badge" class="w-4 h-4 text-slate-400"></i> Cartes grises</button>
+            <button id="il-memo" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Importer en lot des cartes mémo (rattachées à la bonne fiche par immatriculation, sans doublon)"><i data-lucide="sticky-note" class="w-4 h-4 text-slate-400"></i> Cartes mémo</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Lire &amp; compléter</div>
             <button id="btn-completer-cg" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire les cartes grises déjà stockées et remplir automatiquement les champs manquants (carburant, CO₂, puissance, masse, VIN, dates)"><i data-lucide="wand-sparkles" class="w-4 h-4 text-slate-400"></i> Compléter depuis les cartes grises</button>
             <button id="btn-lire-km-edl" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire le kilométrage de TOUS les états des lieux importés (PDF/photo) qui n'ont pas encore de km — en une seule fois, sans ouvrir chaque fiche. Les km déjà connus ne sont pas relus (aucun crédit gaspillé)."><i data-lucide="gauge" class="w-4 h-4 text-slate-400"></i> Lire tous les km des états des lieux</button>
+            <button id="btn-lire-fa" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Lire toutes les factures d'achat déjà importées et renseigner le PRIX D'ACHAT des véhicules où il manque (montant TTC vérifié HT+TVA=TTC ; aucune valeur saisie n'est écrasée)"><i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i> Lire toutes les factures d'achat</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Prévenir les conducteurs</div>
+            <button id="btn-km-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer par e-mail une demande de relevé kilométrique aux chauffeurs du groupe affiché QUI N'ONT PAS ENCORE RÉPONDU (les véhicules déjà à jour sont ignorés) — le chauffeur répond en un clic"><i data-lucide="mail" class="w-4 h-4 text-slate-400"></i> Demander le km par mail</button>
+            <button id="btn-acces-mail" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Envoyer d'un coup l'e-mail d'ACCÈS (espace véhicule · QR : km, documents, signalement, état des lieux) à TOUS les conducteurs du groupe affiché (ou de la sélection) qui ont un e-mail"><i data-lucide="send" class="w-4 h-4 text-slate-400"></i> Envoyer l'accès à tous</button>
+            <button id="btn-msg-veh" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Écrire un message et l'envoyer par e-mail (au nom de ta société) aux conducteurs des véhicules choisis"><i data-lucide="mail-plus" class="w-4 h-4 text-slate-400"></i> Envoyer un message</button>
+            <div style="padding:.5rem .75rem .2rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-top:1px solid #f1f5f9;margin-top:.25rem">Exporter</div>
             <button id="btn-fiche-groupe" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Télécharger la liste des véhicules du groupe affiché (ou Tous) en PDF"><i data-lucide="file-down" class="w-4 h-4 text-slate-400"></i> Télécharger la fiche</button>
             <button id="btn-qr-hub" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Tous les QR à imprimer / partager : QR de la liste des véhicules à vendre, et QR de chaque véhicule (PDF)."><i data-lucide="qr-code" class="w-4 h-4 text-slate-400"></i> QR codes</button>
-            <button id="btn-msg-veh" type="button" class="sc-menu-item w-full text-left flex items-center gap-2 px-3 py-2 hover:bg-slate-50" title="Écrire un message et l'envoyer par e-mail (au nom de ta société) aux conducteurs des véhicules choisis"><i data-lucide="mail-plus" class="w-4 h-4 text-slate-400"></i> Envoyer un message</button>
           </div>
         </div>
       </div>
@@ -1183,8 +1183,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021j"></script>
-<script src="../assets/js/supabase-client.js?v=20261021j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021k"></script>
+<script src="../assets/js/supabase-client.js?v=20261021k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1200,13 +1200,14 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261021j"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261021j"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021k"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261021k"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021j"></script>
+<script src="../assets/js/app.min.js?v=20261021k"></script>
+<script src="../assets/js/vehicule-photos.js?v=20261021k"></script>
 <script>
   lucide.createIcons();
 
@@ -3132,19 +3133,126 @@
     const col = p.ok === true ? ['#dcfce7', '#166534'] : p.ok === false ? ['#fee2e2', '#b91c1c'] : ['#fef3c7', '#92400e'];
     return `<span title="${(p.detail || '').replace(/"/g, '&quot;')}" style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 10px;border-radius:9999px;font-size:12.5px;font-weight:800;background:${col[0]};color:${col[1]}">🅿️ ${p.txt}</span>`;
   }
+  // Photo de la fiche = SOURCE UNIQUE : photo choisie manuellement (v.photoUrl) EN PRIORITÉ,
+  // sinon photo d'illustration du MODÈLE (FP.vehPhoto → libre de droits, avec crédit). Bouton « Changer ».
   function renderDrawerPhoto(v) {
     const box = $('drawer-photo');
-    // La bande photo ne s'affiche QUE si une vraie photo est renseignée
-    if (v.photoUrl) {
+    if (!box) return;
+    const manual = (v.photoUrl || '').trim();
+    const model = (!manual && window.FP && FP.vehPhoto) ? FP.vehPhoto(v) : null;
+    const url = manual || (model ? ('../' + model.img) : '');
+    if (!url) {
+      // Aucune photo connue (modèle non répertorié) : petit bandeau pour en ajouter une.
       box.style.display = '';
-      box.innerHTML = '<img alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">';
-      const img = box.querySelector('img');
-      img.onerror = () => { box.style.display = 'none'; box.innerHTML = ''; };
-      img.src = v.photoUrl;
-    } else {
-      box.style.display = 'none';
-      box.innerHTML = '';
+      box.style.height = '60px';
+      box.innerHTML = '<button type="button" id="veh-photo-add" class="w-full h-full flex items-center justify-center gap-2 text-sm font-semibold" style="color:#64748b;background:#f1f5f9;border:0;cursor:pointer">'
+        + '<i data-lucide="image-plus" class="w-4 h-4"></i> Ajouter une photo du véhicule</button>';
+      try { lucide.createIcons(); } catch (e) {}
+      const b = $('veh-photo-add'); if (b) b.onclick = () => openPhotoModal(v);
+      return;
     }
+    box.style.display = '';
+    box.style.height = '176px';
+    // Crédit : obligatoire pour une photo de modèle (CC) ; discret pour une photo Wikimedia choisie à la main.
+    let credit = '';
+    if (model) {
+      credit = '<a href="' + FP.esc(model.src) + '" target="_blank" rel="noopener" title="Photo d\'illustration du modèle — source et licence"'
+        + ' style="position:absolute;left:8px;bottom:8px;font-size:10.5px;line-height:1.1;color:#fff;background:rgba(11,18,32,.55);padding:3px 7px;border-radius:999px;text-decoration:none">'
+        + 'Illustration · ' + FP.esc(model.lic) + ' · Wikimedia</a>';
+    } else if (/wikimedia\.org|wikipedia\.org/.test(manual)) {
+      credit = '<a href="' + FP.esc(manual) + '" target="_blank" rel="noopener"'
+        + ' style="position:absolute;left:8px;bottom:8px;font-size:10.5px;line-height:1.1;color:#fff;background:rgba(11,18,32,.55);padding:3px 7px;border-radius:999px;text-decoration:none">'
+        + 'Wikimedia Commons · CC</a>';
+    }
+    box.innerHTML = '<div style="position:relative;width:100%;height:100%">'
+      + '<img alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">'
+      + '<button type="button" id="veh-photo-edit" title="Changer la photo du véhicule" '
+      + 'style="position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#0f1e3d;background:rgba(255,255,255,.92);border:0;border-radius:999px;padding:5px 11px;cursor:pointer;box-shadow:0 2px 8px rgba(11,18,32,.25)">'
+      + '<i data-lucide="camera" class="w-4 h-4"></i> Changer</button>'
+      + credit + '</div>';
+    const img = box.querySelector('img');
+    img.onerror = () => {
+      // La photo ne charge pas : si c'était une photo manuelle ET qu'un modèle existe, on bascule sur le modèle (affichage seul).
+      if (manual && window.FP && FP.vehPhoto && FP.vehPhoto(v)) { const keep = v.photoUrl; v.photoUrl = ''; renderDrawerPhoto(v); v.photoUrl = keep; }
+      else { box.style.display = 'none'; box.innerHTML = ''; }
+    };
+    img.src = url;
+    try { lucide.createIcons(); } catch (e) {}
+    const edit = $('veh-photo-edit'); if (edit) edit.onclick = () => openPhotoModal(v);
+  }
+
+  // Modale « Changer la photo » : chercher sur Wikimedia (libre de droits), coller une URL,
+  // revenir à la photo d'illustration du modèle, ou retirer. Écrit le champ v.photoUrl (persisté).
+  function openPhotoModal(v) {
+    let ov = document.getElementById('veh-photo-ov');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'veh-photo-ov'; ov.className = 'fiche-ov';
+      ov.innerHTML = '<div class="fiche-card" style="max-width:640px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:16px;padding:20px"><div id="veh-photo-ov-body"></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
+    }
+    const body = ov.querySelector('#veh-photo-ov-body');
+    const model = (window.FP && FP.vehPhoto) ? FP.vehPhoto(v) : null;
+    const titre = FP.esc(((v.marque || '') + ' ' + (v.modele || '')).trim() || 'ce véhicule');
+    body.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px">'
+      + '<h3 style="font-size:1.15rem;font-weight:800;margin:0">Photo du véhicule</h3>'
+      + '<button type="button" id="vp-close" class="btn btn-outline text-sm" style="padding:.3rem .6rem">Fermer</button></div>'
+      + '<p style="color:#64748b;font-size:.85rem;margin:.2rem 0 1rem">Cherche une photo de <b>' + titre + '</b> (images libres de droits), colle un lien, ou reviens à l\'illustration du modèle.</p>'
+      + '<div style="display:flex;gap:8px;margin-bottom:10px">'
+      + '<input id="vp-q" type="text" value="' + titre + '" placeholder="Marque + modèle" style="flex:1;min-width:0;padding:.5rem .7rem;border:1px solid #e2e8f0;border-radius:9px;font:inherit">'
+      + '<button type="button" id="vp-search" class="btn btn-primary text-sm">Chercher</button></div>'
+      + '<div id="vp-results" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:10px;margin-bottom:12px"></div>'
+      + '<div style="display:flex;gap:8px;margin-bottom:12px">'
+      + '<input id="vp-url" type="url" placeholder="…ou colle l\'URL d\'une image (https://…)" style="flex:1;min-width:0;padding:.5rem .7rem;border:1px solid #e2e8f0;border-radius:9px;font:inherit">'
+      + '<button type="button" id="vp-url-ok" class="btn btn-outline text-sm">Utiliser</button></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid #eef1f6;padding-top:12px">'
+      + (model ? '<button type="button" id="vp-model" class="btn btn-outline text-sm"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Illustration du modèle</button>' : '')
+      + ((v.photoUrl || '').trim() ? '<button type="button" id="vp-remove" class="btn text-sm text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="w-4 h-4"></i> Retirer la photo</button>' : '')
+      + '</div>';
+    ov.classList.add('open');
+    try { lucide.createIcons(); } catch (e) {}
+
+    const apply = (url) => {
+      v.photoUrl = (url || '').trim();
+      try { persistVehFields(v, 'photoUrl'); } catch (e) {}
+      renderDrawerPhoto(v);
+      ov.classList.remove('open');
+    };
+    const close = () => ov.classList.remove('open');
+    const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    bind('vp-close', close);
+    bind('vp-url-ok', () => { const u = (document.getElementById('vp-url').value || '').trim(); if (u) apply(u); });
+    bind('vp-model', () => apply(''));        // vide photoUrl → repli sur la photo du modèle
+    bind('vp-remove', () => apply(''));
+    const doSearch = async () => {
+      const q = (document.getElementById('vp-q').value || '').trim();
+      const grid = document.getElementById('vp-results');
+      if (!q) return;
+      grid.innerHTML = '<div style="grid-column:1/-1;color:#64748b;font-size:.85rem">Recherche…</div>';
+      try {
+        const api = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=320&format=json&origin=*&gsrsearch=' + encodeURIComponent(q + ' car');
+        const r = await fetch(api); const d = await r.json();
+        const pages = (d.query && d.query.pages) ? Object.values(d.query.pages) : [];
+        const imgs = pages.map(p => (p.imageinfo || [])[0]).filter(x => x && x.thumburl).slice(0, 12);
+        if (!imgs.length) { grid.innerHTML = '<div style="grid-column:1/-1;color:#64748b;font-size:.85rem">Aucune image trouvée — essaie un autre libellé ou colle une URL.</div>'; return; }
+        grid.innerHTML = '';
+        imgs.forEach(ii => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.style.cssText = 'padding:0;border:2px solid #e2e8f0;border-radius:9px;overflow:hidden;cursor:pointer;aspect-ratio:4/3;background:#f1f5f9';
+          b.innerHTML = '<img loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover" src="' + FP.esc(ii.thumburl) + '">';
+          b.onclick = () => apply(ii.thumburl);
+          grid.appendChild(b);
+        });
+      } catch (e) {
+        grid.innerHTML = '<div style="grid-column:1/-1;color:#b91c1c;font-size:.85rem">Recherche indisponible (réseau). Tu peux coller une URL d\'image à la place.</div>';
+      }
+    };
+    bind('vp-search', doSearch);
+    const qi = document.getElementById('vp-q'); if (qi) qi.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+    doSearch();
   }
 
   function openDrawer(id) {
@@ -4672,6 +4780,11 @@
       { key: 'prochainCT', label: 'Prochain CT' },
       { key: 'dateMiseEnCirculation', label: 'Mise en circulation' },
       { key: 'vin',       label: 'VIN' },
+      { key: 'carburant', label: 'Carburant' },
+      { key: 'proprietaire', label: 'Propriétaire' },
+      { key: 'valeurAchat', label: "Valeur d'achat", format: FP.csv.numFormat, parse: FP.csv.numParse },
+      { key: 'co2',       label: 'CO2 (g/km)', format: FP.csv.numFormat, parse: FP.csv.numParse },
+      { key: 'puissanceFiscale', label: 'Puissance fiscale', format: FP.csv.numFormat, parse: FP.csv.numParse },
     ],
     getRows: () => filtered(),
     onImport: (records) => {
@@ -5174,6 +5287,72 @@
   }
   { const b = $('btn-completer-cg'); if (b) b.addEventListener('click', () => { completerDepuisCG().catch(e => { console.error(e); alert('Erreur pendant la complétion.'); const btn = $('btn-completer-cg'); if (btn) btn.disabled = false; }); }); }
   { const b = $('btn-lire-km-edl'); if (b) b.addEventListener('click', () => { const m = $('veh-tools-menu'); if (m) m.classList.add('hidden'); scanAllEdlKm().catch(e => { console.error(e); if (FP.toast) FP.toast('Erreur pendant la lecture des km.'); }); }); }
+
+  // ===== Outils → « Lire toutes les factures d'achat » : lit en lot les factures d'achat déjà importées
+  //       (document type 'facture-achat' sur la fiche) et renseigne le PRIX D'ACHAT (valeurAchat) des
+  //       véhicules où il manque. Même pipeline que « Compléter depuis les cartes grises » (lecture
+  //       parallèle bornée, écritures séquentielles). On NE remplit QUE si le prix est vide, et on contrôle
+  //       la cohérence HT + TVA ≈ TTC + une fourchette réaliste (jamais un montant parasite). =====
+  async function lireFacturesAchat() {
+    const m = $('veh-tools-menu'); if (m) m.classList.add('hidden');
+    const cibles = []; let dejaOk = 0, sansFac = 0, onDrive = 0;
+    data.vehicules.forEach(v => {
+      const hasPrix = v.valeurAchat != null && v.valeurAchat !== '' && Number(v.valeurAchat) > 0;
+      const fa = getVehDocs(v.id).find(d => d && d.type === 'facture-achat' && d.url);
+      if (!fa) { if (!hasPrix) sansFac++; return; }
+      if (hasPrix) { dejaOk++; return; }
+      if (/drive\.google\.com/.test(fa.url)) { onDrive++; return; }
+      cibles.push({ v, url: fa.url });
+    });
+    if (!cibles.length) {
+      alert("Aucune facture d'achat à lire."
+        + (dejaOk ? `\n• ${dejaOk} véhicule(s) ont déjà un prix d'achat.` : '')
+        + (sansFac ? `\n• ${sansFac} véhicule(s) sans facture d'achat importée → importe-la d'abord (fiche → Documents, type « Facture d'achat »).` : '')
+        + (onDrive ? `\n• ${onDrive} facture(s) sur Google Drive (non lisibles par le site) → à re-déposer dans la fiche.` : ''));
+      return;
+    }
+    if (!(await FP.confirm(`Lire ${cibles.length} facture(s) d'achat et renseigner le PRIX D'ACHAT des véhicules où il manque ?\n\nSeul un prix VIDE est rempli — aucune valeur saisie n'est écrasée. Chaque montant lu est vérifié (HT + TVA ≈ TTC, fourchette réaliste).`))) return;
+    const btn = $('btn-lire-fa'); const lbl = btn ? btn.innerHTML : '';
+    if (btn) btn.disabled = true;
+    let done = 0, fail = 0, douteux = 0, processed = 0;
+    const CONC = 3; const results = new Array(cibles.length); let next = 0;
+    async function reader() {
+      for (;;) {
+        const i = next++; if (i >= cibles.length) return;
+        const v = cibles[i].v;
+        try {
+          const u = (window.FP && FP.signedScanUrl) ? await FP.signedScanUrl(cibles[i].url) : cibles[i].url;
+          const resp = await fetch(u); if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const blob = await resp.blob();
+          const file = new File([blob], 'achat.' + ((blob.type || '').includes('pdf') ? 'pdf' : 'jpg'), { type: blob.type || 'application/octet-stream' });
+          const ai = FP.scanIA ? await FP.scanIA(file, 'facture') : null;
+          results[i] = { v, ai: ai || null };
+        } catch (e) { console.warn('[lireFA lecture]', v.immat, e); results[i] = { v, err: true }; fail++; }
+        processed++; if (btn) btn.textContent = `Lecture ${processed}/${cibles.length}…`;
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONC, cibles.length) }, () => reader()));
+    for (const r of results) {
+      if (!r || r.err || !r.ai) continue;
+      const v = r.v, ai = r.ai;
+      // Le prix d'achat = le montant TTC de la facture. On LIT le TTC (jamais le plus grand nombre au hasard).
+      const ttc = Number(ai.montantTTC), ht = Number(ai.montantHT), tva = Number(ai.montantTVA);
+      let coherent = true;
+      if (Number.isFinite(ht) && Number.isFinite(tva) && Number.isFinite(ttc) && Math.abs((ht + tva) - ttc) > 1) coherent = false;
+      const plausible = Number.isFinite(ttc) && ttc >= 1500 && ttc <= 400000; // fourchette réaliste d'un véhicule
+      if (!plausible || !coherent) { douteux++; continue; }
+      if (v.valeurAchat == null || v.valeurAchat === '' || Number(v.valeurAchat) === 0) {
+        v.valeurAchat = Math.round(ttc);
+        try { await persistVehFields(v, ['valeurAchat']); done++; } catch (e) { console.warn('[lireFA écriture]', v.immat, e); }
+      }
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
+    renderTable(); renderKPIs();
+    alert(`✓ ${done} prix d'achat renseigné(s) depuis les factures d'achat.`
+      + (douteux ? `\n⚠️ ${douteux} facture(s) au montant incohérent ou hors fourchette — non appliquées (à vérifier à la main).` : '')
+      + (fail ? `\n${fail} facture(s) illisible(s) ou en erreur.` : ''));
+  }
+  { const b = $('btn-lire-fa'); if (b) b.addEventListener('click', () => { lireFacturesAchat().catch(e => { console.error(e); alert("Erreur pendant la lecture des factures d'achat."); const btn = $('btn-lire-fa'); if (btn) btn.disabled = false; }); }); }
 
   // === Demander le km par mail (LOT) : au groupe affiché (ou à la sélection cochée) ===
   { const b = $('btn-km-mail'); if (b) {
@@ -6643,9 +6822,23 @@
   // Menu « Outils » (regroupe km/accès/cartes grises/fiche/QR) — ouverture/fermeture simple, ferme au clic dehors.
   { const _tb = $('veh-tools-btn'), _tm = $('veh-tools-menu');
     if (_tb && _tm) {
-      _tb.addEventListener('click', (e) => { e.stopPropagation(); _tm.classList.toggle('hidden'); });
+      // Positionnement FIXE sous le bouton + hauteur bornée à l'écran (défilement INTERNE) : le menu ne
+      // déborde plus sous l'écran (plus de scroll de page), ne passe plus sous le bouton « + » flottant.
+      const _place = () => {
+        const r = _tb.getBoundingClientRect();
+        _tm.style.position = 'fixed';
+        _tm.style.top = (r.bottom + 6) + 'px';
+        _tm.style.left = 'auto';
+        _tm.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        _tm.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 16) + 'px';
+        _tm.style.overflowY = 'auto';
+        _tm.style.zIndex = '1000';
+      };
+      _tb.addEventListener('click', (e) => { e.stopPropagation(); if (_tm.classList.contains('hidden')) { _tm.classList.remove('hidden'); _place(); } else { _tm.classList.add('hidden'); } });
       _tm.addEventListener('click', () => _tm.classList.add('hidden')); // un clic sur une action referme le menu
       document.addEventListener('click', () => _tm.classList.add('hidden'));
+      window.addEventListener('resize', () => { if (!_tm.classList.contains('hidden')) _place(); });
+      window.addEventListener('scroll', () => { if (!_tm.classList.contains('hidden')) _place(); }, true);
     } }
 
   // ===== Outils → « Envoyer un message » : e-mail LIBRE (écrit le jour même) aux conducteurs des
@@ -7552,13 +7745,11 @@
 
   // Bouton « Importer en lot » de la barre (visible sans ouvrir « Nouveau véhicule »).
   (function importLotMenu() {
-    const btn = $('btn-import-lot'), menu = $('import-lot-menu');
-    if (!btn || !menu) return;
-    const close = () => menu.classList.add('hidden');
-    btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
-    document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== btn) close(); });
-    if ($('il-cg')) $('il-cg').addEventListener('click', () => { close(); $('f-cg-top').click(); });
-    if ($('il-memo')) $('il-memo').addEventListener('click', () => { close(); $('f-memo-file').click(); });
+    // Les entrées « Cartes grises » / « Cartes mémo » vivent désormais dans le menu « Outils »
+    // (section « Importer en lot ») : on garde les mêmes id (il-cg / il-memo) → mêmes handlers.
+    // Le menu Outils se referme tout seul au clic sur une action, pas besoin de le fermer ici.
+    if ($('il-cg') && $('f-cg-top')) $('il-cg').addEventListener('click', () => { $('f-cg-top').click(); });
+    if ($('il-memo') && $('f-memo-file')) $('il-memo').addEventListener('click', () => { $('f-memo-file').click(); });
     // Depuis la barre, on va TOUJOURS dans l'import en lot (même pour 1 seule carte grise).
     if ($('f-cg-top')) $('f-cg-top').addEventListener('change', (e) => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleCarteGriseBatch(files); });
   })();
