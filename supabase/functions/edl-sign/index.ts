@@ -92,7 +92,11 @@ async function sendPush(db: ReturnType<typeof createClient>, societe: string, pa
 //    avec repli sur le secret EMAIL_FROM. Ce n'est PAS un relais ouvert : l'e-mail et le
 //    destinataire sont ceux déjà enregistrés dans edl_signatures (aucune donnée venue de la requête).
 async function societeFrom(db: ReturnType<typeof createClient>, societe: string): Promise<{ from: string; replyTo: string }> {
-  const envFrom = Deno.env.get("EMAIL_FROM") || "Parc Pilot <onboarding@resend.dev>";
+  // ⚠️ Repli sur un domaine VÉRIFIÉ dans Resend (seul projectxparis.fr l'est aujourd'hui) : l'adresse de
+  // test onboarding@resend.dev ne peut écrire QU'au titulaire du compte → échec vers un destinataire tiers.
+  // N'affecte QUE le repli (une société avec mailExpediteur configuré garde son adresse scopée ci-dessous).
+  let envFrom = Deno.env.get("EMAIL_FROM") || "";
+  if (!envFrom || /resend\.dev/i.test(envFrom)) envFrom = "Parc Pilot <noreply@projectxparis.fr>";
   try {
     const { data } = await db.from("app_settings").select("data").eq("id", String(societe || "PXP")).maybeSingle();
     const d = (data && (data as { data?: Record<string, unknown> }).data) || {};
