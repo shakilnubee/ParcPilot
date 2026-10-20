@@ -6713,6 +6713,35 @@ FP.docsRequis = {
   evaluer(cible, id, docs) { return this.reqFor(cible).map(req => Object.assign({ req: req }, this.statutFromDocs(req, cible, id, docs))); },
   // Exigences NON satisfaites (manquant / expiré / bientôt) → pour la checklist « À compléter » (sous-lot 2B).
   manquants(cible, id, docs) { return this.evaluer(cible, id, docs).filter(x => x.code === 'manquant' || x.code === 'expire' || x.code === 'bientot'); },
+  // SOURCE UNIQUE des documents d'un VÉHICULE pour le contrôle (fiche ET checklist ET alertes). On fusionne :
+  //   • les documents de la table `documents` (passés en argument — déjà chargés par la page) ;
+  //   • la carte grise intégrée (v.cgUrl / v.cgFileId) et l'attestation d'assurance intégrée (window.FP_DOCS) ;
+  //   • les contrats de leasing (settings.leasingDocs par plaque + settings.localeaseContrats).
+  vehDocs(v, tableDocs) {
+    const out = Array.isArray(tableDocs) ? tableDocs.slice() : [];
+    if (!v) return out;
+    try { if (v.cgUrl || v.cgFileId) out.push({ type: 'carte-grise', id: 'cg:' + v.id }); } catch (e) {}
+    try {
+      const A = (typeof window !== 'undefined' && window.FP_DOCS && window.FP_DOCS.assurance) ? window.FP_DOCS.assurance : null;
+      if (A) { const k = FP.normImmat ? FP.normImmat(v.immat) : String(v.immat || ''); if (A[k] || A[v.immat]) out.push({ type: 'assurance', id: 'assur:' + v.id }); }
+    } catch (e) {}
+    try {
+      const s = FP.settings.get(); const immatN = FP.normImmat ? FP.normImmat(v.immat || '') : String(v.immat || '');
+      const ld = (s.leasingDocs && typeof s.leasingDocs === 'object') ? s.leasingDocs : {};
+      let hasC = false; Object.keys(ld).forEach(kk => { if ((FP.normImmat ? FP.normImmat(kk) : kk) === immatN && ld[kk]) hasC = true; });
+      const lc = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : [];
+      lc.forEach(c => { if (c && (FP.normImmat ? FP.normImmat(c.immat || '') : (c.immat || '')) === immatN && Array.isArray(c.docs) && c.docs.length) hasC = true; });
+      if (hasC) out.push({ type: 'contrat', id: 'lease:' + v.id });
+    } catch (e) {}
+    return out;
+  },
+  // SOURCE UNIQUE des documents d'un CONDUCTEUR : condDocs (date = expiration) + le permis (vit sur la fiche).
+  condDocs(c) {
+    let out = [];
+    try { out = ((FP.settings.get().condDocs || {})[c.key] || []).map(x => ({ type: x.type, id: x.id, dateExpiration: x.date || x.dateExpiration })); } catch (e) {}
+    if (c && (c.permisNumero || c.permisType || c.permisUrl)) out.push({ type: 'permis', id: 'permis:' + c.key, dateExpiration: c.permisExpiration || '' });
+    return out;
+  },
   // Carte « Documents obligatoires » prête à insérer sur une fiche. docs = documents de l'entité (déjà chargés).
   ficheSection(cible, id, docs) {
     const items = this.evaluer(cible, id, docs); if (!items.length) return '';
