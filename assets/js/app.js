@@ -3052,6 +3052,127 @@ FP.projections = {
   },
 };
 
+// ================= ÉLÉMENTS DE RÉGLAGES EN TABLE GÉNÉRIQUE (assurances…) =========
+// SOURCE (depuis le 21/10/2026) des collections listées dans COLLECTIONS : la TABLE `settings_items` (1 élément =
+// 1 ligne : société, collection, clé ; valeur complète en jsonb ; RLS par société). Les écrans lisent toujours
+// settings.<collection> : c'est une PROJECTION de la table (+ écritures encore en file).
+// ÉCRITURE : AUTOMATIQUE à chaque FP.settings.save — la valeur enregistrée est comparée à celle AFFICHÉE avant
+// (`_ref`, posée par la projection puis à chaque enregistrement) et seuls les éléments réellement modifiés partent
+// (fp_element_enregistrer) ; un élément retiré est ARCHIVÉ (fp_element_archiver), jamais effacé. Aucune écriture de
+// ces collections ne peut donc « oublier » la table. Formes : 'map' { clé: valeur } · 'liste-id' [ {id…} ] ·
+// 'ensemble' [ texte ]. Nouvelle collection : l'ajouter ici ET dans fp_element_collection_ok (migration).
+/*<elements-reglages>*/
+FP.elementsReglages = {
+  FN_ENREGISTRER: 'fp_element_enregistrer',
+  FN_ARCHIVER: 'fp_element_archiver',
+  COLLECTIONS: { assureurs: 'liste-id', assureurVeh: 'map', assuranceEcheance: 'map', assurancePrimes: 'map', assuranceIgnore: 'ensemble' },
+  _plain(x) { return !!x && typeof x === 'object' && !Array.isArray(x); },
+  // Forme canonique (champs triés) : la base renvoie le jsonb avec ses champs réordonnés.
+  canon(x) {
+    if (Array.isArray(x)) return '[' + x.map(v => this.canon(v)).join(',') + ']';
+    if (this._plain(x)) return '{' + Object.keys(x).filter(k => x[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + this.canon(x[k])).join(',') + '}';
+    return JSON.stringify(x === undefined ? null : x);
+  },
+  // Valeur des réglages → { clé: { v: valeur, o: ordre } }. Valeurs vides (null) ignorées (= absentes).
+  elements(forme, val) {
+    const out = {};
+    if (forme === 'map') {
+      if (this._plain(val)) Object.keys(val).forEach(k => { if (k !== '' && val[k] !== null && val[k] !== undefined) out[k] = { v: val[k], o: 0 }; });
+    } else if (forme === 'liste-id') {
+      (Array.isArray(val) ? val : []).forEach((x, i) => { if (this._plain(x) && x.id != null && String(x.id) !== '') out[String(x.id)] = { v: x, o: i }; });
+    } else if (forme === 'ensemble') {
+      (Array.isArray(val) ? val : []).forEach(x => { if ((typeof x === 'string' || typeof x === 'number') && String(x) !== '') out[String(x)] = { v: true, o: 0 }; });
+    }
+    return out;
+  },
+  // { clé: { v, o } } → valeur des réglages (listes triées par ordre).
+  valeur(forme, els) {
+    const ks = Object.keys(els || {});
+    if (forme === 'map') { const m = {}; ks.forEach(k => { m[k] = els[k].v; }); return m; }
+    const tri = ks.slice().sort((a, b) => ((els[a].o || 0) - (els[b].o || 0)) || ((els[a].id || 0) - (els[b].id || 0)) || (a < b ? -1 : a > b ? 1 : 0));
+    if (forme === 'liste-id') return tri.map(k => els[k].v);
+    return tri;   // ensemble
+  },
+  // Lignes de la table d'UNE collection → valeur des réglages.
+  depuisLignes(forme, rows) {
+    const els = {};
+    (Array.isArray(rows) ? rows : []).forEach(r => { if (r && r.cle != null && r.valeur !== undefined && r.valeur !== null) els[r.cle] = { v: r.valeur, o: +r.ordre || 0, id: +r.id || 0 }; });
+    return this.valeur(forme, els);
+  },
+  empreintes(forme, val) {
+    const els = this.elements(forme, val), m = {};
+    Object.keys(els).forEach(k => { m[k] = els[k].o + '|' + this.canon(els[k].v); });
+    return m;
+  },
+  // Différence entre la valeur affichée avant (ref) et la valeur enregistrée → écritures à envoyer.
+  ecarts(forme, ref, val) {
+    ref = ref || {};
+    const els = this.elements(forme, val), out = [];
+    Object.keys(els).forEach(k => { const e = els[k]; if (ref[k] !== e.o + '|' + this.canon(e.v)) out.push({ op: 'enregistrer', cle: k, valeur: e.v, ordre: e.o }); });
+    Object.keys(ref).forEach(k => { if (!(k in els)) out.push({ op: 'archiver', cle: k }); });
+    return out;
+  },
+  // Écritures encore EN FILE (pas encore confirmées) ré-appliquées dans l'ordre, pour une collection et une société.
+  appliquerFile(collection, forme, val, q, soc) {
+    const els = this.elements(forme, val);
+    (Array.isArray(q) ? q : []).forEach(it => {
+      if (!it || it.op !== 'rpc' || !it.args || it.args.p_societe !== soc || it.args.p_collection !== collection || it.args.p_cle == null) return;
+      if (it.fn === this.FN_ENREGISTRER) els[it.args.p_cle] = { v: JSON.parse(JSON.stringify(it.args.p_valeur)), o: +it.args.p_ordre || 0 };
+      else if (it.fn === this.FN_ARCHIVER) delete els[it.args.p_cle];
+    });
+    return this.valeur(forme, els);
+  },
+};
+FP.elementsReglages._ref = {};   // 'société|collection' → empreintes de la valeur affichée
+// Appelé par FP.settings.save (après la garde anti-vidage) : envoie à la table ce qui a changé depuis l'affichage.
+// `prev` = réglages avant cet enregistrement (référence de secours si la projection n'a pas encore eu lieu).
+FP.elementsReglages.apresSauvegarde = (obj, prev) => {
+  const E = FP.elementsReglages;
+  if (!obj || typeof obj !== 'object' || !(FP.persist && FP.persist.rpc)) return;
+  const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
+  Object.keys(E.COLLECTIONS).forEach(c => {
+    const forme = E.COLLECTIONS[c], cleRef = soc + '|' + c;
+    if (!(c in obj)) return;   // clé absente de l'enregistrement ≠ vidage volontaire : on ne touche à rien
+    const ref = E._ref[cleRef] || ((prev && typeof prev === 'object') ? E.empreintes(forme, prev[c]) : null);
+    if (ref) E.ecarts(forme, ref, obj[c]).forEach(e => {
+      const meta = { table: 'settings_items', remplace: 'elem:' + soc + ':' + c + ':' + e.cle };
+      if (e.op === 'enregistrer') FP.persist.rpc(E.FN_ENREGISTRER, { p_societe: soc, p_collection: c, p_cle: e.cle, p_valeur: JSON.parse(JSON.stringify(e.valeur)), p_ordre: e.ordre }, meta);
+      else FP.persist.rpc(E.FN_ARCHIVER, { p_societe: soc, p_collection: c, p_cle: e.cle }, meta);
+    });
+    E._ref[cleRef] = E.empreintes(forme, obj[c]);
+  });
+};
+/*</elements-reglages>*/
+FP.elementsReglages.charger = async (client, soc) => {
+  const rows = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const r = await client.from('settings_items').select('id,collection,cle,valeur,ordre')
+      .eq('societe', soc).in('collection', Object.keys(FP.elementsReglages.COLLECTIONS)).is('deleted_at', null)
+      .order('id').range(from, from + PAGE - 1);
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
+    if (!r.data || r.data.length < PAGE) break;
+  }
+  return rows;
+};
+// Projection : remplace chaque collection par la table (+ file). Lecture échouée (rows null) → réglages inchangés.
+// Dans les deux cas, la valeur affichée devient la référence des prochains enregistrements.
+FP.elementsReglages.projeter = (shared, rows, soc) => {
+  const E = FP.elementsReglages;
+  if (!shared || typeof shared !== 'object') return shared;
+  let q = []; try { q = (FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : []; } catch (e) {}
+  Object.keys(E.COLLECTIONS).forEach(c => {
+    const forme = E.COLLECTIONS[c];
+    if (Array.isArray(rows)) {
+      const lignes = rows.filter(r => r && r.collection === c);
+      shared[c] = E.appliquerFile(c, forme, E.depuisLignes(forme, lignes), q, soc);
+    }
+    E._ref[soc + '|' + c] = E.empreintes(forme, shared[c]);
+  });
+  return shared;
+};
+FP.projections.ajouter(FP.elementsReglages);
+
 // ================= CONGÉS / ABSENCES DES CONDUCTEURS (par société) =========
 // But : repérer une conso carte carburant PENDANT un congé (interdit). On enregistre les périodes
 // d'absence PAR CONDUCTEUR (clé = key du conducteur).
@@ -5958,6 +6079,8 @@ FP.settings = {
     // serveur n'est pas encore posé (→ on n'écrit alors QUE les clés que CE poste vient de changer,
     // sans réécraser les modifs récentes d'un autre poste). Cf. _pushSettings.
     let prevLocal = null; try { prevLocal = JSON.parse(this._readLocal() || 'null'); } catch (e) {}
+    // Collections migrées en table générique (assurances…) : envoi des éléments modifiés (cf. FP.elementsReglages).
+    try { if (FP.elementsReglages && FP.elementsReglages.apresSauvegarde) FP.elementsReglages.apresSauvegarde(obj, prevLocal); } catch (e) { try { console.error('[FP.elementsReglages]', e); } catch (_) {} }
     localStorage.setItem(this._key(), JSON.stringify(obj));
     // ⚡ Réglages modifiés (congés, cartes, affectations…) → invalide le cache de résolution clé→prénom.
     try { FP.bumpCondResolveGen && FP.bumpCondResolveGen(); } catch (e) {}
@@ -8722,11 +8845,21 @@ FP.restauration = {
     });
     return { valeur: out, changes, ignores };
   },
+  // Ensemble de textes (plaques ignorées…) : les éléments de la version sont rajoutés, aucun n'est retiré.
+  ensemble(actuel, version) {
+    const out = Array.isArray(actuel) ? actuel.slice() : [];
+    const vus = new Set(out.map(String)), changes = [];
+    (Array.isArray(version) ? version : []).forEach(x => {
+      if ((typeof x !== 'string' && typeof x !== 'number') || String(x) === '' || vus.has(String(x))) return;
+      out.push(x); vus.add(String(x)); changes.push(String(x));
+    });
+    return { valeur: out, changes };
+  },
 };
 /*</restauration-tables>*/
 // Restaure une version des réglages. Renvoie le nombre d'éléments remis dans les tables.
 FP.restaurerReglages = (data) => {
-  const bilan = { conges: 0, affectations: 0, contrats: 0, contratsIgnores: 0, forfaits: 0 };
+  const bilan = { conges: 0, affectations: 0, contrats: 0, contratsIgnores: 0, forfaits: 0, assurances: 0 };
   if (!data || typeof data !== 'object' || !FP.settings) return bilan;
   const R = FP.restauration, avant = FP.settings.get() || {};
   const c = R.parCle(avant.condConges, data.condConges, l => FP.congesTable.nettoyer(l));
@@ -8734,6 +8867,14 @@ FP.restaurerReglages = (data) => {
   const l = R.parId(avant.localeaseContrats, data.localeaseContrats);
   const f = R.parCle(avant.leasingContrats, data.leasingContrats);
   data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur; data.leasingContrats = f.valeur;
+  // Collections en table générique (assurances…) : même règle par élément ; l'envoi à la table se fait ensuite
+  // tout seul à l'enregistrement (FP.elementsReglages.apresSauvegarde).
+  let nElements = 0;
+  if (FP.elementsReglages) Object.keys(FP.elementsReglages.COLLECTIONS).forEach(col => {
+    const forme = FP.elementsReglages.COLLECTIONS[col];
+    const r = (forme === 'map') ? R.parCle(avant[col], data[col]) : (forme === 'liste-id') ? R.parId(avant[col], data[col]) : R.ensemble(avant[col], data[col]);
+    data[col] = r.valeur; nElements += r.changes.length;
+  });
   // Réglages + contrats LLD (n'envoie que les contrats changés depuis l'affichage ; aucun archivage : liste ⊇ actuelle).
   if (FP.contratsLLD) FP.contratsLLD.sauver(data); else FP.settings.save(data);
   const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
@@ -8744,7 +8885,7 @@ FP.restaurerReglages = (data) => {
   a.changes.forEach(v => FP.affectationsTable.enregistrer(v, data.affectations[v]));
   f.changes.forEach(k => FP.forfaitsLeasingTable.enregistrer(k, data.leasingContrats[k]));
   bilan.conges = c.changes.length; bilan.affectations = a.changes.length;
-  bilan.contrats = l.changes.length; bilan.contratsIgnores = l.ignores; bilan.forfaits = f.changes.length;
+  bilan.contrats = l.changes.length; bilan.contratsIgnores = l.ignores; bilan.forfaits = f.changes.length; bilan.assurances = nElements;
   return bilan;
 };
 FP.restaurerReglages.texte = (b) => {
@@ -8753,6 +8894,7 @@ FP.restaurerReglages.texte = (b) => {
   if (b && b.affectations) p.push(b.affectations + ' véhicule(s) : affectations');
   if (b && b.contrats) p.push(b.contrats + ' contrat(s) LLD');
   if (b && b.forfaits) p.push(b.forfaits + ' forfait(s) de leasing');
+  if (b && b.assurances) p.push(b.assurances + ' élément(s) d\'assurance');
   return p.length ? ' — remis aussi en base : ' + p.join(', ') : '';
 };
 FP.affectations = {
@@ -12295,7 +12437,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing', settings_items: 'assurance' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');

@@ -90,6 +90,11 @@ test('contrat sans identifiant dans la version → ignoré et compté', () => {
   assert.equal(r.valeur.length, 1); assert.equal(r.ignores, 1);
 });
 
+test('ensemble (plaques ignorées) : les plaques de la version reviennent, aucune n\'est retirée', () => {
+  const r = R.ensemble(['A', 'B'], ['B', 'C']);
+  assert.deepEqual(r.valeur, ['A', 'B', 'C']); assert.deepEqual(r.changes, ['C']);
+});
+
 console.log(`\n${ok} réussi(s), ${ko} échoué(s)`);
 if (ko) process.exit(1);
 console.log('✅ Restauration : les éléments de la version reviennent, rien de plus récent n\'est supprimé.');
