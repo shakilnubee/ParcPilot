@@ -7905,6 +7905,68 @@ FP.LEASING_CONTRATS = {
 // contrat sans toucher au code. Ils prennent le pas sur FP.LEASING_CONTRATS.
 // Forfaits leasing personnalisés : stockés dans les réglages PARTAGÉS (app_settings)
 // pour être visibles/identiques sur tous les PC. (Avant : localStorage local seulement.)
+// ⚠️ SOURCE DE VÉRITÉ des forfaits de leasing saisis dans l'app (depuis le 21/10/2026) : la TABLE `lease_overrides`
+// (1 plaque = 1 ligne, clé de plaque gardée TELLE QU'ENREGISTRÉE, RLS par société). L'application lit toujours
+// `settings.leasingContrats` = { clé: forfait } : c'est une PROJECTION de la table (+ écritures encore en file).
+// ÉCRITURE : UNIQUEMENT via FP.saveLeasingOverride / FP.resetLeasingOverride (→ FP.forfaitsLeasingTable.enregistrer /
+// archiver, file durable) ; un forfait retiré est ARCHIVÉ, jamais effacé. Copie de transition dans les réglages.
+/*<forfaits-leasing-table>*/
+FP.forfaitsLeasingTable = {
+  cle: 'leasingContrats',
+  FN_ENREGISTRER: 'fp_forfait_leasing_enregistrer',
+  FN_ARCHIVER: 'fp_forfait_leasing_archiver',
+  // Lignes de la table → { clé: forfait }.
+  versMap(rows) {
+    const m = {};
+    (Array.isArray(rows) ? rows : []).forEach(r => {
+      if (r && r.cle && r.forfait && typeof r.forfait === 'object' && !Array.isArray(r.forfait)) m[r.cle] = Object.assign({}, r.forfait);
+    });
+    return m;
+  },
+  // Écritures encore EN FILE (pas encore confirmées) ré-appliquées dans l'ordre, pour la société lue.
+  appliquerFile(map, q, soc) {
+    map = (map && typeof map === 'object') ? map : {};
+    (Array.isArray(q) ? q : []).forEach(it => {
+      if (!it || it.op !== 'rpc' || !it.args || it.args.p_societe !== soc || !it.args.p_cle) return;
+      if (it.fn === this.FN_ENREGISTRER && it.args.p_forfait && typeof it.args.p_forfait === 'object') map[it.args.p_cle] = JSON.parse(JSON.stringify(it.args.p_forfait));
+      else if (it.fn === this.FN_ARCHIVER) delete map[it.args.p_cle];
+    });
+    return map;
+  },
+};
+/*</forfaits-leasing-table>*/
+FP.forfaitsLeasingTable.charger = async (client, soc) => {
+  const rows = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const r = await client.from('lease_overrides').select('id,cle,forfait')
+      .eq('societe', soc).is('deleted_at', null).order('id').range(from, from + PAGE - 1);
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
+    if (!r.data || r.data.length < PAGE) break;
+  }
+  return rows;
+};
+// Projection : remplace shared.leasingContrats par la table (+ file). `rows` null (lecture échouée) → inchangé.
+FP.forfaitsLeasingTable.projeter = (shared, rows, soc) => {
+  if (!shared || typeof shared !== 'object' || !Array.isArray(rows)) return shared;
+  let q = []; try { q = (FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : []; } catch (e) {}
+  shared.leasingContrats = FP.forfaitsLeasingTable.appliquerFile(FP.forfaitsLeasingTable.versMap(rows), q, FP.forfaitsLeasingTable._soc(soc));
+  return shared;
+};
+FP.forfaitsLeasingTable._soc = (soc) => soc || (FP._condSocForDb ? FP._condSocForDb() : 'PXP');
+FP.forfaitsLeasingTable.enregistrer = (cle, forfait) => {
+  if (!cle || !forfait || typeof forfait !== 'object' || !(FP.persist && FP.persist.rpc)) return;
+  const soc = FP.forfaitsLeasingTable._soc();
+  FP.persist.rpc(FP.forfaitsLeasingTable.FN_ENREGISTRER, { p_societe: soc, p_cle: String(cle), p_forfait: JSON.parse(JSON.stringify(forfait)) },
+    { table: 'lease_overrides', remplace: 'forfait:' + soc + ':' + cle });
+};
+FP.forfaitsLeasingTable.archiver = (cle) => {
+  if (!cle || !(FP.persist && FP.persist.rpc)) return;
+  const soc = FP.forfaitsLeasingTable._soc();
+  FP.persist.rpc(FP.forfaitsLeasingTable.FN_ARCHIVER, { p_societe: soc, p_cle: String(cle) },
+    { table: 'lease_overrides', remplace: 'forfait:' + soc + ':' + cle });
+};
+FP.projections.ajouter(FP.forfaitsLeasingTable);
 FP.LEASING_OVERRIDES_KEY = 'auto_flotte_leasing_contrats'; // ancien stockage local (migration)
 FP.getLeasingOverrides = () => {
   const obj = (FP.settings && FP.settings.get()) || {};
@@ -7912,11 +7974,13 @@ FP.getLeasingOverrides = () => {
   // Migration unique : remonte d'éventuels anciens forfaits locaux vers les réglages partagés.
   // ⚠️ RÉSERVÉE À PXP : la clé legacy `auto_flotte_leasing_contrats` n'est PAS suffixée par société →
   // sans cette garde, une autre société au leasingContrats vide hériterait des forfaits leasing PXP.
-  if ((!shared || !Object.keys(shared).length) && FP.settings && (!FP.activeSociete || FP.activeSociete() === 'PXP')) {
+  // ⚠️ Écrit seulement une fois la table lue dans la page (jamais depuis un cache périmé, règle ⑤).
+  if ((!shared || !Object.keys(shared).length) && FP.settings && (!FP.activeSociete || FP.activeSociete() === 'PXP') && FP.forfaitsLeasingTable && FP.forfaitsLeasingTable._charge) {
     let local = {};
     try { local = JSON.parse(localStorage.getItem(FP.LEASING_OVERRIDES_KEY) || '{}'); } catch (e) {}
     if (Object.keys(local).length) {
       const o = FP.settings.get(); o.leasingContrats = local; FP.settings.save(o);
+      Object.keys(local).forEach(k => FP.forfaitsLeasingTable.enregistrer(k, local[k]));
       try { localStorage.removeItem(FP.LEASING_OVERRIDES_KEY); } catch (e) {}
       return local;
     }
@@ -7972,7 +8036,10 @@ FP.saveLeasingOverride = (immat, fields) => {
   mk.forEach(key => { if (key !== target) delete all[key]; });                     // supprime les doublons
   all[target] = { ...merged, ...fields };                                          // les champs saisis priment
   obj.leasingContrats = all;
-  FP.settings.save(obj); // -> localStorage + app_settings (partagé sur tous les PC)
+  FP.settings.save(obj); // -> affichage immédiat + copie de transition (app_settings)
+  // SOURCE : table lease_overrides (file durable) — le forfait consolidé, et les doublons de format archivés.
+  FP.forfaitsLeasingTable.enregistrer(target, all[target]);
+  mk.forEach(key => { if (key !== target) FP.forfaitsLeasingTable.archiver(key); });
 };
 FP.resetLeasingOverride = (immat) => {
   if (!FP.settings) return;
@@ -7980,8 +8047,9 @@ FP.resetLeasingOverride = (immat) => {
   const all = (obj.leasingContrats && typeof obj.leasingContrats === 'object') ? obj.leasingContrats : null;
   if (!all) return;
   const mk = FP._leaseMatchKeys(all, immat); if (!mk.length) return;
-  mk.forEach(key => delete all[key]);   // supprime TOUTES les clés de la plaque (tous formats)
+  mk.forEach(key => delete all[key]);   // retire TOUTES les clés de la plaque (tous formats)
   FP.settings.save(obj);
+  mk.forEach(key => FP.forfaitsLeasingTable.archiver(key));   // table : archivées, jamais effacées
 };
 
 // ===== GARAGES / PRESTATAIRES (par société, partagés entre postes via app_settings) =====
@@ -8444,7 +8512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Les écrans « Historique automatique » (versions locales et serveur), l'import d'un fichier de paramètres et la
 // récupération d'anciens réglages passent TOUS par FP.restaurerReglages(data). Sans cela, une version restaurée
 // n'allait que dans les réglages : au rechargement, les écrans relisaient les TABLES (congés, affectations,
-// contrats LLD), inchangées → la restauration semblait sans effet.
+// contrats LLD, forfaits de leasing), inchangées → la restauration semblait sans effet.
 // Règle, par ÉLÉMENT (un conducteur, un véhicule, un contrat) : un élément présent dans la version reprend la
 // valeur de cette version, dans les réglages ET dans sa table ; un élément absent de la version (créé depuis)
 // est CONSERVÉ ; une liste vide dans la version n'efface rien. Rien n'est jamais supprimé par une restauration.
@@ -8461,15 +8529,16 @@ FP.restauration = {
     return JSON.stringify(x === undefined ? null : x);
   },
   _egal(a, b) { return this._canon(a) === this._canon(b); },
-  // Map { clé → liste } (congés par conducteur, affectations par véhicule). `norm` : nettoyage de la liste.
+  // Map { clé → liste ou objet } (congés par conducteur, affectations par véhicule, forfaits par plaque).
+  // `norm` : nettoyage de la valeur.
   parCle(actuel, version, norm) {
     const out = this._plain(actuel) ? Object.assign({}, actuel) : {};
     const changes = [];
     if (this._plain(version)) Object.keys(version).forEach(k => {
       let v = version[k];
-      if (!Array.isArray(v)) return;
+      if (!Array.isArray(v) && !this._plain(v)) return;
       v = norm ? norm(this._copie(v)) : this._copie(v);
-      if (!v.length) return;                                     // une liste vide n'efface rien
+      if (Array.isArray(v) ? !v.length : !Object.keys(v).length) return;   // une liste / un objet vide n'efface rien
       if (this._egal(out[k] || [], v)) return;
       out[k] = v; changes.push(k);
     });
@@ -8493,13 +8562,14 @@ FP.restauration = {
 /*</restauration-tables>*/
 // Restaure une version des réglages. Renvoie le nombre d'éléments remis dans les tables.
 FP.restaurerReglages = (data) => {
-  const bilan = { conges: 0, affectations: 0, contrats: 0, contratsIgnores: 0 };
+  const bilan = { conges: 0, affectations: 0, contrats: 0, contratsIgnores: 0, forfaits: 0 };
   if (!data || typeof data !== 'object' || !FP.settings) return bilan;
   const R = FP.restauration, avant = FP.settings.get() || {};
   const c = R.parCle(avant.condConges, data.condConges, l => FP.congesTable.nettoyer(l));
   const a = R.parCle(avant.affectations, data.affectations, l => l.filter(x => x && typeof x === 'object' && x.conducteur));
   const l = R.parId(avant.localeaseContrats, data.localeaseContrats);
-  data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur;
+  const f = R.parCle(avant.leasingContrats, data.leasingContrats);
+  data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur; data.leasingContrats = f.valeur;
   // Réglages + contrats LLD (n'envoie que les contrats changés depuis l'affichage ; aucun archivage : liste ⊇ actuelle).
   if (FP.contratsLLD) FP.contratsLLD.sauver(data); else FP.settings.save(data);
   const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
@@ -8508,8 +8578,9 @@ FP.restaurerReglages = (data) => {
       { table: 'driver_absences', remplace: 'conges:' + soc + ':' + k }));
   }
   a.changes.forEach(v => FP.affectationsTable.enregistrer(v, data.affectations[v]));
+  f.changes.forEach(k => FP.forfaitsLeasingTable.enregistrer(k, data.leasingContrats[k]));
   bilan.conges = c.changes.length; bilan.affectations = a.changes.length;
-  bilan.contrats = l.changes.length; bilan.contratsIgnores = l.ignores;
+  bilan.contrats = l.changes.length; bilan.contratsIgnores = l.ignores; bilan.forfaits = f.changes.length;
   return bilan;
 };
 FP.restaurerReglages.texte = (b) => {
@@ -8517,6 +8588,7 @@ FP.restaurerReglages.texte = (b) => {
   if (b && b.conges) p.push(b.conges + ' conducteur(s) : congés');
   if (b && b.affectations) p.push(b.affectations + ' véhicule(s) : affectations');
   if (b && b.contrats) p.push(b.contrats + ' contrat(s) LLD');
+  if (b && b.forfaits) p.push(b.forfaits + ' forfait(s) de leasing');
   return p.length ? ' — remis aussi en base : ' + p.join(', ') : '';
 };
 FP.affectations = {
@@ -12059,7 +12131,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD', lease_overrides: 'forfait leasing' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');
