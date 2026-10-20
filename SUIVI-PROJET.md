@@ -176,12 +176,13 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Tests** : 8 tests automatiques de la logique, 1 de plus pour la restauration, et un test sur le staging (enregistrement, rejeu sans doublon, refus d'un forfait illisible, isolation entre sociétés, refus sans connexion, archivage).
 - **Mis en production le 20/10/2026** : table créée, puis recopie lancée par François : 18 forfaits, 0 écart.
 
-### 20/10/2026 — Migration des données, étape 5 : les assurances 🟡 (prête, en attente de mise en production)
+### 20/10/2026 — Migration des données, étape 5 : les assurances ✅ (en production)
 - **Quoi** : les assureurs (avec leurs contrats et documents), l'assureur de chaque véhicule, les échéances, les primes et les plaques « ignorées » du suivi d'assurance. En production : 5 assureurs, 58 rattachements, 58 primes, 2 échéances.
 - **Une table générique**, plutôt qu'une table par donnée : un élément de réglage = une ligne (société, nom de la donnée, clé, valeur). Les fonctions serveur n'acceptent qu'une **liste fermée** de données. Les tâches et les sinistres pourront s'y brancher sans nouvelle table.
 - **Écriture branchée au cœur de l'enregistrement des réglages** : chaque enregistrement compare la valeur avec celle qui était affichée et n'envoie à la table **que les éléments modifiés**. Une écriture oubliée ne peut donc pas manquer la table. Un élément retiré est **archivé**, jamais effacé. La restauration des versions couvre aussi les assurances.
 - **Aucun changement visible**. La copie de sécurité dans les réglages est conservée (la fonction serveur `km-collect` lit encore les assureurs depuis cette copie).
 - **Tests** : 15 tests automatiques de la logique, 1 de plus pour la restauration, et un test sur le staging (les 3 formes de données, rejeu sans doublon, refus d'une donnée hors liste ou vide, isolation entre sociétés, refus sans connexion, archivage).
+- **Mis en production le 20/10/2026** : table créée, puis recopie lancée par François : 5 assureurs, 58 rattachements, 58 primes, 2 échéances, 0 écart.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -210,7 +211,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1032 | Restauration des versions de réglages branchée sur les tables | ✅ Fusionnée |
 | #1033 | Restauration : comparaison sur le contenu | ✅ Fusionnée |
 | #1034 | Migration des données, étape 4 : les forfaits de leasing | ✅ Fusionnée, en production |
-| (cette PR) | Migration des données, étape 5 : les assurances (table générique) | En cours |
+| #1037 | Migration des données, étape 5 : les assurances (table générique) | ✅ Fusionnée, en production |
 
 ## 7. Prochaines étapes
 
@@ -218,7 +219,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : prête. Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : ✅ en production depuis le 20/10/2026 (PR #1037). Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
