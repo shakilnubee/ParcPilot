@@ -3041,8 +3041,11 @@ FP.projections = {
   charger(client, soc) {
     return Promise.all(this.liste.map(p => Promise.resolve().then(() => p.charger(client, soc)).then(rows => ({ p, rows }), () => ({ p, rows: null }))));
   },
+  // Chaque module est appelé, même si la lecture a échoué (rows null : il garde alors la copie des réglages).
   projeter(shared, lus, soc) {
-    (Array.isArray(lus) ? lus : []).forEach(({ p, rows }) => {
+    const parP = new Map((Array.isArray(lus) ? lus : []).filter(x => x && x.p).map(x => [x.p, x.rows]));
+    this.liste.forEach(p => {
+      const rows = parP.has(p) ? parP.get(p) : null;
       try { shared = p.projeter(shared, rows, soc); if (Array.isArray(rows)) p._charge = true; } catch (e) {}
     });
     return shared;
@@ -8235,6 +8238,109 @@ FP.affectationsTable.enregistrer = (vehId, liste) => {
     { table: 'vehicle_assignments', remplace: 'affect:' + soc + ':' + vehId });
 };
 FP.projections.ajouter(FP.affectationsTable);
+// ================= CONTRATS LLD (page Contrats → « Leasing (LLD) ») =========
+// ⚠️ SOURCE DE VÉRITÉ (depuis le 21/10/2026) : la TABLE `lease_contracts` (1 contrat = 1 ligne, identifiant
+// stable `id`, isolée par société, RLS). L'application lit toujours `settings.localeaseContrats` = [contrats] :
+// c'est une PROJECTION de la table (+ écritures encore en file), posée par supabase-client au chargement.
+// ÉCRITURE : modifier la liste puis appeler **FP.contratsLLD.sauver(s)** — JAMAIS `FP.settings.save` seul.
+// sauver compare la liste à celle AFFICHÉE avant la modification (`_ref`) et n'envoie que les contrats
+// changés (RPC fp_contrat_lld_enregistrer) ou retirés (fp_contrat_lld_archiver : archivage, jamais
+// d'effacement), via la file durable. Une copie de transition reste dans les réglages.
+/*<contrats-lld-table>*/
+FP.contratsLLDTable = {
+  cle: 'localeaseContrats',
+  FN_ENREGISTRER: 'fp_contrat_lld_enregistrer',
+  FN_ARCHIVER: 'fp_contrat_lld_archiver',
+  _ref: null,   // { id: empreinte } de la liste telle qu'affichée (dernière projection ou dernier enregistrement)
+  // Lignes de la table → liste de contrats, dans l'ordre enregistré.
+  versListe(rows) {
+    return (Array.isArray(rows) ? rows : [])
+      .filter(r => r && r.contrat_id && r.contrat && typeof r.contrat === 'object' && !Array.isArray(r.contrat))
+      .slice().sort((x, y) => ((+x.ordre || 0) - (+y.ordre || 0)) || ((+x.id || 0) - (+y.id || 0)))
+      .map(r => Object.assign({}, r.contrat, { id: r.contrat_id }));
+  },
+  // Écritures encore EN FILE (pas encore confirmées) ré-appliquées dans l'ordre, pour la société lue.
+  appliquerFile(liste, q, soc) {
+    let l = Array.isArray(liste) ? liste.slice() : [];
+    (Array.isArray(q) ? q : []).forEach(it => {
+      if (!it || it.op !== 'rpc' || !it.args || it.args.p_societe !== soc || !it.args.p_id) return;
+      const id = it.args.p_id;
+      if (it.fn === this.FN_ENREGISTRER && it.args.p_contrat && typeof it.args.p_contrat === 'object') {
+        const c = JSON.parse(JSON.stringify(it.args.p_contrat));
+        const i = l.findIndex(x => x && x.id === id);
+        if (i >= 0) l[i] = c; else l.splice(Math.min(Math.max(+it.args.p_ordre || 0, 0), l.length), 0, c);
+      } else if (it.fn === this.FN_ARCHIVER) {
+        l = l.filter(x => !(x && x.id === id));
+      }
+    });
+    return l;
+  },
+  // Empreinte de chaque contrat (position + contenu) : sert à repérer ce qui a changé.
+  empreintes(liste) {
+    const m = {};
+    (Array.isArray(liste) ? liste : []).forEach((c, i) => { if (c && c.id) m[c.id] = i + '|' + JSON.stringify(c); });
+    return m;
+  },
+  // Différence entre la liste affichée avant (ref) et la liste à enregistrer → écritures à envoyer.
+  ecarts(ref, liste) {
+    ref = ref || {};
+    const now = this.empreintes(liste), out = [];
+    (Array.isArray(liste) ? liste : []).forEach((c, i) => { if (c && c.id && ref[c.id] !== now[c.id] && now[c.id] === i + '|' + JSON.stringify(c)) out.push({ op: 'enregistrer', id: c.id, ordre: i, contrat: c }); });
+    Object.keys(ref).forEach(id => { if (!(id in now)) out.push({ op: 'archiver', id }); });
+    return out;
+  },
+};
+/*</contrats-lld-table>*/
+FP.contratsLLDTable.charger = async (client, soc) => {
+  const rows = [], PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const r = await client.from('lease_contracts').select('id,contrat_id,ordre,contrat')
+      .eq('societe', soc).is('deleted_at', null).order('id').range(from, from + PAGE - 1);
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
+    if (!r.data || r.data.length < PAGE) break;
+  }
+  return rows;
+};
+// Projection : remplace shared.localeaseContrats par la table (+ file). Lecture échouée (rows null) → liste
+// inchangée. Dans les deux cas, la liste affichée devient la référence des prochains enregistrements.
+FP.contratsLLDTable.projeter = (shared, rows, soc) => {
+  const T = FP.contratsLLDTable;
+  if (!shared || typeof shared !== 'object') return shared;
+  if (Array.isArray(rows)) {
+    let q = []; try { q = (FP.persist && FP.persist._loadQ) ? FP.persist._loadQ() : []; } catch (e) {}
+    shared.localeaseContrats = T.appliquerFile(T.versListe(rows), q, soc);
+  }
+  T._ref = T.empreintes(shared.localeaseContrats);
+  return shared;
+};
+FP.projections.ajouter(FP.contratsLLDTable);
+FP.contratsLLD = {
+  _nouvelId() { return 'lld-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); },
+  // Enregistre la liste `s.localeaseContrats` : réglages (affichage immédiat + copie de transition) PUIS table
+  // (source), contrat par contrat, uniquement ce qui a changé depuis l'affichage.
+  sauver(s) {
+    const T = FP.contratsLLDTable;
+    if (!s || typeof s !== 'object') return;
+    const liste = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : [];
+    liste.forEach(c => { if (c && typeof c === 'object' && !c.id) c.id = this._nouvelId(); });
+    s.localeaseContrats = liste;
+    FP.settings.save(s);
+    if (!(FP.persist && FP.persist.rpc)) return;
+    const soc = FP._condSocForDb ? FP._condSocForDb() : 'PXP';
+    T.ecarts(T._ref, liste).forEach(e => {
+      const meta = { table: 'lease_contracts', remplace: 'lld:' + soc + ':' + e.id };
+      if (e.op === 'enregistrer') FP.persist.rpc(T.FN_ENREGISTRER, { p_societe: soc, p_id: e.id, p_ordre: e.ordre, p_contrat: JSON.parse(JSON.stringify(e.contrat)) }, meta);
+      else FP.persist.rpc(T.FN_ARCHIVER, { p_societe: soc, p_id: e.id }, meta);
+    });
+    T._ref = T.empreintes(liste);
+  },
+};
+// Référence initiale = liste affichée depuis le cache local (avant la lecture serveur), pour qu'une modification
+// faite dans la toute première seconde n'envoie que ce que l'utilisateur a réellement changé.
+document.addEventListener('DOMContentLoaded', () => {
+  try { if (!FP.contratsLLDTable._ref && FP.settings) FP.contratsLLDTable._ref = FP.contratsLLDTable.empreintes(FP.settings.get().localeaseContrats); } catch (e) {}
+});
 FP.affectations = {
   _norm(n) { return (n == null ? '' : String(n)).trim(); },
   // Enregistre : réglages (affichage immédiat + copie de transition) PUIS table (source), véhicule par véhicule.
@@ -11616,7 +11722,7 @@ FP.trash = {
     try {
       if (e.type === 'leasing') {
         const s = FP.settings.get(); const list = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : [];
-        list.push(e.rec); s.localeaseContrats = list; FP.settings.save(s);
+        list.push(e.rec); s.localeaseContrats = list; FP.contratsLLD.sauver(s);
       } else {
         if (FP.persist && FP.persist.insert) FP.persist.insert(e.type, e.rec);
         else if (FP.db && FP.db.insert) await FP.db.insert(e.type, e.rec);
@@ -11775,7 +11881,7 @@ FP.persist = {
   },
   // Résumé lisible des échecs définitifs (pour le message à l'utilisateur)
   _resumeEchecs() {
-    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations' };
+    const noms = { vehicules: 'véhicule', amendes: 'amende', factures: 'facture', conducteurs: 'conducteur', driver_absences: 'congés', vehicle_assignments: 'affectations', lease_contracts: 'contrat LLD' };
     return this._loadQ().filter(it => it.failed).map(it => {
       const quoi = noms[it.table] || it.table;
       const act = it.op === 'delete' ? 'suppression' : ((it.op === 'update' || it.op === 'rpc') ? 'modification' : 'ajout');

@@ -430,7 +430,7 @@
       const rec = { conducteur: '', immat: (g('immat') || '').toUpperCase(), marque: g('marque') || '', modele: g('modele') || '',
         loueur: g('loueur') || '', loyerTTC: num(g('loyerTTC')), dureeMois: intv(g('dureeMois')), kmTotal: intv(g('kmTotal')),
         debut: g('dateDebut') || null, fin: g('dateFin') || null, offre: g('numeroContrat') || '', kmSupp: num(g('prixKmSupp')), docs: [] };
-      try { const s = FP.settings.get(); const l = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : []; l.push(rec); s.localeaseContrats = l; FP.settings.save(s); } catch (e) {}
+      try { const s = FP.settings.get(); const l = Array.isArray(s.localeaseContrats) ? s.localeaseContrats : []; l.push(rec); s.localeaseContrats = l; FP.contratsLLD.sauver(s); } catch (e) {}
       target = { table: 'leasing', id: rec.immat };
     }
     else if (cible === 'documents') {
