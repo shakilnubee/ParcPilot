@@ -197,6 +197,13 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Tests** : 3 tests automatiques de plus (18 au total) et le test du staging élargi aux tâches et aux rappels cochés.
 - **Mis en production le 20/10/2026** : liste des données acceptées élargie, puis recopie lancée par François : 5 tâches, 2 rappels, 2 rappels cochés, 23 tâches automatiques, 0 écart.
 
+### 20/10/2026 — Migration des données, étape 7 : les sinistres ✅ (en production)
+- **Quoi** : le suivi des sinistres : statuts, étapes, groupes, suivi d'assurance (franchise, clôture…), sous-dossiers, classement des documents et liste des dossiers. En production : 30 statuts, 5 suivis d'assurance, 2 groupes, 58 dossiers.
+- **Sur la table générique**, sans nouvelle table ni page modifiée : toutes les écritures passent déjà par l'enregistrement des réglages. Les listes de plaques gardent désormais leur **ordre d'affichage**.
+- **Tests** : 3 tests automatiques de plus (21 au total) et le test du staging élargi aux sinistres.
+- **Mis en production le 20/10/2026** : liste des données acceptées élargie, puis recopie lancée par François : 30 statuts, 5 suivis d'assurance, 2 groupes, 58 dossiers, 0 écart.
+- **Note** : la recopie des assurances, déjà appliquée, donnait l'ordre 0 aux « plaques ignorées » (vides en production). Si elle était relancée, l'application rectifierait l'ordre au premier enregistrement, sans perte.
+
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
 - Le déploiement automatique des fonctions serveur **fonctionnait**. Sa condition a tout de même été rendue robuste au nom du dépôt.
@@ -226,6 +233,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1034 | Migration des données, étape 4 : les forfaits de leasing | ✅ Fusionnée, en production |
 | #1037 | Migration des données, étape 5 : les assurances (table générique) | ✅ Fusionnée, en production |
 | #1038 | Migration des données, étape 6 : les tâches | ✅ Fusionnée, en production |
+| #1040 | Migration des données, étape 7 : les sinistres | ✅ Fusionnée, en production |
 
 ## 7. Prochaines étapes
 
@@ -233,7 +241,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : ✅ en production depuis le 20/10/2026 (PR #1037). **Étape 6, les tâches** : ✅ en production depuis le 20/10/2026 (PR #1038). Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : ✅ en production depuis le 20/10/2026 (PR #1037). **Étape 6, les tâches** : ✅ en production depuis le 20/10/2026 (PR #1038). **Étape 7, les sinistres** : ✅ en production depuis le 20/10/2026 (PR #1040). Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
