@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021b">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -676,8 +676,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021a"></script>
-<script src="../assets/js/supabase-client.js?v=20261021a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021b"></script>
+<script src="../assets/js/supabase-client.js?v=20261021b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -693,12 +693,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261021a"></script>
-<script src="../assets/js/app.min.js?v=20261021a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021b"></script>
+<script src="../assets/js/app.min.js?v=20261021b"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2749,6 +2749,20 @@
       columnStyles: { 2: { halign: 'center' }, 3: { halign: 'right' } },
       didParseCell: (dt) => { if (dt.section === 'body' && dt.column.index === 4) { const v = String(dt.cell.raw || ''); if (/payer/i.test(v)) { dt.cell.styles.textColor = [220, 38, 38]; dt.cell.styles.fontStyle = 'bold'; } else if (/pay/i.test(v)) { dt.cell.styles.textColor = [22, 163, 74]; dt.cell.styles.fontStyle = 'bold'; } } },
     });
+    // Infos complémentaires (champs personnalisés de la société) — ajoutées seulement si renseignées.
+    try {
+      if (window.FP && FP.customFields && FP.customFields.defsFor) {
+        const cfRows = FP.customFields.defsFor('conducteur')
+          .map(cf => [clean(cf.label), clean(FP.customFields.display(cf, FP.customFields.effective('conducteur', d.key, cf)))])
+          .filter(r => r[1] !== '');
+        if (cfRows.length) {
+          cy = doc.lastAutoTable.finalY + 8;
+          if (cy > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); cy = 20; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(249, 115, 22); doc.text('INFOS COMPLÉMENTAIRES', 12, cy); cy += 3;
+          doc.autoTable(Object.assign({}, kvOpts, { startY: cy, margin: { left: 12, right: 12 }, columnStyles: { 0: { textColor: [100, 116, 139], cellWidth: 45 }, 1: { halign: 'right', fontStyle: 'bold' } }, body: cfRows }));
+        }
+      }
+    } catch (e) {}
     if (d.note) {
       cy = doc.lastAutoTable.finalY + 8;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(249, 115, 22); doc.text('NOTE', 12, cy); cy += 5;
@@ -3292,11 +3306,22 @@
     // Colonne technique : l'identifiant interne du conducteur (sert à relier congés, cartes, docs…). Décochée par défaut.
     { id: 'cle',       label: 'Clé (identifiant interne)', def: false, mono: true, get: d => d.key || '' },
   ];
+  // Colonnes « champs personnalisés » (société) pour le relevé CSV/PDF — désactivées par défaut (def:false).
+  function cfFicheColsCond() {
+    if (!(window.FP && FP.customFields && FP.customFields.defsFor)) return [];
+    try {
+      return FP.customFields.defsFor('conducteur').map(def => ({
+        id: 'cf:' + def.key, label: def.label, def: false,
+        align: (def.type === 'number' || def.type === 'money') ? 'right' : 'left',
+        get: d => FP.customFields.display(def, FP.customFields.effective('conducteur', d.key, def)) || ''
+      }));
+    } catch (e) { return []; }
+  }
   document.getElementById('btn-releve')?.addEventListener('click', () => {
     if (!(FP.fiche && FP.fiche.open)) { alert('Aperçu indisponible ici.'); return; }
     const rows = (drivers || []).slice();
     if (!rows.length) { alert('Aucun conducteur à exporter.'); return; }
-    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS, rows });
+    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows });
   });
 
   // Résout un conducteur par clé/nom normalisé ; s'il n'a pas de fiche, en FABRIQUE une à la

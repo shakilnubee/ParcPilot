@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021b">
 <style>
   .notif { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--fp-border); background: var(--fp-surface, #fff); text-decoration: none; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; box-shadow: 0 1px 2px rgba(15,30,61,.04); }
   .notif + .notif { margin-top: .55rem; }
@@ -159,8 +159,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021a"></script>
-<script src="../assets/js/supabase-client.js?v=20261021a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021b"></script>
+<script src="../assets/js/supabase-client.js?v=20261021b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -176,11 +176,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021a"></script>
+<script src="../assets/js/app.min.js?v=20261021b"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -646,6 +646,18 @@
     // est inconnue, on ne devine pas → on ne demande pas (évite le faux « à compléter »).
     { k: 'permisExpiration', label: 'Expiration permis', skip: c => { const d = String(c.permisObtention || '').slice(0, 10); return !(d && d >= '2013-01-19'); } },
   ];
+  // Champs PERSONNALISÉS marqués « obligatoires » (Paramètres → Champs perso) → ajoutés à la checklist.
+  // entity = 'vehicule' (clé = v.id) ou 'conducteur' (clé = c.key). target = la fiche (l'édition se fait
+  // sur la fiche, pas en rafale — cf. rafMeta qui renvoie 'fiche' pour toute clé « cf:… »).
+  const cfReqFields = (entity) => {
+    if (!(window.FP && FP.customFields && FP.customFields.defsFor)) return [];
+    try {
+      return FP.customFields.defsFor(entity).filter(d => d.required).map(d => ({
+        k: 'cf:' + d.key, label: d.label,
+        empty: x => FP.customFields._isEmptyFor(d, FP.customFields.value(entity, entity === 'vehicule' ? x.id : x.key, d.key))
+      }));
+    } catch (e) { return []; }
+  };
   const AMENDE_FIELDS = [
     { k: 'prenom', label: 'Conducteur à attribuer' },
     // Montant : on lit la MÊME source que la fiche (FP.montantDu = total dû, majoré/minoré) — sinon une
@@ -880,9 +892,11 @@
   function renderComplet() {
     const box = document.getElementById('suivi-complet'); if (!box) return;
     const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
-    const vehItems = []; actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; const m = missOf(v, VEH_FIELDS, pfx); if (m.length) vehItems.push(compItem(`${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), m, `vehicules.html?veh=${encodeURIComponent(v.id)}`, pfx, 'veh', v.id)); });
+    const VEH_ALL = VEH_FIELDS.concat(cfReqFields('vehicule'));
+    const vehItems = []; actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; const m = missOf(v, VEH_ALL, pfx); if (m.length) vehItems.push(compItem(`${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), m, `vehicules.html?veh=${encodeURIComponent(v.id)}`, pfx, 'veh', v.id)); });
     const conds = (data.conducteurs || []).filter(c => c && c.masque !== true && (c.manuel === true || !isEmptyV(c.nom) || !isEmptyV(c.prenom) || !isEmptyV(c.name)));
-    const condItems = []; conds.forEach(c => { const pfx = 'complet:cond:' + (c.key || '') + ':'; const m = missOf(c, COND_FIELDS, pfx); if (m.length) { const nom = [c.prenom, c.nom].filter(x => !isEmptyV(x)).join(' ') || c.name || c.key || 'Conducteur'; condItems.push(compItem(nom, m, `conducteurs.html?cond=${encodeURIComponent(c.key || '')}`, pfx, 'cond', c.key || '')); } });
+    const COND_ALL = COND_FIELDS.concat(cfReqFields('conducteur'));
+    const condItems = []; conds.forEach(c => { const pfx = 'complet:cond:' + (c.key || '') + ':'; const m = missOf(c, COND_ALL, pfx); if (m.length) { const nom = [c.prenom, c.nom].filter(x => !isEmptyV(x)).join(' ') || c.name || c.key || 'Conducteur'; condItems.push(compItem(nom, m, `conducteurs.html?cond=${encodeURIComponent(c.key || '')}`, pfx, 'cond', c.key || '')); } });
     const amItems = []; (data.amendes || []).forEach(a => { const pfx = 'complet:am:' + (a.id || '') + ':'; const m = missOf(a, AMENDE_FIELDS, pfx); if (m.length) amItems.push(compItem(`${(a.motif || 'Amende')} · ${a.date ? FP.date(a.date) : 'date ?'}`, m, `amendes.html?amende=${encodeURIComponent(a.id || '')}`, pfx, 'am', a.id || '')); });
     // Checklists COMMENCÉES mais pas terminées (remise / reprise / cession / entrée flotte) — règle
     // utilisateur : « si j'ai pas encore coché toute la liste ». On ne montre QUE les checklists déjà
@@ -986,6 +1000,8 @@
 
   // ===== « Remplir en rafale » : enchaîne toutes les infos manquantes remplissables en ligne =====
   function rafMeta(type, k) {
+    // Champ personnalisé → édition sur la fiche (pas en rafale) : on renvoie 'fiche' (chip-lien vers la fiche).
+    if (String(k || '').indexOf('cf:') === 0) return { kind: 'fiche' };
     if (type === 'veh') {
       if (k === 'boite') return { kind: 'select', options: ['Manuelle', 'Automatique'] };
       if (k === 'carburant') return { kind: 'select', options: (window.FP && FP.CARBURANTS) || [] };
@@ -1006,9 +1022,11 @@
   function buildRaf() {
     const out = [];
     const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
-    actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; missOf(v, VEH_FIELDS, pfx).forEach(m => { const meta = rafMeta('veh', m.k); if (meta.kind === 'fiche') return; out.push({ type: 'veh', entity: v, entityLabel: `${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), field: m, ignKey: pfx + m.k, meta }); }); });
+    const VEH_ALL = VEH_FIELDS.concat(cfReqFields('vehicule'));
+    actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; missOf(v, VEH_ALL, pfx).forEach(m => { const meta = rafMeta('veh', m.k); if (meta.kind === 'fiche') return; out.push({ type: 'veh', entity: v, entityLabel: `${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), field: m, ignKey: pfx + m.k, meta }); }); });
     const conds = (data.conducteurs || []).filter(c => c && c.masque !== true && (c.manuel === true || !isEmptyV(c.nom) || !isEmptyV(c.prenom) || !isEmptyV(c.name)));
-    conds.forEach(c => { const pfx = 'complet:cond:' + (c.key || '') + ':'; missOf(c, COND_FIELDS, pfx).forEach(m => { const meta = rafMeta('cond', m.k); if (meta.kind === 'fiche') return; const nom = [c.prenom, c.nom].filter(x => !isEmptyV(x)).join(' ') || c.name || c.key || 'Conducteur'; out.push({ type: 'cond', entity: c, entityLabel: nom, field: m, ignKey: pfx + m.k, meta }); }); });
+    const COND_ALL = COND_FIELDS.concat(cfReqFields('conducteur'));
+    conds.forEach(c => { const pfx = 'complet:cond:' + (c.key || '') + ':'; missOf(c, COND_ALL, pfx).forEach(m => { const meta = rafMeta('cond', m.k); if (meta.kind === 'fiche') return; const nom = [c.prenom, c.nom].filter(x => !isEmptyV(x)).join(' ') || c.name || c.key || 'Conducteur'; out.push({ type: 'cond', entity: c, entityLabel: nom, field: m, ignKey: pfx + m.k, meta }); }); });
     (data.amendes || []).forEach(a => { const pfx = 'complet:am:' + (a.id || '') + ':'; missOf(a, AMENDE_FIELDS, pfx).forEach(m => { const meta = rafMeta('am', m.k); if (meta.kind === 'fiche') return; out.push({ type: 'am', entity: a, entityLabel: `${(a.motif || 'Amende')} · ${a.date ? FP.date(a.date) : 'date ?'}`, field: m, ignKey: pfx + m.k, meta }); }); });
     return out;
   }

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021b">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1183,8 +1183,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021a"></script>
-<script src="../assets/js/supabase-client.js?v=20261021a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021b"></script>
+<script src="../assets/js/supabase-client.js?v=20261021b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1200,13 +1200,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261021a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261021a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021b"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261021b"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021a"></script>
+<script src="../assets/js/app.min.js?v=20261021b"></script>
 <script>
   lucide.createIcons();
 
@@ -5036,11 +5036,22 @@
   ];
 
   let _ficheList = [], _ficheLabel = '';
+  // Colonnes « champs personnalisés » (société) pour le relevé CSV/PDF — désactivées par défaut (def:false).
+  function cfFicheCols() {
+    if (!(window.FP && FP.customFields && FP.customFields.defsFor)) return [];
+    try {
+      return FP.customFields.defsFor('vehicule').map(def => ({
+        id: 'cf:' + def.key, label: def.label, def: false,
+        align: (def.type === 'number' || def.type === 'money') ? 'right' : 'left',
+        get: v => FP.customFields.display(def, FP.customFields.effective('vehicule', v.id, def)) || '—'
+      }));
+    } catch (e) { return []; }
+  }
   // Passe par le moteur commun FP.fiche (style Parc Pilot + aperçu + choix des colonnes mémorisé).
   function openFicheModal(list, label) {
     const rows = (list || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
     if (window.FP && FP.fiche && FP.fiche.open) {
-      FP.fiche.open({ key: 'vehicules', title: label || 'Véhicules', cols: FICHE_COLS, rows: rows });
+      FP.fiche.open({ key: 'vehicules', title: label || 'Véhicules', cols: FICHE_COLS.concat(cfFicheCols()), rows: rows });
     }
   }
 
@@ -6166,6 +6177,21 @@
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: { 2: { halign: 'right' } },
     });
+    // Infos complémentaires (champs personnalisés de la société) — ajoutées seulement si renseignées.
+    try {
+      if (window.FP && FP.customFields && FP.customFields.defsFor) {
+        const cfRows = FP.customFields.defsFor('vehicule')
+          .map(d => [clean(d.label), clean(FP.customFields.display(d, FP.customFields.effective('vehicule', v.id, d)))])
+          .filter(r => r[1] !== '');
+        if (cfRows.length) {
+          let cy2 = doc.lastAutoTable.finalY + 9;
+          if (cy2 > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); cy2 = 20; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(15, 30, 61);
+          doc.text('INFOS COMPLEMENTAIRES', 12, cy2); cy2 += 3;
+          doc.autoTable(Object.assign({}, kvOpts, { startY: cy2, margin: { left: 12, right: 12 }, body: cfRows }));
+        }
+      }
+    } catch (e) {}
     const safe = String(v.immat || 'vehicule').replace(/[^A-Za-z0-9-]/g, '');
     FP.pdfPreview(doc, 'Fiche_' + safe + '.pdf', '· ' + clean(v.immat || ''));
   }
