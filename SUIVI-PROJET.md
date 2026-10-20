@@ -184,11 +184,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Tests** : 15 tests automatiques de la logique, 1 de plus pour la restauration, et un test sur le staging (les 3 formes de données, rejeu sans doublon, refus d'une donnée hors liste ou vide, isolation entre sociétés, refus sans connexion, archivage).
 - **Mis en production le 20/10/2026** : table créée, puis recopie lancée par François : 5 assureurs, 58 rattachements, 58 primes, 2 échéances, 0 écart.
 
-### 20/10/2026 — Migration des données, étape 6 : les tâches 🟡 (prête, en attente de mise en production)
+### 20/10/2026 — Migration des données, étape 6 : les tâches ✅ (en production)
 - **Quoi** : les tâches, les rappels personnels, les rappels cochés, la liste des tâches automatiques déjà créées et le mémo anti-doublon des automatisations. En production : 5 tâches, 2 rappels, 2 rappels cochés, 23 tâches automatiques déjà créées.
 - **Sur la table générique** créée pour les assurances : aucune nouvelle table. Seule la liste des données acceptées par le serveur s'allonge. Toutes les écritures (page Tâches, tâches automatiques d'entretien, automatisations, tableau de bord) passent déjà par l'enregistrement des réglages : elles sont couvertes **sans modifier ces pages**.
 - **Inchangé** : la configuration des automatisations et leur historique restent dans les réglages. La fonction serveur des rappels (`task-reminders`) lit toujours la copie de sécurité, qui reste à jour.
 - **Tests** : 3 tests automatiques de plus (18 au total) et le test du staging élargi aux tâches et aux rappels cochés.
+- **Mis en production le 20/10/2026** : liste des données acceptées élargie, puis recopie lancée par François : 5 tâches, 2 rappels, 2 rappels cochés, 23 tâches automatiques, 0 écart.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -218,7 +219,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1033 | Restauration : comparaison sur le contenu | ✅ Fusionnée |
 | #1034 | Migration des données, étape 4 : les forfaits de leasing | ✅ Fusionnée, en production |
 | #1037 | Migration des données, étape 5 : les assurances (table générique) | ✅ Fusionnée, en production |
-| (cette PR) | Migration des données, étape 6 : les tâches | En cours |
+| #1038 | Migration des données, étape 6 : les tâches | ✅ Fusionnée, en production |
 
 ## 7. Prochaines étapes
 
@@ -226,7 +227,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : ✅ en production depuis le 20/10/2026 (PR #1037). **Étape 6, les tâches** : prête. Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). **Étape 3, les contrats LLD** : ✅ en production depuis le 20/10/2026 (PR #1025). **Étape 4, les forfaits de leasing** : ✅ en production depuis le 20/10/2026 (PR #1034). **Étape 5, les assurances** : ✅ en production depuis le 20/10/2026 (PR #1037). **Étape 6, les tâches** : ✅ en production depuis le 20/10/2026 (PR #1038). Ensuite : assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises
