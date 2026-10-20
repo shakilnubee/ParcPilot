@@ -6570,8 +6570,33 @@ FP.customFields = {
     if (val === '' || val == null || val === false) delete row[key]; else row[key] = val;
     m[id] = row; s[store] = m; FP.settings.save(s);
   },
+  // Valeur EFFECTIVE (valeur saisie, sinon valeur par défaut) — SANS rien écrire en base.
+  // Sert à l'affichage, aux exports et au contrôle « obligatoire » (la valeur par défaut « compte »).
+  effective(entity, id, def) {
+    if (!def) return '';
+    const v = this.value(entity, id, def.key);
+    if (v != null && v !== '' && v !== false) return v;
+    if (def.defaultValue != null && def.defaultValue !== '') return def.defaultValue;
+    return def.type === 'checkbox' ? !!v : '';
+  },
+  // Un champ obligatoire est « vide » s'il n'a NI valeur saisie NI valeur par défaut.
+  _isEmptyFor(def, v) {
+    if (!def) return false;
+    if (def.type === 'checkbox') return v !== true && !/^(1|oui|true|vrai|x|on)$/i.test(String(def.defaultValue || ''));
+    if (v != null && v !== '') return false;
+    return !(def.defaultValue != null && def.defaultValue !== '');
+  },
+  // Champs ACTIFS + OBLIGATOIRES + NON renseignés d'une fiche → [{key,label}] (checklist « À compléter »).
+  missingRequired(entity, id) {
+    try {
+      return this.defsFor(entity).filter(d => d.required)
+        .filter(d => this._isEmptyFor(d, this.value(entity, id, d.key)))
+        .map(d => ({ key: d.key, label: d.label }));
+    } catch (e) { return []; }
+  },
   // Valeur formatée pour l'AFFICHAGE lecture seule (montant €, Oui/Non, date, lien…).
   display(def, val) {
+    if ((val == null || val === '') && def && def.type !== 'checkbox' && def.defaultValue != null && def.defaultValue !== '') val = def.defaultValue;
     if (val == null || val === '') return '';
     if (def.type === 'money') { const n = Number(val); return isFinite(n) ? (FP.euro ? FP.euro(n) : n + ' €') : String(val); }
     if (def.type === 'checkbox') return val ? 'Oui' : 'Non';
@@ -6582,14 +6607,18 @@ FP.customFields = {
   // Champ de saisie (avec data-attrs → sauvegarde auto via l'écouteur délégué plus bas).
   _input(d, v) {
     const da = 'data-cf-key="' + FP.esc(d.key) + '"';
-    const val = v == null ? '' : v;
+    const dflt = (d.defaultValue != null ? String(d.defaultValue) : '');
+    const hasVal = (v != null && v !== '' && v !== false);
+    // Pré-remplissage : si rien n'est saisi, on AFFICHE la valeur par défaut (éditable) sans RIEN écrire
+    // tant que l'utilisateur ne la modifie pas (l'écouteur délégué n'enregistre que sur 'change').
+    const val = hasVal ? v : dflt;
     const base = 'width:100%;margin-top:3px;font-size:13px;padding:6px 8px;border:1px solid var(--fp-border);border-radius:7px;background:var(--fp-surface);color:inherit';
     if (d.type === 'textarea') return '<textarea class="cf-in" ' + da + ' rows="2" style="' + base + ';resize:vertical">' + FP.esc(val) + '</textarea>';
-    if (d.type === 'checkbox') return '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="cf-in" ' + da + (val ? ' checked' : '') + '> Oui</label>';
+    if (d.type === 'checkbox') { const ck = (v === true) || (v == null && /^(1|oui|true|vrai|x|on)$/i.test(dflt)); return '<label style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="cf-in" ' + da + (ck ? ' checked' : '') + '> Oui</label>'; }
     if (d.type === 'select') { const opts = (d.options || []).map(o => '<option' + (String(val) === String(o) ? ' selected' : '') + '>' + FP.esc(o) + '</option>').join(''); return '<select class="cf-in" ' + da + ' style="' + base + '"><option value="">—</option>' + opts + '</select>'; }
     const t = (d.type === 'number' || d.type === 'money') ? 'number' : (d.type === 'date' ? 'date' : 'text');
     const step = d.type === 'money' ? ' step="0.01"' : '';
-    return '<input type="' + t + '"' + step + ' class="cf-in" ' + da + ' value="' + FP.esc(val) + '" placeholder="' + FP.esc(d.defaultValue || '') + '" style="' + base + '">';
+    return '<input type="' + t + '"' + step + ' class="cf-in" ' + da + ' value="' + FP.esc(val) + '" placeholder="' + FP.esc(dflt) + '" style="' + base + '">';
   },
   // Carte « Infos complémentaires » prête à insérer dans une fiche (véhicule/conducteur). Vide si aucun champ.
   ficheSection(entity, id) {
