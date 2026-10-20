@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021c">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -931,6 +931,7 @@
         <div class="man-item">Les <b>onglets de Paramètres</b> (Groupes, Affichage, Société, Données, Journal, Notifications, Compte) utilisent la même barre à « puces » que l'onglet <b>Contrôle</b>, et la page <b>rouvre automatiquement</b> sur le dernier onglet que vous aviez consulté.</div>
         <div class="man-item"><b>Affichage → couleur, mode sombre, affichage compact :</b> change la <b>couleur de base</b> de la plateforme (menu, titres, boutons), active le <b>mode sombre</b> (reposant pour les yeux, synchronisé sur tous tes PC) ou l'<b>affichage compact</b> (lignes de tableaux plus serrées). <i>Les onglets du menu de gauche sont désormais <b>fixes</b> (toujours présents, ordre défini) — plus de personnalisation, pour que tout le monde retrouve les mêmes onglets.</i></div>
         <div class="man-item"><b>🧩 Champs personnalisés</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (CEO/Admin) — onglet <b>Paramètres → Champs perso</b> : ajoute <b>tes propres champs</b> aux fiches <b>véhicules</b> et <b>conducteurs</b> (ex. « Centre de coûts », « Référence interne », « Date de livraison »…). Choisis le <b>type</b> (texte, nombre, date, <b>liste déroulante</b>, case à cocher, montant €, lien) et s'il est <b>obligatoire</b>. Le champ apparaît alors dans une section <b>« Infos complémentaires »</b> sur chaque fiche, éditable directement (enregistré et synchronisé sur tous tes PC). Les champs sont <b>propres à ta société</b> (ils n'apparaissent pas chez les autres). <b>Supprimer = archiver</b> : le champ disparaît des fiches mais les <b>valeurs déjà saisies sont conservées</b> (tu peux le rétablir).<br><b>Champ obligatoire :</b> s'il n'est pas rempli, il apparaît automatiquement dans <b>Suivi &amp; alertes → 📝 À compléter</b> (cliquable vers la fiche), comme les autres infos manquantes. <b>Valeur par défaut :</b> si tu en mets une, elle s'affiche d'avance dans le champ (et compte comme renseignée) — rien n'est enregistré tant que tu ne la modifies pas.<br>Les champs renseignés apparaissent aussi dans la <b>fiche PDF</b> du véhicule / du conducteur (section « Infos complémentaires »), et sont disponibles comme <b>colonnes optionnelles</b> dans les <b>relevés</b> (bouton « Relevé » → choix des colonnes → export CSV/PDF).</div>
+        <div class="man-item"><b>📂 Documents obligatoires</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (CEO/Admin) — onglet <b>Paramètres → Documents obligatoires</b> : définis les documents <b>exigés</b> pour tes <b>véhicules</b> (carte grise, contrôle technique, assurance, contrat…) et tes <b>conducteurs</b> (carte d'identité, titre de séjour, permis). Pour chaque exigence tu peux activer le <b>suivi d'expiration</b> (basé sur la date d'expiration saisie sur le document) et régler le <b>délai de rappel</b> (nombre de jours avant l'échéance). Sur chaque fiche, une carte <b>« Documents obligatoires »</b> affiche le statut : <b style="color:#dc2626">Manquant</b>, <b style="color:#15803d">Valide</b>, <b style="color:#b45309">Expire bientôt</b>, <b style="color:#dc2626">Expiré</b>. Si un document ne s'applique pas à une fiche précise, clique <b>« N/A »</b> pour le marquer <b>Non applicable</b> (réversible). Configuration <b>propre à ta société</b>.</div>
         <div class="man-item"><b>Retirer un onglet du menu</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — l'ancien « masquer » (œil) est remplacé par une <b>corbeille 🗑</b> : clique-la pour <b>retirer directement</b> un onglet du menu. Les onglets retirés vont dans une zone <b>« Onglets retirés du menu »</b> juste en dessous, avec un bouton <b>« Rétablir »</b> pour les remettre quand tu veux. Ne garde ainsi que les onglets qui te servent. L'onglet <b>Paramètres</b> reste toujours présent (non supprimable, sinon tu ne pourrais plus revenir ici).</div>
         <div class="man-zone">Les 3 niveaux d'accès</div>
         <div class="man-item"><b>CEO</b> (super-admin) — toutes les sociétés, tous les droits, gère tous les comptes, seul à basculer entre sociétés et à faire la sauvegarde complète.</div>
@@ -1010,8 +1011,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021b"></script>
-<script src="../assets/js/supabase-client.js?v=20261021b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021c"></script>
+<script src="../assets/js/supabase-client.js?v=20261021c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1027,10 +1028,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261021b"></script>
+<script src="../assets/js/app.min.js?v=20261021c"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
