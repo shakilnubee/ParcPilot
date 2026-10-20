@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **20/10/2026** (migration des données : congés en production, affectations prêtes)
+> Dernière mise à jour : **20/10/2026** (migration des données : congés et affectations en production)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -133,7 +133,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
   - Shakil confirme si les 2 congés archivés étaient réels ; s'ils l'étaient, il les ressaisit ;
   - dans quelques semaines, retirer la copie de transition dans les réglages.
 
-### 20/10/2026 — Migration des données, étape 2 : les affectations 🟡 (prête, en essai sur le staging)
+### 20/10/2026 — Migration des données, étape 2 : les affectations ✅ (en production)
 - **Quoi** : l'historique « qui conduit quel véhicule, depuis quand, avec quels km ». En production, il compte 53 véhicules, soit 53 périodes, avec des données propres.
 - **Même principe que les congés**, avec une nouvelle table dédiée :
   - chaque modification ne touche que les périodes **d'un seul véhicule**, en une seule opération ;
@@ -144,6 +144,10 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 - **Mécanisme rendu commun** aux données migrées : chaque nouvelle donnée se branche en quelques lignes.
 - **Aucun changement visible** pour les utilisateurs. La copie de sécurité dans les réglages est conservée ; le portail conducteur la lit encore.
 - **Tests** : 10 tests automatiques de la logique, et un test sur le staging (ordre, km, refus des données invalides, isolation entre sociétés, refus sans connexion).
+- **Mis en production le 20/10/2026** :
+  - table créée, puis recopie lancée par François : 53 périodes, 0 écart ;
+  - vérification dans l'application : lecture conforme, et une modification de km faite puis annulée s'est bien enregistrée dans la table et la copie.
+- **Défaut trouvé pendant la vérification, puis corrigé** : sur certaines pages, l'application lisait la copie de sécurité au lieu des tables, parce que l'ordre de chargement des fichiers ne le permettait pas. C'était sans conséquence : la copie est identique, et le garde-fou a empêché toute écriture automatique. Le défaut touchait aussi les congés.
 
 ### Corrections apportées à l'audit initial
 - L'organisation Supabase est bien sur le **plan Pro**, avec des sauvegardes quotidiennes. Elles n'incluent cependant **pas les fichiers**.
@@ -164,7 +168,8 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 | #1012 | Organisation de GitHub (règles, README, scripts SQL rangés) | ✅ Fusionnée |
 | #1014 | Migration des données, étape 1 : les congés | ✅ Fusionnée, en production |
 | #1018 | Journal et suivi : congés en production | ✅ Fusionnée |
-| (cette PR) | Migration des données, étape 2 : les affectations | En essai sur le staging |
+| #1019 | Migration des données, étape 2 : les affectations | ✅ Fusionnée, en production |
+| (cette PR) | Correctif : lecture des tables sur toutes les pages + journal | En cours |
 
 ## 7. Prochaines étapes
 
@@ -172,7 +177,7 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 2. ✅ ~~Vérification visuelle et cloisonnement des fichiers~~ : fait le 17/10/2026.
 3. ✅ ~~Sauvegardes~~ : actives chaque nuit depuis le 20/10/2026. Restent : remplacer la clé provisoire de Shakil, puis un test de restauration complet par un humain.
 4. **GitHub** : préparé le 20/10/2026 (voir le journal). Reste la protection de la branche principale, à activer par Shakil.
-5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : prête. Ensuite : contrats, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
+5. **Migration des données**, une à une, du gros bloc de réglages vers de vraies tables. **Étape 1, les congés** : ✅ en production depuis le 20/10/2026 (PR #1014). **Étape 2, les affectations** : ✅ en production depuis le 20/10/2026 (PR #1019). Ensuite : contrats, assurances, tâches, sinistres… Suppression enfin du système de fusion maison.
 6. **Automatisations** : alertes d'échéance côté serveur (contrôle technique, assurance, entretien, permis), rapports.
 
 ## 8. Décisions prises

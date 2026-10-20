@@ -466,7 +466,9 @@
       _sid = (FP.settings && FP.settings._dbId) ? FP.settings._dbId() : 'PXP';
       // Données de travail en TABLES DÉDIÉES (congés, affectations… cf. FP.projections) : lues en parallèle,
       // puis projetées dans les réglages ci-dessous. Une table illisible → sa copie de transition est gardée.
-      _tablesPromise = Promise.resolve().then(() => (FP.projections ? FP.projections.charger(client, _sid) : null)).catch(() => null);
+      // ⚠️ Sur plusieurs pages, ce fichier est chargé AVANT app.js (qui définit FP.projections) : dans ce cas la
+      // lecture est (re)lancée au moment d'appliquer les réglages — sinon la page restait sur la copie de transition.
+      _tablesPromise = (FP.projections && FP.projections.charger) ? FP.projections.charger(client, _sid).catch(() => null) : null;
       _settingsPromise = client.from('app_settings').select('data').eq('id', _sid).maybeSingle()
         .then((sres) => {
           // ⚠️⚠️ UNE SEULE LIGNE PAR SOCIÉTÉ (correctif « deux tiroirs », 16/10/2026) : les réglages d'une
@@ -557,7 +559,15 @@
           //   (file durable) AVANT d'écraser le cache — sinon un pull serveur fait « revenir » une alerte
           //   cochée ou « repartir » un réglage saisi (mails, rappels km…).
           shared = _reconcileServerSettings(shared, _prevSettingsRaw, FP.settings && FP.settings._effectiveId);
-          try { if (FP.projections) shared = FP.projections.projeter(shared, _tablesPromise ? await _tablesPromise : null, _sid); } catch (_) {}
+          try {
+            let lus = _tablesPromise ? await _tablesPromise : null;
+            // app.js pas encore exécuté (réseau très rapide) : on attend la fin de l'analyse de la page.
+            if (!lus && !(FP.projections && FP.projections.charger) && document.readyState === 'loading') {
+              await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
+            }
+            if (!lus && FP.projections && FP.projections.charger) lus = await FP.projections.charger(client, _sid).catch(() => null);
+            if (FP.projections) shared = FP.projections.projeter(shared, lus, _sid);
+          } catch (_) {}
           const _freshSettingsRaw = JSON.stringify(shared);
           settingsChanged = (_prevSettingsRaw !== _freshSettingsRaw);
           localStorage.setItem(key, _freshSettingsRaw);
