@@ -2749,6 +2749,20 @@
       columnStyles: { 2: { halign: 'center' }, 3: { halign: 'right' } },
       didParseCell: (dt) => { if (dt.section === 'body' && dt.column.index === 4) { const v = String(dt.cell.raw || ''); if (/payer/i.test(v)) { dt.cell.styles.textColor = [220, 38, 38]; dt.cell.styles.fontStyle = 'bold'; } else if (/pay/i.test(v)) { dt.cell.styles.textColor = [22, 163, 74]; dt.cell.styles.fontStyle = 'bold'; } } },
     });
+    // Infos complémentaires (champs personnalisés de la société) — ajoutées seulement si renseignées.
+    try {
+      if (window.FP && FP.customFields && FP.customFields.defsFor) {
+        const cfRows = FP.customFields.defsFor('conducteur')
+          .map(cf => [clean(cf.label), clean(FP.customFields.display(cf, FP.customFields.effective('conducteur', d.key, cf)))])
+          .filter(r => r[1] !== '');
+        if (cfRows.length) {
+          cy = doc.lastAutoTable.finalY + 8;
+          if (cy > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); cy = 20; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(249, 115, 22); doc.text('INFOS COMPLÉMENTAIRES', 12, cy); cy += 3;
+          doc.autoTable(Object.assign({}, kvOpts, { startY: cy, margin: { left: 12, right: 12 }, columnStyles: { 0: { textColor: [100, 116, 139], cellWidth: 45 }, 1: { halign: 'right', fontStyle: 'bold' } }, body: cfRows }));
+        }
+      }
+    } catch (e) {}
     if (d.note) {
       cy = doc.lastAutoTable.finalY + 8;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(249, 115, 22); doc.text('NOTE', 12, cy); cy += 5;

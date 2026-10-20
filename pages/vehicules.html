@@ -6166,6 +6166,21 @@
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: { 2: { halign: 'right' } },
     });
+    // Infos complémentaires (champs personnalisés de la société) — ajoutées seulement si renseignées.
+    try {
+      if (window.FP && FP.customFields && FP.customFields.defsFor) {
+        const cfRows = FP.customFields.defsFor('vehicule')
+          .map(d => [clean(d.label), clean(FP.customFields.display(d, FP.customFields.effective('vehicule', v.id, d)))])
+          .filter(r => r[1] !== '');
+        if (cfRows.length) {
+          let cy2 = doc.lastAutoTable.finalY + 9;
+          if (cy2 > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); cy2 = 20; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(15, 30, 61);
+          doc.text('INFOS COMPLEMENTAIRES', 12, cy2); cy2 += 3;
+          doc.autoTable(Object.assign({}, kvOpts, { startY: cy2, margin: { left: 12, right: 12 }, body: cfRows }));
+        }
+      }
+    } catch (e) {}
     const safe = String(v.immat || 'vehicule').replace(/[^A-Za-z0-9-]/g, '');
     FP.pdfPreview(doc, 'Fiche_' + safe + '.pdf', '· ' + clean(v.immat || ''));
   }
