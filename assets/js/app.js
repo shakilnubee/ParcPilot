@@ -13598,7 +13598,21 @@ FP.buildXlsx = function (headers, rows, sheetName, opts) {
     }).join('') + '</row>');
   });
   const nm = String(sheetName || 'Feuille1').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 31) || 'Feuille1';
-  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + sheetRows.join('') + '</sheetData></worksheet>';
+  // Largeur AUTO de chaque colonne = la plus longue valeur (nom du champ OU contenu d'une cellule),
+  // bornée (mini 10 / maxi 60 caractères) + marge. Sans ça, les noms de champs sont coupés à l'ouverture.
+  // Le bandeau « Parc Pilot » (colonne A seule) est volontairement EXCLU du calcul pour ne pas élargir A.
+  const ncol = Math.max((headers || []).length, ...((rows || []).map((r) => (r ? r.length : 0))), 0);
+  let colsXml = '';
+  if (ncol > 0) {
+    const widths = [];
+    for (let c = 0; c < ncol; c++) {
+      let w = String(((headers || [])[c]) == null ? '' : (headers || [])[c]).length;
+      (rows || []).forEach((r) => { const v = r && r[c]; if (v != null) { const l = String(v).length; if (l > w) w = l; } });
+      widths.push(Math.min(Math.max(w + 2, 10), 60));
+    }
+    colsXml = '<cols>' + widths.map((wd, i) => `<col min="${i + 1}" max="${i + 1}" width="${wd}" customWidth="1"/>`).join('') + '</cols>';
+  }
+  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + colsXml + '<sheetData>' + sheetRows.join('') + '</sheetData></worksheet>';
   const files = [
     { name: '[Content_Types].xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>') },
     { name: '_rels/.rels', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
