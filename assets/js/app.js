@@ -18098,8 +18098,8 @@ FP.share = function (opts) {
     + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:272px;transition:opacity .25s linear}'
     + '.fpg-slide>*{width:100%!important;margin:0!important;flex:0 0 auto!important}'
     + '.fpg-slide .veh-cbody .mm,.fpg-slide .veh-cbody .md,.fpg-slide .cc-name{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}'
-    + '.fpg-slide .cc-card,.fpg-slide .veh-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
-    + '.fpg-slide.fpg-on .cc-card,.fpg-slide.fpg-on .veh-card{box-shadow:0 36px 62px -22px rgba(15,30,61,.55),0 0 0 2px var(--fp-accent,#f97316)}'
+    + '.fpg-slide .cc-card,.fpg-slide .veh-card,.fpg-slide .pod-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
+    + '.fpg-slide.fpg-on .cc-card,.fpg-slide.fpg-on .veh-card,.fpg-slide.fpg-on .pod-card{box-shadow:0 36px 62px -22px rgba(15,30,61,.55),0 0 0 2px var(--fp-accent,#f97316)}'
     + '.fpg-empty{color:var(--fp-muted,#94a3b8);text-align:center;padding:38px 0}'
     + '@media (max-width:560px){.fpg-slide{width:234px}.fpg-stage{height:clamp(310px,58vw,370px)}}';
   var injected = false;
@@ -18180,12 +18180,21 @@ FP.share = function (opts) {
       });
       var onResize = function () { rings.forEach(function (r) { r.computeRadius(); r.draw(); }); };
       window.addEventListener('resize', onResize);
-      // Flèches ← → du clavier : font défiler l'anneau survolé/focalisé (sauf si on tape dans un champ).
+      // Flèches ← → du clavier : marchent PARTOUT sur la page (pas besoin de survoler d'abord). Cible =
+      //   l'anneau focalisé (Tab) ou survolé s'il est à l'écran, sinon l'anneau VISIBLE le plus au centre.
+      var inView = function (el) { try { var rc = el.getBoundingClientRect(); var vh = window.innerHeight || document.documentElement.clientHeight || 800; return rc.bottom > 40 && rc.top < vh - 40; } catch (e) { return false; } };
+      var pickRing = function () {
+        var vh = window.innerHeight || 800, best = null, bestD = Infinity;
+        for (var i = 0; i < rings.length; i++) { var rc; try { rc = rings[i].stage.getBoundingClientRect(); } catch (e) { continue; } if (rc.bottom < 40 || rc.top > vh - 40) continue; var d = Math.abs((rc.top + rc.bottom) / 2 - vh / 2); if (d < bestD) { bestD = d; best = rings[i]; } }
+        return best || rings[0] || null;
+      };
       var onKey = function (e) {
-        if (!cur || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         var ae = document.activeElement, tag = ae ? (ae.tagName || '').toLowerCase() : '';
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || (ae && ae.isContentEditable)) return;
-        e.preventDefault(); cur.snap(e.key === 'ArrowLeft' ? -1 : 1);
+        var target = (cur && inView(cur.stage)) ? cur : pickRing();
+        if (!target) return;
+        e.preventDefault(); target.snap(e.key === 'ArrowLeft' ? -1 : 1);
       };
       window.addEventListener('keydown', onKey);
       host._fpgDestroy = function () { if (rafId) cancelAnimationFrame(rafId); if (io) { try { io.disconnect(); } catch (e) {} } window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); host._fpgDestroy = null; };
