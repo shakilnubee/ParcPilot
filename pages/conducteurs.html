@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021p">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021q">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021p"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021q"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021p">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021q">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -423,7 +423,7 @@
         </div>
         <div class="flex gap-1 bg-slate-100 rounded-lg p-1 flex-shrink-0">
           <button id="view-cards" class="view-btn"><i data-lucide="layout-grid" class="w-4 h-4"></i> Cartes</button>
-          <button id="view-list" class="view-btn"><i data-lucide="list" class="w-4 h-4"></i> Liste</button>
+          <button id="view-galerie" class="view-btn"><i data-lucide="orbit" class="w-4 h-4"></i> Galerie</button>
           <button id="view-groups" class="view-btn"><i data-lucide="layers" class="w-4 h-4"></i> Groupes</button>
         </div>
       </div>
@@ -676,8 +676,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021p"></script>
-<script src="../assets/js/supabase-client.js?v=20261021p"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021q"></script>
+<script src="../assets/js/supabase-client.js?v=20261021q"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -693,18 +693,19 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021p"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021q"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261021p"></script>
-<script src="../assets/js/app.min.js?v=20261021p"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021q"></script>
+<script src="../assets/js/app.min.js?v=20261021q"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
   const $ = (id) => document.getElementById(id);
-  const _cv = (window.FP && FP.settings && FP.settings.get().condView) || 'cards';
-  const state = { search: '', selected: new Set(), view: ['list', 'groups'].includes(_cv) ? _cv : 'cards', cardFilter: 'tous', cardGroup: null };
+  let _cv = (window.FP && FP.settings && FP.settings.get().condView) || 'cards';
+  if (_cv === 'list') _cv = 'galerie';   // la vue « Liste » a été remplacée par « Galerie » (anneau 3D par groupe)
+  const state = { search: '', selected: new Set(), view: ['galerie', 'groups'].includes(_cv) ? _cv : 'cards', cardFilter: 'tous', cardGroup: null };
 
   function escapeHtml(s){ return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -1456,13 +1457,27 @@
     if (noGroup.length) html += section('Sans groupe', '#94A3B8', noGroup);
     return html || '<p class="text-slate-400 text-center py-8">Aucun conducteur</p>';
   }
+  // Vue « Galerie » : UN anneau 3D par groupe (mêmes cartes que la vue Cartes → cardAppHtml, mêmes infos).
+  //   Regroupement identique à cartesHtml (FP.groupeKeys + « Sans groupe »), limité au résultat filtré.
+  function renderGalerieCond(filtered) {
+    const grid = $('drivers-grid'); if (!grid || !(FP.galerie3d)) { if (grid) grid.innerHTML = cartesHtml(filtered); return; }
+    const inF = new Set(filtered);
+    const byG = {}, none = [];
+    drivers.forEach(d => { if (!inF.has(d)) return; const k = driverGroupKey(d); if (k) (byG[k] = byG[k] || []).push(d); else none.push(d); });
+    const sections = [];
+    FP.groupeKeys().forEach(k => { if (byG[k] && byG[k].length) sections.push({ title: FP.groupeLabel(k), color: FP.groupeColor(k), cardsHtml: byG[k].map(cardAppHtml) }); });
+    if (none.length) sections.push({ title: 'Sans groupe', color: '#94A3B8', cardsHtml: none.map(cardAppHtml) });
+    FP.galerie3d.mount(grid, sections, { empty: 'Aucun conducteur pour cette recherche.' });
+  }
   function renderGrid() {
     const q = FP.norm(state.search).trim();
     const filtered = drivers.filter(d => !q || FP.norm(`${d.name} ${d.nom || ''} ${d.prenom || ''}`).includes(q));
     const grid = $('drivers-grid');
-    if (state.view === 'list') {
+    // En quittant la Galerie, on coupe son animation (requestAnimationFrame) avant de re-rendre une autre vue.
+    if (grid && state.view !== 'galerie' && grid._fpgDestroy) { try { grid._fpgDestroy(); } catch (e) {} }
+    if (state.view === 'galerie') {
       grid.className = '';
-      grid.innerHTML = listHtml(filtered);
+      renderGalerieCond(filtered);
     } else if (state.view === 'groups') {
       grid.className = '';
       grid.innerHTML = groupedHtml(filtered);
@@ -1473,7 +1488,7 @@
       if (window.FP && FP.railArrowsAll) { FP.railArrowsAll('.cc-rail', grid); FP.railArrowsAll('.cc-tiles', grid); FP.railArrowsAll('.cc-pills', grid); }
     }
     $('view-cards')?.classList.toggle('active', state.view === 'cards');
-    $('view-list')?.classList.toggle('active', state.view === 'list');
+    $('view-galerie')?.classList.toggle('active', state.view === 'galerie');
     $('view-groups')?.classList.toggle('active', state.view === 'groups');
     $('result-count').textContent = `${filtered.length} conducteur${filtered.length > 1 ? 's' : ''} sur ${drivers.length}`;
     renderArchived();
@@ -2264,7 +2279,7 @@
   // Bouton « Réinitialiser » : vide la recherche.
   if (FP.filterResetButton) FP.filterResetButton($('cond-filterbar'), { onReset: () => { state.search = ''; if ($('search')) $('search').value = ''; renderGrid(); } });
   $('view-cards').addEventListener('click', () => setView('cards'));
-  $('view-list').addEventListener('click', () => setView('list'));
+  $('view-galerie').addEventListener('click', () => setView('galerie'));
   $('view-groups').addEventListener('click', () => setView('groups'));
   $('drivers-grid').addEventListener('click', e => {
     const cb = e.target.closest('.driver-cb');

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021p">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021q">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021p"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021q"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021p">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021q">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -772,11 +772,12 @@
 
     <!-- (Ancien modal « fiche à imprimer » retiré : openFicheModal passe par le moteur commun FP.fiche.open) -->
 
-    <!-- Sélecteur de vue : Tableau / Cartes -->
+    <!-- Sélecteur de vue : Tableau / Cartes / Galerie -->
     <div class="flex justify-end mb-3">
       <div class="veh-viewseg">
         <button id="vv-table" class="on" type="button"><i data-lucide="table-2" class="w-4 h-4"></i> Tableau</button>
         <button id="vv-cards" type="button"><i data-lucide="layout-grid" class="w-4 h-4"></i> Cartes</button>
+        <button id="vv-galerie" type="button"><i data-lucide="orbit" class="w-4 h-4"></i> Galerie</button>
       </div>
     </div>
 
@@ -800,6 +801,9 @@
 
     <!-- Vue Cartes (façon App Store) — alternative au tableau, mêmes données/filtres, clic → même fiche -->
     <div id="veh-cartes" class="veh-cartes" hidden></div>
+
+    <!-- Vue Galerie (anneau 3D par groupe) — mêmes cartes/données/filtres, clic → même fiche -->
+    <div id="veh-galerie" hidden></div>
 
     <p class="text-xs text-slate-500 mt-4" id="result-count"></p>
     <!-- Accès au pipeline de vente — visible uniquement quand le filtre « À vendre » est actif -->
@@ -1184,8 +1188,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021p"></script>
-<script src="../assets/js/supabase-client.js?v=20261021p"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021q"></script>
+<script src="../assets/js/supabase-client.js?v=20261021q"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1201,13 +1205,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021p"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021q"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261021p"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261021p"></script>
+<script src="../assets/js/fleet-docs.js?v=20261021q"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261021q"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021p"></script><script>
+<script src="../assets/js/app.min.js?v=20261021q"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -1226,7 +1230,7 @@
     // 'table' | 'cards' — CARTES par défaut. Le mode « Tableau » n'est retenu que s'il a été
     // choisi EXPLICITEMENT au sélecteur (flag vehViewSet) : un ancien 'table' hérité (quand le
     // tableau était le défaut) est ignoré → tout le monde retombe sur les Cartes par défaut.
-    vehView: (function(){ try { const s = FP.settings.get(); return (s.vehViewSet === true && s.vehView === 'table') ? 'table' : 'cards'; } catch (e) { return 'cards'; } })(),
+    vehView: (function(){ try { const s = FP.settings.get(); return (s.vehViewSet === true && (s.vehView === 'table' || s.vehView === 'galerie')) ? s.vehView : 'cards'; } catch (e) { return 'cards'; } })(),
   };
 
   // Labels et couleurs sont fournis par FP.groupeLabel() (configurables via /pages/parametres.html)
@@ -2786,6 +2790,7 @@
     if (allCb) allCb.checked = allChecked;
 
     if (state.vehView === 'cards') renderCartes(); // vue Cartes : mêmes données/filtres, rafraîchie en même temps
+    else if (state.vehView === 'galerie') renderGalerieVeh(); // vue Galerie : idem (anneau 3D par groupe)
     lucide.createIcons();
   }
 
@@ -2860,13 +2865,34 @@
   // Recalcule l'affichage des flèches des rails quand la fenêtre change de taille (une seule fois).
   if (!window._ccArrowsResize) { window._ccArrowsResize = true; let _t; window.addEventListener('resize', () => { clearTimeout(_t); _t = setTimeout(() => { try { const h = $('veh-cartes'); if (h && !h.hidden) h.querySelectorAll('.cc-rail-wrap').forEach(w => { if (typeof w._ccUpd === 'function') w._ccUpd(); }); } catch (e) {} }, 150); }); }
   function syncVehView() {
-    const cards = state.vehView === 'cards';
-    const tw = $('veh-table-wrap'), vc = $('veh-cartes');
-    if (tw) tw.hidden = cards;
-    if (vc) vc.hidden = !cards;
-    $('vv-table') && $('vv-table').classList.toggle('on', !cards);
-    $('vv-cards') && $('vv-cards').classList.toggle('on', cards);
-    if (cards) renderCartes();
+    const v = state.vehView;
+    const tw = $('veh-table-wrap'), vc = $('veh-cartes'), vg = $('veh-galerie');
+    if (tw) tw.hidden = (v !== 'table');
+    if (vc) vc.hidden = (v !== 'cards');
+    if (vg) vg.hidden = (v !== 'galerie');
+    $('vv-table') && $('vv-table').classList.toggle('on', v === 'table');
+    $('vv-cards') && $('vv-cards').classList.toggle('on', v === 'cards');
+    $('vv-galerie') && $('vv-galerie').classList.toggle('on', v === 'galerie');
+    // On arrête l'animation de la galerie quand on la quitte (libère le requestAnimationFrame).
+    if (vg && v !== 'galerie' && vg._fpgDestroy) { try { vg._fpgDestroy(); vg.innerHTML = ''; } catch (e) {} }
+    if (v === 'cards') renderCartes();
+    else if (v === 'galerie') renderGalerieVeh();
+  }
+  // Vue « Galerie » : UN anneau 3D par groupe (mêmes cartes que la vue Cartes → vehCardHtml, mêmes infos,
+  //   mêmes données/filtres via filtered()). Regroupement identique à renderCartes (FP.groupeKeys + Sans groupe).
+  function renderGalerieVeh() {
+    const host = $('veh-galerie'); if (!host) return;
+    if (!(FP.galerie3d)) { state.vehView = 'cards'; syncVehView(); return; }
+    const rows = filtered();
+    const byG = {}, none = [];
+    rows.forEach(v => { const k = FP.vehGroupes(v).find(g => g !== 'non-classe') || null; if (k) (byG[k] = byG[k] || []).push(v); else none.push(v); });
+    const sections = [];
+    FP.groupeKeys().forEach(k => { if (byG[k] && byG[k].length) sections.push({ title: FP.groupeLabel(k), color: FP.groupeColor(k), cardsHtml: byG[k].map(vehCardHtml) }); });
+    if (none.length) sections.push({ title: 'Sans groupe', color: '#94A3B8', cardsHtml: none.map(vehCardHtml) });
+    FP.galerie3d.mount(host, sections, { empty: 'Aucun véhicule pour ce filtre.' });
+    // Logos de marque : même chaîne de replis que la vue Cartes (URL suivante, sinon silhouette).
+    host.querySelectorAll('img.veh-brand-img').forEach(img => { let fb = []; try { fb = JSON.parse(img.dataset.fallback || '[]'); } catch (e) {} img.onerror = () => { if (fb.length) { img.src = fb.shift(); } else { img.outerHTML = VEH_CAR_SVG; } }; });
+    if (window.lucide) lucide.createIcons();
   }
   function setVehView(v) {
     state.vehView = v;
@@ -5379,7 +5405,9 @@
   // Bascule Tableau / Cartes + clic sur une carte = ouvre la MÊME fiche (drawer).
   $('vv-table') && $('vv-table').addEventListener('click', () => setVehView('table'));
   $('vv-cards') && $('vv-cards').addEventListener('click', () => setVehView('cards'));
+  $('vv-galerie') && $('vv-galerie').addEventListener('click', () => setVehView('galerie'));
   $('veh-cartes') && $('veh-cartes').addEventListener('click', (e) => { const c = e.target.closest('.veh-appcard'); if (c) openDrawer(c.dataset.id); });
+  $('veh-galerie') && $('veh-galerie').addEventListener('click', (e) => { const c = e.target.closest('.veh-appcard'); if (c) openDrawer(c.dataset.id); });
   try { syncVehView(); } catch (e) {} // applique la vue mémorisée dès le départ
 
   $('vehicules-tbody').addEventListener('click', (e) => {
