@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **20/10/2026** (migration des données : congés et affectations en production)
+> Dernière mise à jour : **21/10/2026** (vue Galerie 3D : flèches clavier, podium Amendes, Tableau de bord)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -53,6 +53,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 ---
 
 ## 5. Journal des réalisations
+
+### 21/10/2026 — Vue « Galerie » 3D : flèches clavier partout, podium Amendes, Tableau de bord
+- **Moteur unique `FP.galerie3d`** (app.js) : les **flèches ← → du clavier** pilotent désormais l'anneau **sous la souris** ou, à défaut, l'anneau **au centre de l'écran** — plus besoin de survoler d'abord (demande utilisateur « flèches partout »).
+- **Page Amendes** : le **podium des conducteurs** a un sélecteur **Liste / Galerie** (Liste par défaut = comme avant). Les deux vues lisent la **même source** (`podiumRows()`) ; un clic (ligne ou carte) filtre les amendes sur la personne.
+- **Tableau de bord** : le camembert **« Véhicules par groupe » retiré** ; le **podium conducteurs — amendes** reste **affiché par défaut** (pleine largeur) ; la bulle **« Véhicules » passe en Galerie 3D** (mêmes infos que les bulles).
+- Aucune modification Supabase. `app.js` (moteur) + 3 pages HTML + manuel ; rebuild min OK, `check-bugs` vert. Vérifié par test navigateur (Playwright) : galeries montées, rotation, clics, 0 erreur JS.
 
 ### 20/10/2026 — Fiche véhicule : photo du modèle (libre de droits)
 - La fiche véhicule affiche désormais une **photo du modèle** (ex. une vraie Dacia Spring pour une Dacia Spring), en repli automatique de la photo choisie manuellement (champ `photoUrl`, inchangé). **Source unique** via le helper `FP.vehPhoto(v)` (`assets/js/vehicule-photos.js`).

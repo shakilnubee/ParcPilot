@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261021q">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261021r">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261021q"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261021r"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261021q">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261021r">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -493,21 +493,15 @@
         </div>
       </div>
 
-      <!-- Widget : Groupes & podium -->
+      <!-- Widget : Podium conducteurs (amendes de l'année) -->
       <div class="dash-widget" data-widget="repartition">
-        <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Groupes & podium</span></div>
-        <div class="grid lg:grid-cols-2 gap-6">
-          <div class="card p-6">
-            <h3 class="font-bold text-slate-900 mb-4" data-edit-key="dashboard.w_groupes">Véhicules par groupe</h3>
-            <div style="position: relative; height: 260px"><canvas id="groupesChart"></canvas></div>
+        <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Podium conducteurs</span></div>
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4 gap-3">
+            <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
+            <button id="dash-podium-toggle" class="btn btn-outline text-xs flex-shrink-0 whitespace-nowrap">Voir tout</button>
           </div>
-          <div class="card p-6">
-            <div class="flex items-center justify-between mb-4 gap-3">
-              <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
-              <button id="dash-podium-toggle" class="btn btn-outline text-xs flex-shrink-0 whitespace-nowrap">Voir tout</button>
-            </div>
-            <div id="dash-podium" class="space-y-1" style="max-height:260px;overflow-y:auto"></div>
-          </div>
+          <div id="dash-podium" class="space-y-1" style="max-height:320px;overflow-y:auto"></div>
         </div>
       </div>
 
@@ -528,12 +522,8 @@
               <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_vehicules">Véhicules</h3>
               <a href="pages/vehicules.html" class="text-sm font-semibold flex-shrink-0 whitespace-nowrap" style="color: var(--fp-accent)">Voir tout →</a>
             </div>
-            <!-- Bulles glissantes (carrousel horizontal, façon appli) : swipe au doigt, flèches au clic sur ordi -->
-            <div class="veh-carousel">
-              <button type="button" class="veh-nav prev" data-veh-nav="-1" aria-label="Précédent"><i data-lucide="chevron-left"></i></button>
-              <div class="veh-scroller" id="vehicules-tbody"></div>
-              <button type="button" class="veh-nav next" data-veh-nav="1" aria-label="Suivant"><i data-lucide="chevron-right"></i></button>
-            </div>
+            <!-- Vue Galerie 3D (anneau qui tourne, même moteur FP.galerie3d que les pages Véhicules/Conducteurs) -->
+            <div class="veh-galerie-host px-4 pb-4" id="vehicules-tbody"></div>
           </div>
         </div>
       </div>
@@ -591,8 +581,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261021q"></script>
-<script src="assets/js/supabase-client.js?v=20261021q"></script>
+<script src="assets/js/vendor/supabase.js?v=20261021r"></script>
+<script src="assets/js/supabase-client.js?v=20261021r"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -608,10 +598,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261021q"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261021r"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261021q"></script>
+<script src="assets/js/app.min.js?v=20261021r"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -967,36 +957,28 @@
       <div class="veh-bubble-km"><i data-lucide="gauge"></i>${km} km</div>
     </div>`;
   }
-  const vehScroller = vehTbody;                       // le scroller EST #vehicules-tbody
-  const vehNavs = Array.from(document.querySelectorAll('[data-veh-nav]'));
-  function updateVehNav() {
-    // Afficher/masquer les flèches selon qu'il reste à défiler d'un côté ou de l'autre.
-    const overflow = vehScroller.scrollWidth - vehScroller.clientWidth > 4;
-    vehNavs.forEach(btn => {
-      btn.classList.toggle('on', overflow);
-      const dir = +btn.getAttribute('data-veh-nav');
-      const atStart = vehScroller.scrollLeft <= 2;
-      const atEnd = vehScroller.scrollLeft >= (vehScroller.scrollWidth - vehScroller.clientWidth - 2);
-      btn.hidden = !overflow || (dir < 0 ? atStart : atEnd);
-    });
-  }
+  // Vue Galerie 3D (anneau qui tourne) — même moteur FP.galerie3d que les pages Véhicules/Conducteurs.
+  // On garde EXACTEMENT les infos des bulles (plaque + statut + marque/modèle + conducteur + km) : on
+  // réutilise `bubbleHtml` comme carte. Un seul anneau « Tous les véhicules » (vue d'ensemble compacte) ;
+  // le détail par groupe reste sur la page Véhicules via « Voir tout → ».
   function renderVehicules() {
     const list = data.vehicules || [];
-    vehScroller.innerHTML = list.map(bubbleHtml).join('') ||
-      '<div class="text-sm text-slate-400 px-2 py-6">Aucun véhicule.</div>';
-    lucide.createIcons();
-    updateVehNav();
+    if (!vehTbody) return;
+    if (FP.galerie3d && list.length) {
+      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.' });
+    } else if (list.length) {
+      // Repli (moteur galerie indisponible) : la liste plate d'avant.
+      if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
+      vehTbody.innerHTML = '<div class="veh-scroller">' + list.map(bubbleHtml).join('') + '</div>';
+    } else {
+      if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
+      vehTbody.innerHTML = '<div class="text-sm text-slate-400 px-2 py-6">Aucun véhicule.</div>';
+    }
+    if (window.lucide) lucide.createIcons();
   }
   renderVehicules();
-  // Flèches : défilent d'environ une « page » de bulles (largeur visible − une bulle pour garder un repère).
-  vehNavs.forEach(btn => btn.addEventListener('click', () => {
-    const step = Math.max(220, vehScroller.clientWidth - 220);
-    vehScroller.scrollBy({ left: (+btn.getAttribute('data-veh-nav')) * step, behavior: 'smooth' });
-  }));
-  vehScroller.addEventListener('scroll', () => { window.requestAnimationFrame(updateVehNav); }, { passive: true });
-  window.addEventListener('resize', updateVehNav);
-  // Clic sur une bulle → ouvre la fiche véhicule sur la page Véhicules
-  vehScroller.addEventListener('click', (e) => {
+  // Clic sur une carte → ouvre la fiche véhicule (la galerie laisse passer les clics au conteneur).
+  vehTbody && vehTbody.addEventListener('click', (e) => {
     const card = e.target.closest('.veh-bubble[data-veh]');
     if (card) window.location.href = `pages/vehicules.html?veh=${encodeURIComponent(card.dataset.veh)}`;
   });
@@ -1015,7 +997,7 @@
     return out;
   }
   const months = buildLast6Months();
-  let _chCosts = null, _chGroupes = null; // instances Chart.js — détruites avant chaque re-dessin (fp:data-ready)
+  let _chCosts = null; // instance Chart.js — détruite avant chaque re-dessin (fp:data-ready)
 
   // Graphiques regroupés : Chart.js est chargé en différé → on dessine dès qu'il est prêt,
   // sans bloquer l'affichage des KPIs (→ navigation fluide, pas de gris).
@@ -1060,33 +1042,6 @@
       maintainAspectRatio: false, responsive: true,
     }
   });
-
-  // === Camembert : véhicules par groupe ===
-  (function () {
-    const keys = FP.groupeKeys();
-    const counts = keys.map(k => data.vehicules.filter(v => !FP.estVendu(v) && FP.vehGroupes(v).includes(k)).length);
-    // on n'affiche que les groupes non vides
-    const labels = [], values = [], colors = [], shownKeys = [];
-    keys.forEach((k, i) => { if (counts[i] > 0) { labels.push(FP.groupeLabel(k)); values.push(counts[i]); colors.push(FP.groupeColor(k)); shownKeys.push(k); } });
-    const el = document.getElementById('groupesChart');
-    if (_chGroupes) { try { _chGroupes.destroy(); } catch (e) {} }
-    if (el && values.length) {
-      const goToGroupe = (idx) => { if (idx != null && shownKeys[idx]) window.location.href = `pages/vehicules.html?groupe=${encodeURIComponent(shownKeys[idx])}`; };
-      _chGroupes = new Chart(el.getContext('2d'), {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-        options: {
-          plugins: {
-            legend: { position: 'right', labels: { boxWidth: 14, font: { size: 13 } }, onClick: (e, item) => goToGroupe(item.index) },
-            tooltip: { callbacks: { footer: () => 'Cliquer pour voir les véhicules' } }
-          },
-          onClick: (evt, els) => { if (els.length) goToGroupe(els[0].index); },
-          onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-          maintainAspectRatio: false, responsive: true, cutout: '58%',
-        }
-      });
-    }
-  })();
   } // fin drawDashCharts
   if (typeof Chart !== 'undefined') drawDashCharts();
   else window.addEventListener('DOMContentLoaded', drawDashCharts);

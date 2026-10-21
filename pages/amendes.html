@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021q">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261021r">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261021q"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261021r"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261021q">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261021r">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -62,6 +62,19 @@
     #podium button > .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere; }
     #podium button > span:last-child { flex: 1 1 100%; margin-left: 2.5rem; margin-top: 2px; }
   }
+  /* Podium — bascule Liste / Galerie (même esprit que la page Véhicules) */
+  .podium-seg { display:inline-flex; background:var(--fp-surface,#f1f5f9); border:1px solid var(--fp-border); border-radius:10px; padding:3px; gap:2px; }
+  .podium-seg button { border:none; background:none; color:var(--fp-muted,#64748b); font-weight:700; font-size:.74rem; padding:.3rem .6rem; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .podium-seg button.on { background:var(--fp-primary); color:#fff; }
+  /* Carte conducteur en vue Galerie du podium (reprend les pastilles pt-*) */
+  .pod-card { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55rem; padding:1.1rem 1rem; border-radius:16px; background:#fff; border:1px solid var(--fp-border); box-shadow:0 10px 30px -14px rgba(15,30,61,.4); text-align:center; }
+  body.fp-dark .pod-card { background:#182134; border-color:#2a3650; }
+  .pod-card-rank { font-size:2rem; line-height:1; }
+  .pod-card-rank .pod-rank-num { display:inline-flex; align-items:center; justify-content:center; width:2.2rem; height:2.2rem; border-radius:9999px; background:#EEF2F7; color:#475569; font-size:1.1rem; font-weight:800; }
+  body.fp-dark .pod-card-rank .pod-rank-num { background:#243044; color:#cbd5e1; }
+  .pod-card-name { font-weight:800; font-size:1.05rem; color:var(--fp-primary,#0f1e3d); line-height:1.2; overflow-wrap:anywhere; }
+  body.fp-dark .pod-card-name { color:#e6edf6; }
+  .pod-card-tags { display:flex; flex-wrap:wrap; gap:.3rem; justify-content:center; }
   .av-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: av-spin .7s linear infinite; }
   @keyframes av-spin { to { transform: rotate(360deg); } }
   /* Actions rapides au survol d'une ligne (payer / copier n° / ouvrir) */
@@ -234,11 +247,18 @@
         <div class="chart-wrap-sm"><canvas id="motifsChart"></canvas></div>
       </div>
       <div class="card p-6">
-        <div class="flex items-center justify-between mb-4 gap-3">
+        <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <h3 class="font-bold text-slate-900 min-w-0">🏆 Podium des conducteurs <span class="text-xs font-normal text-slate-400">— clique pour filtrer</span></h3>
-          <button id="podium-toggle" class="btn btn-outline text-xs flex-shrink-0 whitespace-nowrap">Voir tout</button>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="podium-seg" role="tablist" aria-label="Affichage du podium">
+              <button id="podium-view-list" class="on" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
+              <button id="podium-view-galerie" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
+            </div>
+            <button id="podium-toggle" class="btn btn-outline text-xs whitespace-nowrap">Voir tout</button>
+          </div>
         </div>
         <div id="podium" class="space-y-1" style="max-height:240px;overflow-y:auto"></div>
+        <div id="podium-galerie" hidden></div>
       </div>
     </div>
 
@@ -491,8 +511,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261021q"></script>
-<script src="../assets/js/supabase-client.js?v=20261021q"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261021r"></script>
+<script src="../assets/js/supabase-client.js?v=20261021r"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -508,11 +528,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021q"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261021r"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261021q"></script>
+<script src="../assets/js/app.min.js?v=20261021r"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -1325,30 +1345,74 @@
 
   // ---------- Podium des conducteurs (extensible) ----------
   let podiumExpanded = false;
-  function renderPodium() {
-    // Suit le filtre d'année choisi (au lieu d'être figé sur 2026) : « toutes » = cumul toutes années.
+  let podiumView = 'list';   // 'list' (comme avant) | 'galerie' (anneau 3D)
+  // Agrégat unique (Liste ET Galerie lisent la MÊME source) — suit le filtre d'année choisi
+  // (« toutes » = cumul toutes années). Trié par nombre d'amendes, puis montant dû.
+  function podiumRows() {
     const yr = state.annee;
     const src = data.amendes.filter(a => yr === 'all' || yr == null || anneeOf(a) === String(yr));
     const agg = {};
-    src.forEach(a => { const k = (FP.condGroupKey || FP.normPrenom)(a.prenom) || '—'; if (!agg[k]) agg[k] = { label: (FP.prenomAffiche ? FP.prenomAffiche(a.prenom) : (a.prenom || '—')).trim() || '—', n: 0, montant: 0, points: 0 }; agg[k].n++; agg[k].montant += montantDu(a); agg[k].points += (Number(a.points) || 0); });
-    const all = Object.entries(agg).sort((a, b) => b[1].n - a[1].n || b[1].montant - a[1].montant);
+    src.forEach(a => { const k = (FP.condGroupKey || FP.normPrenom)(a.prenom) || '—'; if (!agg[k]) agg[k] = { key: k, label: (FP.prenomAffiche ? FP.prenomAffiche(a.prenom) : (a.prenom || '—')).trim() || '—', n: 0, montant: 0, points: 0 }; agg[k].n++; agg[k].montant += montantDu(a); agg[k].points += (Number(a.points) || 0); });
+    return Object.values(agg).sort((a, b) => b.n - a.n || b.montant - a.montant);
+  }
+  function podiumCardHtml(v, i) {
+    const medals = ['🥇', '🥈', '🥉'];
+    const rank = medals[i] || `<span class="pod-rank-num">${i + 1}</span>`;
+    const nm = escAmende(v.label || v.key);
+    return `<div class="pod-card" data-cond="${(v.label || v.key).replace(/"/g, '&quot;')}" title="Voir les amendes de ${nm}">
+      <div class="pod-card-rank">${rank}</div>
+      <div class="pod-card-name">${nm}</div>
+      <div class="pod-card-tags">
+        <span class="podium-tag pt-count">${v.n} amende${v.n > 1 ? 's' : ''}</span>
+        <span class="podium-tag pt-montant">${FP.euro(v.montant)}</span>
+        ${v.points ? `<span class="podium-tag pt-points">−${v.points} pts</span>` : ''}
+      </div>
+    </div>`;
+  }
+  function renderPodium() {
+    const all = podiumRows();
+    const listBox = $('podium'), galBox = $('podium-galerie'), btn = $('podium-toggle');
+    // --- Vue Galerie (anneau 3D, FP.galerie3d — même moteur que Véhicules/Conducteurs) ---
+    if (podiumView === 'galerie') {
+      if (listBox) listBox.hidden = true;
+      if (btn) btn.style.display = 'none';
+      if (galBox) {
+        galBox.hidden = false;
+        if (all.length && FP.galerie3d) {
+          FP.galerie3d.mount(galBox, [{ title: 'Classement', color: '#D4A017', cardsHtml: all.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.' });
+        } else {
+          if (galBox._fpgDestroy) galBox._fpgDestroy();
+          galBox.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune donnée.</p>';
+        }
+      }
+      return;
+    }
+    // --- Vue Liste (par défaut, comme avant) ---
+    if (galBox) { galBox.hidden = true; if (galBox._fpgDestroy) galBox._fpgDestroy(); }
+    if (listBox) listBox.hidden = false;
     const shown = podiumExpanded ? all : all.slice(0, 5);
     const medals = ['🥇', '🥈', '🥉'];
-    $('podium').innerHTML = shown.map(([k, v], i) => `
-      <button type="button" data-cond="${(v.label || k).replace(/"/g, '&quot;')}" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 text-left">
+    listBox.innerHTML = shown.map((v, i) => `
+      <button type="button" data-cond="${(v.label || v.key).replace(/"/g, '&quot;')}" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 text-left">
         <span class="text-lg w-7 text-center flex-shrink-0">${medals[i] || `<span class="text-sm font-bold text-slate-400">${i + 1}</span>`}</span>
-        <span class="flex-1 font-semibold text-slate-800 truncate">${escAmende(v.label || k)}</span>
+        <span class="flex-1 font-semibold text-slate-800 truncate">${escAmende(v.label || v.key)}</span>
         <span class="flex items-center gap-1.5 flex-shrink-0">
           <span class="podium-tag pt-count" title="Nombre d'amendes">${v.n} amende${v.n > 1 ? 's' : ''}</span>
           <span class="podium-tag pt-montant" title="Montant total">${FP.euro(v.montant)}</span>
           ${v.points ? `<span class="podium-tag pt-points" title="Points retirés">−${v.points} pts</span>` : ''}
         </span>
       </button>`).join('') || '<p class="text-sm text-slate-400">Aucune donnée.</p>';
-    const btn = $('podium-toggle');
     if (btn) {
       if (all.length <= 5) { btn.style.display = 'none'; }
       else { btn.style.display = ''; btn.textContent = podiumExpanded ? 'Voir moins' : `Voir tout (${all.length})`; }
     }
+  }
+  function setPodiumView(v) {
+    podiumView = v;
+    $('podium-view-list') && $('podium-view-list').classList.toggle('on', v === 'list');
+    $('podium-view-galerie') && $('podium-view-galerie').classList.toggle('on', v === 'galerie');
+    renderPodium();
+    if (window.lucide) lucide.createIcons();
   }
 
   // ---------- Sections "fun" : types, évolution, heatmap, délai ----------
@@ -2962,7 +3026,11 @@
   // Clic sur un conducteur du podium → filtre la liste des amendes sur cette personne
   // (reste sur la page Amendes et affiche SES amendes ; re-clic = on enlève le filtre).
   $('podium').addEventListener('click', e => { const b = e.target.closest('[data-cond]'); if (b) setConducteurFilter(b.dataset.cond); });
+  // En vue Galerie, un clic sur une carte conducteur filtre pareil (reste sur la page Amendes).
+  $('podium-galerie').addEventListener('click', e => { const b = e.target.closest('[data-cond]'); if (b) setConducteurFilter(b.dataset.cond); });
   $('podium-toggle').addEventListener('click', () => { podiumExpanded = !podiumExpanded; renderPodium(); });
+  $('podium-view-list') && $('podium-view-list').addEventListener('click', () => setPodiumView('list'));
+  $('podium-view-galerie') && $('podium-view-galerie').addEventListener('click', () => setPodiumView('galerie'));
   { const hm = $('heatmap'); if (hm) hm.addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) setDay(b.dataset.day); }); }
   $('delai-banner').addEventListener('click', e => {
     if (!e.target.closest('#delai-voir')) return;

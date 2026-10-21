@@ -18091,15 +18091,17 @@ FP.share = function (opts) {
     + '.fpg-nav{appearance:none;border:1px solid var(--fp-border,#e2e8f0);background:var(--fp-surface,#fff);color:inherit;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;display:grid;place-items:center;opacity:.9;transition:border-color .15s,transform .1s,opacity .15s}'
     + '.fpg-nav:hover{border-color:var(--fp-accent,#f97316)}'
     + '.fpg-nav:active{transform:scale(.92)}'
-    + '.fpg-stage{position:relative;height:clamp(330px,42vh,410px);perspective:1500px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden}'
+    + '.fpg-stage{position:relative;height:clamp(340px,44vh,420px);perspective:1500px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden;outline:none}'
+    + '.fpg-stage:focus-visible{box-shadow:inset 0 0 0 2px var(--fp-accent,#f97316);border-radius:16px}'
     + '.fpg-stage.fpg-grab{cursor:grabbing}'
     + '.fpg-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}'
-    + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:248px;transition:opacity .25s linear}'
+    + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:272px;transition:opacity .25s linear}'
     + '.fpg-slide>*{width:100%!important;margin:0!important;flex:0 0 auto!important}'
-    + '.fpg-slide .cc-card,.fpg-slide .veh-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
-    + '.fpg-slide.fpg-on .cc-card,.fpg-slide.fpg-on .veh-card{box-shadow:0 36px 62px -22px rgba(15,30,61,.55),0 0 0 2px var(--fp-accent,#f97316)}'
+    + '.fpg-slide .veh-cbody .mm,.fpg-slide .veh-cbody .md,.fpg-slide .cc-name{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}'
+    + '.fpg-slide .cc-card,.fpg-slide .veh-card,.fpg-slide .pod-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
+    + '.fpg-slide.fpg-on .cc-card,.fpg-slide.fpg-on .veh-card,.fpg-slide.fpg-on .pod-card{box-shadow:0 36px 62px -22px rgba(15,30,61,.55),0 0 0 2px var(--fp-accent,#f97316)}'
     + '.fpg-empty{color:var(--fp-muted,#94a3b8);text-align:center;padding:38px 0}'
-    + '@media (max-width:560px){.fpg-slide{width:206px}.fpg-stage{height:clamp(300px,54vw,360px)}}';
+    + '@media (max-width:560px){.fpg-slide{width:234px}.fpg-stage{height:clamp(310px,58vw,370px)}}';
   var injected = false;
   function inject() { if (injected) return; injected = true; try { var s = document.createElement('style'); s.textContent = CSS; document.head.appendChild(s); } catch (e) {} }
   var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -18122,7 +18124,7 @@ FP.share = function (opts) {
           + '<div class="fpg-stage"><div class="fpg-ring">' + slides + '</div></div></section>';
       }).join('') + '</div>';
 
-      var rings = [];
+      var rings = [], cur = null;   // cur = anneau survolé/focalisé → cible des flèches du clavier
       host.querySelectorAll('.fpg-sec').forEach(function (sec) {
         var stage = sec.querySelector('.fpg-stage'), ring = sec.querySelector('.fpg-ring');
         var slides = [].slice.call(ring.children), N = slides.length;
@@ -18148,6 +18150,11 @@ FP.share = function (opts) {
         var up = function () { if (!r.dragging) return; r.dragging = false; stage.classList.remove('fpg-grab'); if (Math.abs(r.vel) < 0.4) r.snap(0); };
         stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
         stage.addEventListener('click', function (e) { if (r.moved > 6) { e.stopPropagation(); e.preventDefault(); } }, true);
+        // Clavier : l'anneau survolé (ou focalisé au Tab) devient la cible des flèches ← → (cf. onKey plus bas).
+        stage.tabIndex = 0;
+        stage.setAttribute('aria-label', 'Galerie — flèches gauche/droite pour faire défiler');
+        stage.addEventListener('pointerenter', function () { cur = r; });
+        stage.addEventListener('focus', function () { cur = r; });
         var pv = sec.querySelector('.fpg-prev'), nx = sec.querySelector('.fpg-next');
         if (pv) pv.addEventListener('click', function (e) { e.stopPropagation(); r.snap(-1); });
         if (nx) nx.addEventListener('click', function (e) { e.stopPropagation(); r.snap(1); });
@@ -18173,7 +18180,24 @@ FP.share = function (opts) {
       });
       var onResize = function () { rings.forEach(function (r) { r.computeRadius(); r.draw(); }); };
       window.addEventListener('resize', onResize);
-      host._fpgDestroy = function () { if (rafId) cancelAnimationFrame(rafId); if (io) { try { io.disconnect(); } catch (e) {} } window.removeEventListener('resize', onResize); host._fpgDestroy = null; };
+      // Flèches ← → du clavier : marchent PARTOUT sur la page (pas besoin de survoler d'abord). Cible =
+      //   l'anneau focalisé (Tab) ou survolé s'il est à l'écran, sinon l'anneau VISIBLE le plus au centre.
+      var inView = function (el) { try { var rc = el.getBoundingClientRect(); var vh = window.innerHeight || document.documentElement.clientHeight || 800; return rc.bottom > 40 && rc.top < vh - 40; } catch (e) { return false; } };
+      var pickRing = function () {
+        var vh = window.innerHeight || 800, best = null, bestD = Infinity;
+        for (var i = 0; i < rings.length; i++) { var rc; try { rc = rings[i].stage.getBoundingClientRect(); } catch (e) { continue; } if (rc.bottom < 40 || rc.top > vh - 40) continue; var d = Math.abs((rc.top + rc.bottom) / 2 - vh / 2); if (d < bestD) { bestD = d; best = rings[i]; } }
+        return best || rings[0] || null;
+      };
+      var onKey = function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        var ae = document.activeElement, tag = ae ? (ae.tagName || '').toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || (ae && ae.isContentEditable)) return;
+        var target = (cur && inView(cur.stage)) ? cur : pickRing();
+        if (!target) return;
+        e.preventDefault(); target.snap(e.key === 'ArrowLeft' ? -1 : 1);
+      };
+      window.addEventListener('keydown', onKey);
+      host._fpgDestroy = function () { if (rafId) cancelAnimationFrame(rafId); if (io) { try { io.disconnect(); } catch (e) {} } window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); host._fpgDestroy = null; };
     }
   };
 })();
