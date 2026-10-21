@@ -1552,7 +1552,21 @@
     const overdue = ri && ((ri.kmRestant != null && ri.kmRestant <= 0) || (ri.joursRestant != null && ri.joursRestant <= 0));
     const arr = getTaches();
     arr.push({ id: 'T' + Math.random().toString(36).slice(2, 9), auto: true, titre: 'Révision', type: 'rdv', statut: 'todo', fait: false, vehiculeId: vehId, echeance: ech, revAnchor: anchor, heure: '', lieu: '', conducteur: v.chauffeur || '', responsable: '', fournisseur: '', priorite: (overdue ? 'haute' : 'normale'), note: (overdue ? 'Révision DÉPASSÉE — à programmer au plus vite.' : 'Révision à programmer.'), etiquettes: ['garage'], commentaires: [], sousTaches: [], createdAt: nowStamp(), historique: [{ txt: 'Créée depuis « Entretiens à venir »', at: nowStamp() }] }); // auto:true → se nettoie seule au renouvellement de la révision
-    const s = FP.settings.get(); const done = (s.tachesAutoFaites && typeof s.tachesAutoFaites === 'object') ? s.tachesAutoFaites : {}; done['rev:' + vehId + ':' + anchor] = todayIso(); s.taches = arr; s.tachesAutoFaites = done; FP.settings.save(s);
+    const s = FP.settings.get(); const done = (s.tachesAutoFaites && typeof s.tachesAutoFaites === 'object') ? s.tachesAutoFaites : {}; done['rev:' + vehId + ':' + anchor] = todayIso(); s.taches = arr; s.tachesAutoFaites = done;
+    // ⚠️ CHAÎNE « alerte → tâche → rappel la veille » : on branche le rappel EXACTEMENT comme saveTask (la
+    //    modale). Sans ça, une révision créée via « + Créer la tâche » n'alimentait PAS settings.vehRdvGarage
+    //    → le rappel automatique de la veille (fonction serveur km-relance, qui ne lit que vehRdvGarage pour
+    //    les révisions) ne partait JAMAIS. UN SEUL FP.settings.save (anti-course, cf. note dans saveTask).
+    try {
+      const _d = String(ech || '').slice(0, 10);
+      if (_d) {
+        s.vehRdvGarage = (s.vehRdvGarage && typeof s.vehRdvGarage === 'object') ? s.vehRdvGarage : {};
+        const _prev = s.vehRdvGarage[vehId] || {};
+        const _keep = (_prev.date && String(_prev.date).slice(0, 10) === _d) ? !!_prev.fait : false;
+        s.vehRdvGarage[vehId] = { date: _d, motif: 'Révision', fait: _keep };
+      }
+    } catch (e) {}
+    FP.settings.save(s);
     if (FP.toast) FP.toast('✓ Tâche révision créée pour ' + (v.immat || ''));
     render();
   }

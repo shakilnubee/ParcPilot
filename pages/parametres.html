@@ -214,6 +214,7 @@
       <button class="set-tab" data-sec="emails"><i data-lucide="mail"></i> E-mails</button>
       <button class="set-tab" data-sec="donnees"><i data-lucide="database"></i> Données</button>
       <button class="set-tab" data-sec="journal"><i data-lucide="history"></i> Journal</button>
+      <button class="set-tab" data-sec="envois"><i data-lucide="send"></i> Envois e-mails</button>
       <button class="set-tab" data-sec="notifications"><i data-lucide="bell"></i> Notifications</button>
       <button class="set-tab" data-sec="compte"><i data-lucide="user-cog"></i> Compte</button>
     </div>
@@ -653,6 +654,31 @@
       <p class="text-xs text-slate-400 mt-1">🔒 Historique <b>partagé</b> entre tous les postes (enregistré en base), isolé par société et inviolable : les entrées ne peuvent pas être modifiées, et seul un CEO/Admin peut vider le journal. En cas de coupure réseau, l'affichage retombe sur l'historique local de ce poste.</p>
     </div>
 
+    <!-- Section Journal des envois (e-mails réellement partis) — CEO : vérifier qu'un e-mail est bien parti -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="envois">
+      <div class="set-head">
+        <h2><i data-lucide="send"></i> Journal des envois (e-mails)</h2>
+        <p>La liste des derniers e-mails <b>réellement partis</b> de la plateforme (rappels, amendes, accès, états des lieux…) — <b>à qui</b>, <b>quand</b>, et <b>s'ils ont bien été remis</b>. Tu peux ainsi vérifier toi-même qu'un envoi a eu lieu, sans avoir à demander.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <div class="relative flex-1 min-w-[200px]">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input id="envois-search" type="text" placeholder="Rechercher (destinataire, objet…)" class="field-input" style="padding-left:2.3rem" />
+        </div>
+        <button class="btn btn-outline text-sm" id="btn-envois-refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Rafraîchir</button>
+      </div>
+      <div class="scrollable" style="max-height:560px">
+        <table class="fp-table">
+          <thead>
+            <tr><th style="width:150px">Quand</th><th>Destinataire</th><th>Objet</th><th style="width:110px">Statut</th></tr>
+          </thead>
+          <tbody id="envois-tbody"></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-3" id="envois-count"></p>
+      <p class="text-xs text-slate-400 mt-1">🔒 Réservé au CEO (le journal couvre toutes les sociétés) · 100 derniers envois. <b>Astuce</b> : tape « révision » ou « contrôle » pour vérifier d'un coup d'œil que les rappels partent bien. Si une échéance est passée et qu'aucun rappel n'apparaît ici, c'est que la tâche automatique quotidienne ne tourne pas — préviens-moi.</p>
+    </div>
+
     <!-- Section Notifications & seuils -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="notifications">
       <div class="set-head">
@@ -1059,6 +1085,8 @@
     });
     // Onglet « Données » : (re)construire la liste des sauvegardes automatiques (à jour).
     if (sec === 'donnees') { try { renderAutoBackups(); } catch (e) {} try { renderServerBackups(); } catch (e) {} }
+    // Onglet « Envois e-mails » : charger le journal Resend à la première ouverture (puis mémorisé).
+    if (sec === 'envois') { try { renderEnvois(); } catch (e) {} }
   }
 
   function setupSettingsTabs() {
@@ -2033,6 +2061,71 @@
   // Historique PARTAGÉ : on charge les entrées enregistrées en base (tous postes confondus).
   if (FP.audit && FP.audit.loadRemote) { const _lr = () => FP.audit.loadRemote(); if (window.FP && FP.dbReady && FP.dbReady.then) FP.dbReady.then(_lr, _lr); else _lr(); }
 
+  // ---------- Journal des envois (e-mails réellement partis — via Resend, lecture seule, CEO) ----------
+  //  Source unique de vérité = Resend (le service qui envoie). On NE stocke rien côté client : à chaque
+  //  ouverture (ou « Rafraîchir »), on relit les 100 derniers envois via la fonction serveur email-log.
+  let _envoisAll = [], _envoisLoaded = false, _envoisLoading = false;
+  function envoisStatutBadge(st) {
+    const s = String(st || '').toLowerCase();
+    let col = '#64748b', lbl = st || '—';
+    if (/deliver/.test(s)) { col = '#16a34a'; lbl = 'Remis'; }
+    else if (/click/.test(s)) { col = '#0ea5e9'; lbl = 'Cliqué'; }
+    else if (/open/.test(s)) { col = '#0ea5e9'; lbl = 'Ouvert'; }
+    else if (/bounce|complain|fail/.test(s)) { col = '#e11d48'; lbl = 'Échec'; }
+    else if (/delay/.test(s)) { col = '#f59e0b'; lbl = 'Retardé'; }
+    else if (/sent|queued|schedul/.test(s)) { col = '#f59e0b'; lbl = 'Envoyé'; }
+    const e = FP.esc || (x => String(x == null ? '' : x));
+    return `<span class="badge" style="background:${col}1a;color:${col};border:1px solid ${col}55">${e(lbl)}</span>`;
+  }
+  function renderEnvoisRows() {
+    const tb = $('envois-tbody'); if (!tb) return;
+    const esc = FP.esc || (x => String(x == null ? '' : x).replace(/</g, '&lt;'));
+    const q = (FP.norm ? FP.norm(($('envois-search') ? $('envois-search').value : '') || '') : '').trim();
+    const rows = _envoisAll.filter(x => !q || (FP.norm(`${x.to} ${x.subject} ${x.cc}`).includes(q)));
+    if (!rows.length) {
+      tb.innerHTML = `<tr><td colspan="4" class="text-center text-slate-400 py-8">${_envoisLoaded ? 'Aucun envoi.' : '…'}</td></tr>`;
+    } else {
+      tb.innerHTML = rows.map(x => {
+        const dest = esc(x.to || '') + (x.cc ? ` <span class="text-slate-400">· cc ${esc(x.cc)}</span>` : '');
+        return `<tr>
+          <td class="text-xs text-slate-500 whitespace-nowrap">${esc(fmtWhen(x.created_at))}</td>
+          <td class="text-sm">${dest}</td>
+          <td class="text-sm">${esc(x.subject || '')}</td>
+          <td>${envoisStatutBadge(x.status)}</td>
+        </tr>`;
+      }).join('');
+    }
+    const c = $('envois-count');
+    if (c) c.textContent = _envoisLoaded ? `${rows.length} envoi${rows.length > 1 ? 's' : ''} affiché${rows.length > 1 ? 's' : ''}${q ? ' (filtré)' : ''}${_envoisAll.length !== rows.length ? ' sur ' + _envoisAll.length : ''}.` : '';
+  }
+  async function renderEnvois(force) {
+    const tb = $('envois-tbody'); if (!tb) return;
+    if (_envoisLoaded && !force) { renderEnvoisRows(); return; }
+    if (_envoisLoading) return;
+    _envoisLoading = true;
+    tb.innerHTML = `<tr><td colspan="4" class="text-center text-slate-400 py-8">Chargement des envois…</td></tr>`;
+    try {
+      if (!(FP.supabase && FP.supabase.functions)) throw new Error('Connexion requise (recharge la page).');
+      const { data, error } = await FP.supabase.functions.invoke('email-log', { body: { limit: 100 } });
+      if (error) {
+        let m = error.message || 'Erreur';
+        try { const ctx = error.context && (await error.context.json()); if (ctx && ctx.error) m = ctx.error; } catch (e) {}
+        throw new Error(m);
+      }
+      if (data && data.error) throw new Error(data.error);
+      _envoisAll = (data && Array.isArray(data.items)) ? data.items : [];
+      _envoisLoaded = true;
+      renderEnvoisRows();
+    } catch (e) {
+      const esc = FP.esc || (x => String(x == null ? '' : x).replace(/</g, '&lt;'));
+      tb.innerHTML = `<tr><td colspan="4" class="text-center py-8" style="color:#e11d48">${esc(e.message || String(e))}</td></tr>`;
+    } finally { _envoisLoading = false; }
+  }
+  (function () {
+    const s = $('envois-search'); if (s) s.addEventListener('input', renderEnvoisRows);
+    const b = $('btn-envois-refresh'); if (b) b.addEventListener('click', () => renderEnvois(true));
+  })();
+
   // ---------- Couleur de l'interface ----------
   const COLOR_PRESETS = [
     { c: '#F97316', n: 'Orange (Parc Pilot)' },
@@ -2597,7 +2690,7 @@
     ['marketing-card', 'danger-tools', 'data-tech-note'].forEach(id => {
       const el = document.getElementById(id); if (el) el.style.display = 'none';
     });
-    ['donnees', 'journal'].forEach(sec => {
+    ['donnees', 'journal', 'envois'].forEach(sec => {
       document.querySelectorAll(`#settings-tabs .set-tab[data-sec="${sec}"], .settings-section[data-sec="${sec}"]`)
         .forEach(el => { el.style.display = 'none'; });
     });
