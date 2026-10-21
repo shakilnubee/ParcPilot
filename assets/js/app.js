@@ -18072,6 +18072,112 @@ FP.share = function (opts) {
   };
 })();
 
+// ===== GALERIE 3D (anneau de cartes par groupe) — SOURCE UNIQUE, réutilisée Conducteurs & Véhicules =====
+// Pose les cartes EXISTANTES (chaînes HTML fournies par la page) sur un anneau 3D, UN anneau par GROUPE
+// (lisible même à 50+ éléments : chaque anneau n'a que les cartes de son groupe). Rotation automatique
+// DOUCE des seuls anneaux VISIBLES (IntersectionObserver → pas de ralentissement), glisser (souris/doigt)
+// + flèches ‹ ›. Respecte prefers-reduced-motion. Laisse passer le clic sur une carte (→ fiche via le
+// délégué de la page) SAUF juste après un glissé. `FP.galerie3d.mount(host, sections)` ; une 2e mise à jour
+// détruit proprement la précédente (re-render au changement de filtre). AUCUNE dépendance externe.
+(function () {
+  var CSS = ''
+    + '.fpg-wrap{display:flex;flex-direction:column;gap:6px}'
+    + '.fpg-sec{margin:0}'
+    + '.fpg-sec-h{display:flex;align-items:center;gap:8px;padding:4px 2px 2px;font-weight:800;color:inherit}'
+    + '.fpg-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}'
+    + '.fpg-sec-t{font-size:.98rem}'
+    + '.fpg-sec-c{font-size:.74rem;color:var(--fp-muted,#64748b);font-weight:700}'
+    + '.fpg-sec-nav{margin-left:auto;display:inline-flex;gap:6px}'
+    + '.fpg-nav{appearance:none;border:1px solid var(--fp-border,#e2e8f0);background:var(--fp-surface,#fff);color:inherit;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;line-height:1;display:grid;place-items:center;opacity:.9;transition:border-color .15s,transform .1s,opacity .15s}'
+    + '.fpg-nav:hover{border-color:var(--fp-accent,#f97316)}'
+    + '.fpg-nav:active{transform:scale(.92)}'
+    + '.fpg-stage{position:relative;height:clamp(330px,42vh,410px);perspective:1500px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden}'
+    + '.fpg-stage.fpg-grab{cursor:grabbing}'
+    + '.fpg-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}'
+    + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:248px;transition:opacity .25s linear}'
+    + '.fpg-slide>*{width:100%!important;margin:0!important;flex:0 0 auto!important}'
+    + '.fpg-slide .cc-card,.fpg-slide .veh-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
+    + '.fpg-slide.fpg-on .cc-card,.fpg-slide.fpg-on .veh-card{box-shadow:0 36px 62px -22px rgba(15,30,61,.55),0 0 0 2px var(--fp-accent,#f97316)}'
+    + '.fpg-empty{color:var(--fp-muted,#94a3b8);text-align:center;padding:38px 0}'
+    + '@media (max-width:560px){.fpg-slide{width:206px}.fpg-stage{height:clamp(300px,54vw,360px)}}';
+  var injected = false;
+  function inject() { if (injected) return; injected = true; try { var s = document.createElement('style'); s.textContent = CSS; document.head.appendChild(s); } catch (e) {} }
+  var esc = function (x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+
+  FP.galerie3d = {
+    // host = conteneur ; sections = [{ title, color?, count?, cardsHtml:[str,...] }] ; opts.empty = texte vide.
+    mount: function (host, sections, opts) {
+      if (!host) return;
+      opts = opts || {}; inject();
+      if (host._fpgDestroy) { try { host._fpgDestroy(); } catch (e) {} }
+      sections = (sections || []).filter(function (s) { return s && s.cardsHtml && s.cardsHtml.length; });
+      if (!sections.length) { host.innerHTML = '<p class="fpg-empty">' + esc(opts.empty || 'Rien à afficher.') + '</p>'; host._fpgDestroy = null; return; }
+      var reduce = false; try { reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+      host.innerHTML = '<div class="fpg-wrap">' + sections.map(function (sec, si) {
+        var slides = sec.cardsHtml.map(function (c) { return '<div class="fpg-slide">' + c + '</div>'; }).join('');
+        var dot = sec.color ? '<span class="fpg-dot" style="background:' + esc(sec.color) + '"></span>' : '';
+        var nav = sec.cardsHtml.length > 1 ? '<span class="fpg-sec-nav"><button type="button" class="fpg-nav fpg-prev" aria-label="Précédent">‹</button><button type="button" class="fpg-nav fpg-next" aria-label="Suivant">›</button></span>' : '';
+        return '<section class="fpg-sec" data-si="' + si + '"><div class="fpg-sec-h">' + dot + '<span class="fpg-sec-t">' + esc(sec.title || '') + '</span><span class="fpg-sec-c">' + (sec.count != null ? sec.count : sec.cardsHtml.length) + '</span>' + nav + '</div>'
+          + '<div class="fpg-stage"><div class="fpg-ring">' + slides + '</div></div></section>';
+      }).join('') + '</div>';
+
+      var rings = [];
+      host.querySelectorAll('.fpg-sec').forEach(function (sec) {
+        var stage = sec.querySelector('.fpg-stage'), ring = sec.querySelector('.fpg-ring');
+        var slides = [].slice.call(ring.children), N = slides.length;
+        var r = { stage: stage, ring: ring, slides: slides, N: N, rot: 0, vel: 0, targetSnap: null, dragging: false, visible: false, moved: 0, lastX: 0, radius: 300, angle: 360 / Math.max(N, 1) };
+        r.computeRadius = function () { var cw = slides[0] ? slides[0].offsetWidth : 240; if (!cw) cw = 240; if (N <= 1) { r.radius = 0; return; } var base = (cw / 2) / Math.tan(Math.PI / N); r.radius = Math.max(base * 1.16, cw * 0.6); };
+        r.draw = function () {
+          ring.style.transform = 'translateZ(-' + r.radius + 'px) rotateY(' + r.rot + 'deg)';
+          for (var i = 0; i < N; i++) {
+            var ia = i * r.angle, rel = (((ia + r.rot) % 360) + 360) % 360, facing = rel > 180 ? 360 - rel : rel, s = slides[i];
+            s.style.transform = 'translate(-50%,-50%) rotateY(' + ia + 'deg) translateZ(' + r.radius + 'px)';
+            // On masque les cartes qui passent DERRIÈRE l'anneau (texte en miroir) : on ne garde que l'arc avant.
+            var op = facing > 100 ? 0 : Math.max(0.32, 1 - facing / 98);
+            s.style.opacity = op.toFixed(3);
+            s.style.pointerEvents = op < 0.06 ? 'none' : '';
+            s.style.zIndex = String(Math.round(360 - facing));
+            if (facing < r.angle / 2) s.classList.add('fpg-on'); else s.classList.remove('fpg-on');
+          }
+        };
+        r.snap = function (dir) { r.vel = 0; var idx = Math.round(-r.rot / r.angle) + (dir || 0); r.targetSnap = -idx * r.angle; };
+        r.computeRadius(); r.draw();
+        stage.addEventListener('pointerdown', function (e) { r.dragging = true; r.lastX = e.clientX; r.moved = 0; r.vel = 0; r.targetSnap = null; stage.classList.add('fpg-grab'); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
+        stage.addEventListener('pointermove', function (e) { if (!r.dragging) return; var dx = e.clientX - r.lastX; r.lastX = e.clientX; r.moved += Math.abs(dx); if (N > 1) { var d = dx * 0.3; r.rot += d; r.vel = d; } });
+        var up = function () { if (!r.dragging) return; r.dragging = false; stage.classList.remove('fpg-grab'); if (Math.abs(r.vel) < 0.4) r.snap(0); };
+        stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+        stage.addEventListener('click', function (e) { if (r.moved > 6) { e.stopPropagation(); e.preventDefault(); } }, true);
+        var pv = sec.querySelector('.fpg-prev'), nx = sec.querySelector('.fpg-next');
+        if (pv) pv.addEventListener('click', function (e) { e.stopPropagation(); r.snap(-1); });
+        if (nx) nx.addEventListener('click', function (e) { e.stopPropagation(); r.snap(1); });
+        rings.push(r);
+      });
+
+      var io = null;
+      try {
+        io = new IntersectionObserver(function (ents) { ents.forEach(function (en) { var ri = rings[+en.target.dataset.si]; if (ri) ri.visible = en.isIntersecting; }); }, { threshold: 0.12 });
+        host.querySelectorAll('.fpg-sec').forEach(function (sec) { io.observe(sec); });
+      } catch (e) { rings.forEach(function (r) { r.visible = true; }); }
+
+      var rafId = requestAnimationFrame(function loop() {
+        for (var i = 0; i < rings.length; i++) {
+          var r = rings[i];
+          if (r.targetSnap !== null) { var d = r.targetSnap - r.rot; if (Math.abs(d) < 0.05) { r.rot = r.targetSnap; r.targetSnap = null; } else r.rot += d * 0.12; r.draw(); }
+          else if (!r.dragging) {
+            if (Math.abs(r.vel) > 0.02) { r.rot += r.vel; r.vel *= 0.93; r.draw(); }
+            else if (r.visible && !reduce && r.N > 1) { r.rot += 0.06; r.draw(); }
+          }
+        }
+        rafId = requestAnimationFrame(loop);
+      });
+      var onResize = function () { rings.forEach(function (r) { r.computeRadius(); r.draw(); }); };
+      window.addEventListener('resize', onResize);
+      host._fpgDestroy = function () { if (rafId) cancelAnimationFrame(rafId); if (io) { try { io.disconnect(); } catch (e) {} } window.removeEventListener('resize', onResize); host._fpgDestroy = null; };
+    }
+  };
+})();
+
 // ===== CARTES PLIABLES PARTOUT (toutes les pages, automatique) — SOURCE UNIQUE, mémorisé =====
 // ⚠️ Fonctionnalité de BASE : CHAQUE carte de section (une .card qui a un TITRE h1-h4 / .section-title en
 // tête) reçoit AUTOMATIQUEMENT un petit chevron pour la plier/déplier — sur toutes les pages, sans rien
