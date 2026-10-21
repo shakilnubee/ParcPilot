@@ -13590,7 +13590,13 @@ FP.buildXlsx = function (headers, rows, sheetName, opts) {
   const brandLines = (!opts.noBrand && FP._exportBrandLines) ? (function () { try { return FP._exportBrandLines(sheetName) || []; } catch (e) { return []; } })() : [];
   const OFF = brandLines.length, HR = OFF + 1;
   brandLines.forEach((line, i) => { sheetRows.push('<row r="' + (i + 1) + '"><c r="A' + (i + 1) + '" t="inlineStr" s="' + (i === 0 ? 1 : 0) + '"><is><t xml:space="preserve">' + esc(line) + '</t></is></c></row>'); });
-  sheetRows.push('<row r="' + HR + '">' + (headers || []).map((h, c) => `<c r="${colL(c)}${HR}" t="inlineStr" s="1"><is><t xml:space="preserve">${esc(h)}</t></is></c>`).join('') + '</row>');
+  // En-tête du modèle « premium » : opts.fancyHeader = gras + fin trait de séparation (style 2) ;
+  //   opts.tintCols = colonnes à menu déroulant → très légère teinte (style 3), repère discret sans glyphe.
+  //   Sans ces options (exports classiques), l'en-tête reste en gras simple (style 1) — comportement inchangé.
+  const fancyH = !!opts.fancyHeader;
+  const tintSet = new Set(Array.isArray(opts.tintCols) ? opts.tintCols : []);
+  const hdrStyle = (c) => (fancyH ? (tintSet.has(c) ? 3 : 2) : 1);
+  sheetRows.push('<row r="' + HR + '">' + (headers || []).map((h, c) => `<c r="${colL(c)}${HR}" t="inlineStr" s="${hdrStyle(c)}"><is><t xml:space="preserve">${esc(h)}</t></is></c>`).join('') + '</row>');
   (rows || []).forEach((row, ri) => { const r = ri + HR + 1;
     sheetRows.push(`<row r="${r}">` + row.map((v, c) => { const ref = colL(c) + r;
       if (typeof v === 'number' && isFinite(v)) return `<c r="${ref}"><v>${v}</v></c>`;
@@ -13612,15 +13618,55 @@ FP.buildXlsx = function (headers, rows, sheetName, opts) {
     }
     colsXml = '<cols>' + widths.map((wd, i) => `<col min="${i + 1}" max="${i + 1}" width="${wd}" customWidth="1"/>`).join('') + '</cols>';
   }
-  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + colsXml + '<sheetData>' + sheetRows.join('') + '</sheetData></worksheet>';
+  // Menus déroulants (listes) — opts.validations = [{ col:<index 0-based>, values:[...] }]. Appliqués de la
+  //   1re ligne de données jusqu'à +1000 lignes. Les virgules dans une valeur sont remplacées (séparateur
+  //   de liste). On NE bloque PAS une valeur hors liste (showErrorMessage=0) : le menu aide, sans emprisonner.
+  //   Placé APRÈS <sheetData> (ordre imposé par le schéma OOXML : cols → sheetData → dataValidations).
+  let dvXml = '';
+  const vals = Array.isArray(opts.validations) ? opts.validations.filter((v) => v && v.col != null && Array.isArray(v.values) && v.values.length) : [];
+  if (vals.length) {
+    dvXml = '<dataValidations count="' + vals.length + '">' + vals.map((v) => {
+      const L = colL(v.col), lo = HR + 1, hi = HR + 1000;
+      const list = esc('"' + v.values.map((x) => String(x).replace(/,/g, ' ')).join(',') + '"');
+      const hasMsg = (v.prompt != null && String(v.prompt) !== '');
+      const msg = hasMsg ? ` promptTitle="${esc(String(v.promptTitle || ''))}" prompt="${esc(String(v.prompt))}"` : '';
+      return `<dataValidation type="list" allowBlank="1" showInputMessage="${hasMsg ? 1 : 0}"${msg} showErrorMessage="0" sqref="${L}${lo}:${L}${hi}"><formula1>${list}</formula1></dataValidation>`;
+    }).join('') + '</dataValidations>';
+  }
+  // Ligne d'en-tête FIGÉE (opts.freezeHeader) : elle reste visible quand on fait défiler la liste.
+  const viewsXml = opts.freezeHeader ? `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${HR}" topLeftCell="A${HR + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView></sheetViews>` : '';
+  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + viewsXml + colsXml + '<sheetData>' + sheetRows.join('') + '</sheetData>' + dvXml + '</worksheet>';
+  // 2e feuille optionnelle « Instructions » (opts.sheet2 = { name, rows:[[...]] }) : aide au remplissage,
+  //   SANS impact sur l'import (qui ne lit que la 1re feuille). 1re ligne en gras, largeurs auto.
+  const s2 = (opts.sheet2 && Array.isArray(opts.sheet2.rows) && opts.sheet2.rows.length) ? opts.sheet2 : null;
+  let sheet2Xml = '', s2nm = '';
+  if (s2) {
+    s2nm = String(s2.name || 'Instructions').replace(/[\\\/\?\*\[\]:]/g, ' ').slice(0, 31) || 'Instructions';
+    const s2rows = s2.rows.map((row, ri) => `<row r="${ri + 1}">` + (row || []).map((v, c) => `<c r="${colL(c)}${ri + 1}" t="inlineStr"${ri === 0 ? (fancyH ? ' s="2"' : ' s="1"') : ''}><is><t xml:space="preserve">${esc(v)}</t></is></c>`).join('') + '</row>').join('');
+    const s2ncol = Math.max(...s2.rows.map((r) => (r ? r.length : 0)), 0);
+    let s2cols = '';
+    if (s2ncol > 0) {
+      const w2 = [];
+      for (let c = 0; c < s2ncol; c++) { let w = 0; s2.rows.forEach((r) => { const v = r && r[c]; if (v != null) { const l = String(v).length; if (l > w) w = l; } }); w2.push(Math.min(Math.max(w + 2, 12), 80)); }
+      s2cols = '<cols>' + w2.map((wd, i) => `<col min="${i + 1}" max="${i + 1}" width="${wd}" customWidth="1"/>`).join('') + '</cols>';
+    }
+    sheet2Xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + s2cols + '<sheetData>' + s2rows + '</sheetData></worksheet>';
+  }
+  const ctOverride = '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' + (s2 ? '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' : '');
+  const wbSheets = '<sheet name="' + esc(nm) + '" sheetId="1" r:id="rId1"/>' + (s2 ? '<sheet name="' + esc(s2nm) + '" sheetId="2" r:id="rId3"/>' : '');
+  const wbRels = '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' + (s2 ? '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' : '');
+  // Styles (sobres) : 0 = normal · 1 = gras simple (exports) · 2 = gras + fin trait de séparation (en-tête
+  //   modèle) · 3 = gras + trait + très légère teinte gris-bleu (colonne à menu déroulant, repère discret).
+  const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF2F7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FFD1D1D6"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="1" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/></cellXfs></styleSheet>';
   const files = [
-    { name: '[Content_Types].xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>') },
+    { name: '[Content_Types].xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + ctOverride + '</Types>') },
     { name: '_rels/.rels', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') },
-    { name: 'xl/workbook.xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + esc(nm) + '" sheetId="1" r:id="rId1"/></sheets></workbook>') },
-    { name: 'xl/_rels/workbook.xml.rels', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>') },
-    { name: 'xl/styles.xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>') },
+    { name: 'xl/workbook.xml', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + wbSheets + '</sheets></workbook>') },
+    { name: 'xl/_rels/workbook.xml.rels', bytes: enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + wbRels + '</Relationships>') },
+    { name: 'xl/styles.xml', bytes: enc(stylesXml) },
     { name: 'xl/worksheets/sheet1.xml', bytes: enc(sheetXml) },
   ];
+  if (s2) files.push({ name: 'xl/worksheets/sheet2.xml', bytes: enc(sheet2Xml) });
   // ZIP « store » (aucune compression) + répertoire central + EOCD.
   const chunks = [], central = []; let off = 0;
   const u16 = (n) => [n & 255, (n >> 8) & 255], u32 = (n) => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255];
@@ -17354,12 +17400,53 @@ FP.injectDataIO = function (cfg) {
   // ⚠️ SOURCE UNIQUE — Modèle vierge (Excel) : UNE seule implémentation, réutilisée par le bouton de la
   // fenêtre d'import ET par un accès direct (ex. menu « Outils » → FP.downloadImportTemplate()). Fichier
   // propre (en-têtes en ligne 1, sans bandeau) ; repli CSV si l'export Excel est indisponible.
+  // Aide au remplissage du modèle (générique) : par clé de champ normalisée → { oblig, hint, ex, choices }.
+  //   Une page peut surcharger via la config colonne (c.required / c.hint / c.example / c.choices).
+  //   Sert à construire l'onglet « Instructions », les menus déroulants et le repérage des champs obligatoires.
+  const _TPL_HELP = {
+    immat: { oblig: true, hint: "Plaque d'immatriculation du véhicule", ex: 'HL-724-CD' },
+    marque: { hint: 'Marque du véhicule', ex: 'Peugeot' },
+    modele: { hint: 'Modèle', ex: '308' },
+    groupes: { hint: 'Groupe(s) ; sépare par « | » si plusieurs', ex: 'Commerciaux' },
+    categorie: { hint: 'Catégorie (texte libre)', ex: 'Berline' },
+    km: { hint: 'Kilométrage actuel — un nombre, sans « km »', ex: '45000' },
+    chauffeur: { hint: 'Nom du conducteur attribué', ex: 'Nicolas Riou' },
+    statut: { hint: 'État du véhicule — à choisir dans la liste', ex: 'Actif', choices: ['Actif', 'En entretien', 'À vendre', 'Vendu', 'Sinistre', 'Hors service'] },
+    prochainct: { hint: 'Date du prochain contrôle technique (JJ/MM/AAAA)', ex: '15/03/2027' },
+    datemiseencirculation: { hint: '1re mise en circulation (JJ/MM/AAAA)', ex: '12/06/2022' },
+    vin: { hint: 'N° de série / VIN — carte grise, champ E', ex: 'VF3ABCDE1234567' },
+    carburant: { hint: "Type d'énergie — à choisir dans la liste", ex: 'Diesel', choices: ['Essence', 'Diesel', 'Électrique', 'Hybride', 'Hybride rechargeable', 'GPL', 'Hydrogène', 'Micro-hybride'] },
+    proprietaire: { hint: 'Propriétaire ou loueur (leasing)', ex: 'TJMAX' },
+    valeurdachat: { hint: "Prix d'achat TTC (€) — un nombre", ex: '28000' },
+    valeurachat: { hint: "Prix d'achat TTC (€) — un nombre", ex: '28000' },
+    co2: { hint: 'Émissions CO₂ en g/km — carte grise, champ V.7', ex: '118' },
+    puissancefiscale: { hint: 'Puissance fiscale en CV — carte grise, champ P.6', ex: '6' },
+  };
+  const _tplNorm = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  const _tplMeta = (c) => {
+    const h = _TPL_HELP[_tplNorm(c.key)] || {};
+    return {
+      oblig: (c.required != null ? !!c.required : !!h.oblig),
+      hint: c.hint || h.hint || String(c.label == null ? '' : c.label),
+      ex: (c.example != null ? String(c.example) : (h.ex || '')),
+      choices: (Array.isArray(c.choices) && c.choices.length) ? c.choices : (Array.isArray(h.choices) ? h.choices : null),
+    };
+  };
   const dlTemplate = () => {
     const tplCols = cols.filter(c => !/^(id)$/i.test(c.key));
+    const metas = tplCols.map(_tplMeta);
+    // En-tête = libellés simples (sobre, sans glyphe). Les colonnes à menu déroulant sont signalées en
+    //   douceur : une TRÈS légère teinte sur leur en-tête (tintCols) + une bulle d'aide à la sélection.
     const headers = tplCols.map(c => (c.label == null ? '' : String(c.label)));
     const base = (typeof cfg.baseName === 'function' ? cfg.baseName() : cfg.baseName) || (typeof cfg.filename === 'function' ? cfg.filename() : cfg.filename) || 'import';
     const name = 'modele-' + String(base).replace(/\.(csv|xlsx|xls)$/i, '').replace(/[^\w-]+/g, '-').toLowerCase();
-    if (FP.downloadXlsx) { const ok = FP.downloadXlsx(name, headers, [], { sheet: 'Modèle', noBrand: true }); if (ok) { if (FP.toast) FP.toast('✓ Modèle Excel téléchargé — remplis-le puis réimporte-le ici.'); return; } }
+    // 2e onglet « Instructions » — épuré : 1 ligne par champ (colonne « Obligatoire » vide si non requis).
+    const instr = [['Champ', 'Obligatoire', 'Description', 'Exemple']];
+    tplCols.forEach((c, i) => { const m = metas[i]; instr.push([String(c.label == null ? '' : c.label), m.oblig ? 'Oui' : '', m.hint, m.ex]); });
+    const tintCols = [], validations = [];
+    metas.forEach((m, i) => { if (m.choices) { tintCols.push(i); validations.push({ col: i, values: m.choices, prompt: 'Choisis une valeur dans la liste.' }); } });
+    const xlsxOpts = { sheet: 'Modèle', noBrand: true, fancyHeader: true, freezeHeader: true, tintCols, validations, sheet2: { name: 'Instructions', rows: instr } };
+    if (FP.downloadXlsx) { const ok = FP.downloadXlsx(name, headers, [], xlsxOpts); if (ok) { if (FP.toast) FP.toast('✓ Modèle Excel téléchargé — remplis-le puis réimporte-le ici.'); return; } }
     try {
       const line = headers.map(s => (/[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s)).join(';');
       const blob = new Blob(['﻿' + line + '\n'], { type: 'text/csv;charset=utf-8' });
