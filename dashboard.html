@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022c">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261022c"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261022d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261022c">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261022d">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -515,18 +515,13 @@
       <div class="dash-widget" data-widget="repartition">
         <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Podium conducteurs</span></div>
         <div class="card p-6">
-          <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <div class="flex items-center justify-between mb-3 gap-3">
             <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <div class="podium-seg" role="tablist" aria-label="Affichage du podium">
-                <button id="dash-podium-view-list" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
-                <button id="dash-podium-view-galerie" class="on" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
-              </div>
-              <button id="dash-podium-toggle" class="btn btn-outline text-xs whitespace-nowrap">Voir tout</button>
-            </div>
+            <a href="pages/amendes.html" class="text-sm font-semibold flex-shrink-0 whitespace-nowrap" style="color: var(--fp-accent)">Voir tout →</a>
           </div>
-          <div id="dash-podium" class="space-y-1" style="max-height:320px;overflow-y:auto"></div>
-          <div id="dash-podium-galerie" hidden></div>
+          <!-- Tableau de bord : galerie uniquement (le classement complet + la vue Liste sont sur la page Amendes). -->
+          <div id="dash-podium" class="space-y-1" hidden></div>
+          <div id="dash-podium-galerie"></div>
         </div>
       </div>
 
@@ -606,8 +601,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261022c"></script>
-<script src="assets/js/supabase-client.js?v=20261022c"></script>
+<script src="assets/js/vendor/supabase.js?v=20261022d"></script>
+<script src="assets/js/supabase-client.js?v=20261022d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -623,10 +618,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261022c"></script>
+<script src="assets/js/app.min.js?v=20261022d"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -1119,7 +1114,8 @@
         _podGal.hidden = false;
         const top = all.slice(0, 5);
         if (top.length && FP.galerie3d) {
-          FP.galerie3d.mount(_podGal, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.' });
+          // Podium compact sur le TDB (~moitié de la hauteur d'un gros anneau) : height réduite.
+          FP.galerie3d.mount(_podGal, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.', height: 210 });
         } else { if (_podGal._fpgDestroy) _podGal._fpgDestroy(); _podGal.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune amende cette année.</p>'; }
       }
       return;
