@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022d">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261022d"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261022e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261022d">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261022e">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -90,8 +90,9 @@
   .podium-seg button { border:none; background:none; color:#64748b; font-weight:700; font-size:.74rem; padding:.3rem .6rem; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
   .podium-seg button.on { background:var(--fp-primary,#0f1e3d); color:#fff; }
   .pod-card { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55rem; padding:1.1rem 1rem; border-radius:16px; background:#fff; border:1px solid var(--fp-border,#e2e8f0); box-shadow:0 10px 30px -14px rgba(15,30,61,.4); text-align:center; }
-  /* Médaillon IDENTIQUE partout (portail / TDB / Amendes) : même cercle + numéro, seule la couleur change. */
-  .pod-card-rank { display:flex; align-items:center; justify-content:center; width:3.4rem; height:3.4rem; border-radius:9999px; font-weight:800; font-size:1.6rem; line-height:1; color:#334155; background:#eef2f7; box-shadow:inset 0 0 0 2px #e2e8f0; }
+  /* Médaille IDENTIQUE partout (portail / TDB / Amendes) : 🥇🥈🥉 podium, 🏅 + chiffre au centre pour 4e/5e. */
+  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; width:3.4rem; height:3.4rem; border-radius:9999px; font-weight:800; font-size:1.95rem; line-height:1; color:#334155; background:#eef2f7; box-shadow:inset 0 0 0 2px #e2e8f0; }
+  .pod-card-rank .m-n { position:absolute; left:0; right:0; top:46%; transform:translateY(-50%); text-align:center; font-size:.92rem; font-weight:900; color:#1e293b; text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff; pointer-events:none; }
   .pod-card.r1 .pod-card-rank { color:#7c4a03; background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a); box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65); }
   .pod-card.r2 .pod-card-rank { color:#475569; background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0); box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5); }
   .pod-card.r3 .pod-card-rank { color:#7c3d12; background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a); box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5); }
@@ -605,8 +606,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261022d"></script>
-<script src="assets/js/supabase-client.js?v=20261022d"></script>
+<script src="assets/js/vendor/supabase.js?v=20261022e"></script>
+<script src="assets/js/supabase-client.js?v=20261022e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -622,10 +623,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261022d"></script>
+<script src="assets/js/app.min.js?v=20261022e"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -1096,9 +1097,11 @@
     return Object.values(byDriver).sort((a, b) => b.n - a.n || b.montant - a.montant);
   }
   function _podCardHtml(d, i) {
-    // Médaillon IDENTIQUE partout (portail / TDB / Amendes) : cercle + numéro, couleur selon le rang.
+    // Médaille IDENTIQUE partout : 🥇🥈🥉 pour le podium, 🏅 + chiffre au centre pour 4e/5e.
+    const medals = ['🥇', '🥈', '🥉'];
+    const inner = i < 3 ? medals[i] : `🏅<span class="m-n">${i + 1}</span>`;
     return `<a href="pages/amendes.html?conducteur=${encodeURIComponent(d.link || d.nom)}" class="pod-card r${i + 1}" title="Voir les amendes de ${FP.esc(d.nom)}">
-        <div class="pod-card-rank">${i + 1}</div>
+        <div class="pod-card-rank">${inner}</div>
         <div class="pod-card-name">${FP.esc(d.nom)}</div>
         <div class="pod-card-tags">
           <span class="pod-tag t-count">${d.n} amende${d.n > 1 ? 's' : ''}</span>

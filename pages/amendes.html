@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022e">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -69,8 +69,9 @@
   /* Carte conducteur en vue Galerie du podium (reprend les pastilles pt-*) */
   .pod-card { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55rem; padding:1.1rem 1rem; border-radius:16px; background:#fff; border:1px solid var(--fp-border); box-shadow:0 10px 30px -14px rgba(15,30,61,.4); text-align:center; }
   body.fp-dark .pod-card { background:#182134; border-color:#2a3650; }
-  /* Médaillon IDENTIQUE partout (portail / TDB / Amendes) : même cercle + numéro, seule la couleur change. */
-  .pod-card-rank { display:flex; align-items:center; justify-content:center; width:3.4rem; height:3.4rem; border-radius:9999px; font-weight:800; font-size:1.6rem; line-height:1; color:#334155; background:#eef2f7; box-shadow:inset 0 0 0 2px #e2e8f0; }
+  /* Médaille IDENTIQUE partout (portail / TDB / Amendes) : 🥇🥈🥉 podium, 🏅 + chiffre au centre pour 4e/5e. */
+  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; width:3.4rem; height:3.4rem; border-radius:9999px; font-weight:800; font-size:1.95rem; line-height:1; color:#334155; background:#eef2f7; box-shadow:inset 0 0 0 2px #e2e8f0; }
+  .pod-card-rank .m-n { position:absolute; left:0; right:0; top:46%; transform:translateY(-50%); text-align:center; font-size:.92rem; font-weight:900; color:#1e293b; text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff; pointer-events:none; }
   .pod-card.r1 .pod-card-rank { color:#7c4a03; background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a); box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65); }
   .pod-card.r2 .pod-card-rank { color:#475569; background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0); box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5); }
   .pod-card.r3 .pod-card-rank { color:#7c3d12; background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a); box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5); }
@@ -514,8 +515,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022d"></script>
-<script src="../assets/js/supabase-client.js?v=20261022d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022e"></script>
+<script src="../assets/js/supabase-client.js?v=20261022e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -531,11 +532,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261022d"></script>
+<script src="../assets/js/app.min.js?v=20261022e"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -1347,7 +1348,7 @@
   }
 
   // ---------- Podium des conducteurs (extensible) ----------
-  let podiumExpanded = false;
+  let podiumExpanded = true;   // page dédiée : la Liste montre TOUT le classement par défaut (boîte scrollable) — pas besoin de cliquer « Voir tout »
   let podiumView = 'list';   // 'list' (comme avant) | 'galerie' (anneau 3D)
   // Agrégat unique (Liste ET Galerie lisent la MÊME source) — suit le filtre d'année choisi
   // (« toutes » = cumul toutes années). Trié par nombre d'amendes, puis montant dû.
@@ -1360,9 +1361,11 @@
   }
   function podiumCardHtml(v, i) {
     const nm = escAmende(v.label || v.key);
-    // Médaillon IDENTIQUE partout (portail / TDB / Amendes) : cercle + numéro, couleur selon le rang.
+    // Médaille IDENTIQUE partout : 🥇🥈🥉 pour le podium, 🏅 + chiffre au centre pour 4e/5e.
+    const medals = ['🥇', '🥈', '🥉'];
+    const inner = i < 3 ? medals[i] : `🏅<span class="m-n">${i + 1}</span>`;
     return `<div class="pod-card r${i + 1}" data-cond="${(v.label || v.key).replace(/"/g, '&quot;')}" title="Voir les amendes de ${nm}">
-      <div class="pod-card-rank">${i + 1}</div>
+      <div class="pod-card-rank">${inner}</div>
       <div class="pod-card-name">${nm}</div>
       <div class="pod-card-tags">
         <span class="podium-tag pt-count">${v.n} amende${v.n > 1 ? 's' : ''}</span>
@@ -1382,7 +1385,7 @@
         galBox.hidden = false;
         const top = all.slice(0, 5);   // la galerie met en avant le TOP 5 (la liste reste pour tout voir)
         if (top.length && FP.galerie3d) {
-          FP.galerie3d.mount(galBox, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.' });
+          FP.galerie3d.mount(galBox, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.', height: 250 });
         } else {
           if (galBox._fpgDestroy) galBox._fpgDestroy();
           galBox.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune donnée.</p>';
