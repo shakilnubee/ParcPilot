@@ -100,6 +100,9 @@
   .fpmedal.m2 .fpmedal-n{color:#475569;background:radial-gradient(circle at 50% 32%,#ffffff,#dde3ea 60%,#b4bdc9);box-shadow:0 0 0 2px #c4ccd8,0 6px 14px -7px rgba(100,116,139,.45),inset 0 2px 3px rgba(255,255,255,.85),inset 0 -3px 5px rgba(100,116,139,.22)}
   .fpmedal.m3 .fpmedal-n{color:#6b3d14;background:radial-gradient(circle at 50% 32%,#ffe6c9,#e3a564 60%,#c17e3b);box-shadow:0 0 0 2px #cf8f4e,0 6px 14px -7px rgba(193,126,59,.5),inset 0 2px 3px rgba(255,255,255,.7),inset 0 -3px 5px rgba(120,70,20,.28)}
   .fpmedal.m4 .fpmedal-n,.fpmedal.m5 .fpmedal-n{color:#3730a3;background:radial-gradient(circle at 50% 32%,#eef2ff,#c7d2fe 60%,#a5b4fc);box-shadow:0 0 0 2px #aab6f4,0 6px 14px -7px rgba(99,102,241,.45),inset 0 2px 3px rgba(255,255,255,.8),inset 0 -3px 5px rgba(79,70,229,.25)}
+  /* Version COMPACTE (classement en liste) : même médaille tricolore, réduite — pour que TOUS les rangs (y compris 4e, 5e…) aient une médaille. */
+  .fpmedal.sm::before{width:1.2rem;height:.82rem;border-radius:1.5px}
+  .fpmedal.sm .fpmedal-n{width:1.5rem;height:1.5rem;margin-top:-.26rem;font-size:.78rem}
   .pod-card-name { font-weight:800; font-size:1.05rem; color:var(--fp-primary,#0f1e3d); line-height:1.2; overflow-wrap:anywhere; }
   .pod-card-tags { display:flex; flex-wrap:wrap; gap:.3rem; justify-content:center; }
   .pod-tag { display:inline-flex; align-items:center; padding:.12rem .45rem; border-radius:9999px; font-size:.72rem; font-weight:700; white-space:nowrap; }
@@ -109,6 +112,13 @@
 
   /* === Véhicules : BULLES GLISSANTES (carrousel horizontal, façon appli) === */
   .veh-carousel { position: relative; }
+  /* Fond doux teinté accent derrière l'anneau → comble le blanc autour des bulles (au lieu d'un grand vide). */
+  .veh-galerie-host {
+    border-radius: 16px;
+    background:
+      radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--fp-accent) 10%, transparent), transparent 62%),
+      linear-gradient(180deg, color-mix(in srgb, var(--fp-accent) 4%, transparent), transparent 55%);
+  }
   .veh-scroller {
     display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x proximity; scroll-padding-left: 24px;
@@ -997,7 +1007,9 @@
       // rayon), à vitesse angulaire égale les cartes défileraient ~12× plus vite. On règle la vitesse
       // angulaire ∝ 1/nombre de cartes → le défilement des cartes est au même rythme que le podium (5 cartes à 0.12).
       const _vehSpeed = Math.max(0.012, 0.6 / Math.max(list.length, 1));
-      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.', speed: _vehSpeed });
+      // Hauteur compacte : l'anneau serre les bulles (208×158) au lieu de la hauteur par défaut (340-420px)
+      // qui laissait beaucoup de blanc autour. Le fond dégradé (.veh-galerie-host) habille le reste.
+      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.', speed: _vehSpeed, height: 'clamp(215px,26vh,250px)' });
     } else if (list.length) {
       // Repli (moteur galerie indisponible) : la liste plate d'avant.
       if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
@@ -1133,11 +1145,12 @@
     // --- Vue Liste (par défaut) ---
     if (_podGal) { _podGal.hidden = true; if (_podGal._fpgDestroy) _podGal._fpgDestroy(); }
     if (_podBox) _podBox.hidden = false;
-    const medals = ['🥇', '🥈', '🥉'];
+    // Médaille tricolore (compacte) pour TOUS les rangs : top 5 colorés (or/argent/bronze/indigo), au-delà neutre.
+    const medalSm = (i) => `<span class="fpmedal sm${i < 5 ? ' m' + (i + 1) : ''}"><span class="fpmedal-n">${i + 1}</span></span>`;
     const shown = _podExpanded ? all : all.slice(0, 5);
     if (_podBox) _podBox.innerHTML = shown.map((d, i) => `
         <a href="pages/amendes.html?conducteur=${encodeURIComponent(d.link || d.nom)}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50" title="Voir les amendes de ${FP.esc(d.nom)}">
-          <span class="text-lg w-7 text-center flex-shrink-0">${medals[i] || `<span class="text-sm font-bold text-slate-400">${i + 1}</span>`}</span>
+          <span class="flex items-center justify-center flex-shrink-0" style="width:1.9rem">${medalSm(i)}</span>
           <span class="flex-1 font-semibold text-slate-800 truncate">${FP.esc(d.nom)}</span>
           <span class="text-sm text-slate-500 flex-shrink-0">${d.n} · ${_podEuro(d.montant)}${d.points ? ' · −' + d.points + 'pts' : ''}</span>
         </a>`).join('') || '<p class="text-sm text-slate-400">Aucune amende cette année.</p>';
