@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022g">
 <style>
   .notif { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--fp-border); background: var(--fp-surface, #fff); text-decoration: none; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; box-shadow: 0 1px 2px rgba(15,30,61,.04); }
   .notif + .notif { margin-top: .55rem; }
@@ -159,8 +159,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022f"></script>
-<script src="../assets/js/supabase-client.js?v=20261022f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022g"></script>
+<script src="../assets/js/supabase-client.js?v=20261022g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -176,11 +176,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261022f"></script>
+<script src="../assets/js/app.min.js?v=20261022g"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -551,7 +551,7 @@
   const DUP_DOC_TYPES = [{ k: 'carte-grise', label: 'Carte grise' }, { k: 'memo', label: 'Carte mémo' }];
   function dupDocGroups() {
     if (!_docsLoaded) return [];
-    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
+    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v)));
     const groups = [];
     actifs.forEach(v => DUP_DOC_TYPES.forEach(t => {
       const ds = docsOf(v.id).filter(d => d && d.type === t.k && d.url && !_isDrive(d.url));
@@ -910,7 +910,7 @@
   }
   function renderComplet() {
     const box = document.getElementById('suivi-complet'); if (!box) return;
-    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
+    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v)));
     const VEH_ALL = VEH_FIELDS.concat(cfReqFields('vehicule'), drReqFields('vehicule'));
     const vehItems = []; actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; const m = missOf(v, VEH_ALL, pfx); if (m.length) vehItems.push(compItem(`${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), m, `vehicules.html?veh=${encodeURIComponent(v.id)}`, pfx, 'veh', v.id)); });
     const conds = (data.conducteurs || []).filter(c => c && c.masque !== true && (c.manuel === true || !isEmptyV(c.nom) || !isEmptyV(c.prenom) || !isEmptyV(c.name)));
@@ -1040,7 +1040,7 @@
   }
   function buildRaf() {
     const out = [];
-    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
+    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v)));
     const VEH_ALL = VEH_FIELDS.concat(cfReqFields('vehicule'), drReqFields('vehicule'));
     actifs.forEach(v => { const pfx = 'complet:veh:' + v.id + ':'; missOf(v, VEH_ALL, pfx).forEach(m => { const meta = rafMeta('veh', m.k); if (meta.kind === 'fiche') return; out.push({ type: 'veh', entity: v, entityLabel: `${v.immat || '?'} · ${(v.marque || '')} ${(v.modele || '')}`.trim(), field: m, ignKey: pfx + m.k, meta }); }); });
     const conds = (data.conducteurs || []).filter(c => c && c.masque !== true && (c.manuel === true || !isEmptyV(c.nom) || !isEmptyV(c.prenom) || !isEmptyV(c.name)));
@@ -1423,7 +1423,7 @@
   // (FP.kmSuiviSet → app_settings.kmSuiviExclus) que le bouton de la fiche véhicule → automatiquement lié.
   function openKmConfig() {
     const E = (s) => FP.esc ? FP.esc(s) : String(s == null ? '' : s);
-    const flotte = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)))
+    const flotte = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v)))
       .slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
     const byId = (id) => flotte.find(v => String(v.id) === String(id));
     const rowHtml = (v) => {
@@ -1677,7 +1677,7 @@
     if (!_docsLoaded) loadCompletDocs();
     try { if (FP.kmCollecte && FP.kmCollecte.load && !(FP.kmCollecte._cache && FP.kmCollecte._cache.length)) FP.kmCollecte.load().then(() => { try { renderSuiviFlotte(); } catch (e) {} }); } catch (e) {}
     _suiviCtx = { docs: _docsMap, km: (FP.kmCollecte && FP.kmCollecte._byVeh) || {} };
-    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)));
+    const actifs = (data.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v)));
     const cols = FP.suivi.allCols();
     const stateOf = (v) => cols.map(c => ({ c, st: suiviState(v, c) }));
     const isComplete = (v) => FP.suivi.isComplete(v, _suiviCtx);

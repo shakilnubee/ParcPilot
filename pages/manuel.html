@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022g">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -499,6 +499,7 @@
           En parallèle, l'alerte <b>« relance relevé km »</b> reste dans <b>Contrôle → Relevé KM</b> et sur le tableau de bord pour voir qui ne répond toujours pas ; tu peux aussi relancer <b>immédiatement</b> en 1 clic sans attendre. <i>Tout est <b>par société</b> (chaque société part de sa propre adresse d'envoi) et ne concerne que les véhicules suivis (pas ceux à vendre / hors flotte, ni ceux décochés du suivi km).</i> <span style="font-size:.72rem;color:var(--fp-muted)">⚙️ Activation technique par l'administrateur (planification côté serveur) — une fois en place, tout roule sans intervention.</span></div>
         <div class="man-item"><b>📲 Un relevé donné au QR compte comme une réponse</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — quand un conducteur <b>scanne directement le QR de sa voiture</b> et <b>saisit son km</b> (sans passer par le lien du mail), c'est désormais bien compté <b>comme s'il avait répondu à la relance</b> : le véhicule passe « à jour » et sort des « à relancer ». Ça vaut <b>même pour un véhicule sans conducteur / sans e-mail</b> (donc sans mail possible), dès l'instant où tu as « demandé le km » — c'est-à-dire dès que tu as <b>envoyé une relance</b> <i>ou</i> fixé la <b>date de cycle</b> « Tout le monde redonne son km à partir du… ». (Un relevé donné au QR <b>avant</b> que tu demandes quoi que ce soit ne compte pas, pour ne pas fausser le suivi.)</div>
         <div class="man-item"><b>🔕 Ne plus suivre le km d'un véhicule</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — pour certains véhicules tu ne veux <b>jamais</b> qu'on te réclame le km. Deux endroits (liés automatiquement, c'est le <b>même réglage</b>) : dans la <b>fiche véhicule</b>, le bouton <b>« 🔕 Ne plus suivre le km »</b> à côté de « Demander le km » ; et dans <b>Contrôle → Relevé KM</b>, le bouton <b>« Configurer »</b> ouvre la liste de tous les véhicules à <b>cocher / décocher</b> (avec « Tout cocher / Tout décocher »). Un véhicule <b>décoché</b> disparaît du suivi, ne compte plus dans « manquants », ne reçoit plus de demande ni d'alerte. Tu peux le <b>recocher</b> à tout moment. Réglage <b>synchronisé</b> sur tous tes appareils.</div>
+        <div class="man-item"><b>🔕 Ignorer TOUTES les alertes d'un véhicule</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — pour un véhicule sur lequel tu ne feras <b>jamais</b> d'entretien ni de CT (ou que tu ne veux tout simplement plus suivre), un <b>seul bouton</b> coupe <b>toutes ses alertes d'un coup</b> — plus besoin d'« ignorer » chaque alerte une par une. Dans la <b>fiche véhicule</b>, bloc <b>« Alertes de ce véhicule »</b> (sous « Entretien &amp; échéances »), clique <b>« 🔕 Ignorer toutes les alertes »</b>. Le véhicule ne génère alors <b>plus aucune alerte ni rappel</b> : contrôle technique, révision, assurance, anti-pollution, documents, relevé km, échéances de leasing, tâches automatiques, e-mails de rappel — ni dans <b>Suivi &amp; alertes</b>, ni dans <b>« À compléter »</b>, ni dans <b>« Entretiens à venir »</b>, ni par e-mail. Il reste bien <b>dans la flotte</b> (il compte toujours dans les coûts, le TCO, la TVS, les statistiques) : on coupe seulement les <b>rappels</b>. Le bouton devient <b>« 🔔 Réactiver les alertes »</b> pour tout remettre en marche à tout moment. Réglage <b>synchronisé</b> sur tous tes appareils.</div>
         <div class="man-item"><b>🇫🇷🇬🇧 E-mails en français OU en anglais (automatique)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque conducteur a une <b>langue</b> dans sa fiche (<b>Conducteurs → Modifier → « Langue du conducteur »</b>, français par défaut). Les e-mails de <b>relevé km</b> <i>et</i> d'<b>amendes</b> partent <b>automatiquement dans la bonne langue</b> — même quand tu envoies à <b>toute la flotte d'un coup</b> : chaque personne reçoit son e-mail en <b>français</b> si sa langue est le français, sinon en <b>anglais</b> (un conducteur réglé en italien, espagnol, allemand ou chinois reçoit donc l'e-mail en anglais). L'en-tête de l'e-mail km affiche désormais <b>proprement</b> le prénom, le nom, le poste et la <b>plaque</b>.</div>
         <div class="man-item"><b>Infos techniques</b> (version, couleur, VIN copiable, CO₂, puissance fiscale, masse, autonomie, valeur de revente estimée…), <b>Clés &amp; carte grise</b> (qui détient quoi), <b>Coût total</b> (avec budget annuel et jauge de dépassement).</div>
         <div class="man-item"><b>📱 QR véhicule = Portail conducteur</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le bouton <b>« QR véhicule »</b> (en bas de la fiche) génère <b>UN seul QR permanent</b>, propre à ce véhicule, à <b>imprimer et coller une fois</b> dans la voiture. Le conducteur le <b>scanne quand il veut</b> → un vrai <b>mini-espace conducteur</b> (sans application à installer), avec la <b>plaque affichée</b> et un <b>menu</b> :
@@ -1029,8 +1030,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022f"></script>
-<script src="../assets/js/supabase-client.js?v=20261022f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022g"></script>
+<script src="../assets/js/supabase-client.js?v=20261022g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1046,10 +1047,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261022f"></script>
+<script src="../assets/js/app.min.js?v=20261022g"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022g">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -380,8 +380,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022f"></script>
-<script src="../assets/js/supabase-client.js?v=20261022f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022g"></script>
+<script src="../assets/js/supabase-client.js?v=20261022g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -397,10 +397,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261022f"></script>
+<script src="../assets/js/app.min.js?v=20261022g"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -1502,7 +1502,7 @@
     const out = [];
     data.vehicules.forEach(v => {
       if (!v || !v.prochainCT || v.prochainCT === '—') return;
-      if (FP.horsFlotte && FP.horsFlotte(v)) return;   // vendu/cédé/HS/archivé/restitué (les « à vendre » restent suivis)
+      if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return;   // vendu/cédé/HS/archivé/restitué (les « à vendre » restent suivis)
       if (FP.ctIgnored && FP.ctIgnored(v)) return;
       const ct = String(v.prochainCT).slice(0, 10);
       const j = FP.joursRestants ? FP.joursRestants(ct) : null;
@@ -1518,7 +1518,7 @@
     const out = [];
     data.vehicules.forEach(v => {
       if (!v) return;
-      if (FP.horsFlotte && FP.horsFlotte(v)) return;
+      if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return;
       const ri = FP.revisionInfo ? FP.revisionInfo(v) : null;
       if (!ri || !ri.niveau) return;                    // seulement si DUE (warn/danger)
       let date = ''; try { if (ri.prochaineDate) { const d = new Date(ri.prochaineDate); if (!isNaN(d)) date = d.toISOString().slice(0, 10); } } catch (e) {}

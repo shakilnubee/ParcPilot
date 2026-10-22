@@ -6546,8 +6546,16 @@ FP.ignore = {
 // Un véhicule dont le CT (resp. l'assurance) a été marqué « ignoré » dans la conformité
 // (ex. véhicule étranger sans contrôle technique français) NE doit plus générer d'alerte
 // ni fausser les calculs. Clé partagée avec la page Statistiques ('conf:ct:<id>' / 'conf:assur:<id>').
-FP.ctIgnored    = (v) => !!(v && FP.ignore && FP.ignore.has('conf:ct:' + v.id));
-FP.assurIgnored = (v) => !!(v && FP.ignore && FP.ignore.has('conf:assur:' + v.id));
+// ⚠️ INTERRUPTEUR GLOBAL par véhicule — « ignorer TOUTES les alertes » (CT, révision, assurance,
+// documents, anti-pollution, relevé km, échéances, tâches auto, relances e-mail…). Un seul bouton sur
+// la fiche véhicule plutôt que N « ignorer » éparpillés : pour les véhicules sur lesquels on ne fera
+// jamais d'entretien/CT. SOURCE UNIQUE : toute source d'alerte véhicule appelle FP.alertesOff(v) et
+// s'abstient si true. Persisté via FP.ignore (settings.ignores → par société, multi-appareils, réversible).
+FP.alertesOff    = (v) => !!(v && v.id && FP.ignore && FP.ignore.has('veh:all:' + v.id));
+FP.alertesOffSet = (v, on) => { try { if (!v || !v.id || !FP.ignore) return; FP.ignore.set('veh:all:' + v.id, !!on, (v.immat || v.id) + ' — toutes alertes ignorées'); } catch (e) {} };
+// CT / assurance « ignoré » : par la conformité OU par l'interrupteur global ci-dessus (source unique).
+FP.ctIgnored    = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:ct:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
+FP.assurIgnored = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:assur:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
 // Véhicule vendu / supprimé → on ARCHIVE ses documents (dossier Sinistres « Drive ») dans un
 // sous-dossier « OUT » automatiquement : on crée le sous-dossier s'il manque et on y déplace
 // tous ses fichiers. Ne touche QUE le classement (settings.sinistreSous / sinistreDocSub),
@@ -6928,7 +6936,7 @@ FP.automations = {
   triggerLabel(t) { const d = this.triggerDef(t); return d ? d.label : t; },
   _list() { try { const a = FP.settings.get().automations; return Array.isArray(a) ? a : []; } catch (e) { return []; } },
   rules() { return this._list().filter(r => r && r.actif !== false); },
-  _vehActifs() { try { return (FP_DATA.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v))); } catch (e) { return (typeof FP_DATA !== 'undefined' && FP_DATA.vehicules) || []; } },
+  _vehActifs() { try { return (FP_DATA.vehicules || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v))); } catch (e) { return (typeof FP_DATA !== 'undefined' && FP_DATA.vehicules) || []; } },
   _grpOk(v, groupe) { if (!groupe || groupe === 'all') return true; try { return (FP.poolDe ? FP.poolDe(v) : v.pool) === groupe; } catch (e) { return true; } },
   // Évalue UNE règle → [{ key, label, vehId?, immat?, condKey?, email?, amendeId? }]. key = identifiant stable anti-doublon.
   // ctx.docsMap = { vehId: [documents de la table] } (chargé par run() pour le déclencheur doc-manquant).
@@ -8094,6 +8102,9 @@ FP.revisionInfo = (v) => {
   const rank = { danger: 0, warn: 1, info: 2 };
   let niveau = null;
   [lvlKm, lvlDt].forEach(l => { if (l && (niveau === null || rank[l] < rank[niveau])) niveau = l; });
+  // Interrupteur global « ignorer toutes les alertes » : on garde l'info (date/km estimés) mais on
+  // supprime le NIVEAU d'alerte → plus aucune alerte/tâche auto de révision pour ce véhicule (source unique).
+  if (FP.alertesOff && FP.alertesOff(v)) niveau = null;
   return { intervalle, prochaineKm, kmRestant, prochaineDate, joursRestant, niveau, hasRev: !!hasRev, pace };
 };
 
@@ -9792,7 +9803,7 @@ FP.cartesAnomalies = (data) => {
 // (ni alerte « relevé km à faire/relance », ni compteur « manquants », ni envoi groupé). Synchronisé
 // (app_settings.kmSuiviExclus = { [vehId]: true }). Se règle depuis la fiche véhicule OU la page Alertes
 // → Relevé KM (« Configurer ») — les deux écrivent le MÊME réglage (liés automatiquement).
-FP.kmSuivi = (v) => { try { const id = v && v.id; if (!id) return true; const ex = FP.settings.get().kmSuiviExclus || {}; return !ex[id]; } catch (e) { return true; } };
+FP.kmSuivi = (v) => { try { const id = v && v.id; if (!id) return true; if (FP.alertesOff && FP.alertesOff(v)) return false; const ex = FP.settings.get().kmSuiviExclus || {}; return !ex[id]; } catch (e) { return true; } };
 FP.kmSuiviSet = (v, on) => {
   try {
     const id = v && v.id; if (!id) return;
@@ -9919,7 +9930,13 @@ FP.buildAlertes = (data) => {
   // (une même échéance affichait « 31j » ici et « 30j » au calendrier, avec une couleur de palier décalée).
   const days = (d) => { const j = FP.joursRestants ? FP.joursRestants(d) : Math.ceil((new Date(d) - today) / 86400000); return j == null ? Math.ceil((new Date(d) - today) / 86400000) : j; };
   // Véhicules sortis de la flotte active (vendus / à vendre / cédés…) : pas d'alertes pour eux.
-  const horsFlotte = FP.horsFlotte; // défini plus haut (source unique)
+  // ⚠️ Dans buildAlertes, « horsFlotte » englobe AUSSI l'interrupteur global « ignorer toutes les
+  // alertes » (FP.alertesOff) : un véhicule ainsi réglé est traité comme hors-flotte POUR LES ALERTES
+  // (aucune alerte CT/assurance/révision/anti-poll/leasing/km/doc/budget/conso…), sans pour autant
+  // l'exclure des coûts/stats. Comme chaque bloc par véhicule commence par `if (horsFlotte(v)) return;`,
+  // cette seule redéfinition coupe toutes les alertes du véhicule d'un coup (source unique).
+  const _horsFlotteBase = FP.horsFlotte; // défini plus haut (source unique)
+  const horsFlotte = (v) => _horsFlotteBase(v) || !!(FP.alertesOff && FP.alertesOff(v));
 
   // --- Contrôles techniques ---
   (data.vehicules || []).forEach(v => {
@@ -10363,7 +10380,7 @@ FP.buildAlertes = (data) => {
 
   // --- Révisions constructeur ---
   (data.vehicules || []).forEach(v => {
-    if (FP.horsFlotte(v)) return; // on ignore vendus / à vendre / hors service
+    if (horsFlotte(v)) return; // on ignore vendus / à vendre / hors service
     const r = FP.revisionInfo(v);
     const veh = `${v.immat} · ${v.marque} ${v.modele}${v.chauffeur && v.chauffeur !== '—' ? ' (' + v.chauffeur + ')' : ''}`;
     const tgt = 'vehicules.html?veh=' + v.id;
@@ -10398,7 +10415,7 @@ FP.buildAlertes = (data) => {
 
   // --- Dépassement kilométrique leasing BPCE ---
   (data.vehicules || []).forEach(v => {
-    if (FP.horsFlotte(v)) return;
+    if (horsFlotte(v)) return;
     const l = FP.leasingInfo(v);
     if (!l || !l.niveau) return;
     const veh = `${v.immat} · ${v.marque} ${v.modele}${v.chauffeur && v.chauffeur !== '—' ? ' (' + v.chauffeur + ')' : ''}`;
@@ -10413,7 +10430,7 @@ FP.buildAlertes = (data) => {
 
   // --- Fin de contrat leasing BPCE approchant (par date de fin) ---
   (data.vehicules || []).forEach(v => {
-    if (FP.horsFlotte(v)) return;
+    if (horsFlotte(v)) return;
     const l = FP.leasingInfo(v);
     if (!l || !l.finContrat || isNaN(l.finContrat)) return;
     const diff = days(l.finContrat);
@@ -10442,7 +10459,7 @@ FP.buildAlertes = (data) => {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const items = [];
     (data.vehicules || []).forEach(v => {
-      if (FP.horsFlotte(v)) return;
+      if (horsFlotte(v)) return;
       const im = immo[v.id]; if (!im || !im.since || im.leveLe) return;   // leveLe = immobilisation levée (tombstone)
       const j = Math.floor((t0 - new Date(im.since)) / 86400000);
       // immoId → la page Alertes affiche un bouton « Lever l'immobilisation » directement sur la ligne.
@@ -10478,7 +10495,7 @@ FP.buildAlertes = (data) => {
       const val = byVeh[im][last];
       if (avg <= 0 || val < 50 || val < avg * seuil) return;
       const v = (data.vehicules || []).find(x => FP.normImmat(x.immat) === FP.normImmat(im));
-      if (!v || FP.horsFlotte(v)) return;
+      if (!v || horsFlotte(v)) return;
       const pct = Math.round((val / avg - 1) * 100);
       out.push({ niveau: 'info', categorie: 'Carburant', message: `${im} : carburant +${pct}% en ${last} (${FP.euro(val)} vs moy. ${FP.euro(avg)})`, detail: 'Dépense inhabituelle — vérifie (gros plein, fuite, usage) ou masque si c\'est normal', sort: 350, target: 'factures.html', muteKey: 'conso|' + v.id, vehLabel: `${v.immat} · ${v.marque} ${v.modele}` });
     });
@@ -10490,7 +10507,7 @@ FP.buildAlertes = (data) => {
     const exps = [['vehCarteCarbExp', 'Carte carburant'], ['vehBadgeExp', 'Badge télépéage']];
     const t0e = new Date(); t0e.setHours(0, 0, 0, 0);
     (data.vehicules || []).forEach(v => {
-      if (FP.horsFlotte(v)) return;
+      if (horsFlotte(v)) return;
       exps.forEach(([mapKey, lib]) => {
         const d = (st[mapKey] || {})[v.id]; if (!d) return;
         const dt = new Date(d); if (isNaN(dt)) return;
@@ -10883,7 +10900,7 @@ FP.buildEcheances = (data) => {
   };
 
   (data.vehicules || []).forEach(v => {
-    if (FP.horsFlotte && FP.horsFlotte(v)) return; // même règle que les alertes : pas d'échéance sur un véhicule sorti (vendu / à vendre…)
+    if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return; // même règle que les alertes : pas d'échéance sur un véhicule sorti (vendu / à vendre…)
     const veh = `${v.immat} · ${v.marque} ${v.modele}`;
     const tgt = 'vehicules.html?veh=' + v.id;
     if (v.prochainCT && v.prochainCT !== '—' && !FP.ctIgnored(v)) push(v.prochainCT, 'Contrôle technique', 'CT — ' + v.immat, veh, tgt);
@@ -18929,7 +18946,7 @@ FP.suivi = {
   resetVehicule(vid) { try { const s = FP.settings.get(); if (s.suiviFlotte && s.suiviFlotte[vid]) { delete s.suiviFlotte[vid]; FP.settings.save(s); return true; } } catch (e) {} return false; },
   state(v, col, ctx) { const ov = FP.suivi.override(v.id, col.k); if (ov === 'ignore') return 'ignore'; if (ov === 'nonfait') return 'todo'; if (ov === 'fait') return 'fait'; const a = col.auto(v, ctx || {}); if (a === 'na') return 'na'; return a ? 'fait' : 'todo'; },
   isComplete(v, ctx) { return FP.suivi.allCols().every(col => FP.suivi.state(v, col, ctx) !== 'todo'); },
-  counts(vehs, ctx) { const a = (vehs || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v))); let c = 0; a.forEach(v => { if (FP.suivi.isComplete(v, ctx)) c++; }); return { total: a.length, complets: c, incomplets: a.length - c }; },
+  counts(vehs, ctx) { const a = (vehs || []).filter(v => !(FP.horsFlotte && FP.horsFlotte(v)) && !(FP.alertesOff && FP.alertesOff(v))); let c = 0; a.forEach(v => { if (FP.suivi.isComplete(v, ctx)) c++; }); return { total: a.length, complets: c, incomplets: a.length - c }; },
   _ctxP: null,
   // Charge (une fois, en cache) les documents + relevés km → contexte d'auto-détection.
   async ctx(force) {
@@ -19023,7 +19040,7 @@ FP.relances = {
   entretiens() {
     const win = this._win(); const out = [];
     (data.vehicules || []).forEach(v => {
-      if (FP.horsFlotte && FP.horsFlotte(v)) return;
+      if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return;
       if (this._rdvPris(v)) return;   // RDV garage déjà programmé → rien à relancer (rappel auto la veille)
       if (v.prochaineRevisionDate) { const j = this._jours(v.prochaineRevisionDate); if (j != null && j <= win) out.push(this._vehItem(v, 'entretien', v.prochaineRevisionDate, j)); }
       if (v.prochainCT && v.prochainCT !== '—' && !(FP.ctIgnored && FP.ctIgnored(v))) { const j = this._jours(v.prochainCT); if (j != null && j <= win) out.push(this._vehItem(v, 'ct', v.prochainCT, j)); }
@@ -19040,7 +19057,7 @@ FP.relances = {
     const win = this._win(); const out = [];
     const map = (FP.rdvGarage ? FP.rdvGarage._map() : {});
     (data.vehicules || []).forEach(v => {
-      if (FP.horsFlotte && FP.horsFlotte(v)) return;
+      if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return;
       const r = map[v.id]; if (!r || !r.date || r.fait) return;   // RDV fait → plus rien à relancer
       const j = this._jours(r.date); if (j == null || j > win) return;
       const it = this._vehItem(v, 'garage', r.date, j); it.motif = r.motif || ''; out.push(it);
@@ -19056,7 +19073,7 @@ FP.relances = {
     const KC = FP.kmCollecte; if (!KC || KC._cache == null) return []; const out = [];
     const seuil = (FP.notifCfg ? FP.notifCfg().releveKmJours : 0) || 45; const today = new Date();
     (data.vehicules || []).forEach(v => {
-      if (FP.horsFlotte && FP.horsFlotte(v)) return; if (FP.kmSuivi && !FP.kmSuivi(v)) return;
+      if ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.alertesOff && FP.alertesOff(v))) return; if (FP.kmSuivi && !FP.kmSuivi(v)) return;
       const readings = KC.recusDe ? KC.recusDe(v) : [];
       // ⚠️ SOURCE UNIQUE FP.kmCollecte.statutKm : « à jour » = km connu récent, TOUS CANAUX confondus
       // (relevé mail/QR/manuel OU mise à jour du km sur la fiche / en lot / par photo, via kmMajDates).
