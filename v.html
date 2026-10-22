@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261022d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261022e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <!-- iOS/Safari détecte les longs numéros (n° d'avis d'amende) comme des n° de tél et les souligne
      en lien bleu. On désactive cette détection automatique sur tout le portail. -->
 <meta name="format-detection" content="telephone=no">
@@ -300,18 +300,27 @@
   .body > [id^="v-"] > *:nth-child(n+8){animation-delay:.46s}
   @media (prefers-reduced-motion: reduce) { .body > [id^="v-"] > * { animation:none !important; } }
   /* Podium "galerie" : anneau 3D autonome (le portail ne charge pas app.js) */
-  .vpod-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.4rem}
+  .vpod-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.7rem}
+  .vpod-ttl{font-weight:800;color:#0f1e3d;font-size:1.05rem;line-height:1.2}
+  .vpod-sub{font-size:.8rem;line-height:1.4;margin-top:.2rem;color:#64748b}
   .vpod-nav{display:inline-flex;gap:.3rem;flex-shrink:0}
-  .vpod-nav button{width:30px;height:30px;border-radius:9999px;border:1.5px solid var(--line);background:#fff;font-size:1.05rem;line-height:1;cursor:pointer;color:#0f1e3d}
-  .vpod-stage{position:relative;height:200px;perspective:900px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden}
+  .vpod-nav button{width:32px;height:32px;border-radius:9999px;border:1.5px solid var(--line);background:#fff;font-size:1.05rem;line-height:1;cursor:pointer;color:#0f1e3d;transition:transform .1s ease,border-color .15s ease}
+  .vpod-nav button:active{transform:scale(.9)}
+  /* Scène : dégradé doux + hauteur réduite (moins d'espace blanc) */
+  .vpod-stage{position:relative;height:168px;perspective:900px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden;border-radius:14px;background:radial-gradient(130% 95% at 50% 0%, #fff7ed 0%, #ffffff 62%)}
   .vpod-stage.grab{cursor:grabbing}
   .vpod-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
-  .vpod-slide{position:absolute;left:50%;top:50%;width:190px;transform-style:preserve-3d;transition:opacity .25s linear}
-  .vpod-card{box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:1.05rem .8rem;border-radius:16px;background:#fff;border:1.5px solid var(--line);box-shadow:0 18px 36px -20px rgba(15,30,61,.5);text-align:center}
-  .vpod-card.mine{background:#FFF7ED;border-color:var(--accent)}
-  .vpod-rank{font-size:1.9rem;line-height:1}
-  .vpod-name{font-weight:800;font-size:1.05rem;color:#0f1e3d;overflow-wrap:anywhere;line-height:1.2}
-  .vpod-you{color:var(--accent);font-weight:700;font-size:.85rem}
+  .vpod-slide{position:absolute;left:50%;top:50%;width:178px;transform-style:preserve-3d;transition:opacity .25s linear}
+  .vpod-card{box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:.55rem;padding:1.15rem .8rem;border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f6f8fb 100%);border:1.5px solid var(--line);box-shadow:0 22px 40px -20px rgba(15,30,61,.5);text-align:center}
+  .vpod-card.mine{background:linear-gradient(180deg,#fff7ed 0%,#ffedd5 100%);border-color:var(--accent)}
+  /* Médaillon rond autour du rang (teinté or/argent/bronze pour le podium) */
+  .vpod-medal{display:flex;align-items:center;justify-content:center;width:3.4rem;height:3.4rem;border-radius:9999px;font-size:1.95rem;line-height:1;background:#eef2f7;box-shadow:inset 0 0 0 2px #e2e8f0}
+  .vpod-medal .n{font-weight:800;font-size:1.5rem;color:#94a3b8}
+  .vpod-card.r1 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a);box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65)}
+  .vpod-card.r2 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0);box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5)}
+  .vpod-card.r3 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a);box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5)}
+  .vpod-name{font-weight:800;font-size:1.12rem;color:#0f1e3d;overflow-wrap:anywhere;line-height:1.2}
+  .vpod-you{display:block;color:var(--accent);font-weight:700;font-size:.8rem;margin-top:.12rem}
 </style>
 </head>
 <body>
@@ -1041,8 +1050,8 @@
     var moi = ((DATA.conducteur && DATA.conducteur.prenom) || '').toString().trim().toLowerCase();
     var medals = ['🥇', '🥈', '🥉'];   // médaille pour le podium ; 4e/5e → leur numéro (pas de 🏅 sans chiffre)
     var top = pod.slice(0, 5);
-    var head = '<div class="vpod-head"><div><div style="font-weight:800;color:#0f1e3d">🏆 ' + esc(t('pod_title')) + '</div>'
-      + '<div class="muted" style="font-size:.8rem">' + esc(t('pod_sub')) + '</div></div>';
+    var head = '<div class="vpod-head"><div><div class="vpod-ttl">🏆 ' + esc(t('pod_title')) + '</div>'
+      + '<div class="vpod-sub">' + esc(t('pod_sub')) + '</div></div>';
     // Repli LISTE (reduced-motion) : exactement l'ancien rendu.
     if (_podReduce()) {
       var rows = top.map(function (p, i) {
@@ -1057,10 +1066,11 @@
     // Vue GALERIE : cartes = diapos de l'anneau 3D (mêmes infos : rang + prénom + "toi").
     var slides = top.map(function (p, i) {
       var mine = moi && (String(p.prenom || '').trim().toLowerCase() === moi);
-      var badge = medals[i] || ('<span style="font-weight:800;color:#94a3b8">' + (i + 1) + '</span>');
-      return '<div class="vpod-slide"><div class="vpod-card' + (mine ? ' mine' : '') + '">'
-        + '<div class="vpod-rank">' + badge + '</div>'
-        + '<div class="vpod-name">' + esc(p.prenom) + (mine ? ' <span class="vpod-you">' + esc(t('pod_you')) + '</span>' : '') + '</div>'
+      var inner = medals[i] || ('<span class="n">' + (i + 1) + '</span>');  // 🥇🥈🥉 pour le podium, numéro ensuite
+      var rk = i < 3 ? (' r' + (i + 1)) : '';                                 // teinte or/argent/bronze du médaillon
+      return '<div class="vpod-slide"><div class="vpod-card' + rk + (mine ? ' mine' : '') + '">'
+        + '<div class="vpod-medal">' + inner + '</div>'
+        + '<div class="vpod-name">' + esc(p.prenom) + (mine ? '<span class="vpod-you">' + esc(t('pod_you')) + '</span>' : '') + '</div>'
         + '</div></div>';
     }).join('');
     var nav = top.length > 1 ? '<div class="vpod-nav"><button type="button" data-vpod="-1" aria-label="‹">‹</button><button type="button" data-vpod="1" aria-label="›">›</button></div>' : '';

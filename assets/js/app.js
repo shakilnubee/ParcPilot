@@ -18127,6 +18127,8 @@ FP.share = function (opts) {
       var rings = [], cur = null;   // cur = anneau survolé/focalisé → cible des flèches du clavier
       host.querySelectorAll('.fpg-sec').forEach(function (sec) {
         var stage = sec.querySelector('.fpg-stage'), ring = sec.querySelector('.fpg-ring');
+        // Hauteur personnalisée (ex. podium compact du tableau de bord) : opts.height = px ou chaîne CSS.
+        if (opts.height != null) { try { stage.style.height = (typeof opts.height === 'number' ? opts.height + 'px' : String(opts.height)); } catch (e) {} }
         var slides = [].slice.call(ring.children), N = slides.length;
         var r = { stage: stage, ring: ring, slides: slides, N: N, rot: 0, vel: 0, targetSnap: null, dragging: false, visible: false, moved: 0, lastX: 0, radius: 300, angle: 360 / Math.max(N, 1), speed: (opts && opts.speed != null ? opts.speed : 0.12) };
         r.computeRadius = function () { var cw = slides[0] ? slides[0].offsetWidth : 240; if (!cw) cw = 240; if (N <= 1) { r.radius = 0; return; } var base = (cw / 2) / Math.tan(Math.PI / N); r.radius = Math.max(base * 1.16, cw * 0.6); };
