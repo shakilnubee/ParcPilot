@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261022e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261022f",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <!-- iOS/Safari détecte les longs numéros (n° d'avis d'amende) comme des n° de tél et les souligne
      en lien bleu. On désactive cette détection automatique sur tout le portail. -->
 <meta name="format-detection" content="telephone=no">
@@ -314,11 +314,13 @@
   .vpod-card{box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:.55rem;padding:1.15rem .8rem;border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f6f8fb 100%);border:1.5px solid var(--line);box-shadow:0 22px 40px -20px rgba(15,30,61,.5);text-align:center}
   .vpod-card.mine{background:linear-gradient(180deg,#fff7ed 0%,#ffedd5 100%);border-color:var(--accent)}
   /* Médaillon rond autour du rang (teinté or/argent/bronze pour le podium) */
-  .vpod-medal{display:flex;align-items:center;justify-content:center;width:3.4rem;height:3.4rem;border-radius:9999px;font-size:1.95rem;line-height:1;background:#eef2f7;box-shadow:inset 0 0 0 2px #e2e8f0}
-  .vpod-medal .n{font-weight:800;font-size:1.5rem;color:#94a3b8}
+  .vpod-medal{position:relative;display:flex;align-items:center;justify-content:center;width:3.4rem;height:3.4rem;border-radius:9999px;font-size:1.95rem;line-height:1;background:#eef2f7;box-shadow:inset 0 0 0 2px #e2e8f0}
+  /* Numéro sur la médaille (4e/5e) : petite pastille d'angle pour distinguer les deux 🏅 */
+  .vpod-rnum{position:absolute;top:-5px;right:-5px;min-width:1.2rem;height:1.2rem;padding:0 .22rem;border-radius:9999px;background:#0f1e3d;color:#fff;font-size:.74rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px -1px rgba(15,30,61,.5);box-sizing:border-box}
   .vpod-card.r1 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a);box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65)}
   .vpod-card.r2 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0);box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5)}
   .vpod-card.r3 .vpod-medal{background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a);box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5)}
+  .vpod-card.r4 .vpod-medal,.vpod-card.r5 .vpod-medal{background:radial-gradient(circle at 50% 32%,#eef2ff,#c7d2fe);box-shadow:inset 0 0 0 2px #818cf8,0 7px 16px -8px rgba(99,102,241,.5)}
   .vpod-name{font-weight:800;font-size:1.12rem;color:#0f1e3d;overflow-wrap:anywhere;line-height:1.2}
   .vpod-you{display:block;color:var(--accent);font-weight:700;font-size:.8rem;margin-top:.12rem}
 </style>
@@ -1066,10 +1068,11 @@
     // Vue GALERIE : cartes = diapos de l'anneau 3D (mêmes infos : rang + prénom + "toi").
     var slides = top.map(function (p, i) {
       var mine = moi && (String(p.prenom || '').trim().toLowerCase() === moi);
-      var inner = medals[i] || ('<span class="n">' + (i + 1) + '</span>');  // 🥇🥈🥉 pour le podium, numéro ensuite
-      var rk = i < 3 ? (' r' + (i + 1)) : '';                                 // teinte or/argent/bronze du médaillon
+      var inner = i < 3 ? medals[i] : '🏅';                                   // 🥇🥈🥉 podium, 🏅 pour 4e/5e
+      var corner = i < 3 ? '' : '<span class="vpod-rnum">' + (i + 1) + '</span>';  // numéro sur la médaille 4e/5e
+      var rk = ' r' + (i + 1);                                                // teinte du médaillon (or/argent/bronze/indigo)
       return '<div class="vpod-slide"><div class="vpod-card' + rk + (mine ? ' mine' : '') + '">'
-        + '<div class="vpod-medal">' + inner + '</div>'
+        + '<div class="vpod-medal">' + inner + corner + '</div>'
         + '<div class="vpod-name">' + esc(p.prenom) + (mine ? '<span class="vpod-you">' + esc(t('pod_you')) + '</span>' : '') + '</div>'
         + '</div></div>';
     }).join('');
@@ -1110,7 +1113,7 @@
       if (!stage.isConnected) { _vpodRAF = null; return; }      // l'anneau a été retiré du DOM → on arrête
       if (stage.offsetParent === null) { _vpodRAF = requestAnimationFrame(tick); return; } // vue masquée → on ne calcule rien
       if (targetSnap != null) { var diff = targetSnap - rot; if (Math.abs(diff) < 0.05) { rot = targetSnap; targetSnap = null; } else rot += diff * 0.12; }
-      else if (!dragging) { if (Math.abs(vel) > 0.05) { rot += vel; vel *= 0.94; if (Math.abs(vel) <= 0.05) snap(0); } else { rot -= 0.34; } }  // rotation auto (sens inverse)
+      else if (!dragging) { if (Math.abs(vel) > 0.05) { rot += vel; vel *= 0.94; if (Math.abs(vel) <= 0.05) snap(0); } else { rot -= 0.55; } }  // rotation auto (sens inverse, un peu plus vive)
       draw(); _vpodRAF = requestAnimationFrame(tick);
     };
     _vpodRAF = requestAnimationFrame(tick);
