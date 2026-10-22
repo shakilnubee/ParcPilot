@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261022g",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261022h",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <!-- iOS/Safari détecte les longs numéros (n° d'avis d'amende) comme des n° de tél et les souligne
      en lien bleu. On désactive cette détection automatique sur tout le portail. -->
 <meta name="format-detection" content="telephone=no">
@@ -314,8 +314,9 @@
   .vpod-slide{position:absolute;left:50%;top:50%;width:178px;transform-style:preserve-3d}
   .vpod-card{box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:.55rem;padding:1.15rem .8rem;border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f6f8fb 100%);border:1.5px solid var(--line);box-shadow:0 22px 40px -20px rgba(15,30,61,.5);text-align:center}
   .vpod-card.mine{background:linear-gradient(180deg,#fff7ed 0%,#ffedd5 100%);border-color:var(--accent)}
-  /* Médaillon IDENTIQUE pour tous : même cercle + même numéro, seule la COULEUR change selon le rang. */
-  .vpod-medal{display:flex;align-items:center;justify-content:center;width:3.4rem;height:3.4rem;border-radius:9999px;font-weight:800;font-size:1.6rem;line-height:1;color:#334155;background:#eef2f7;box-shadow:inset 0 0 0 2px #e2e8f0}
+  /* Médaille IDENTIQUE partout : 🥇🥈🥉 pour le podium, 🏅 + chiffre AU CENTRE pour 4e/5e. Même cercle/taille. */
+  .vpod-medal{position:relative;display:flex;align-items:center;justify-content:center;width:3.4rem;height:3.4rem;border-radius:9999px;font-weight:800;font-size:1.95rem;line-height:1;color:#334155;background:#eef2f7;box-shadow:inset 0 0 0 2px #e2e8f0}
+  .vpod-medal .m-n{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);text-align:center;font-size:.92rem;font-weight:900;color:#1e293b;text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff;pointer-events:none}
   .vpod-card.r1 .vpod-medal{color:#7c4a03;background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a);box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65)}
   .vpod-card.r2 .vpod-medal{color:#475569;background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0);box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5)}
   .vpod-card.r3 .vpod-medal{color:#7c3d12;background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a);box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5)}
@@ -1068,8 +1069,9 @@
     var slides = top.map(function (p, i) {
       var mine = moi && (String(p.prenom || '').trim().toLowerCase() === moi);
       var rk = ' r' + (i + 1);                                                // couleur du médaillon : or/argent/bronze/indigo
+      var inner = i < 3 ? medals[i] : ('🏅<span class="m-n">' + (i + 1) + '</span>');  // podium = médaille ; 4e/5e = 🏅 + chiffre au centre
       return '<div class="vpod-slide"><div class="vpod-card' + rk + (mine ? ' mine' : '') + '">'
-        + '<div class="vpod-medal">' + (i + 1) + '</div>'
+        + '<div class="vpod-medal">' + inner + '</div>'
         + '<div class="vpod-name">' + esc(p.prenom) + (mine ? '<span class="vpod-you">' + esc(t('pod_you')) + '</span>' : '') + '</div>'
         + '</div></div>';
     }).join('');
