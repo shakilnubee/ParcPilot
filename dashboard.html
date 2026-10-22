@@ -516,17 +516,30 @@
         </div>
       </div>
 
-      <!-- Widget : Podium conducteurs (amendes de l'année) -->
+      <!-- Widget : Podium conducteurs + Tâches à faire (côte à côte pour remplir la largeur) -->
       <div class="dash-widget" data-widget="repartition">
-        <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Podium conducteurs</span></div>
-        <div class="card p-6">
-          <div class="flex items-center justify-between mb-3 gap-3">
-            <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
-            <a href="pages/amendes.html" class="text-sm font-semibold flex-shrink-0 whitespace-nowrap" style="color: var(--fp-accent)">Voir tout →</a>
+        <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Podium & tâches</span></div>
+        <div class="grid lg:grid-cols-2 gap-6 items-start">
+          <!-- Podium (galerie compacte) -->
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-3 gap-3">
+              <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
+              <a href="pages/amendes.html" class="text-sm font-semibold flex-shrink-0 whitespace-nowrap" style="color: var(--fp-accent)">Voir tout →</a>
+            </div>
+            <div id="dash-podium" class="space-y-1" hidden></div>
+            <div id="dash-podium-galerie"></div>
           </div>
-          <!-- Tableau de bord : galerie uniquement (le classement complet + la vue Liste sont sur la page Amendes). -->
-          <div id="dash-podium" class="space-y-1" hidden></div>
-          <div id="dash-podium-galerie"></div>
+          <!-- Tâches à faire (à droite du podium) -->
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+              <div>
+                <h3 class="font-bold text-slate-900"><span data-edit-key="dashboard.w_taches">📋 Tâches à faire</span> <span id="dash-taches-count" class="text-sm font-semibold" style="color:var(--fp-muted)"></span></h3>
+                <p class="text-xs text-slate-500">Les prochaines tâches à traiter (dont celles créées automatiquement)</p>
+              </div>
+              <a href="pages/taches.html" class="text-xs font-semibold flex-shrink-0 whitespace-nowrap" style="color:var(--fp-accent)">Voir tout →</a>
+            </div>
+            <div id="dash-taches-list" class="text-sm"></div>
+          </div>
         </div>
       </div>
 
@@ -553,20 +566,7 @@
         </div>
       </div>
 
-      <!-- Widget : Tâches à faire (inclut les tâches créées automatiquement par les Automatisations) -->
-      <div class="dash-widget" data-widget="taches">
-        <div class="widget-bar"><span class="widget-grip" draggable="true" title="Déplacer"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i> Tâches à faire</span></div>
-        <div class="card p-6">
-          <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-            <div>
-              <h3 class="font-bold text-slate-900"><span data-edit-key="dashboard.w_taches">📋 Tâches à faire</span> <span id="dash-taches-count" class="text-sm font-semibold" style="color:var(--fp-muted)"></span></h3>
-              <p class="text-xs text-slate-500">Les prochaines tâches à traiter (dont celles créées automatiquement)</p>
-            </div>
-            <a href="pages/taches.html" class="text-xs font-semibold flex-shrink-0 whitespace-nowrap" style="color:var(--fp-accent)">Voir tout →</a>
-          </div>
-          <div id="dash-taches-list" class="text-sm"></div>
-        </div>
-      </div>
+      <!-- (Le widget « Tâches à faire » est désormais à DROITE du podium, dans le widget « Podium & tâches » ci-dessus.) -->
 
       <!-- Widget : Santé de la flotte -->
       <div class="dash-widget" data-widget="sante">
@@ -990,9 +990,8 @@
     const list = data.vehicules || [];
     if (!vehTbody) return;
     if (FP.galerie3d && list.length) {
-      // Rotation plus LENTE ici : l'anneau « tous les véhicules » a beaucoup de cartes (grand rayon) →
-      // à vitesse angulaire normale, les cartes défilent trop vite. On ralentit pour ce gros anneau.
-      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.', speed: 0.035 });
+      // Même vitesse PARTOUT (celle du podium) → les anneaux tournent au même rythme. (Pas d'option speed = défaut 0.12.)
+      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.' });
     } else if (list.length) {
       // Repli (moteur galerie indisponible) : la liste plate d'avant.
       if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
@@ -1097,9 +1096,8 @@
     return Object.values(byDriver).sort((a, b) => b.n - a.n || b.montant - a.montant);
   }
   function _podCardHtml(d, i) {
-    // Médaille IDENTIQUE partout : 🥇🥈🥉 pour le podium, 🏅 + chiffre au centre pour 4e/5e.
-    const medals = ['🥇', '🥈', '🥉'];
-    const inner = i < 3 ? medals[i] : `🏅<span class="m-n">${i + 1}</span>`;
+    // MÊME médaille pour tous les rangs : 🏅 + chiffre au centre (1→5), couleur du cercle selon le rang.
+    const inner = `🏅<span class="m-n">${i + 1}</span>`;
     return `<a href="pages/amendes.html?conducteur=${encodeURIComponent(d.link || d.nom)}" class="pod-card r${i + 1}" title="Voir les amendes de ${FP.esc(d.nom)}">
         <div class="pod-card-rank">${inner}</div>
         <div class="pod-card-name">${FP.esc(d.nom)}</div>
@@ -1121,7 +1119,7 @@
         const top = all.slice(0, 5);
         if (top.length && FP.galerie3d) {
           // Podium compact sur le TDB (~moitié de la hauteur d'un gros anneau) : height réduite.
-          FP.galerie3d.mount(_podGal, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.', height: 210 });
+          FP.galerie3d.mount(_podGal, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.', height: 190 });
         } else { if (_podGal._fpgDestroy) _podGal._fpgDestroy(); _podGal.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune amende cette année.</p>'; }
       }
       return;

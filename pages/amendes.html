@@ -1361,9 +1361,8 @@
   }
   function podiumCardHtml(v, i) {
     const nm = escAmende(v.label || v.key);
-    // Médaille IDENTIQUE partout : 🥇🥈🥉 pour le podium, 🏅 + chiffre au centre pour 4e/5e.
-    const medals = ['🥇', '🥈', '🥉'];
-    const inner = i < 3 ? medals[i] : `🏅<span class="m-n">${i + 1}</span>`;
+    // MÊME médaille pour tous les rangs : 🏅 + chiffre au centre (1→5), couleur du cercle selon le rang.
+    const inner = `🏅<span class="m-n">${i + 1}</span>`;
     return `<div class="pod-card r${i + 1}" data-cond="${(v.label || v.key).replace(/"/g, '&quot;')}" title="Voir les amendes de ${nm}">
       <div class="pod-card-rank">${inner}</div>
       <div class="pod-card-name">${nm}</div>
