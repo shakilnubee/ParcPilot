@@ -6944,7 +6944,7 @@ FP.automations = {
           if (!v.prochainCT || v.prochainCT === '—') return;
           if (FP.ctIgnored && FP.ctIgnored(v)) return;
           const j = FP.joursRestants ? FP.joursRestants(v.prochainCT) : null;
-          if (j != null && j >= 0 && j <= seuil) out.push({ key: 'ct:' + v.id, label: (v.immat || '?') + ' — CT dans ' + j + ' j', vehId: v.id, immat: v.immat });
+          if (j != null && j >= 0 && j <= seuil) out.push({ key: 'ct:' + v.id, label: (v.immat || '?') + ' — CT dans ' + j + ' j', vehId: v.id, immat: v.immat, echeance: String(v.prochainCT).slice(0, 10) });
         });
       } else if (rule.trigger.type === 'doc-manquant') {
         if (!(FP.docsRequis && FP.docsRequis.manquants)) return out;
@@ -6984,7 +6984,13 @@ FP.automations = {
   // Crée une tâche (settings.taches) pour un élément — anti-doublon par automationDone.
   _creerTache(rule, item) {
     const s = FP.settings.get(); const arr = Array.isArray(s.taches) ? s.taches.slice() : [];
-    arr.push({ id: 'T' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), titre: (rule.nom || 'Automatisation') + ' — ' + item.label, type: 'action', statut: 'todo', fait: false, auto: true, vehiculeId: item.vehId || null, etiquettes: ['auto'], sousTaches: [], commentaires: [], createdAt: new Date().toISOString(), historique: [{ txt: 'Créée par automatisation « ' + (rule.nom || '') + ' »', at: new Date().toISOString() }] });
+    // ⚠️ Id DÉTERMINISTE (règle + élément) — PAS d'id aléatoire. Un id aléatoire créait une tâche
+    // DIFFÉRENTE à chaque exécution/appareil : la fusion multi-appareils par id ne dédoublonnait pas
+    // → tâches « fantômes » qui apparaissent/disparaissent (bug « l'alerte revient et part »). Même
+    // correctif que autoTachesCT (ids déterministes). Anti-recréation : si l'id existe déjà, on ne refait rien.
+    const nid = 'auto-' + (rule.id || 'r') + '-' + String(item.key || '').replace(/[^0-9a-z]/gi, '');
+    if (arr.some(t => t && t.id === nid)) return;
+    arr.push({ id: nid, titre: (rule.nom || 'Automatisation') + ' — ' + item.label, type: 'action', statut: 'todo', fait: false, auto: true, vehiculeId: item.vehId || null, echeance: item.echeance || '', etiquettes: ['auto'], sousTaches: [], commentaires: [], createdAt: new Date().toISOString(), historique: [{ txt: 'Créée par automatisation « ' + (rule.nom || '') + ' »', at: new Date().toISOString() }] });
     s.taches = arr.filter(t => t && !t._virtuel); FP.settings.save(s);
   },
   // Exécute les règles. opts : { test:true (aperçu, rien exécuté) | auto:true (chargement : tâches seulement, pas d'e-mail) | ruleId }.
