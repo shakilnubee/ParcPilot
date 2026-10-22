@@ -84,6 +84,19 @@ function resolveEmail(chauffeur: string, list: any[]): string {
   }
   return String((c && c.email) || "").trim();
 }
+// Nettoie une liste de destinataires : un seul champ peut contenir PLUSIEURS adresses (séparées par
+// , ; espace ou retour ligne) et/ou la forme « Nom <email> ». On éclate, on extrait chaque adresse,
+// on valide le format, on met en minuscule et on dédoublonne. But : une adresse mal saisie (ou deux
+// collées dans le champ « copie ») ne fait PLUS échouer tout l'envoi (Resend 422 « Invalid to field »).
+const RE_EMAIL = /[^\s<>,;]+@[^\s<>,;]+\.[^\s<>,;]+/g;
+function cleanEmails(raw: Array<string | undefined | null>): string[] {
+  const out: string[] = [];
+  for (const entry of raw) {
+    const found = String(entry || "").match(RE_EMAIL);
+    if (found) for (const e of found) out.push(e.trim().toLowerCase());
+  }
+  return [...new Set(out)];
+}
 // Hors flotte (même liste que FP.horsFlotte côté site) : on ne relance pas ces véhicules.
 // ⚠️ « À vendre » N'EST PAS hors flotte (véhicule encore possédé → traité comme un véhicule normal).
 const HORS_FLOTTE = new Set(["vendu", "vendue", "cédé", "cede", "cédée", "cedee", "hors service", "hors-service", "hs", "archive", "archivé", "archivée", "restitué", "restitue", "restituée", "restituee"]);
@@ -441,13 +454,13 @@ Deno.serve(async (req) => {
       const lastRecuTs = list.filter((r) => r.used_at && r.km_recu != null).map((r) => new Date(r.used_at).getTime()).filter((t) => !isNaN(t)).sort((a, b) => b - a)[0] || 0;
       const sentInStreak = sent.filter((r) => new Date(r.sent_at).getTime() > lastRecuTs).length;
       if (sentInStreak >= MAXREL) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days, status: "plafond-atteint" }); continue; }
-      const email = String(pending.email || "").trim();
-      if (!email) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days, status: "sans-email" }); continue; }
+      const email = cleanEmails([pending.email])[0] || "";
+      if (!email) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days, status: String(pending.email || "").trim() ? "email-invalide" : "sans-email" }); continue; }
       await envoyer(veh, soc, data, email, pending.chauffeur || veh.chauffeur || "", true, days);
     } else {
       // ── 1re DEMANDE AUTO : aucune demande en cours, et le km est EN RETARD (même règle que l'alerte du site). ──
       if (!kmDue(veh.immat, kmDates, notif, now)) continue;
-      const email = resolveEmail(String(veh.chauffeur || ""), condBySoc[soc] || []);
+      const email = cleanEmails([resolveEmail(String(veh.chauffeur || ""), condBySoc[soc] || [])])[0] || "";
       if (!email) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days: 0, status: "sans-email" }); continue; }
       await envoyer(veh, soc, data, email, String(veh.chauffeur || ""), false, 0);
     }
@@ -485,8 +498,9 @@ Deno.serve(async (req) => {
       if (!targets.length) continue;
       const p = (data.profil && typeof data.profil === "object") ? data.profil : {};
       const condEmail = resolveEmail(String(veh.chauffeur || ""), condBySoc[soc] || []);
-      const gestion = [String(p.mailExpediteur || "").trim(), String(p.mailCopie || "").trim()].filter(Boolean);
-      const toList = [...new Set([condEmail, ...gestion].filter(Boolean).map((x) => x.toLowerCase()))];
+      // Nettoyage/validation (éclate les champs multi-adresses « a@x, b@y », extrait « Nom <email> »,
+      // enlève les adresses mal formées) → une saisie bancale ne bloque plus tout le rappel.
+      const toList = cleanEmails([condEmail, p.mailExpediteur, p.mailCopie]);
       if (!toList.length) { ctBump(soc, "skipped"); ctDetails.push({ societe: soc, immat: veh.immat || "", status: "aucun-destinataire" }); continue; }
       // Identité expéditeur scopée société (mirror `envoyer` / send-email), repli neutre plateforme.
       let from = envFrom, replyTo = "";
@@ -526,7 +540,7 @@ Deno.serve(async (req) => {
         } catch (_) {}
         try {
           const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-          if (!r.ok) { ctBump(soc, "failed"); ctDetails.push({ societe: soc, immat: veh.immat || "", motif: tg.motif, status: "resend-echec", error: (await r.text().catch(() => "")).slice(0, 200) }); }
+          if (!r.ok) { ctBump(soc, "failed"); ctDetails.push({ societe: soc, immat: veh.immat || "", to: toList, motif: tg.motif, status: "resend-echec", error: (await r.text().catch(() => "")).slice(0, 200) }); }
           else { ctBump(soc, "sent"); ctDetails.push({ societe: soc, immat: veh.immat || "", to: toList, motif: tg.motif, status: "envoye" }); }
         } catch (e) { ctBump(soc, "failed"); ctDetails.push({ societe: soc, immat: veh.immat || "", motif: tg.motif, status: "reseau-echec", error: String(e).slice(0, 200) }); }
       }
