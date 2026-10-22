@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261021r">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261021r"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261022a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261021r">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261022a">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -515,8 +515,8 @@
             <h3 class="font-bold text-slate-900 min-w-0" data-edit-key="dashboard.w_podium">🏆 Podium conducteurs — amendes de l'année</h3>
             <div class="flex items-center gap-2 flex-shrink-0">
               <div class="podium-seg" role="tablist" aria-label="Affichage du podium">
-                <button id="dash-podium-view-list" class="on" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
-                <button id="dash-podium-view-galerie" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
+                <button id="dash-podium-view-list" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
+                <button id="dash-podium-view-galerie" class="on" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
               </div>
               <button id="dash-podium-toggle" class="btn btn-outline text-xs whitespace-nowrap">Voir tout</button>
             </div>
@@ -602,8 +602,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261021r"></script>
-<script src="assets/js/supabase-client.js?v=20261021r"></script>
+<script src="assets/js/vendor/supabase.js?v=20261022a"></script>
+<script src="assets/js/supabase-client.js?v=20261022a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -619,10 +619,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261021r"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261021r"></script>
+<script src="assets/js/app.min.js?v=20261022a"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -1072,7 +1072,7 @@
   // Clé canonique (distingue deux homonymes de prénom qui ont chacun leur nom de famille) — source unique.
   const _podKey = s => (FP.condGroupKey ? FP.condGroupKey(s) : (FP.normPrenom ? FP.normPrenom(s) : (s || '').toString().trim().split(/\s+/)[0].toLowerCase()));
   let _podExpanded = false;
-  let _podView = 'list';   // 'list' (par défaut) | 'galerie' (anneau 3D, top 5)
+  let _podView = 'galerie';   // 'galerie' (par défaut, anneau 3D top 5) | 'list'
   const _podBox = document.getElementById('dash-podium');
   const _podGal = document.getElementById('dash-podium-galerie');
   const _podBtn = document.getElementById('dash-podium-toggle');

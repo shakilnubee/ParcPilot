@@ -18173,7 +18173,7 @@ FP.share = function (opts) {
           if (r.targetSnap !== null) { var d = r.targetSnap - r.rot; if (Math.abs(d) < 0.05) { r.rot = r.targetSnap; r.targetSnap = null; } else r.rot += d * 0.12; r.draw(); }
           else if (!r.dragging) {
             if (Math.abs(r.vel) > 0.02) { r.rot += r.vel; r.vel *= 0.93; r.draw(); }
-            else if (r.visible && !reduce && r.N > 1) { r.rot += 0.06; r.draw(); }
+            else if (r.visible && !reduce && r.N > 1) { r.rot += 0.12; r.draw(); }
           }
         }
         rafId = requestAnimationFrame(loop);
