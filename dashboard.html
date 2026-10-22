@@ -91,9 +91,17 @@
   .podium-seg button.on { background:var(--fp-primary,#0f1e3d); color:#fff; }
   .pod-card { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55rem; padding:1.1rem 1rem; border-radius:16px; background:#fff; border:1px solid var(--fp-border,#e2e8f0); box-shadow:0 10px 30px -14px rgba(15,30,61,.4); text-align:center; }
   /* Médaille IDENTIQUE partout (portail / TDB / Amendes) : 🥇🥈🥉 podium, 🏅 + chiffre au centre pour 4e/5e. */
-  /* Médaille = l'emoji seul (🥇🥈🥉 / 🏅), SANS cercle derrière, chiffre à la place de l'étoile. */
-  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; width:3.6rem; height:3.6rem; font-size:2.8rem; line-height:1; }
-  .pod-card-rank .m-n { position:absolute; left:0; right:0; top:42%; transform:translateY(-50%); text-align:center; font-size:1.02rem; font-weight:900; color:#3b2a00; text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff; pointer-events:none; }
+  /* Médaille DESSINÉE (pas d'emoji → pas d'étoile en double) : ruban + pastille, chiffre AU CENTRE. */
+  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; min-height:3.5rem; }
+  .fpmedal{position:relative;display:inline-block;width:2.9rem;height:2.9rem;margin-top:.55rem;flex:0 0 auto}
+  .fpmedal::before,.fpmedal::after{content:"";position:absolute;top:-.5rem;width:.7rem;height:1.4rem;border-radius:2px;z-index:0}
+  .fpmedal::before{left:.72rem;background:linear-gradient(#5b8def,#2f63cf);transform:rotate(-15deg)}
+  .fpmedal::after{right:.72rem;background:linear-gradient(#ef6b63,#d23b32);transform:rotate(15deg)}
+  .fpmedal-n{position:absolute;inset:0;z-index:1;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.45rem;color:#475569;background:radial-gradient(circle at 50% 32%,#f8fafc,#e2e8f0 60%,#cbd5e1);box-shadow:0 0 0 2px #cbd5e1,0 6px 14px -7px rgba(15,30,61,.45),inset 0 2px 3px rgba(255,255,255,.75),inset 0 -3px 5px rgba(100,116,139,.22)}
+  .fpmedal.m1 .fpmedal-n{color:#6b4e00;background:radial-gradient(circle at 50% 32%,#fff7d1,#f4c932 60%,#d29a16);box-shadow:0 0 0 2px #dca017,0 6px 14px -7px rgba(210,150,20,.55),inset 0 2px 3px rgba(255,255,255,.8),inset 0 -3px 5px rgba(150,95,0,.3)}
+  .fpmedal.m2 .fpmedal-n{color:#475569;background:radial-gradient(circle at 50% 32%,#ffffff,#dde3ea 60%,#b4bdc9);box-shadow:0 0 0 2px #c4ccd8,0 6px 14px -7px rgba(100,116,139,.45),inset 0 2px 3px rgba(255,255,255,.85),inset 0 -3px 5px rgba(100,116,139,.22)}
+  .fpmedal.m3 .fpmedal-n{color:#6b3d14;background:radial-gradient(circle at 50% 32%,#ffe6c9,#e3a564 60%,#c17e3b);box-shadow:0 0 0 2px #cf8f4e,0 6px 14px -7px rgba(193,126,59,.5),inset 0 2px 3px rgba(255,255,255,.7),inset 0 -3px 5px rgba(120,70,20,.28)}
+  .fpmedal.m4 .fpmedal-n,.fpmedal.m5 .fpmedal-n{color:#3730a3;background:radial-gradient(circle at 50% 32%,#eef2ff,#c7d2fe 60%,#a5b4fc);box-shadow:0 0 0 2px #aab6f4,0 6px 14px -7px rgba(99,102,241,.45),inset 0 2px 3px rgba(255,255,255,.8),inset 0 -3px 5px rgba(79,70,229,.25)}
   .pod-card-name { font-weight:800; font-size:1.05rem; color:var(--fp-primary,#0f1e3d); line-height:1.2; overflow-wrap:anywhere; }
   .pod-card-tags { display:flex; flex-wrap:wrap; gap:.3rem; justify-content:center; }
   .pod-tag { display:inline-flex; align-items:center; padding:.12rem .45rem; border-radius:9999px; font-size:.72rem; font-weight:700; white-space:nowrap; }
@@ -1096,9 +1104,8 @@
     return Object.values(byDriver).sort((a, b) => b.n - a.n || b.montant - a.montant);
   }
   function _podCardHtml(d, i) {
-    // Médaille : 🥇🥈🥉 (podium) / 🏅 (4e-5e), avec le chiffre à la place de l'étoile.
-    const medals = ['🥇', '🥈', '🥉'];
-    const inner = `${medals[i] || '🏅'}<span class="m-n">${i + 1}</span>`;
+    // Médaille dessinée (CSS) + chiffre au centre.
+    const inner = `<span class="fpmedal m${i + 1}"><span class="fpmedal-n">${i + 1}</span></span>`;
     return `<a href="pages/amendes.html?conducteur=${encodeURIComponent(d.link || d.nom)}" class="pod-card r${i + 1}" title="Voir les amendes de ${FP.esc(d.nom)}">
         <div class="pod-card-rank">${inner}</div>
         <div class="pod-card-name">${FP.esc(d.nom)}</div>
