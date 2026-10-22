@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022g">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1188,8 +1188,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022f"></script>
-<script src="../assets/js/supabase-client.js?v=20261022f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022g"></script>
+<script src="../assets/js/supabase-client.js?v=20261022g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1205,13 +1205,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261022f"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261022f"></script>
+<script src="../assets/js/fleet-docs.js?v=20261022g"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261022g"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261022f"></script><script>
+<script src="../assets/js/app.min.js?v=20261022g"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -3606,6 +3606,20 @@
       </div>
       </div>
 
+      ${(window.FP && FP.alertesOff) ? `<div class="fp-panel" style="margin-top:.5rem">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div style="min-width:0">
+            <div class="field-label" style="margin-bottom:2px">Alertes de ce véhicule</div>
+            ${FP.alertesOff(v)
+              ? '<span class="text-xs" style="color:#B45309">🔕 Toutes les alertes sont ignorées (CT, révision, assurance, documents, relevé km, échéances).</span>'
+              : '<span class="text-xs text-slate-400">Reçoit les alertes : CT, révision, assurance, documents, relevé km, échéances.</span>'}
+          </div>
+          <button type="button" class="btn btn-outline text-sm" data-veh-alertes-off="${v.id}" title="${FP.alertesOff(v) ? 'Réactiver toutes les alertes de ce véhicule' : "Ne plus recevoir AUCUNE alerte pour ce véhicule (CT, révision, assurance, documents, relevé km…) — pour un véhicule sur lequel tu ne feras jamais d'entretien"}">
+            ${FP.alertesOff(v) ? '🔔 Réactiver les alertes' : '🔕 Ignorer toutes les alertes'}
+          </button>
+        </div>
+      </div>` : ''}
+
       ${(window.FP && FP.kmCollecte) ? kmcBlockHTML(v) : ''}
 
       ${(window.FP && FP.customFields) ? FP.customFields.ficheSection('vehicule', v.id) : ''}
@@ -3915,6 +3929,20 @@
     if (u && FP.alertes) { e.preventDefault(); FP.alertes.reafficher(u.dataset.vehUnmute); if (state.editingId) openDrawer(state.editingId); return; }
     const k = e.target.closest('[data-kmc-ask]');
     if (k) { e.preventDefault(); askKmChauffeur(k.getAttribute('data-kmc-ask')); return; }
+    // Interrupteur GLOBAL « ignorer toutes les alertes » de ce véhicule (CT, révision, assurance,
+    // documents, relevé km, échéances, tâches auto). Source unique : FP.alertesOff / FP.alertesOffSet.
+    const ao = e.target.closest('[data-veh-alertes-off]');
+    if (ao) {
+      e.preventDefault();
+      const v = data.vehicules.find(x => x.id === ao.getAttribute('data-veh-alertes-off'));
+      if (v && FP.alertesOffSet) {
+        const now = FP.alertesOff(v);
+        FP.alertesOffSet(v, !now);
+        if (FP.toast) FP.toast(now ? '🔔 Alertes réactivées pour ' + (v.immat || 'ce véhicule') : '🔕 Toutes les alertes ignorées pour ' + (v.immat || 'ce véhicule'));
+        if (state.editingId) openDrawer(state.editingId);
+      }
+      return;
+    }
     // Suivre / ne plus suivre le km de ce véhicule (même réglage que la page Alertes → Relevé KM).
     const ks = e.target.closest('[data-kmc-suivi]');
     if (ks) {

@@ -414,6 +414,7 @@ Deno.serve(async (req) => {
     const releveKmJours = Math.max(1, Number(notif.releveKmJours) || 45);
     const excl = (data.kmSuiviExclus && typeof data.kmSuiviExclus === "object") ? data.kmSuiviExclus : {};
     if (excl[veh.id]) continue; // décoché du suivi km
+    if (data.ignores && typeof data.ignores === "object" && data.ignores["veh:all:" + veh.id]) continue; // interrupteur « ignorer toutes les alertes »
     const kmDates = (data.kmMajDates && typeof data.kmMajDates === "object") ? data.kmMajDates : {};
 
     const list = reqByVeh[String(veh.id)] || [];
@@ -491,7 +492,7 @@ Deno.serve(async (req) => {
       // Regroupés (consigne utilisateur : « un rdv au garage = pareil ; CT et révision, regroupe ça »).
       const targets: Array<{ motif: string }> = [];
       const ctYmd = String((veh as any).prochain_ct ?? "").trim().slice(0, 10);
-      if (ctYmd && ctYmd === demain && !ignores["conf:ct:" + veh.id]) targets.push({ motif: "Contrôle technique" });
+      if (ctYmd && ctYmd === demain && !ignores["conf:ct:" + veh.id] && !ignores["veh:all:" + veh.id]) targets.push({ motif: "Contrôle technique" });
       const rdvMap = (data.vehRdvGarage && typeof data.vehRdvGarage === "object") ? data.vehRdvGarage : {};
       const rdv = rdvMap[veh.id];
       if (rdv && rdv.date && String(rdv.date).slice(0, 10) === demain) targets.push({ motif: String(rdv.motif || "Rendez-vous garage").trim() || "Rendez-vous garage" });
