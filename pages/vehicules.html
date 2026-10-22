@@ -3513,17 +3513,24 @@
       const actives = (FP.buildAlertes ? FP.buildAlertes(data) : []).filter(a => a.muteKey && belongs(a.muteKey));
       const masquees = ((FP.alertes && FP.alertes.masquees && FP.alertes.masquees()) || []).filter(belongs);
       const infos = (FP.alertes && FP.alertes.infos && FP.alertes.infos()) || {};
-      if (actives.length || masquees.length) {
-        alertesHTML = `<div>
+      // Bulle « Alertes » UNIQUE : liste des alertes du véhicule (masquer/réafficher) + interrupteur
+      // GLOBAL « ignorer toutes les alertes » fusionnés (avant : deux bulles séparées). Toujours affichée
+      // (même sans alerte) pour que le bouton soit accessible. Quand tout est ignoré, on masque la liste.
+      const _off = !!(FP.alertesOff && FP.alertesOff(v));
+      const _alToggle = (window.FP && FP.alertesOffSet) ? `<div class="flex items-center justify-between gap-2 flex-wrap mt-2 pt-2 border-t border-slate-100">
+            <span class="text-xs" style="${_off ? 'color:#B45309' : 'color:var(--fp-muted)'}">${_off ? '🔕 Toutes les alertes de ce véhicule sont ignorées (CT, révision, assurance, documents, relevé km, échéances).' : 'Pour un véhicule que tu ne suivras pas : couper toutes ses alertes d\'un coup.'}</span>
+            <button type="button" class="btn btn-outline text-sm shrink-0" data-veh-alertes-off="${v.id}" title="${_off ? 'Réactiver toutes les alertes de ce véhicule' : "Ne plus recevoir AUCUNE alerte pour ce véhicule (CT, révision, assurance, documents, relevé km…) — pour un véhicule sur lequel tu ne feras jamais d'entretien"}">${_off ? '🔔 Réactiver les alertes' : '🔕 Ignorer toutes les alertes'}</button>
+          </div>` : '';
+      alertesHTML = `<div>
           <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1">Alertes</div>
-          ${actives.map(a => `<div class="flex justify-between items-center gap-2 py-1.5 text-sm">
+          ${_off ? '' : actives.map(a => `<div class="flex justify-between items-center gap-2 py-1.5 text-sm">
             <span class="min-w-0"><span class="text-[11px] font-semibold uppercase tracking-wide" style="color:var(--fp-muted)">${a.categorie}</span> · ${escapeHtml(a.message)}</span>
             <button type="button" data-veh-mute="${escapeHtml(a.muteKey)}" data-veh-label="${escapeHtml(a.categorie + ' — ' + (a.vehLabel || a.message))}" class="text-xs underline shrink-0 text-slate-500 hover:text-red-600">masquer</button>
           </div>`).join('')}
-          ${masquees.length ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400">Masquées : ${masquees.map(k => `${escapeHtml(infos[k] || 'alerte')} <button type="button" data-veh-unmute="${escapeHtml(k)}" class="underline">réafficher</button>`).join(' · ')}</div>` : ''}
-          ${(!actives.length && !masquees.length) ? '<p class="text-sm text-slate-500">Aucune alerte.</p>' : ''}
+          ${(!_off && masquees.length) ? `<div class="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-400">Masquées : ${masquees.map(k => `${escapeHtml(infos[k] || 'alerte')} <button type="button" data-veh-unmute="${escapeHtml(k)}" class="underline">réafficher</button>`).join(' · ')}</div>` : ''}
+          ${(!_off && !actives.length && !masquees.length) ? '<p class="text-sm text-slate-500">Aucune alerte en cours.</p>' : ''}
+          ${_alToggle}
         </div>`;
-      }
     } catch (e) { console.warn('[fiche alertes]', e); }
 
     // Cartes carburant / badge télépéage + Notes datées — stockés par société dans les réglages.
@@ -3605,20 +3612,6 @@
         <div class="kpi p-3"><div class="kpi-label">Prochaine révision (est.)</div><div class="kpi-value" style="font-size:1rem;${revColor}">${revProchaine}${rev.niveau ? ' ⚠️' : ''}</div></div>
       </div>
       </div>
-
-      ${(window.FP && FP.alertesOff) ? `<div class="fp-panel" style="margin-top:.5rem">
-        <div class="flex items-center justify-between gap-2 flex-wrap">
-          <div style="min-width:0">
-            <div class="field-label" style="margin-bottom:2px">Alertes de ce véhicule</div>
-            ${FP.alertesOff(v)
-              ? '<span class="text-xs" style="color:#B45309">🔕 Toutes les alertes sont ignorées (CT, révision, assurance, documents, relevé km, échéances).</span>'
-              : '<span class="text-xs text-slate-400">Reçoit les alertes : CT, révision, assurance, documents, relevé km, échéances.</span>'}
-          </div>
-          <button type="button" class="btn btn-outline text-sm" data-veh-alertes-off="${v.id}" title="${FP.alertesOff(v) ? 'Réactiver toutes les alertes de ce véhicule' : "Ne plus recevoir AUCUNE alerte pour ce véhicule (CT, révision, assurance, documents, relevé km…) — pour un véhicule sur lequel tu ne feras jamais d'entretien"}">
-            ${FP.alertesOff(v) ? '🔔 Réactiver les alertes' : '🔕 Ignorer toutes les alertes'}
-          </button>
-        </div>
-      </div>` : ''}
 
       ${(window.FP && FP.kmCollecte) ? kmcBlockHTML(v) : ''}
 
