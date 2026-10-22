@@ -91,12 +91,9 @@
   .podium-seg button.on { background:var(--fp-primary,#0f1e3d); color:#fff; }
   .pod-card { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55rem; padding:1.1rem 1rem; border-radius:16px; background:#fff; border:1px solid var(--fp-border,#e2e8f0); box-shadow:0 10px 30px -14px rgba(15,30,61,.4); text-align:center; }
   /* Médaille IDENTIQUE partout (portail / TDB / Amendes) : 🥇🥈🥉 podium, 🏅 + chiffre au centre pour 4e/5e. */
-  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; width:3.4rem; height:3.4rem; border-radius:9999px; font-weight:800; font-size:1.95rem; line-height:1; color:#334155; background:#eef2f7; box-shadow:inset 0 0 0 2px #e2e8f0; }
-  .pod-card-rank .m-n { position:absolute; left:0; right:0; top:46%; transform:translateY(-50%); text-align:center; font-size:.92rem; font-weight:900; color:#1e293b; text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff; pointer-events:none; }
-  .pod-card.r1 .pod-card-rank { color:#7c4a03; background:radial-gradient(circle at 50% 32%,#fff6d6,#fde68a); box-shadow:inset 0 0 0 2px #f59e0b,0 7px 16px -7px rgba(245,158,11,.65); }
-  .pod-card.r2 .pod-card-rank { color:#475569; background:radial-gradient(circle at 50% 32%,#fbfdff,#e2e8f0); box-shadow:inset 0 0 0 2px #cbd5e1,0 7px 16px -8px rgba(100,116,139,.5); }
-  .pod-card.r3 .pod-card-rank { color:#7c3d12; background:radial-gradient(circle at 50% 32%,#fdebd8,#f6c89a); box-shadow:inset 0 0 0 2px #d4883f,0 7px 16px -8px rgba(212,136,63,.5); }
-  .pod-card.r4 .pod-card-rank, .pod-card.r5 .pod-card-rank { color:#3730a3; background:radial-gradient(circle at 50% 32%,#eef2ff,#c7d2fe); box-shadow:inset 0 0 0 2px #818cf8,0 7px 16px -8px rgba(99,102,241,.5); }
+  /* Médaille = l'emoji seul (🥇🥈🥉 / 🏅), SANS cercle derrière, chiffre à la place de l'étoile. */
+  .pod-card-rank { position:relative; display:flex; align-items:center; justify-content:center; width:3.6rem; height:3.6rem; font-size:2.8rem; line-height:1; }
+  .pod-card-rank .m-n { position:absolute; left:0; right:0; top:42%; transform:translateY(-50%); text-align:center; font-size:1.02rem; font-weight:900; color:#3b2a00; text-shadow:0 0 2px #fff,0 0 4px #fff,0 1px 1px #fff; pointer-events:none; }
   .pod-card-name { font-weight:800; font-size:1.05rem; color:var(--fp-primary,#0f1e3d); line-height:1.2; overflow-wrap:anywhere; }
   .pod-card-tags { display:flex; flex-wrap:wrap; gap:.3rem; justify-content:center; }
   .pod-tag { display:inline-flex; align-items:center; padding:.12rem .45rem; border-radius:9999px; font-size:.72rem; font-weight:700; white-space:nowrap; }
@@ -990,8 +987,11 @@
     const list = data.vehicules || [];
     if (!vehTbody) return;
     if (FP.galerie3d && list.length) {
-      // Même vitesse PARTOUT (celle du podium) → les anneaux tournent au même rythme. (Pas d'option speed = défaut 0.12.)
-      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.' });
+      // Même RESSENTI de vitesse que le podium : comme cet anneau a beaucoup plus de cartes (grand
+      // rayon), à vitesse angulaire égale les cartes défileraient ~12× plus vite. On règle la vitesse
+      // angulaire ∝ 1/nombre de cartes → le défilement des cartes est au même rythme que le podium (5 cartes à 0.12).
+      const _vehSpeed = Math.max(0.012, 0.6 / Math.max(list.length, 1));
+      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.', speed: _vehSpeed });
     } else if (list.length) {
       // Repli (moteur galerie indisponible) : la liste plate d'avant.
       if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
@@ -1096,8 +1096,9 @@
     return Object.values(byDriver).sort((a, b) => b.n - a.n || b.montant - a.montant);
   }
   function _podCardHtml(d, i) {
-    // MÊME médaille pour tous les rangs : 🏅 + chiffre au centre (1→5), couleur du cercle selon le rang.
-    const inner = `🏅<span class="m-n">${i + 1}</span>`;
+    // Médaille : 🥇🥈🥉 (podium) / 🏅 (4e-5e), avec le chiffre à la place de l'étoile.
+    const medals = ['🥇', '🥈', '🥉'];
+    const inner = `${medals[i] || '🏅'}<span class="m-n">${i + 1}</span>`;
     return `<a href="pages/amendes.html?conducteur=${encodeURIComponent(d.link || d.nom)}" class="pod-card r${i + 1}" title="Voir les amendes de ${FP.esc(d.nom)}">
         <div class="pod-card-rank">${inner}</div>
         <div class="pod-card-name">${FP.esc(d.nom)}</div>
