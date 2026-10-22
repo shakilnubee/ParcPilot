@@ -255,8 +255,8 @@
           <h3 class="font-bold text-slate-900 min-w-0">🏆 Podium des conducteurs <span class="text-xs font-normal text-slate-400">— clique pour filtrer</span></h3>
           <div class="flex items-center gap-2 flex-shrink-0">
             <div class="podium-seg" role="tablist" aria-label="Affichage du podium">
-              <button id="podium-view-list" class="on" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
-              <button id="podium-view-galerie" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
+              <button id="podium-view-list" type="button"><i data-lucide="list" class="w-3.5 h-3.5"></i> Liste</button>
+              <button id="podium-view-galerie" class="on" type="button"><i data-lucide="orbit" class="w-3.5 h-3.5"></i> Galerie</button>
             </div>
             <button id="podium-toggle" class="btn btn-outline text-xs whitespace-nowrap">Voir tout</button>
           </div>
@@ -1349,7 +1349,7 @@
 
   // ---------- Podium des conducteurs (extensible) ----------
   let podiumExpanded = true;   // page dédiée : la Liste montre TOUT le classement par défaut (boîte scrollable) — pas besoin de cliquer « Voir tout »
-  let podiumView = 'list';   // 'list' (comme avant) | 'galerie' (anneau 3D)
+  let podiumView = 'galerie';   // 'galerie' (par défaut, anneau 3D) | 'list' (classement complet)
   // Agrégat unique (Liste ET Galerie lisent la MÊME source) — suit le filtre d'année choisi
   // (« toutes » = cumul toutes années). Trié par nombre d'amendes, puis montant dû.
   function podiumRows() {
