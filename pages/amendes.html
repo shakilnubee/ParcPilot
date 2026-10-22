@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022e">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -515,8 +515,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022d"></script>
-<script src="../assets/js/supabase-client.js?v=20261022d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022e"></script>
+<script src="../assets/js/supabase-client.js?v=20261022e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -532,11 +532,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261022d"></script>
+<script src="../assets/js/app.min.js?v=20261022e"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
 <script>
   lucide.createIcons();
@@ -1348,7 +1348,7 @@
   }
 
   // ---------- Podium des conducteurs (extensible) ----------
-  let podiumExpanded = false;
+  let podiumExpanded = true;   // page dédiée : la Liste montre TOUT le classement par défaut (boîte scrollable) — pas besoin de cliquer « Voir tout »
   let podiumView = 'list';   // 'list' (comme avant) | 'galerie' (anneau 3D)
   // Agrégat unique (Liste ET Galerie lisent la MÊME source) — suit le filtre d'année choisi
   // (« toutes » = cumul toutes années). Trié par nombre d'amendes, puis montant dû.
@@ -1385,7 +1385,7 @@
         galBox.hidden = false;
         const top = all.slice(0, 5);   // la galerie met en avant le TOP 5 (la liste reste pour tout voir)
         if (top.length && FP.galerie3d) {
-          FP.galerie3d.mount(galBox, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.' });
+          FP.galerie3d.mount(galBox, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.', height: 250 });
         } else {
           if (galBox._fpgDestroy) galBox._fpgDestroy();
           galBox.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune donnée.</p>';

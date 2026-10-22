@@ -18095,7 +18095,7 @@ FP.share = function (opts) {
     + '.fpg-stage:focus-visible{box-shadow:inset 0 0 0 2px var(--fp-accent,#f97316);border-radius:16px}'
     + '.fpg-stage.fpg-grab{cursor:grabbing}'
     + '.fpg-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}'
-    + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:272px;transition:opacity .25s linear}'
+    + '.fpg-slide{position:absolute;left:50%;top:50%;transform-style:preserve-3d;width:272px}'
     + '.fpg-slide>*{width:100%!important;margin:0!important;flex:0 0 auto!important}'
     + '.fpg-slide .veh-cbody .mm,.fpg-slide .veh-cbody .md,.fpg-slide .cc-name{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}'
     + '.fpg-slide .cc-card,.fpg-slide .veh-card,.fpg-slide .pod-card{width:100%!important;box-shadow:0 26px 48px -26px rgba(15,30,61,.5)}'
@@ -18137,8 +18137,9 @@ FP.share = function (opts) {
           for (var i = 0; i < N; i++) {
             var ia = i * r.angle, rel = (((ia + r.rot) % 360) + 360) % 360, facing = rel > 180 ? 360 - rel : rel, s = slides[i];
             s.style.transform = 'translate(-50%,-50%) rotateY(' + ia + 'deg) translateZ(' + r.radius + 'px)';
-            // On masque les cartes qui passent DERRIÈRE l'anneau (texte en miroir) : on ne garde que l'arc avant.
-            var op = facing > 100 ? 0 : Math.max(0.32, 1 - facing / 98);
+            // Fondu CONTINU (plus de palier ni de coupure nette) → rotation fluide, sans effet de « lag ».
+            // (L'opacité est pilotée image par image ; la transition CSS a été retirée pour éviter qu'elle « traîne ».)
+            var op = Math.max(0, 1 - facing / 96);
             s.style.opacity = op.toFixed(3);
             s.style.pointerEvents = op < 0.06 ? 'none' : '';
             s.style.zIndex = String(Math.round(360 - facing));
