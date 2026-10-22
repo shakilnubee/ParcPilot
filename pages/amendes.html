@@ -241,7 +241,7 @@
     </div>
 
     <!-- Graphes -->
-    <div class="grid lg:grid-cols-2 gap-6 mb-6">
+    <div class="grid lg:grid-cols-2 gap-6 mb-6 items-start">
       <div class="card p-6">
         <h3 class="font-bold text-slate-900 mb-4">Répartition par motif</h3>
         <div class="chart-wrap-sm"><canvas id="motifsChart"></canvas></div>
@@ -1378,8 +1378,9 @@
       if (btn) btn.style.display = 'none';
       if (galBox) {
         galBox.hidden = false;
-        if (all.length && FP.galerie3d) {
-          FP.galerie3d.mount(galBox, [{ title: 'Classement', color: '#D4A017', cardsHtml: all.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.' });
+        const top = all.slice(0, 5);   // la galerie met en avant le TOP 5 (la liste reste pour tout voir)
+        if (top.length && FP.galerie3d) {
+          FP.galerie3d.mount(galBox, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((v, i) => podiumCardHtml(v, i)) }], { empty: 'Aucune donnée.' });
         } else {
           if (galBox._fpgDestroy) galBox._fpgDestroy();
           galBox.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune donnée.</p>';
