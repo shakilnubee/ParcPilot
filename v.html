@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261016b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261022a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <!-- iOS/Safari détecte les longs numéros (n° d'avis d'amende) comme des n° de tél et les souligne
      en lien bleu. On désactive cette détection automatique sur tout le portail. -->
 <meta name="format-detection" content="telephone=no">
@@ -299,6 +299,19 @@
   .body > [id^="v-"] > *:nth-child(7){animation-delay:.40s}
   .body > [id^="v-"] > *:nth-child(n+8){animation-delay:.46s}
   @media (prefers-reduced-motion: reduce) { .body > [id^="v-"] > * { animation:none !important; } }
+  /* Podium "galerie" : anneau 3D autonome (le portail ne charge pas app.js) */
+  .vpod-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.4rem}
+  .vpod-nav{display:inline-flex;gap:.3rem;flex-shrink:0}
+  .vpod-nav button{width:30px;height:30px;border-radius:9999px;border:1.5px solid var(--line);background:#fff;font-size:1.05rem;line-height:1;cursor:pointer;color:#0f1e3d}
+  .vpod-stage{position:relative;height:200px;perspective:900px;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden}
+  .vpod-stage.grab{cursor:grabbing}
+  .vpod-ring{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+  .vpod-slide{position:absolute;left:50%;top:50%;width:190px;transform-style:preserve-3d;transition:opacity .25s linear}
+  .vpod-card{box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:1.05rem .8rem;border-radius:16px;background:#fff;border:1.5px solid var(--line);box-shadow:0 18px 36px -20px rgba(15,30,61,.5);text-align:center}
+  .vpod-card.mine{background:#FFF7ED;border-color:var(--accent)}
+  .vpod-rank{font-size:1.9rem;line-height:1}
+  .vpod-name{font-weight:800;font-size:1.05rem;color:#0f1e3d;overflow-wrap:anywhere;line-height:1.2}
+  .vpod-you{color:var(--accent);font-weight:700;font-size:.85rem}
 </style>
 </head>
 <body>
@@ -1019,28 +1032,84 @@
   }
   function eur(n) { try { return (Number(n) || 0).toLocaleString(localeNb(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }); } catch (e) { return (Number(n) || 0).toFixed(2) + ' €'; } }
   // ---- Podium des amendes (prénom + rang, classement de la flotte — sans montant ni points) ----
+  // Vue "galerie" : anneau 3D autonome (le portail ne charge pas app.js). Repli LISTE si l'appareil
+  // demande à réduire les animations (prefers-reduced-motion) → toujours lisible/accessible.
+  function _podReduce() { try { return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
   function podiumHTML() {
     var pod = (DATA && DATA.podium) || [];
     if (!pod.length) return '';
     var moi = ((DATA.conducteur && DATA.conducteur.prenom) || '').toString().trim().toLowerCase();
     var medals = ['🥇', '🥈', '🥉', '🏅', '🏅'];   // médaille pour les 5 (or/argent/bronze puis 🏅)
-    var rows = pod.slice(0, 5).map(function (p, i) {
+    var top = pod.slice(0, 5);
+    var head = '<div class="vpod-head"><div><div style="font-weight:800;color:#0f1e3d">🏆 ' + esc(t('pod_title')) + '</div>'
+      + '<div class="muted" style="font-size:.8rem">' + esc(t('pod_sub')) + '</div></div>';
+    // Repli LISTE (reduced-motion) : exactement l'ancien rendu.
+    if (_podReduce()) {
+      var rows = top.map(function (p, i) {
+        var mine = moi && (String(p.prenom || '').trim().toLowerCase() === moi);
+        var badge = medals[i] || ('<span style="font-weight:800;color:#94a3b8">' + (i + 1) + '</span>');
+        return '<div class="kv" style="border-bottom:1px solid #eef2f7;' + (mine ? 'background:#FFF7ED;border-radius:.5rem;padding:.35rem .5rem;font-weight:800' : '') + '">'
+          + '<span class="k" style="min-width:2rem;font-size:1.15rem;text-align:center">' + badge + '</span>'
+          + '<span class="v" style="text-align:left;flex:1">' + esc(p.prenom) + (mine ? ' <span style="color:var(--accent)">' + esc(t('pod_you')) + '</span>' : '') + '</span></div>';
+      }).join('');
+      return '<div class="box" style="margin-bottom:.9rem">' + head + '</div>' + rows + '</div>';
+    }
+    // Vue GALERIE : cartes = diapos de l'anneau 3D (mêmes infos : rang + prénom + "toi").
+    var slides = top.map(function (p, i) {
       var mine = moi && (String(p.prenom || '').trim().toLowerCase() === moi);
       var badge = medals[i] || ('<span style="font-weight:800;color:#94a3b8">' + (i + 1) + '</span>');
-      return '<div class="kv" style="border-bottom:1px solid #eef2f7;' + (mine ? 'background:#FFF7ED;border-radius:.5rem;padding:.35rem .5rem;font-weight:800' : '') + '">'
-        + '<span class="k" style="min-width:2rem;font-size:1.15rem;text-align:center">' + badge + '</span>'
-        + '<span class="v" style="text-align:left;flex:1">' + esc(p.prenom) + (mine ? ' <span style="color:var(--accent)">' + esc(t('pod_you')) + '</span>' : '') + '</span></div>';
+      return '<div class="vpod-slide"><div class="vpod-card' + (mine ? ' mine' : '') + '">'
+        + '<div class="vpod-rank">' + badge + '</div>'
+        + '<div class="vpod-name">' + esc(p.prenom) + (mine ? ' <span class="vpod-you">' + esc(t('pod_you')) + '</span>' : '') + '</div>'
+        + '</div></div>';
     }).join('');
-    return '<div class="box" style="margin-bottom:.9rem">'
-      + '<div style="font-weight:800;color:#0f1e3d;margin-bottom:.5rem">🏆 ' + esc(t('pod_title')) + '</div>'
-      + '<div class="muted" style="font-size:.8rem;margin-bottom:.5rem">' + esc(t('pod_sub')) + '</div>'
-      + rows + '</div>';
+    var nav = top.length > 1 ? '<div class="vpod-nav"><button type="button" data-vpod="-1" aria-label="‹">‹</button><button type="button" data-vpod="1" aria-label="›">›</button></div>' : '';
+    return '<div class="box" style="margin-bottom:.9rem">' + head + nav + '</div>'
+      + '<div class="vpod-stage"><div class="vpod-ring">' + slides + '</div></div></div>';
+  }
+  // Anneau 3D autonome pour le podium (démarré après insertion du HTML). Un seul anneau à la fois.
+  var _vpodRAF = null;
+  function mountPodiumRing() {
+    if (_vpodRAF) { try { cancelAnimationFrame(_vpodRAF); } catch (e) {} _vpodRAF = null; }
+    var stage = document.querySelector('#amd-body .vpod-stage');
+    if (!stage) return;
+    var ring = stage.querySelector('.vpod-ring');
+    var slides = [].slice.call(ring.children), N = slides.length;
+    if (!N) return;
+    var angle = 360 / N, rot = 0, vel = 0, targetSnap = null, dragging = false, lastX = 0, moved = 0, radius = 200;
+    function computeRadius() { var cw = slides[0].offsetWidth || 190; radius = N <= 1 ? 0 : Math.max((cw / 2) / Math.tan(Math.PI / N) * 1.16, cw * 0.6); }
+    function draw() {
+      ring.style.transform = 'translateZ(-' + radius + 'px) rotateY(' + rot + 'deg)';
+      for (var i = 0; i < N; i++) {
+        var ia = i * angle, rel = (((ia + rot) % 360) + 360) % 360, facing = rel > 180 ? 360 - rel : rel, s = slides[i];
+        s.style.transform = 'translate(-50%,-50%) rotateY(' + ia + 'deg) translateZ(' + radius + 'px)';
+        var op = facing > 100 ? 0 : Math.max(0.3, 1 - facing / 98);
+        s.style.opacity = op.toFixed(3); s.style.pointerEvents = op < 0.06 ? 'none' : ''; s.style.zIndex = String(Math.round(360 - facing));
+      }
+    }
+    function snap(dir) { vel = 0; var idx = Math.round(-rot / angle) + (dir || 0); targetSnap = -idx * angle; }
+    computeRadius(); draw();
+    stage.addEventListener('pointerdown', function (e) { dragging = true; lastX = e.clientX; moved = 0; vel = 0; targetSnap = null; stage.classList.add('grab'); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
+    stage.addEventListener('pointermove', function (e) { if (!dragging) return; var dx = e.clientX - lastX; lastX = e.clientX; moved += Math.abs(dx); if (N > 1) { var d = dx * 0.3; rot += d; vel = d; } });
+    var up = function () { if (!dragging) return; dragging = false; stage.classList.remove('grab'); if (Math.abs(vel) < 0.4) snap(0); };
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+    stage.addEventListener('click', function (e) { if (moved > 6) { e.stopPropagation(); e.preventDefault(); } }, true);
+    var nav = stage.parentNode.querySelectorAll('[data-vpod]');
+    [].forEach.call(nav, function (b) { b.addEventListener('click', function (e) { e.stopPropagation(); snap(+b.getAttribute('data-vpod')); }); });
+    var tick = function () {
+      if (!stage.isConnected) { _vpodRAF = null; return; }      // l'anneau a été retiré du DOM → on arrête
+      if (stage.offsetParent === null) { _vpodRAF = requestAnimationFrame(tick); return; } // vue masquée → on ne calcule rien
+      if (targetSnap != null) { var diff = targetSnap - rot; if (Math.abs(diff) < 0.05) { rot = targetSnap; targetSnap = null; } else rot += diff * 0.12; }
+      else if (!dragging) { if (Math.abs(vel) > 0.05) { rot += vel; vel *= 0.94; if (Math.abs(vel) <= 0.05) snap(0); } else { rot += 0.18; } }  // rotation auto douce
+      draw(); _vpodRAF = requestAnimationFrame(tick);
+    };
+    _vpodRAF = requestAnimationFrame(tick);
   }
   // ---- Mes amendes (montant + n° d'avis, sans PDF) ----
   function renderAmendes() {
     var list = (DATA && DATA.amendes) || [];
     var box = $('amd-body');
-    if (!list.length) { box.innerHTML = podiumHTML() + '<div class="box center" style="padding:1.4rem 0"><div class="big-emoji">🎉</div><div class="muted">' + esc(t('amd_none')) + '</div></div>'; return; }
+    if (!list.length) { box.innerHTML = podiumHTML() + '<div class="box center" style="padding:1.4rem 0"><div class="big-emoji">🎉</div><div class="muted">' + esc(t('amd_none')) + '</div></div>'; mountPodiumRing(); return; }
     var total = 0;
     var rows = list.map(function (a) {
       var m = Number(a.montant) || 0; total += m;
@@ -1060,6 +1129,7 @@
     }).join('');
     var head = '<div class="box" style="background:#0f1e3d;color:#fff;margin-bottom:.7rem"><div class="kv" style="border:0"><span class="k" style="color:#c7d2e6">' + esc(t('amd_total')) + ' (' + list.length + ')</span><span class="v" style="color:#fff;font-weight:800;font-size:18px">' + eur(total) + '</span></div></div>';
     box.innerHTML = podiumHTML() + head + rows;
+    mountPodiumRing();
   }
   var VIEWS = ['v-menu', 'v-veh', 'v-doc', 'v-sin', 'v-constat', 'v-edl', 'v-amd', 'v-vente', 'v-ventesl', 'v-guide', 'v-que', 'v-km', 'v-mydecl', 'v-bad'];
   // ===== MES SIGNALEMENTS : liste + statut + modification (tant que « nouveau »/non traité) =====
