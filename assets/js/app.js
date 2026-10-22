@@ -6556,6 +6556,34 @@ FP.alertesOffSet = (v, on) => { try { if (!v || !v.id || !FP.ignore) return; FP.
 // CT / assurance « ignoré » : par la conformité OU par l'interrupteur global ci-dessus (source unique).
 FP.ctIgnored    = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:ct:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
 FP.assurIgnored = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:assur:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
+// ⚠️ SOURCE UNIQUE — « cette tâche AUTO (CT / révision) est-elle devenue CADUQUE ? ». Même règle que la
+// purge de la page Tâches (autoTachesCT). Sert à AFFICHER LA MÊME LISTE partout : la page Tâches purge les
+// tâches auto obsolètes, mais le widget « Tâches à faire » du tableau de bord lisait la liste BRUTE → une
+// tâche périmée (CT dont la date a changé, véhicule sorti / CT ignoré, révision déjà faite) restait affichée
+// sur le TDB alors qu'elle n'était plus dans l'onglet Tâches (bug « la tâche GR-305-HP revient et part »).
+// Caduque = true. Véhicule non chargé → false (on ne juge pas → anti-perte). Ne touche QUE les tâches auto.
+FP.tacheAutoObsolete = (t, vehs) => {
+  try {
+    if (!t || t.auto !== true) return false;
+    if (t.fait === true || t.statut === 'fait' || t.statut === 'done') return false;
+    const v = (vehs || []).find(x => x && String(x.id) === String(t.vehiculeId));
+    if (!v) return false; // véhicule pas chargé → on ne retire rien (anti-perte, comme autoTachesCT)
+    const ti = String(t.titre == null ? '' : t.titre).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (ti.includes('controle technique')) {
+      if (FP.horsFlotte && FP.horsFlotte(v)) return true;        // vendu / sorti
+      if (FP.ctIgnored && FP.ctIgnored(v)) return true;          // CT ignoré (ou « toutes alertes ignorées »)
+      const cur = (v.prochainCT && v.prochainCT !== '—') ? String(v.prochainCT).slice(0, 10) : '';
+      const ech = String(t.echeance || '').slice(0, 10);
+      return (!cur || ech !== cur);                              // plus de CT suivi, ou date changée
+    }
+    if (ti.includes('revision')) {
+      // Ancre = date de la dernière révision (MÊME calcul que revAnchorDe d'autoTachesCT, à l'identique).
+      const anchor = (FP.derniereRevision ? (FP.derniereRevision(v).date || '') : (v.derniereRevision || '')) || 'norev';
+      return (String(t.revAnchor || 'norev') !== anchor);        // révision faite depuis → ancienne tâche caduque
+    }
+    return false;
+  } catch (e) { return false; }
+};
 // Véhicule vendu / supprimé → on ARCHIVE ses documents (dossier Sinistres « Drive ») dans un
 // sous-dossier « OUT » automatiquement : on crée le sous-dossier s'il manque et on y déplace
 // tous ses fichiers. Ne touche QUE le classement (settings.sinistreSous / sinistreDocSub),
