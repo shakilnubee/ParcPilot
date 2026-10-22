@@ -247,7 +247,11 @@
       // faisait croire qu'il fallait le remplir. Rouge/orange UNIQUEMENT si une valeur lue est incertaine.
       var cls = !hasVal ? '' : ((conf==='faible'||need) ? 'low' : (conf==='moyen' ? 'warn' : ''));
       var multiline = (key==='description'||key==='mentionsZ'||key==='garanties'||key==='motif');
-      var input = multiline ? '<textarea rows="2" data-k="'+key+'">'+esc(v==null?'':v)+'</textarea>' : '<input type="text" data-k="'+key+'" value="'+esc(v==null?'':v)+'">';
+      // Dates : si la valeur lue est une date ISO (AAAA-MM-JJ), on affiche un vrai sélecteur de date
+      // (type=date) → s'affiche au format JJ/MM/AAAA (comme partout ailleurs), et la valeur reste ISO à l'enregistrement.
+      var isISODate = /^\d{4}-\d{2}-\d{2}$/.test(String(v==null?'':v));
+      var input = multiline ? '<textarea rows="2" data-k="'+key+'">'+esc(v==null?'':v)+'</textarea>'
+        : (isISODate ? '<input type="date" data-k="'+key+'" value="'+esc(v)+'">' : '<input type="text" data-k="'+key+'" value="'+esc(v==null?'':v)+'">');
       var confPill = (hasVal && conf) ? '<span class="conf '+esc(conf)+'">'+esc(conf)+'</span>' : '';
       var metaBits = []; if(ch&&ch.page) metaBits.push('p.'+ch.page); if(ch&&ch.libelle_document) metaBits.push('« '+ch.libelle_document+' »');
       html += '<div class="fld '+cls+'"><label>'+esc(libelle)+' '+confPill+'</label>'+input+(metaBits.length?'<div class="meta">'+esc(metaBits.join(' · '))+'</div>':'')+'</div>';
@@ -296,7 +300,7 @@
   function typeLabel(m){ var s = m && FP2.schemaFor(m.type_document); return s ? s.label : (m && m.type_document ? m.type_document : 'document'); }
   function hasBlocking(m){ if((m.qualite_document||'')==='insuffisante') return true; return (m.anomalies||[]).some(function(a){ var g=(a&&a.gravite||'').toLowerCase(); return g==='haute'||g==='elevee'||g==='élevée'; }); }
   function batchSummary(item){ var m=item.model, s=m&&FP2.schemaFor(m.type_document); if(!s) return ''; var out=[]; for(var i=0;i<s.champs.length && out.length<3;i++){ var v=fieldVal(m, s.champs[i][0]); if(v!=='') out.push(v); } return out.join(' · '); }
-  function batchFieldsHtml(item, idx){ var m=item.model, s=m&&FP2.schemaFor(m.type_document); if(!s) return ''; var h='<div class="grid sm:grid-cols-2 gap-3" data-batch-fields="'+idx+'" style="margin-top:.6rem">'; s.champs.forEach(function(c){ var key=c[0], lib=c[1], v=fieldVal(m,key); var ml=(key==='description'||key==='mentionsZ'||key==='garanties'||key==='motif'); var input = ml ? ('<textarea rows="2" data-k="'+key+'">'+esc(v)+'</textarea>') : ('<input type="text" data-k="'+key+'" value="'+esc(v)+'">'); h+='<div class="fld"><label>'+esc(lib)+'</label>'+input+'</div>'; }); h+='</div>'; return h; }
+  function batchFieldsHtml(item, idx){ var m=item.model, s=m&&FP2.schemaFor(m.type_document); if(!s) return ''; var h='<div class="grid sm:grid-cols-2 gap-3" data-batch-fields="'+idx+'" style="margin-top:.6rem">'; s.champs.forEach(function(c){ var key=c[0], lib=c[1], v=fieldVal(m,key); var ml=(key==='description'||key==='mentionsZ'||key==='garanties'||key==='motif'); var isISO=/^\d{4}-\d{2}-\d{2}$/.test(String(v)); var input = ml ? ('<textarea rows="2" data-k="'+key+'">'+esc(v)+'</textarea>') : (isISO ? ('<input type="date" data-k="'+key+'" value="'+esc(v)+'">') : ('<input type="text" data-k="'+key+'" value="'+esc(v)+'">')); h+='<div class="fld"><label>'+esc(lib)+'</label>'+input+'</div>'; }); h+='</div>'; return h; }
 
   function handleFiles(fileList){ var files=Array.prototype.slice.call(fileList||[]).filter(Boolean); if(!files.length) return; if(!societeChoisieOuBloque()) return; if(files.length===1){ handleFile(files[0]); return; } runBatch(files); }
 
