@@ -18128,7 +18128,7 @@ FP.share = function (opts) {
       host.querySelectorAll('.fpg-sec').forEach(function (sec) {
         var stage = sec.querySelector('.fpg-stage'), ring = sec.querySelector('.fpg-ring');
         var slides = [].slice.call(ring.children), N = slides.length;
-        var r = { stage: stage, ring: ring, slides: slides, N: N, rot: 0, vel: 0, targetSnap: null, dragging: false, visible: false, moved: 0, lastX: 0, radius: 300, angle: 360 / Math.max(N, 1) };
+        var r = { stage: stage, ring: ring, slides: slides, N: N, rot: 0, vel: 0, targetSnap: null, dragging: false, visible: false, moved: 0, lastX: 0, radius: 300, angle: 360 / Math.max(N, 1), speed: (opts && opts.speed != null ? opts.speed : 0.12) };
         r.computeRadius = function () { var cw = slides[0] ? slides[0].offsetWidth : 240; if (!cw) cw = 240; if (N <= 1) { r.radius = 0; return; } var base = (cw / 2) / Math.tan(Math.PI / N); r.radius = Math.max(base * 1.16, cw * 0.6); };
         r.draw = function () {
           ring.style.transform = 'translateZ(-' + r.radius + 'px) rotateY(' + r.rot + 'deg)';
@@ -18173,7 +18173,7 @@ FP.share = function (opts) {
           if (r.targetSnap !== null) { var d = r.targetSnap - r.rot; if (Math.abs(d) < 0.05) { r.rot = r.targetSnap; r.targetSnap = null; } else r.rot += d * 0.12; r.draw(); }
           else if (!r.dragging) {
             if (Math.abs(r.vel) > 0.02) { r.rot += r.vel; r.vel *= 0.93; r.draw(); }
-            else if (r.visible && !reduce && r.N > 1) { r.rot += 0.12; r.draw(); }
+            else if (r.visible && !reduce && r.N > 1) { r.rot -= r.speed; r.draw(); }
           }
         }
         rafId = requestAnimationFrame(loop);

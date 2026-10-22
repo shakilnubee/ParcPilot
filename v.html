@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261022b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261022d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <!-- iOS/Safari détecte les longs numéros (n° d'avis d'amende) comme des n° de tél et les souligne
      en lien bleu. On désactive cette détection automatique sur tout le portail. -->
 <meta name="format-detection" content="telephone=no">
@@ -1039,7 +1039,7 @@
     var pod = (DATA && DATA.podium) || [];
     if (!pod.length) return '';
     var moi = ((DATA.conducteur && DATA.conducteur.prenom) || '').toString().trim().toLowerCase();
-    var medals = ['🥇', '🥈', '🥉', '🏅', '🏅'];   // médaille pour les 5 (or/argent/bronze puis 🏅)
+    var medals = ['🥇', '🥈', '🥉'];   // médaille pour le podium ; 4e/5e → leur numéro (pas de 🏅 sans chiffre)
     var top = pod.slice(0, 5);
     var head = '<div class="vpod-head"><div><div style="font-weight:800;color:#0f1e3d">🏆 ' + esc(t('pod_title')) + '</div>'
       + '<div class="muted" style="font-size:.8rem">' + esc(t('pod_sub')) + '</div></div>';
@@ -1100,7 +1100,7 @@
       if (!stage.isConnected) { _vpodRAF = null; return; }      // l'anneau a été retiré du DOM → on arrête
       if (stage.offsetParent === null) { _vpodRAF = requestAnimationFrame(tick); return; } // vue masquée → on ne calcule rien
       if (targetSnap != null) { var diff = targetSnap - rot; if (Math.abs(diff) < 0.05) { rot = targetSnap; targetSnap = null; } else rot += diff * 0.12; }
-      else if (!dragging) { if (Math.abs(vel) > 0.05) { rot += vel; vel *= 0.94; if (Math.abs(vel) <= 0.05) snap(0); } else { rot += 0.34; } }  // rotation auto
+      else if (!dragging) { if (Math.abs(vel) > 0.05) { rot += vel; vel *= 0.94; if (Math.abs(vel) <= 0.05) snap(0); } else { rot -= 0.34; } }  // rotation auto (sens inverse)
       draw(); _vpodRAF = requestAnimationFrame(tick);
     };
     _vpodRAF = requestAnimationFrame(tick);

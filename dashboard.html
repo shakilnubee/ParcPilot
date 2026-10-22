@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022a">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261022a"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261022c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261022a">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261022c">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -110,10 +110,14 @@
   .veh-scroller::-webkit-scrollbar { display: none; }
   .veh-bubble {
     scroll-snap-align: start; flex: 0 0 auto; width: 208px; box-sizing: border-box;
+    /* Hauteur FIXE → toutes les bulles sont identiques (propre, surtout dans l'anneau 3D où
+       les cartes se superposent : sans ça, une carte avec/sans conducteur serait plus haute). */
+    height: 158px; display: flex; flex-direction: column; overflow: hidden;
     background: var(--fp-surface); border: 1px solid var(--fp-border); border-radius: 16px;
     padding: 14px 15px; cursor: pointer;
     transition: box-shadow .16s ease, transform .16s ease, border-color .16s ease;
   }
+  .veh-bubble-km { margin-top: auto !important; }  /* le km reste collé en bas → alignement identique partout */
   .veh-bubble:hover { transform: translateY(-3px); box-shadow: 0 12px 26px -12px rgba(15,30,61,.42); border-color: color-mix(in srgb, var(--fp-accent) 45%, var(--fp-border)); }
   .veh-bubble-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 11px; }
   .veh-bubble-plate { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; font-size: .9rem; color: var(--fp-primary); background: var(--fp-bg); border: 1px solid var(--fp-border); border-radius: 8px; padding: 3px 8px; letter-spacing: .4px; white-space: nowrap; }
@@ -602,8 +606,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261022a"></script>
-<script src="assets/js/supabase-client.js?v=20261022a"></script>
+<script src="assets/js/vendor/supabase.js?v=20261022c"></script>
+<script src="assets/js/supabase-client.js?v=20261022c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -619,10 +623,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261022a"></script>
+<script src="assets/js/app.min.js?v=20261022c"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -986,7 +990,9 @@
     const list = data.vehicules || [];
     if (!vehTbody) return;
     if (FP.galerie3d && list.length) {
-      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.' });
+      // Rotation plus LENTE ici : l'anneau « tous les véhicules » a beaucoup de cartes (grand rayon) →
+      // à vitesse angulaire normale, les cartes défilent trop vite. On ralentit pour ce gros anneau.
+      FP.galerie3d.mount(vehTbody, [{ title: 'Tous les véhicules', color: 'var(--fp-accent,#f97316)', count: list.length, cardsHtml: list.map(bubbleHtml) }], { empty: 'Aucun véhicule.', speed: 0.035 });
     } else if (list.length) {
       // Repli (moteur galerie indisponible) : la liste plate d'avant.
       if (vehTbody._fpgDestroy) vehTbody._fpgDestroy();
