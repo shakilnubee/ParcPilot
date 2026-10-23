@@ -8,6 +8,11 @@
 //        (type « rdv » avec une heure) — délai réglable (notif.tacheRappelHeures, défaut 3 h) ;
 //    (2) un RÉSUMÉ DU JOUR le matin (une seule notification) listant les tâches du jour
 //        + le nombre de tâches en retard — pour les tâches « journée » (sans heure) et l'agenda.
+//    (3) un RAPPEL « LA VEILLE » (le matin du jour précédent) des tâches datées de DEMAIN, envoyé en
+//        PUSH **et par E-MAIL** au gestionnaire (mailExpediteur + mailCopie) → fiable même sans push.
+//        Comble le trou : une tâche programmée dans la page Tâches SANS véhicule (ou non-RDV) n'avait
+//        aucun rappel la veille (km-relance ne couvre QUE les RDV liés à un véhicule via vehRdvGarage).
+//        On exclut ces RDV-véhicule ici pour ne pas doublonner avec km-relance. Réglable : notif.tacheRappelVeille.
 //
 //  DÉCLENCHEMENT : appelée régulièrement (toutes les 30 min conseillé) par pg_cron →
 //    net.http_post (voir supabase/task-reminders-setup.sql). La granularité 30 min suffit
@@ -68,6 +73,16 @@ const parisHour = (d: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZon
 
 // Tâche « faite » ? (miroir de taskStatut côté client : statut 'done' OU drapeau fait.)
 const estFaite = (t: any) => (t && (t.statut === "done" || (t.statut == null && !!t.fait)));
+
+// Échappement HTML pour l'e-mail de rappel (titres/lieux/conducteurs saisis).
+const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }) as Record<string, string>)[c]);
+// Validation/dédoublonnage d'adresses (mirror km-relance) : une saisie bancale ne bloque pas l'envoi.
+const RE_EMAIL = /[^\s<>,;]+@[^\s<>,;]+\.[^\s<>,;]+/g;
+function cleanEmails(raw: Array<string | undefined | null>): string[] {
+  const out: string[] = [];
+  for (const entry of raw) { const f = String(entry || "").match(RE_EMAIL); if (f) for (const e of f) out.push(e.trim().toLowerCase()); }
+  return [...new Set(out)];
+}
 
 // ─── PUSH (Web Push / VAPID) ────────────────────────────────────────────────
 let _vapidReady: boolean | null = null;
@@ -175,12 +190,34 @@ Deno.serve(async (req) => {
   const hourNow = parisHour(nowDate);
   const GRACE = 6 * 3600 * 1000;   // fenêtre de rattrapage si le cron a sauté un créneau
 
-  const summary = { digestSent: 0, leadSent: 0, skipped: 0, societes: 0 };
+  const summary = { digestSent: 0, leadSent: 0, veilleSent: 0, skipped: 0, societes: 0 };
   const details: any[] = [];
+
+  // Expéditeur e-mail (mirror km-relance / send-email) pour le rappel « la veille ».
+  const RESEND_KEY = (Deno.env.get("RESEND_API_KEY") || "").trim();
+  let envFrom = (Deno.env.get("EMAIL_FROM") || "").trim();
+  if (!envFrom || /resend\.dev/i.test(envFrom)) envFrom = "Parc Pilot <noreply@projectxparis.fr>";
+  const sendMail = async (profil: any, societeNom: string, to: string[], subject: string, html: string, text: string): Promise<boolean> => {
+    if (dryRun) return true;
+    if (!RESEND_KEY || !to.length) return false;
+    let from = envFrom, replyTo = "";
+    const exp = String((profil && profil.mailExpediteur) || "").trim();
+    if (exp) {
+      const dom = String((profil && profil.mailDomaineEnvoi) || "").trim().replace(/^@/, "");
+      const fromAddr = dom ? (exp.split("@")[0] + "@" + dom) : exp;
+      let nom = String(societeNom || "").replace(/[<>"]/g, "").trim();
+      if (/^parc\s*pilot$/i.test(nom)) nom = "";
+      from = nom ? `${nom} <${fromAddr}>` : fromAddr; replyTo = exp;
+    }
+    const payload: Record<string, unknown> = { from, to, subject, html, text };
+    if (replyTo) payload.reply_to = replyTo;
+    try { const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }); return r.ok; }
+    catch { return false; }
+  };
 
   // Regroupe les tâches PAR SOCIÉTÉ (la ligne historique `global` = PXP, comme côté client), en
   // dédoublonnant par id — évite un double comptage si PXP a par erreur des tâches dans `global` ET `PXP`.
-  const bySoc: Record<string, { tasks: Map<string, any>; notif: any }> = {};
+  const bySoc: Record<string, { tasks: Map<string, any>; notif: any; profil: any; societeNom: string }> = {};
   for (const row of (settingsRows as any[])) {
     if (!row || !row.id) continue;
     const soc = row.id === "global" ? "PXP" : String(row.id);
@@ -188,15 +225,17 @@ Deno.serve(async (req) => {
     const data = (row.data && typeof row.data === "object") ? row.data : {};
     const taches = Array.isArray(data.taches) ? data.taches : [];
     if (!taches.length) continue;
-    const slot = bySoc[soc] || (bySoc[soc] = { tasks: new Map(), notif: {} });
-    // La config `notif` d'une société vient d'UNE ligne : on prend celle qui en a une (priorité à la
-    // ligne portant le nom de la société plutôt que `global`, mais une seule des deux en a en pratique).
+    const slot = bySoc[soc] || (bySoc[soc] = { tasks: new Map(), notif: {}, profil: {}, societeNom: "" });
+    // La config `notif`/`profil`/`societe` d'une société vient d'UNE ligne : on prend celle qui en a une
+    // (priorité à la ligne portant le nom de la société plutôt que `global`, mais une seule en a en pratique).
     if (data.notif && typeof data.notif === "object" && (!slot.notif || !Object.keys(slot.notif).length || row.id === soc)) slot.notif = data.notif;
+    if (data.profil && typeof data.profil === "object" && (!slot.profil || !Object.keys(slot.profil).length || row.id === soc)) slot.profil = data.profil;
+    if (data.societe && typeof data.societe === "object" && data.societe.nom && (!slot.societeNom || row.id === soc)) slot.societeNom = String(data.societe.nom);
     for (const t of taches) { if (t && (t.id != null)) slot.tasks.set(String(t.id), t); else if (t) slot.tasks.set("_" + slot.tasks.size, t); }
   }
 
   for (const soc of Object.keys(bySoc)) {
-    const { tasks, notif } = bySoc[soc];
+    const { tasks, notif, profil, societeNom } = bySoc[soc];
     summary.societes++;
     const leadH = Math.max(0, Number.isFinite(Number(notif.tacheRappelHeures)) ? Number(notif.tacheRappelHeures) : 3);
     const digestHour = Math.min(23, Math.max(0, Number.isFinite(Number(notif.tacheDigestHeure)) ? Number(notif.tacheDigestHeure) : 8));
@@ -242,6 +281,54 @@ Deno.serve(async (req) => {
             details.push({ societe: soc, type: "lead", titre: String(t.titre || ""), heure: String(t.heure).trim(), devices: dryRun ? "(dry-run)" : n });
           } else summary.skipped++;
         }
+      }
+    }
+
+    // ── (3) RAPPEL « LA VEILLE » (tâches datées de DEMAIN) — push + e-mail au gestionnaire ──
+    //   Comble le trou : une tâche programmée dans la page Tâches SANS véhicule (ou non-RDV) n'avait
+    //   AUCUN rappel la veille (km-relance ne couvre QUE les RDV liés à un véhicule via vehRdvGarage).
+    //   On exclut ici les RDV-véhicule (déjà rappelés par km-relance) pour ne pas doublonner. Une seule
+    //   notification/e-mail par société et par jour (anti-doublon `claim`). E-mail = copie fiable même
+    //   sans push (adresses du gestionnaire : mailExpediteur + mailCopie).
+    if (notif.tacheRappelVeille !== false && hourNow >= digestHour) {
+      const demain = parisYMD(new Date(now + 86400000));
+      const veille = actives.filter((t: any) =>
+        String(t.echeance).slice(0, 10) === demain &&
+        !(t.type === "rdv" && t.vehiculeId != null) // déjà couvert par km-relance (vehRdvGarage)
+      );
+      if (veille.length) {
+        const key = "veille:" + soc + ":" + demain;
+        if (await claim(key, soc)) {
+          const ligne = (t: any, bullet: string) => {
+            const h = (t.type === "rdv" && /^\d{1,2}:\d{2}$/.test(String(t.heure || "").trim())) ? (" " + String(t.heure).trim()) : "";
+            const extra = [t.lieu, t.conducteur].map((x: any) => String(x || "").trim()).filter(Boolean).join(" · ");
+            return bullet + String(t.titre || "Tâche") + h + (extra ? " (" + extra + ")" : "");
+          };
+          const resume = veille.length + " tâche" + (veille.length > 1 ? "s" : "") + " demain : "
+            + veille.slice(0, 3).map((t: any) => String(t.titre || "Tâche")).join(" · ") + (veille.length > 3 ? "…" : "");
+          const n = await sendPush(soc, { title: "📅 Demain", body: resume, url: "./pages/taches.html", tag: "taches-veille-" + demain });
+          // E-mail de copie fiable au gestionnaire
+          const to = cleanEmails([profil && profil.mailExpediteur, profil && profil.mailCopie]);
+          let mailed = false;
+          if (to.length) {
+            const dateFr = demain.split("-").reverse().join("/");
+            const htmlList = veille.map((t: any) => {
+              const h = (t.type === "rdv" && /^\d{1,2}:\d{2}$/.test(String(t.heure || "").trim())) ? (" à " + esc(String(t.heure).trim())) : "";
+              const extra = [t.lieu, t.conducteur].map((x: any) => String(x || "").trim()).filter(Boolean).join(" · ");
+              return '<li style="margin:4px 0"><b>' + esc(t.titre || "Tâche") + "</b>" + h + (extra ? ' — <span style="color:#555">' + esc(extra) + "</span>" : "") + "</li>";
+            }).join("");
+            const html = '<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px;margin:auto;color:#111">'
+              + '<h2 style="margin:0 0 4px">📅 Rappel : ' + (veille.length > 1 ? "tâches" : "tâche") + " de demain</h2>"
+              + '<p style="color:#666;margin:0 0 12px">' + esc(dateFr) + "</p>"
+              + '<ul style="padding-left:18px;margin:0 0 16px">' + htmlList + "</ul>"
+              + '<p style="color:#999;font-size:12px;margin:0">Parc Pilot — rappel automatique de la veille.</p></div>';
+            const text = "Rappel — " + (veille.length > 1 ? "tâches" : "tâche") + " de demain (" + dateFr + ") :\n"
+              + veille.map((t: any) => ligne(t, "- ")).join("\n");
+            mailed = await sendMail(profil, societeNom, to, "📅 Demain : " + resume, html, text);
+          }
+          summary.veilleSent++;
+          details.push({ societe: soc, type: "veille", date: demain, taches: veille.length, devices: dryRun ? "(dry-run)" : n, email: dryRun ? "(dry-run)" : (to.length ? (mailed ? to.join(",") : "echec") : "sans-adresse") });
+        } else summary.skipped++;
       }
     }
   }
