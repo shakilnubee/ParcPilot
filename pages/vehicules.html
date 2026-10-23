@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261023a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261023b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261023a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261023b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261023a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261023b">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1188,8 +1188,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261023a"></script>
-<script src="../assets/js/supabase-client.js?v=20261023a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261023b"></script>
+<script src="../assets/js/supabase-client.js?v=20261023b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1205,13 +1205,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261023a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261023b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261023a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261023a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261023b"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261023b"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261023a"></script><script>
+<script src="../assets/js/app.min.js?v=20261023b"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -1445,7 +1445,7 @@
       FP.settings.save(s);
     } catch (e) { return false; }
     // Met à jour le km COURANT du véhicule seulement s'il est plus élevé (ne baisse jamais un km).
-    if (Number.isFinite(kmN) && kmN > (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0))) { v.km = kmN; try { persistVehFields(v, 'km'); } catch (e) {} try { renderTable(); renderKPIs(); } catch (e) {} }
+    if (Number.isFinite(kmN) && FP.setVehKm) FP.setVehKm(v, kmN); // raise-only + réarme le rappel « relevé km » + rafraîchit (fp:veh-km)
     return created;
   }
   // Ré-ancre le km/la date de début de la période EN COURS (si un seul conducteur) sur la remise désormais
@@ -4613,6 +4613,10 @@
       if (note) recordInspection(v.id, kmOk ? km : null, date, note, 'Sortie');
       if (FP.toast) FP.toast(nouveau ? ('✓ Repris et réaffecté à ' + nouveau) : '✓ Véhicule repris — maintenant libre');
     }
+    // 🔗 UNIFICATION — un km saisi lors d'une remise / reprise / cession compte comme un relevé →
+    // réarme le rappel « relevé km à faire » (comme un relevé QR/manuel). Le km lui-même est déjà posé
+    // (raise-only) plus haut ; ici on éteint juste le rappel pour ce véhicule.
+    try { if (kmOk && v.immat && FP.marquerReleveKm) FP.marquerReleveKm(v.immat); } catch (e) {}
     _procEdit = false; $('proc-backdrop').classList.remove('open');
     try { renderTable(); renderKPIs(); } catch (e) {}
     try { if (typeof drawerVehId !== 'undefined' && drawerVehId === v.id && $('drawer') && $('drawer').classList.contains('open')) openDrawer(v.id); } catch (e) {}
@@ -6060,11 +6064,7 @@
       } catch (err) { alert("Impossible d'enregistrer l'état des lieux."); return; }
       // Le relevé km de l'EDL met à jour le KM COURANT du véhicule → répercuté PARTOUT
       // (tableau, tableau de bord, coût/km, conformité, frise, portail salarié…).
-      if (Number.isFinite(rec.km) && rec.km > (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0))) {
-        v.km = rec.km;
-        try { persistVehFields(v, 'km'); } catch (e) {}
-        try { renderTable(); renderKPIs(); } catch (e) {}
-      }
+      if (Number.isFinite(rec.km) && FP.setVehKm) FP.setVehKm(v, rec.km); // raise-only + réarme le rappel « relevé km » + rafraîchit (fp:veh-km)
       // Photos jointes (facultatif) → uploadées avec la phase = sens.
       // On prend le BUFFER accumulé (toutes les prises), pas seulement la dernière sélection.
       const files = edlPending.slice();
