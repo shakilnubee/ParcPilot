@@ -1885,6 +1885,9 @@ FP.setVehKm = function (v, newKm, opts) {
         .then((res) => { if (res && res.error) { if (FP.notifyError) FP.notifyError('Km : échec serveur — réessaie.'); return; } if (FP.removeVehicleOverride) Object.keys(patch).forEach(k => FP.removeVehicleOverride(v.id, k)); if (FP.refreshDataCache) FP.refreshDataCache(); })
         .catch(() => { if (FP.notifyError) FP.notifyError('Km : échec serveur — réessaie.'); });
     }
+    // 🔗 UNIFICATION — prévient les écrans ouverts (fiche, tableau, KPI) qu'un km a changé → ils se
+    // rafraîchissent tout seuls (le km saisi à un endroit apparaît partout, sans recharger la page).
+    try { document.dispatchEvent(new CustomEvent('fp:veh-km', { detail: { id: v.id, km: n } })); } catch (e) {}
     return true;
   } catch (e) { return false; }
 };
@@ -8990,7 +8993,7 @@ FP.affectations = {
     // ⚠️ Point de départ = ÉTAT DES LIEUX de remise (km + date signés par le conducteur), sinon 1re mise
     //    en circulation. JAMAIS un relevé km (sinon la date « bougerait » à chaque relevé — bug signalé).
     const rem = this._remise(veh.id, null);
-    this.addEntry(veh.id, ch, rem.date || veh.dateMiseEnCirculation || null, null, rem.km, null);
+    this.addEntry(veh.id, ch, rem.date || veh.dateMiseEnCirculation || null, null, rem.km, null, { auto: true });
     return this.courante(veh.id);
   },
   // Remise (état des lieux d'ENTRÉE) servant de point de départ d'une affectation : la 1re prise en main
@@ -9027,6 +9030,21 @@ FP.affectations = {
   // en ouvre une nouvelle si un conducteur est désigné. Idempotent (rien si inchangé).
   // Normalise un km saisi → entier positif ou null (vide/invalide). Utilisé pour kmDebut/kmFin.
   _km(v) { if (v == null || v === '') return null; const n = Math.round(Number(String(v).replace(/[^\d.-]/g, ''))); return Number.isFinite(n) && n >= 0 ? n : null; },
+  // 🔗 UNIFICATION DU KILOMÉTRAGE (demande utilisateur du 2026-10-23 : « un km saisi quelque part doit
+  // être pris en compte partout »). Tout km enregistré ici (EDL, inspection, période, restitution) remonte
+  // au km COURANT du véhicule via l'écrivain canonique FP.setVehKm, en mode RAISE-ONLY : il ne FAIT JAMAIS
+  // BAISSER le km et ne touche à rien si ce n'est pas un relevé plus haut → les corrections manuelles de km
+  // restent protégées (c'était la raison de l'ancienne règle « l'EDL ne touche pas l'odomètre », désormais
+  // levée SANS risque grâce au raise-only). Renvoie true si le km du véhicule a été relevé.
+  _propagerKm(vehId, km) {
+    try {
+      const k = this._km(km);
+      if (k == null || k <= 0 || vehId == null) return false;
+      const veh = FP.vehById ? FP.vehById(vehId) : null;
+      if (!veh || !FP.setVehKm) return false;
+      return FP.setVehKm(veh, k);   // raise-only (non forcé) : ne baisse jamais
+    } catch (e) { return false; }
+  },
   // Km parcourus SAISIS pour une période (kmFin − kmDebut) — source MANUELLE, prioritaire sur l'estimation
   // par états des lieux. Renvoie null si l'un des deux km manque ou si l'écart est négatif (aberrant).
   kmParcouru(a) { if (!a) return null; const d = this._km(a.kmDebut), f = this._km(a.kmFin); if (d == null || f == null) return null; const diff = f - d; return diff >= 0 ? diff : null; },
@@ -9115,6 +9133,8 @@ FP.affectations = {
     if ('kmFin' in patch) { list[index].kmFin = this._km(patch.kmFin); list[index].kmFinManuel = (list[index].kmFin != null); }
     if ('conducteur' in patch && this._norm(patch.conducteur)) list[index].conducteur = this._norm(patch.conducteur);
     this._sauver(s, [vehId]);
+    // 🔗 le km saisi sur la période (début/fin, ex. restitution) remonte au compteur du véhicule (raise-only).
+    this._propagerKm(vehId, Math.max(this._km(list[index].kmFin) || 0, this._km(list[index].kmDebut) || 0));
   },
   // Supprime une entrée de l'historique (index dans le tableau stocké).
   removeEntry(vehId, index) {
@@ -9139,6 +9159,9 @@ FP.affectations = {
     list.push({ conducteur: nom, debut: debut || null, fin: fin || null, kmDebut: this._km(kmDebut), kmFin: this._km(kmFin), kmDebutManuel: this._km(kmDebut) != null, kmFinManuel: this._km(kmFin) != null, debutManuel: !!(opts && opts.debutManuel) && !!debut });
     s.affectations[vehId] = list;
     this._sauver(s, [vehId]);
+    // 🔗 le km saisi (début/fin de période) remonte au compteur du véhicule (raise-only). On NE propage PAS
+    // pour les créations AUTOMATIQUES (ensureCourante, opts.auto) : seule une SAISIE délibérée pousse le km.
+    if (!(opts && opts.auto)) this._propagerKm(vehId, Math.max(this._km(kmFin) || 0, this._km(kmDebut) || 0));
   },
   // ⚠️ INITIALISATION (non destructive, IDEMPOTENTE) du point de départ des conducteurs ACTUELS des
   // véhicules NON-LEASING. Le km ET la date de début sont ancrés sur l'ÉTAT DES LIEUX de remise (prise
@@ -9231,6 +9254,7 @@ FP.affectations = {
       if (existing) { if (kmN != null && existing.km == null) { existing.km = kmN; changed = true; } }
       else { s.inspections[vehId] = [{ id: 'INS' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date: d, sens: sensNorm, km: kmN, items: {}, note: 'État des lieux (' + (sensNorm === 'Sortie' ? 'restitution' : 'remise') + ')' }, ...listv]; changed = true; }
       if (changed) FP.settings.save(s);
+      this._propagerKm(vehId, kmN);   // 🔗 le km de l'EDL/inspection remonte au compteur du véhicule (raise-only)
       return changed;
     } catch (e) { return false; }
   },
@@ -9288,6 +9312,7 @@ FP.affectations = {
       // (daté du jour de la collecte) écrasait la vraie date de remise et faussait la période (bug signalé).
       if (!isSortie && d && !list[idx].debutManuel && (!list[idx].debut || d < list[idx].debut)) { list[idx].debut = d; did = true; }
       if (did || k != null) this._sauver(s, [vehId]);                  // on persiste aussi le marqueur « manuel »
+      this._propagerKm(vehId, k);     // 🔗 le km signé de l'EDL remonte au compteur du véhicule (raise-only)
       return did;
     } catch (e) { return false; }
   },
@@ -14280,10 +14305,12 @@ FP.edl = {
             if (FP.affectations.reanchorCurrent) FP.affectations.reanchorCurrent(veh.id);   // complète la DATE (km déjà verrouillé ci-dessus)
           }
         } catch (e) {}
-        // ⚠️ L'état des lieux ne fait que LIRE / ENREGISTRER le km (inspection datée + ré-ancrage de la
-        // période ci-dessus, pour l'historique). Il NE réécrit PAS l'odomètre du véhicule : sinon il repassait
-        // par-dessus les corrections manuelles de km (demande explicite de l'utilisateur). La mise à jour de
-        // l'odomètre reste le fait des actions dédiées (relevé km, correction manuelle, remise/cession).
+        // ⚠️ L'état des lieux ENREGISTRE le km (inspection datée + ré-ancrage de la période ci-dessus) ET,
+        // depuis le 2026-10-23 (demande utilisateur « km unifié »), le fait AUSSI remonter au compteur du
+        // véhicule — mais UNIQUEMENT À LA HAUSSE : la propagation passe par FP.affectations._propagerKm →
+        // FP.setVehKm en mode RAISE-ONLY (ne baisse jamais), donc une correction manuelle de km à la baisse
+        // reste protégée (c'était la raison de l'ancienne règle « l'EDL ne touche pas l'odomètre », levée ici
+        // sans risque). Un km saisi sur l'EDL apparaît donc partout (fiche, tableau, alertes, stats).
         if (mode === 'dl') { doc.save(fname); btn.disabled = false; btn.innerHTML = old; ov._busy = false; return; }
         // Enregistre le PDF dans les Documents du véhicule + envoie par e-mail.
         const blob = doc.output('blob');
