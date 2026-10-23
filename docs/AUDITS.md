@@ -145,18 +145,25 @@ classés par gravité, plan priorisé remis.
 
 ### Corrections à l'audit initial (faux constats levés)
 
-- L'organisation Supabase est bien sur le **plan Pro**, avec **sauvegardes quotidiennes** (mais **hors
-  fichiers** — cf. point ouvert ci-dessous).
+- L'organisation Supabase est bien sur le **plan Pro**, avec **sauvegardes quotidiennes**. Un filet
+  **indépendant** de Supabase tourne en plus chaque nuit (`.github/workflows/sauvegarde.yml`) : il dépose
+  la **base ET les fichiers du stockage** (`aws s3 sync s3://scans …`), chiffrés, avec **restauration
+  d'essai** automatique → la lacune « sauvegarde hors fichiers » signalée au départ est **comblée**.
 - Le déploiement automatique des Edge Functions **fonctionnait** ; sa condition a été rendue robuste au
   nom du dépôt (renommage `autoflotte`→`ParcPilot`).
 
 ### Encore OUVERT — à NE PAS considérer comme réglé (l'audit doit continuer à les suivre)
 
-- 🟠 **Sauvegardes** : la sauvegarde quotidienne Supabase **n'inclut pas les fichiers** ; sauvegarde hors
-  Supabase (base **et** fichiers) + procédure de restauration écrite **et testée** = à faire (→ auditeur #23).
-- 🟠 **GitHub** : **branche `main` pas encore protégée** (PR + tests obligatoires à activer).
+> ✅ **Clos depuis** : « Sauvegarde hors fichiers » — le workflow `sauvegarde.yml` synchronise désormais
+> **base + fichiers du stockage** chaque nuit, avec restauration d'essai (cf. correction ci-dessus).
+> Ne PLUS re-signaler cette lacune.
+
+- 🟠 **GitHub** : **branche `main` pas encore protégée** (PR + tests obligatoires à activer — à faire
+  côté réglages GitHub par le propriétaire du dépôt ; le code ne peut pas l'imposer seul).
 - 🟠 **QR public liste TOUS les véhicules** : acceptable aujourd'hui, à **restreindre au véhicule scanné**
-  avant l'arrivée de plusieurs clients (→ auditeur #1/#4, gravité moyenne).
+  avant l'arrivée de plusieurs clients (→ auditeur #1/#4, gravité moyenne). ⚠️ La lecture publique du QR
+  est un **choix** (cf. `carte.html`) ; c'est le fait que la vue `vehicules_public` renvoie **toute** la
+  flotte à une requête API anonyme qu'il faut restreindre (migration à tester d'abord sur le staging).
 - 🟠 **`app_settings` = données métier mêlées à la config dans un gros blob JSON** : une fonction serveur
   réécrit encore le bloc entier (risque de perte en écritures simultanées). À traiter avec la **migration
   des données** vers de vraies tables (congés, affectations, contrats, assurances…) puis suppression du
