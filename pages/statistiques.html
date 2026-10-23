@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022j">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022j"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022j">
 <style>
   .chart-wrap { position: relative; height: 280px; }
   .chart-wrap-sm { position: relative; height: 220px; }
@@ -318,8 +318,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022i"></script>
-<script src="../assets/js/supabase-client.js?v=20261022i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022j"></script>
+<script src="../assets/js/supabase-client.js?v=20261022j"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -327,7 +327,7 @@
 (function(){
   try {
     var soc = localStorage.getItem('fp_societe') || 'PXP';
-    var c = JSON.parse(localStorage.getItem('fp_data_cache_v3_' + soc) || 'null');
+    var c = JSON.parse(localStorage.getItem('fp_data_cache_v4_' + soc) || 'null');
     var full = c && ['vehicules','amendes','factures','conducteurs'].every(function(k){ return Array.isArray(c[k]) && c[k].length; });
     if (full) {
       window.FP_DATA = { vehicules: c.vehicules, amendes: c.amendes, factures: c.factures, conducteurs: c.conducteurs };
@@ -335,11 +335,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261022i"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261022i" defer></script>
+<script src="../assets/js/app.min.js?v=20261022j"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261022j" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -360,8 +360,8 @@
   }
   function updateTvsKpi() {
     if (FP.TVS_ANNEE) $('kpi-tvs-annee').textContent = FP.TVS_ANNEE;
-    // Parc possédé (hors vendus) — MÊME règle que dashboard / écran (FP.estVendu).
-    const soumisVehs = (data.vehicules || []).filter(v => !FP.estVendu(v));
+    // Parc possédé (flotte active) — MÊME règle que dashboard / écran / Contrats (FP.horsFlotte).
+    const soumisVehs = (data.vehicules || []).filter(v => !FP.horsFlotte(v));
     const totalTVS = FP.tvsAnnuelleFlotte ? FP.tvsAnnuelleFlotte(data.vehicules) : soumisVehs.reduce((s, v) => { const d = FP.tvsDetail(v); return s + (d.applicable && d.total != null ? d.total : 0); }, 0);
     const nbSoumis = soumisVehs.filter(v => { const d = FP.tvsDetail(v); return d.applicable && d.total != null && !d.elec; }).length;
     $('kpi-tvs').textContent = FP.euro(totalTVS);
@@ -551,7 +551,7 @@
 
   function buildLast12() {
     const out = []; const now = new Date();
-    for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); out.push({ ym: d.toISOString().slice(0, 7), label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }) }); }
+    for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); out.push({ ym: FP.ymLocal(d), label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }) }); }
     return out;
   }
 
@@ -732,7 +732,7 @@
     const _cfgSt = (FP.settings && FP.settings.get) ? FP.settings.get() : {};
     const _hasPerVehPrime = _cfgSt.assurancePrimes && typeof _cfgSt.assurancePrimes === 'object' && Object.keys(_cfgSt.assurancePrimes).length > 0;
     const _primeFlotte = Number(_cfgSt.assurancePrimeAnnuelle) || 0;
-    const _nbOwned = (data.vehicules || []).filter(v => !FP.estVendu(v)).length || 1;
+    const _nbOwned = (data.vehicules || []).filter(v => !FP.horsFlotte(v)).length || 1;
     const _assurRepli = (!_hasPerVehPrime && _primeFlotte > 0) ? (_primeFlotte / _nbOwned) : 0;
     // ⚠️ Seuil km minimal pour le COÛT AU KM : en dessous, le ratio (coût ÷ km) est dominé par les frais
     // fixes / un km non renseigné et n'a AUCUN sens (ex. un véhicule à 1 km ressortait à 1357 €/km).
@@ -755,7 +755,7 @@
       let _leasing = 0;
       // ⚠️ Véhicule VENDU : on n'impute plus son loyer (comme l'assurance et la TVS ci-dessous, mises à 0
       // pour un vendu). Sinon incohérence interne au TCO (leasing compté mais pas assurance/TVS).
-      if (_hasOffer && !FP.estVendu(v)) {
+      if (_hasOffer && !FP.horsFlotte(v)) {
         // MALUS écologique = coût UNIQUE payé au DÉPART du contrat. En « toutes années » (coût total) on
         // le compte en entier ; sur une année précise, uniquement l'année du DÉBUT du contrat.
         const _malusV = (FP.leasingMalus) ? FP.leasingMalus(v) : 0;
@@ -777,8 +777,8 @@
       // Sinistres comptés au RESTE À CHARGE (après remboursement assureur), pas au brut → même source
       // que le Coût d'usage. Les autres factures d'usage restent au montant brut.
       const factTotal = fv.filter(f => { const t = (f.type || '').toLowerCase(); if (_EXC_TCO.has(t)) return false; if (t === 'leasing' && _hasOffer) return false; if (t === 'sinistre') return false; return true; }).reduce((s, f) => s + (+f.montantTTC || 0), 0) + _leasing + (FP.resteChargeSinistre ? FP.resteChargeSinistre(fv) : 0);
-      const pr = findPrime(v.immat); const assurAn = FP.estVendu(v) ? 0 : ((pr && Number.isFinite(pr.ttc)) ? pr.ttc : _assurRepli); // exclure les vendus (comme la TVS ci-dessous et Contrats)
-      const tvsD = FP.tvsDetail(v); const tvsAn = (!FP.estVendu(v) && tvsD.applicable && tvsD.total != null) ? tvsD.total : 0; // exclure les vendus (comme le KPI TVS)
+      const pr = findPrime(v.immat); const assurAn = FP.horsFlotte(v) ? 0 : ((pr && Number.isFinite(pr.ttc)) ? pr.ttc : _assurRepli); // exclure les vendus (comme la TVS ci-dessous et Contrats)
+      const tvsD = FP.tvsDetail(v); const tvsAn = (!FP.horsFlotte(v) && tvsD.applicable && tvsD.total != null) ? tvsD.total : 0; // exclure les vendus (comme le KPI TVS)
       const achatF = fv.filter(f => f.type === 'achat').sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
       // « Toutes années » = COÛT TOTAL DEPUIS L'ACHAT (Option A) : on CUMULE l'assurance et la TVS sur
       // l'ancienneté du véhicule (× nb d'années), pour rester homogène avec le leasing et les factures
