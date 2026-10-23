@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261022k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261022j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261022k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261022j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261022k">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -592,8 +592,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261022j"></script>
-<script src="../assets/js/supabase-client.js?v=20261022j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261022k"></script>
+<script src="../assets/js/supabase-client.js?v=20261022k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -609,13 +609,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261022k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261022j"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261022j"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261022j" defer></script>
+<script src="../assets/js/app.min.js?v=20261022k"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261022k"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261022k" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1449,7 +1449,7 @@
     };
     // Cas fréquent : QUE des relevés détaillés → message direct vers Contrôle.
     if (!files.length && (totalFiles.length || ulysFiles.length)) { routeStatements(); return; }
-    let ok = 0, dupes = 0, warn = 0, fail = 0; const added = [];
+    let ok = 0, dupes = 0, warn = 0, fail = 0, upFail = 0; const added = [];
     const line = (extra) => `<div class="inline-flex items-center gap-2"><span class="fa-spin"></span> ${extra}</div><div class="mt-2 text-xs text-slate-500">✓ ${ok} importée(s) · ${dupes} doublon(s) · ${warn} à vérifier · ${fail} illisible(s)</div>`;
     for (let i = 0; i < files.length; i++){
       const file = files[i];
@@ -1468,7 +1468,7 @@
         km: ia.km != null ? (parseInt(String(ia.km).replace(/\D/g,''), 10) || null) : null };
       if (FP.dupe && FP.dupe.find && FP.dupe.find('factures', rec, data.factures)) { dupes++; continue; }
       let fileId = 'IMP-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), fileName = file.name;
-      try { if (FP.uploadScan){ const url = await FP.uploadScan(file, 'factures'); if (url) fileId = url; } } catch (e) { /* on garde la facture même si l'upload échoue */ }
+      try { if (FP.uploadScan){ const url = await FP.uploadScan(file, 'factures'); if (url) fileId = url; else upFail++; } } catch (e) { upFail++; console.warn('[import facture upload]', e); } // justificatif non stocké → compté (anti « ✓ menteur »)
       const row = { id: nextFactId(), ...rec, fileId, fileName };
       try {
         await FP.persist.insert('factures', row);
@@ -1487,7 +1487,7 @@
     } catch (e) {}
     try { renderKPIs(); renderTable(); renderCharts(); } catch (e) {}
     body.innerHTML = `<p class="font-semibold text-emerald-700 mb-1">✓ ${ok} facture(s) importée(s)</p>` +
-      `<p class="text-sm text-slate-600">${dupes} doublon(s) ignoré(s)${warn ? ` · <span class="text-amber-600">${warn} à vérifier (HT+TVA ≠ TTC)</span>` : ''}${fail ? ` · <span class="text-red-600">${fail} illisible(s)</span>` : ''}.</p>` +
+      `<p class="text-sm text-slate-600">${dupes} doublon(s) ignoré(s)${warn ? ` · <span class="text-amber-600">${warn} à vérifier (HT+TVA ≠ TTC)</span>` : ''}${fail ? ` · <span class="text-red-600">${fail} illisible(s)</span>` : ''}${upFail ? ` · <span class="text-red-600">${upFail} justificatif(s) non joint(s) — à re-joindre</span>` : ''}.</p>` +
       (added.length ? `<div class="mt-3 max-h-52 overflow-auto text-xs border-t border-slate-100 pt-2">${added.map(a => `<div class="py-1 flex justify-between gap-3 ${a.incoherent ? 'text-amber-600' : 'text-slate-600'}"><span class="truncate">${escapeHtml(a.row.fournisseur || '?')} · ${a.row.type}</span><span class="whitespace-nowrap">${a.row.montantTTC != null ? FP.euro(a.row.montantTTC) : '—'}${a.incoherent ? ' ⚠️' : ''}</span></div>`).join('')}</div>` : '') +
       (fail ? `<p class="text-xs text-slate-400 mt-2">Les documents illisibles peuvent être ajoutés à la main via « Importer une facture ».</p>` : '') +
       ((totalFiles.length || ulysFiles.length) ? `<div class="mt-3 p-2 rounded-lg text-xs" style="background:#FFF7ED;color:#9A3412;line-height:1.5">🔎 ${[totalFiles.length ? totalFiles.length + ' relevé(s) TotalEnergies' : '', ulysFiles.length ? ulysFiles.length + ' relevé(s) Ulys' : ''].filter(Boolean).join(' + ')} détecté(s) : ils se gèrent dans la page <b>Contrôle</b> → clique ci-dessous pour les y importer.</div>` : '') +
@@ -2819,7 +2819,7 @@
         if (!files.length) return;
         const box = $('nf-import-status');
         const show = (html, color) => { if (box) { box.classList.remove('hidden'); box.style.background = color || '#F0F9FF'; box.innerHTML = html; } };
-        let ok = 0, dup = 0, fail = 0;
+        let ok = 0, dup = 0, fail = 0, upFail = 0;
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           show(`Lecture ${i + 1}/${files.length} — <b>${esc(file.name)}</b>…`, '#F0F9FF');
@@ -2836,12 +2836,12 @@
           const iso = toISO(fields.date || ''); const ttc = num(fields.montantTTC);
           if (!iso || !ttc || ttc <= 0) { fail++; continue; }
           let fileId = null, fileName = null;
-          try { if (FP.uploadScan) { const url = await FP.uploadScan(file, 'factures'); if (url) { fileId = url; fileName = file.name; } } } catch (err) {}
+          try { if (FP.uploadScan) { const url = await FP.uploadScan(file, 'factures'); if (url) { fileId = url; fileName = file.name; } else upFail++; } } catch (err) { upFail++; console.warn('[nf import upload]', err); } // justificatif non stocké → compté
           const res = await nfAddNote({ date: iso, ttc, ht: fields.montantHT, tva: fields.montantTVA, cat: fields.categorie, plaque: fields.plaque, fournisseur: fields.fournisseur, fileId, fileName });
           if (res === 'dup') dup++; else ok++;
         }
         rebuildFactures(); render(); renderKPIs(); renderTable();
-        show(`✓ Import terminé : <b>${ok}</b> note(s) créée(s)` + (dup ? ` · ${dup} doublon(s) ignoré(s)` : '') + (fail ? ` · <span style="color:#b91c1c">${fail} ligne(s)/fichier(s) ignoré(s)</span>` : '') + '.', '#F0FDF4');
+        show(`✓ Import terminé : <b>${ok}</b> note(s) créée(s)` + (dup ? ` · ${dup} doublon(s) ignoré(s)` : '') + (fail ? ` · <span style="color:#b91c1c">${fail} ligne(s)/fichier(s) ignoré(s)</span>` : '') + (upFail ? ` · <span style="color:#b91c1c">${upFail} justificatif(s) non joint(s)</span>` : '') + '.', '#F0FDF4');
         if (FP.toast) FP.toast(`✓ ${ok} note(s) de frais importée(s)`);
       });
     }
@@ -2873,9 +2873,9 @@
       if (!iso) { setStatus('Date invalide (JJ/MM/AAAA).', false); return; }
       if (!ttc || ttc <= 0) { setStatus('Montant TTC requis.', false); return; }
       saveBtn.disabled = true; setStatus('Enregistrement…', true);
-      let fileId = null, fileName = null;
+      let fileId = null, fileName = null, nfUpFail = false;
       const file = $('nf-file').files && $('nf-file').files[0];
-      if (file && FP.uploadScan) { try { const url = await FP.uploadScan(file, 'factures'); if (url) { fileId = url; fileName = file.name; } } catch (e) { /* on garde la note même si l'upload échoue */ } }
+      if (file && FP.uploadScan) { try { const url = await FP.uploadScan(file, 'factures'); if (url) { fileId = url; fileName = file.name; } else nfUpFail = true; } catch (e) { nfUpFail = true; console.warn('[nf upload]', e); } } // justificatif perdu → signalé (anti « ✓ menteur »)
       const cat = $('nf-cat').value || 'autre';
       const desc = $('nf-desc').value.trim() || (NF_CATS[cat] || 'Note de frais').replace(/^[^ ]+ /, '');
       let ht = num($('nf-ht') && $('nf-ht').value), tva = num($('nf-tva') && $('nf-tva').value);
@@ -2905,9 +2905,9 @@
       // Réinitialise le formulaire (garde la date + catégorie pour saisir vite plusieurs notes).
       $('nf-ttc').value = ''; $('nf-ht').value = ''; $('nf-tva').value = ''; $('nf-desc').value = ''; $('nf-km').value = ''; if ($('nf-file')) $('nf-file').value = ''; if ($('nf-file-status')) $('nf-file-status').classList.add('hidden');
       saveBtn.disabled = false;
-      setStatus('✓ Note de frais enregistrée' + (majVeh ? ' · ' + majVeh : ''), true);
-      if (FP.toast) FP.toast('✓ Note de frais ajoutée');
-      setTimeout(() => setStatus('', true), 4000);
+      setStatus('✓ Note de frais enregistrée' + (majVeh ? ' · ' + majVeh : '') + (nfUpFail ? ' — ⚠️ justificatif NON joint : rouvre la note pour le re-joindre' : ''), !nfUpFail);
+      if (FP.toast) FP.toast(nfUpFail ? '⚠️ Note enregistrée, justificatif non joint' : '✓ Note de frais ajoutée');
+      if (!nfUpFail) setTimeout(() => setStatus('', true), 4000);
     });
   })();
 
