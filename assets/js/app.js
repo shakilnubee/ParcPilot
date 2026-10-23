@@ -1885,9 +1885,32 @@ FP.setVehKm = function (v, newKm, opts) {
         .then((res) => { if (res && res.error) { if (FP.notifyError) FP.notifyError('Km : échec serveur — réessaie.'); return; } if (FP.removeVehicleOverride) Object.keys(patch).forEach(k => FP.removeVehicleOverride(v.id, k)); if (FP.refreshDataCache) FP.refreshDataCache(); })
         .catch(() => { if (FP.notifyError) FP.notifyError('Km : échec serveur — réessaie.'); });
     }
+    // 🔗 UNIFICATION — un km écrit ici vient d'être RELEVÉ → on réarme le rappel « relevé km à faire »
+    // (settings.kmMajDates), exactement comme un relevé QR/mail/manuel. Donc TOUTE saisie de km (relevé,
+    // EDL, restitution, période…) éteint le rappel partout, sans double-saisie.
+    try { if (v.immat && FP.marquerReleveKm) FP.marquerReleveKm(v.immat); } catch (e) {}
     // 🔗 UNIFICATION — prévient les écrans ouverts (fiche, tableau, KPI) qu'un km a changé → ils se
     // rafraîchissent tout seuls (le km saisi à un endroit apparaît partout, sans recharger la page).
     try { document.dispatchEvent(new CustomEvent('fp:veh-km', { detail: { id: v.id, km: n } })); } catch (e) {}
+    return true;
+  } catch (e) { return false; }
+};
+// ⚠️ SOURCE UNIQUE — « un km vient d'être relevé pour ce véhicule » → réarme l'alerte « relevé km à
+// faire » (settings.kmMajDates, clé = immatriculation), comme un relevé QR/mail/manuel. Appelée par
+// FP.setVehKm → donc par TOUTE saisie de km (relevé, EDL, restitution, période…). Date raise-only (ne
+// recule jamais le dernier relevé). Clé tolérante (règle 0-plaques : on réutilise la clé existante quel
+// que soit son format — tiret/espace/casse — plutôt que d'en créer une 2e qui orphelinerait l'alerte).
+FP.marquerReleveKm = (immat, dateISO) => {
+  try {
+    if (!immat || !(FP.settings && FP.settings.get)) return false;
+    const d = (dateISO && /^\d{4}-\d{2}-\d{2}/.test(String(dateISO))) ? String(dateISO).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const s = FP.settings.get();
+    const map = (s.kmMajDates && typeof s.kmMajDates === 'object') ? s.kmMajDates : {};
+    let key = immat;
+    try { const ni = FP.normImmat ? FP.normImmat(immat) : immat; const found = Object.keys(map).find(k => (FP.normImmat ? FP.normImmat(k) : k) === ni); if (found) key = found; } catch (e) {}
+    const prev = map[key] ? String(map[key]).slice(0, 10) : '';
+    if (prev && prev >= d) return false;   // un relevé plus récent (ou du jour) existe déjà → rien à faire
+    map[key] = d; s.kmMajDates = map; FP.settings.save(s);
     return true;
   } catch (e) { return false; }
 };
