@@ -68,20 +68,33 @@
       var D = (window.FP_DATA && Array.isArray(window.FP_DATA.vehicules)) ? window.FP_DATA.vehicules : [];
       return D.find(function (x) { return (x.immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === q; }) || null;
     }
-    // 2) Source TEMPS RÉEL (vue publique Supabase). Renvoie null si indisponible → repli snapshot.
+    // 2) Source TEMPS RÉEL (Supabase). On passe par la RPC « vehicule_public_par_plaque »
+    //    qui ne renvoie QUE le véhicule scanné (l'anonyme ne peut plus lister tout le parc).
+    //    Repli sur l'ancienne vue tant que la base n'a pas la RPC, puis sur le snapshot.
+    //    Renvoie null si indisponible → repli snapshot (géré par render()).
+    var SB_HDR = { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } };
+    function mapLive(v) {
+      return { immat: v.immat, marque: v.marque, modele: v.modele, categorie: v.categorie, carburant: v.carburant,
+               km: v.km, prochainCT: v.prochain_ct, dateMiseEnCirculation: v.date_mise_en_circulation,
+               statut: v.statut, version: v.version, _live: true };
+    }
+    function fromView(cb) { // repli : ancienne vue (plaque exacte), le temps que la RPC soit en prod
+      var url = SB_URL + '/rest/v1/vehicules_public?immat=eq.' + encodeURIComponent(qLive) + '&select=*&limit=1';
+      fetch(url, SB_HDR)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (rows) { cb(rows && rows.length ? mapLive(rows[0]) : null); })
+        .catch(function () { cb(null); });
+    }
     function fromLive(cb) {
       if (!q) { cb(null); return; }
-      var url = SB_URL + '/rest/v1/vehicules_public?immat=eq.' + encodeURIComponent(qLive) + '&select=*&limit=1';
-      fetch(url, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } })
+      var rpc = SB_URL + '/rest/v1/rpc/vehicule_public_par_plaque?p_immat=' + encodeURIComponent(qLive);
+      fetch(rpc, SB_HDR)
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (rows) {
-          if (!rows || !rows.length) { cb(null); return; }
-          var v = rows[0];
-          cb({ immat: v.immat, marque: v.marque, modele: v.modele, categorie: v.categorie, carburant: v.carburant,
-               km: v.km, prochainCT: v.prochain_ct, dateMiseEnCirculation: v.date_mise_en_circulation,
-               statut: v.statut, version: v.version, _live: true });
+          if (rows && rows.length) { cb(mapLive(rows[0])); return; }
+          fromView(cb); // RPC absente/vide → ancienne vue
         })
-        .catch(function () { cb(null); });
+        .catch(function () { fromView(cb); });
     }
 
     function cell(lbl, val) { return '<div class="cell"><div class="lbl">' + lbl + '</div><div class="val">' + val + '</div></div>'; }
