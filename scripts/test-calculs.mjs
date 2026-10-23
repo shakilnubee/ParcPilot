@@ -39,6 +39,10 @@ function extractMethod(signature, argList) {
   for (; i < SRC.length; i++) {
     const c = SRC[i];
     if (inStr) { if (c === inStr && prev !== '\\') inStr = null; prev = c; continue; }
+    // Sauter les commentaires AVANT de détecter les quotes : une apostrophe dans un commentaire
+    // (ex. « l'heure ») ne doit pas ouvrir une fausse chaîne et dérégler le comptage d'accolades.
+    if (c === '/' && SRC[i + 1] === '/') { const nl = SRC.indexOf('\n', i); i = (nl < 0) ? SRC.length : nl; prev = '\n'; continue; }
+    if (c === '/' && SRC[i + 1] === '*') { const e = SRC.indexOf('*/', i + 2); i = (e < 0) ? SRC.length : e + 1; prev = '/'; continue; }
     if (c === '"' || c === "'" || c === '`') { inStr = c; prev = c; continue; }
     if (c === '{') depth++;
     else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
@@ -147,6 +151,43 @@ function ok(cond, label) { eq(!!cond, true, label); }
   const cede = { immat: 'AB123CD', statut: 'cédé' };
   eq(FP.assuranceAnnuelle([actif, cede]), 800, 'M2 — assurance exclut le véhicule cédé (800, pas 2000)');
   eq(FP.tvsAnnuelleFlotte([cede]), 0, 'M2 — TVS exclut le véhicule cédé (0, pas 300)');
+}
+
+// --- MONTANT DÛ d'une amende (FP.montantDu) — SOURCE UNIQUE, jamais Math.max ---
+//   Règle métier : majorée → montant MAJORÉ ; sinon montant (ou override « payée »). Un montantMajore
+//   « parasite » présent alors que l'amende n'est PAS majorée ne doit JAMAIS être pris (bug vécu : 1875 €).
+{
+  const settings = { amendeMontantPaye: { 'p1': 30 } };
+  const { FP, load } = makeFP(settings);
+  load(['estPayee', 'montantDu']);
+  eq(FP.montantDu(null), 0, 'montantDu(null) = 0');
+  eq(FP.montantDu({ montant: 90 }), 90, 'montantDu — non majorée = montant (90)');
+  eq(FP.montantDu({ montant: 90, majoree: true, montantMajore: 375 }), 375, 'montantDu — majorée = montant MAJORÉ (375)');
+  eq(FP.montantDu({ montant: 90, majoree: false, montantMajore: 375 }), 90, 'montantDu — montantMajore ignoré si NON majorée (90, jamais le max)');
+  eq(FP.montantDu({ montant: 45, montantMajore: 1875 }), 45, 'montantDu — jamais Math.max : montantMajore parasite 1875 écarté → 45 (bug vécu)');
+  // override « montant réellement payé » (amende payée) : prioritaire sur le barème
+  eq(FP.montantDu({ id: 'p1', statut: 'payée', montant: 90 }), 30, 'montantDu — amende payée : override amendeMontantPaye (30) prioritaire');
+  eq(FP.montantDu({ id: 'zz', statut: 'payée', montant: 90, majoree: true, montantMajore: 375 }), 375, 'montantDu — payée sans override : retombe sur la règle majorée (375)');
+}
+
+// --- JOURS RESTANTS réel (FP.joursRestants, méthode d'objet) — minuit→minuit, DST sans décalage ---
+//   On teste la VRAIE fonction extraite d'app.js (pas un stub). Propriété : pour tout décalage N de jours
+//   calendaires (calculé en heure LOCALE, donc traversant les bascules d'heure d'été/hiver), le décompte
+//   doit valoir EXACTEMENT N — aucun off-by-one de DST ou d'heure courante.
+{
+  const joursRestants = extractMethod('joursRestants(iso)', ['iso']);
+  eq(joursRestants(null), null, 'joursRestants(null) = null');
+  eq(joursRestants('—'), null, "joursRestants('—') = null");
+  eq(joursRestants('pas une date'), null, 'joursRestants(invalide) = null');
+  // Date-cible construite en heure LOCALE (arithmétique calendaire qui respecte les DST).
+  const addDays = (n) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  eq(joursRestants(addDays(0)), 0, 'joursRestants — même jour = 0');
+  // Balayage > 1 an dans les deux sens : traverse au moins une bascule été→hiver ET hiver→été.
+  let dstOk = true, firstBad = null;
+  for (const n of [1, 10, 30, 90, 180, 181, 200, 365, 366, 400, -1, -5, -90, -200, -366]) {
+    if (joursRestants(addDays(n)) !== n) { dstOk = false; if (firstBad === null) firstBad = n; }
+  }
+  ok(dstOk, 'joursRestants — décompte exact pour tout N (minuit→minuit, DST sans off-by-one)' + (firstBad !== null ? ` [1er écart à N=${firstBad}]` : ''));
 }
 
 // ============================================================
