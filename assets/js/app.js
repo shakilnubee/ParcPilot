@@ -19736,7 +19736,7 @@ FP.vehModal = (function () {
   function wire() {
     if (window.__fpVehModalWired) return; window.__fpVehModalWired = true;
     if (inEmbed()) return;                       // dans le pop-up lui-même : rien
-    window.addEventListener('message', function (e) { if (e && e.data === 'fp-fiche-close') close(); });
+    window.addEventListener('message', function (e) { if (!e || e.origin !== location.origin) return; if (e.data === 'fp-fiche-close') close(); });
     document.addEventListener('keydown', function (e) { var bd = boxEl(); if (e.key === 'Escape' && bd && bd.style.display !== 'none') close(); });
     document.addEventListener('click', function (e) {
       if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;   // laisse « ouvrir dans un nouvel onglet »
