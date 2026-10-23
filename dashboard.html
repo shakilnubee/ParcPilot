@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022i">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261022j">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261022i"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261022j"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261022i">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261022j">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -619,8 +619,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261022i"></script>
-<script src="assets/js/supabase-client.js?v=20261022i"></script>
+<script src="assets/js/vendor/supabase.js?v=20261022j"></script>
+<script src="assets/js/supabase-client.js?v=20261022j"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -628,7 +628,7 @@
 (function(){
   try {
     var soc = localStorage.getItem('fp_societe') || 'PXP';
-    var c = JSON.parse(localStorage.getItem('fp_data_cache_v3_' + soc) || 'null');
+    var c = JSON.parse(localStorage.getItem('fp_data_cache_v4_' + soc) || 'null');
     var full = c && ['vehicules','amendes','factures','conducteurs'].every(function(k){ return Array.isArray(c[k]) && c[k].length; });
     if (full) {
       window.FP_DATA = { vehicules: c.vehicules, amendes: c.amendes, factures: c.factures, conducteurs: c.conducteurs };
@@ -636,10 +636,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261022j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261022i"></script>
+<script src="assets/js/app.min.js?v=20261022j"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -669,7 +669,7 @@
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(initUpsell, 500); });
 })();
 </script>
-<script src="assets/js/vendor/chart.umd.min.js?v=20261022i" defer></script>
+<script src="assets/js/vendor/chart.umd.min.js?v=20261022j" defer></script>
 <script>
   lucide.createIcons();
 
@@ -828,7 +828,7 @@
   // le TCO de Statistiques (_EXC_TCO = {cession, achat}). Sinon un achat à 28 000 € gonflait le mois.
   const compteCout = (f) => FP.coutFactureExploit(f);
   const today = new Date();
-  const currentMonth = today.toISOString().slice(0, 7);
+  const currentMonth = FP.ymLocal(today);
   // Coût du mois via le helper canonique (factures dédoublonnées par n° + filtre exploit) — même
   // chiffre que l'écran mural et le rapport de direction.
   const coutsMois = FP.coutMois(data, currentMonth);
@@ -838,7 +838,7 @@
   (function () {
     const spark = document.getElementById('kpi-couts-spark'); if (!spark || !FP.sparklineHTML) return;
     const months = [];
-    for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push(d.toISOString().slice(0, 7)); }
+    for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push(FP.ymLocal(d)); }
     const série = months.map(ym => FP.coutMois(data, ym)); // source unique (dédup + filtre exploit), cohérent avec le KPI
     if (série.some(v => v > 0)) spark.innerHTML = FP.sparklineHTML(série, { width: 110, height: 26, color: '#0e7490' });
   })();
@@ -1043,7 +1043,7 @@
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const ym = d.toISOString().slice(0, 7);
+      const ym = FP.ymLocal(d);
       const label = d.toLocaleDateString('fr-FR', { month: 'short' });
       out.push({ ym, label });
     }
@@ -1326,7 +1326,7 @@
     document.getElementById('kpi-valeur').textContent = FP.euro(fa.reduce((s, v) => s + (v.valeurAchat || 0), 0));
     document.getElementById('kpi-entretien').textContent = fa.filter(v => v.statut === 'entretien').length;
     fillMoneyKpis();
-    const cm = new Date().toISOString().slice(0, 7);
+    const cm = FP.ymLocal(new Date());
     document.getElementById('kpi-couts').textContent = FP.euro(FP.coutMois(data, cm));
     // Re-dessine aussi les GRAPHES, la liste véhicules et le podium (sinon ils restaient figés
     // après un ajout de facture ou une modif d'un autre poste jusqu'à un rechargement manuel).

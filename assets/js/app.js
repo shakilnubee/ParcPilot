@@ -6631,6 +6631,10 @@ FP.searchMatch = (text, q) => {
 };
 // Échappement HTML — À UTILISER pour toute donnée saisie/OCR injectée en innerHTML (anti-XSS).
 FP.esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ⚠️ SOURCE UNIQUE — clé de MOIS "AAAA-MM" en heure LOCALE. NE JAMAIS utiliser `date.toISOString().slice(0,7)`
+// pour une clé de mois : en France (UTC+1/2), le 1er du mois à minuit local devient le mois PRÉCÉDENT en UTC
+// → le graphe affichait le mauvais mois et le rapport comptait 13 mois. (cf. audit 2026-10-23, bug H3.)
+FP.ymLocal = (d) => { const x = (d instanceof Date) ? d : new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0'); };
 // ⚠️ SOURCE UNIQUE — URL issue d'une SAISIE LIBRE → À ASSAINIR avant de l'injecter dans un href.
 // Anti-XSS : bloque les schémas dangereux (javascript:, data:, vbscript:…) qui s'exécuteraient au
 // clic dans le navigateur d'un CEO/admin (vol du jeton de session). N'autorise que http(s) et
@@ -10508,7 +10512,7 @@ FP.buildAlertes = (data) => {
       const im = String(f.vehiculeImmat).toUpperCase();
       (byVeh[im] = byVeh[im] || {})[ym] = (byVeh[im][ym] || 0) + (Number(f.montantTTC) || 0);
     });
-    const nowYm = new Date().toISOString().slice(0, 7);
+    const nowYm = FP.ymLocal(new Date());
     Object.keys(byVeh).forEach(im => {
       const months = Object.keys(byVeh[im]).sort();
       // On évalue le dernier mois CLOS : le mois courant est incomplet, donc on l'IGNORE au lieu de
@@ -11007,8 +11011,8 @@ FP.rapportDirection = (data) => {
   let soc = 'PXP'; try { soc = localStorage.getItem('fp_societe') || 'PXP'; if (soc === '__all__') soc = 'Toutes sociétés'; } catch (e) {}
   const now = new Date();
   const moisLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  const ym = now.toISOString().slice(0, 7);
-  const y12 = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 7);
+  const ym = FP.ymLocal(now);
+  const y12 = FP.ymLocal(new Date(now.getFullYear(), now.getMonth() - 11, 1));
   const today = now.toLocaleDateString('fr-FR');
 
   const vehs = (data.vehicules || []);
@@ -13190,7 +13194,7 @@ FP.aiContext = function (data) {
   let soc = 'PXP';
   try { soc = localStorage.getItem('fp_societe') || 'PXP'; if (soc === '__all__') soc = 'Toutes sociétés'; } catch (e) {}
   const now = new Date();
-  const ym = now.toISOString().slice(0, 7);
+  const ym = FP.ymLocal(now);
   lines.push('SOCIÉTÉ : ' + soc);
   lines.push('DATE DU JOUR : ' + now.toISOString().slice(0, 10));
 
@@ -13240,7 +13244,7 @@ FP.aiContext = function (data) {
     let tot12 = 0;
     for (let i = 0; i < 12; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      tot12 += FP.coutMois(data, d.toISOString().slice(0, 7));
+      tot12 += FP.coutMois(data, FP.ymLocal(d));
     }
     lines.push('Coût d\'exploitation sur 12 mois glissants : ' + euro(tot12));
   } catch (e) {}
