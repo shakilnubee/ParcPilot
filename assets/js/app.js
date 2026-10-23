@@ -2299,7 +2299,11 @@ FP.searchSelect = function (select, opts) {
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const optionList = () => Array.from(select.options).map(o => ({ value: o.value, label: o.textContent }));
     const labelFor = v => { const o = Array.from(select.options).find(o => o.value === v); return o ? o.textContent : ''; };
-    const sync = () => { input.value = labelFor(select.value); };
+    // ⚠️ Champ VIDE quand rien n'est choisi (on n'écrit PAS le libellé de l'option vide « — Choisir… » dans
+    // la valeur) → le placeholder s'affiche et on peut taper tout de suite pour filtrer. Avant, le libellé
+    // « — Choisir un véhicule — » occupait la valeur : au tactile (iPad) on tapait DERRIÈRE ce texte → le
+    // filtre ne trouvait rien → « impossible d'écrire ». Un vrai choix affiche son libellé.
+    const sync = () => { input.value = select.value ? labelFor(select.value) : ''; };
     const place = () => { const r = input.getBoundingClientRect(); menu.style.left = r.left + 'px'; menu.style.top = (r.bottom + 3) + 'px'; menu.style.width = r.width + 'px'; };
     let active = -1;
     function open(q) {
@@ -2313,7 +2317,12 @@ FP.searchSelect = function (select, opts) {
     }
     const close = () => { menu.style.display = 'none'; };
     const choose = v => { select.value = v; select.dispatchEvent(new Event('input', { bubbles: true })); select.dispatchEvent(new Event('change', { bubbles: true })); sync(); close(); };
-    input.addEventListener('focus', () => { input.select(); open(''); });
+    // ⚠️ TACTILE (iPad/tablette) : NE PAS faire input.select() au focus sur un écran tactile — sur Safari
+    // iOS ça perturbe l'apparition du clavier (« impossible d'écrire dans le champ »). On ne sélectionne
+    // tout le texte que sur pointeur FIN (souris/desktop, confort de re-saisie).
+    // Focus : au TACTILE on VIDE le champ (on tape pour filtrer depuis zéro, le clavier iOS marche, pas de
+    // texte parasite) ; à la SOURIS on sélectionne tout (re-saisie rapide). Dans les deux cas on ouvre la liste.
+    input.addEventListener('focus', () => { try { if (window.matchMedia && matchMedia('(pointer: coarse)').matches) input.value = ''; else input.select(); } catch (e) {} open(''); });
     input.addEventListener('input', () => open(input.value));
     input.addEventListener('keydown', e => {
       if (menu.style.display === 'none') { if (e.key === 'ArrowDown') open(input.value); return; }
@@ -2326,7 +2335,9 @@ FP.searchSelect = function (select, opts) {
       its.forEach((el, i) => el.style.background = (i === active) ? 'var(--fp-bg,#EEF1F6)' : '');
       if (its[active]) its[active].scrollIntoView({ block: 'nearest' });
     });
-    menu.addEventListener('mousedown', e => { const it = e.target.closest('.fp-ss-it'); if (!it) return; e.preventDefault(); choose(it.getAttribute('data-v')); });
+    // `pointerdown` (et plus `mousedown`) : fonctionne à l'IDENTIQUE à la souris ET au doigt (tablette) —
+    // le choix dans la liste marche donc aussi au tactile. preventDefault garde le focus (pas de blur avant le choix).
+    menu.addEventListener('pointerdown', e => { const it = e.target.closest('.fp-ss-it'); if (!it) return; e.preventDefault(); choose(it.getAttribute('data-v')); });
     input.addEventListener('blur', () => setTimeout(() => { close(); sync(); }, 130));
     window.addEventListener('scroll', () => { if (menu.style.display !== 'none') place(); }, true);
     window.addEventListener('resize', () => { if (menu.style.display !== 'none') place(); });
@@ -4324,7 +4335,8 @@ FP.conducteurPicker = function (input, opts) {
         if (!FP.conducteurs.find(v)) { e.preventDefault(); close(); createFrom(v); }
       } else if (e.key === 'Escape') { close(); }
     });
-    menu.addEventListener('mousedown', e => {
+    // `pointerdown` (souris ET doigt) → choix fiable au tactile ; preventDefault garde le focus avant le choix.
+    menu.addEventListener('pointerdown', e => {
       const nw = e.target.closest('.fp-cp-new'); if (nw) { e.preventDefault(); const v = input.value.trim(); close(); createFrom(v); return; }
       const it = e.target.closest('.fp-cp-it'); if (!it) return; e.preventDefault();
       const c = FP.conducteurs.list().find(x => x.key === it.getAttribute('data-k')); if (c) pick(c, false);
