@@ -14880,6 +14880,24 @@ FP.edlSign = {
       return this._pending;
     } catch (e) { this._pending = []; this._unseen = 0; return this._pending; }
   },
+  // Prochain signataire NON signé d'un état des lieux EN ATTENTE (ordre croissant), avec son e-mail
+  // PRÉ-RENDU (sujet + HTML + texte portant SON lien de signature propre). Source UNIQUE pour la relance
+  // (onglet « 📣 Relances ») : renvoyer ce mail = renvoyer le lien à la bonne personne, sans le reconstruire.
+  relanceCible(pending) {
+    try {
+      if (!pending || !Array.isArray(this._rows)) return null;
+      const row = this._rows.find(x => x && !['signe', 'annule', 'refuse'].includes(x.statut || 'en_attente')
+        && (x.plaque || '') === (pending.plaque || '')
+        && (x.sens || 'remise') === (pending.sens || 'remise')
+        && (x.date || '') === (pending.date || ''));
+      if (!row) return null;
+      const sgs = (Array.isArray(row.signataires) ? row.signataires : []).filter(s => s && s.email);
+      // Le prochain à signer = le 1er NON signé dans l'ordre (signataire société d'abord s'il n'a pas signé).
+      const rest = sgs.filter(s => !s.signed).sort((a, b) => (a.ordre || 9) - (b.ordre || 9));
+      const s = rest[0]; if (!s) return null;
+      return { email: s.email || '', nom: s.nom || '', role: s.role || '', subject: s.mailSubject || '', html: s.mailHtml || '', text: s.mailText || '', token: row.token || '' };
+    } catch (e) { return null; }
+  },
   // Marque toute l'activité de signature comme VUE (appelé quand on ouvre « Suivi & alertes ») → éteint la pastille.
   markSeen() {
     try {
@@ -19204,12 +19222,34 @@ FP.relances = {
     return out;
   },
 
+  // --- ÉTATS DES LIEUX EN ATTENTE DE SIGNATURE (on attend la réponse d'un signataire) ---
+  // Source = FP.edlSign._pending (chargé par FP.edlSign.load() sur la page). Chaque demande non entièrement
+  // signée devient une relance : « Relancer » renvoie à la bonne personne SON lien de signature (mail pré-rendu).
+  edl() {
+    const pend = (FP.edlSign && Array.isArray(FP.edlSign._pending)) ? FP.edlSign._pending : null;
+    if (!pend) return [];   // table pas encore chargée → rien (évite un faux vide ; re-render après load)
+    const out = [];
+    pend.forEach(p => {
+      const cible = (FP.edlSign && FP.edlSign.relanceCible) ? FP.edlSign.relanceCible(p) : null;
+      const veh = (FP.vehByImmat ? FP.vehByImmat(p.plaque) : null) || (data.vehicules || []).find(v => String(v.id) === String(p.vehiculeId)) || null;
+      const qui = (p.manque && p.manque.length) ? p.manque.join(', ') : (cible ? cible.nom : '');
+      const j = p.date ? this._jours(p.date) : null;   // jours depuis la date de l'état des lieux (en attente)
+      out.push({
+        type: 'edl', edl: p, veh: veh, immat: p.plaque || (veh && veh.immat) || '',
+        conducteur: qui, contact: { email: (cible && cible.email) || '', tel: '' },
+        cible: cible, sens: p.sens || 'remise', dueDate: p.date || '', joursRestants: j, urgence: 'proche'
+      });
+    });
+    return out;
+  },
+
   // Clé d'IGNORE par relance — PAR OCCURRENCE : une nouvelle échéance (nouvelle date CT/garage/révision,
   // nouveau relevé km, autre amende) réapparaît toute seule (comme le « ✓ Vu » des alertes). Ignorer ne
   // supprime rien : ça masque juste ce rappel-là. Persisté par société (FP.ignore → settings.ignores).
   _ignKey(it) {
     if (!it) return '';
     if (it.type === 'amende') return 'relance:amende:' + ((it.amende && it.amende.id) || it.immat || '');
+    if (it.type === 'edl') return 'relance:edl:' + ((it.edl && ((it.edl.plaque || '') + '|' + (it.edl.sens || '') + '|' + (it.edl.date || ''))) || it.immat || '');
     const vid = (it.veh && it.veh.id) || it.immat || '';
     const occ = it.type === 'km' ? (it.lastKm || 'none') : String(it.dueDate || '').slice(0, 10);
     return 'relance:' + it.type + ':' + vid + ':' + occ;
@@ -19219,7 +19259,7 @@ FP.relances = {
     // ⚠️ On NE met PLUS les RENDEZ-VOUS GARAGE déjà programmés (this.garage()) dans les relances : un RDV
     //    pris n'est pas « à relancer » (le rappel AUTOMATIQUE la veille le couvre déjà). Les relances ne
     //    listent donc que ce qu'il reste À FAIRE : CT/révision SANS RDV, relevés km, amendes à payer.
-    const all = [].concat(this.entretiens(), this.km(), this.amendes());
+    const all = [].concat(this.entretiens(), this.km(), this.amendes(), this.edl());
     all.forEach(it => { it.ignKey = this._ignKey(it); });
     return all;
   },
@@ -19239,20 +19279,28 @@ FP.relances = {
     ct: { emo: '🔧', label: 'Contrôle technique' },
     garage: { emo: '🔧', label: 'Rendez-vous garage' },
     km: { emo: '📸', label: 'Relevé km' },
-    amende: { emo: '🎫', label: 'Amende à payer' }
+    amende: { emo: '🎫', label: 'Amende à payer' },
+    edl: { emo: '🖊️', label: 'État des lieux à signer' }
   },
   // REGROUPEMENT (consigne utilisateur : « un rdv au garage = pareil ; CT et révision, regroupe ça »).
   // CT + révision + rendez-vous garage → une seule catégorie « Garage / entretien ».
-  GROUP_ORDER: ['garage', 'km', 'amende'],
+  GROUP_ORDER: ['garage', 'km', 'amende', 'edl'],
   GROUP_META: {
     garage: { emo: '🔧', label: 'Garage · CT / révision / entretien' },
     km: { emo: '📸', label: 'Relevé km' },
-    amende: { emo: '🎫', label: 'Amende à payer' }
+    amende: { emo: '🎫', label: 'Amende à payer' },
+    edl: { emo: '🖊️', label: 'État des lieux à signer' }
   },
   groupeDe(type) { return (type === 'ct' || type === 'entretien' || type === 'garage') ? 'garage' : type; },
 
   // Message prêt (texte SMS/WhatsApp + sujet + HTML e-mail brandé) pour un item. Async (lien km).
   async message(item) {
+    // ÉTAT DES LIEUX à signer : on NE reconstruit PAS le message — on renvoie l'e-mail PRÉ-RENDU du
+    // prochain signataire (sujet + HTML + texte portant SON lien de signature). Source unique = FP.edlSign.
+    if (item && item.type === 'edl') {
+      const c = item.cible || ((FP.edlSign && FP.edlSign.relanceCible) ? FP.edlSign.relanceCible(item.edl) : null) || {};
+      return { text: c.text || '', subject: c.subject || ('État des lieux à signer — ' + (item.immat || '')), emailHtml: c.html || '' };
+    }
     // Messages ÉDITABLES (Paramètres → E-mails → « Relance — … ») via FP.mailModeleProfil + FP.mailObjet.
     // Balises : {prenom} {immat} {date} {motif}. Repli automatique sur le texte par défaut (MAIL_DEFAUT).
     const p = this._prenom(item.conducteur);

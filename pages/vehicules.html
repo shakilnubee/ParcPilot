@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261023c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261023d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261023c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261023d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261023c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261023d">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1188,8 +1188,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261023c"></script>
-<script src="../assets/js/supabase-client.js?v=20261023c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261023d"></script>
+<script src="../assets/js/supabase-client.js?v=20261023d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1205,13 +1205,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261023c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261023d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261023c"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261023c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261023d"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261023d"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261023c"></script><script>
+<script src="../assets/js/app.min.js?v=20261023d"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2250,9 +2250,49 @@
         const kmFin = row.querySelector('[data-affect-kmfin]').value.trim() || null;
         if (debut && fin && fin < debut) { FP.alert('La date de fin ne peut pas être avant la date de début.'); return; }
         if (kmDebut != null && kmFin != null && +kmFin < +kmDebut) { FP.alert('Le km à la fin ne peut pas être inférieur au km au début.'); return; }
-        FP.affectations.setEntry(vehId, +save.dataset.affectSave, { debut, fin, kmDebut, kmFin });
+        // État AVANT édition de la ligne (pour détecter la TRANSITION ouvert↔fermé de CETTE période).
+        const _idx = +save.dataset.affectSave;
+        const _before = (FP.affectations.forVeh(vehId) || [])[_idx] || null;
+        const _etaitOuverte = !!(_before && !_before.fin);
+        const _condLigne = (_before && _before.conducteur) ? String(_before.conducteur).trim() : '';
+        FP.affectations.setEntry(vehId, _idx, { debut, fin, kmDebut, kmFin });
         refreshAffect(vehId, null);
-        if (FP.toast) FP.toast('✓ Période mise à jour');
+        // ⚠️ SOURCE UNIQUE : une période SANS date de fin = le conducteur EN COURS. On synchronise donc
+        // « conducteur actuel » (v.chauffeur) UNIQUEMENT sur une vraie transition de la ligne éditée :
+        //  • ouverte → fermée (on ajoute une date de fin) ET c'était la période du conducteur actuel,
+        //    et il ne reste plus aucune période ouverte → LIBÈRE le véhicule (= même effet que « Checklist
+        //    reprise », mais automatique sur la correction de dates — c'est ce que l'utilisateur attend) ;
+        //  • fermée → ouverte (on vide la date de fin) alors que le véhicule est LIBRE, et c'est la seule
+        //    période ouverte → RÉAFFECTE ce conducteur.
+        // Une simple correction de km/date d'une période déjà fermée ne change JAMAIS le conducteur actuel,
+        // et on ne remplace JAMAIS un autre conducteur déjà en place.
+        let _affTxt = '✓ Période mise à jour';
+        try {
+          const veh = (data.vehicules || []).find(x => x.id === vehId);
+          if (veh) {
+            const actuel = (veh.chauffeur && veh.chauffeur !== '—') ? String(veh.chauffeur).trim() : '';
+            const ouvertes = (FP.affectations.forVeh(vehId) || []).filter(x => !x.fin);
+            const estMaintenantFermee = !!fin;
+            if (_etaitOuverte && estMaintenantFermee && ouvertes.length === 0
+                && _condLigne && _condLigne.toLowerCase() === actuel.toLowerCase()) {
+              // La période du conducteur actuel vient d'être clôturée → libérer le véhicule.
+              veh.chauffeur = '—';
+              await persistVehFields(veh, ['chauffeur']);
+              _affTxt = '✓ Période clôturée — véhicule libéré (sans conducteur)';
+              try { renderTable(); renderKPIs(); } catch (e) {}
+              try { if (drawerVehId === vehId) openDrawer(vehId); } catch (e) {}
+            } else if (!_etaitOuverte && !estMaintenantFermee && !actuel
+                       && ouvertes.length === 1 && _condLigne) {
+              // Période rouverte sur un véhicule libre (seule période ouverte) → réaffecter.
+              veh.chauffeur = _condLigne;
+              await persistVehFields(veh, ['chauffeur']);
+              _affTxt = '✓ Période rouverte — véhicule réaffecté à ' + _condLigne;
+              try { renderTable(); renderKPIs(); } catch (e) {}
+              try { if (drawerVehId === vehId) openDrawer(vehId); } catch (e) {}
+            }
+          }
+        } catch (e) { console.warn('[affect sync chauffeur]', e); }
+        if (FP.toast) FP.toast(_affTxt);
         return;
       }
       const del = e.target.closest('[data-affect-del]');
@@ -4528,6 +4568,16 @@
         <label class="block"><span class="text-xs text-slate-600">Prix de vente (€)</span><input id="proc-prix" type="number" min="0" class="field-input w-full mt-1" placeholder="€"></label>
         <label class="block"><span class="text-xs text-slate-600">Acheteur</span><input id="proc-acheteur" type="text" class="field-input w-full mt-1" placeholder="Nom de l'acheteur"></label></div>`;
     }
+    // GROUPE(S) du véhicule — à la remise / reprise, un changement de conducteur va souvent de pair avec un
+    // changement de pôle (ex. une voiture donnée à un commercial passe dans « Commerciaux »). Pré-rempli avec
+    // les groupes actuels ; modifiable ici pour ne pas avoir à rouvrir « Modifier ». (Source : v.groupes.)
+    if (cat === 'prise' || cat === 'restitution') {
+      const _gnow = (FP.vehGroupes ? FP.vehGroupes(v) : []) || [];
+      html += `<div><span class="text-xs text-slate-600">Groupe(s) du véhicule <span class="text-slate-400">(ex. s'il change de pôle en changeant de conducteur)</span></span>
+        <div id="proc-groupes" class="grid grid-cols-2 gap-1.5 mt-1 p-2 border border-slate-200 rounded-lg bg-slate-50">`
+        + (FP.groupeKeys ? FP.groupeKeys() : []).map(k => `<label class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white p-1 rounded"><input type="checkbox" class="proc-groupe-cb accent-teal-600" value="${esc(k)}" ${_gnow.includes(k) ? 'checked' : ''}><span class="dot dot-${esc(k)}" style="width:10px;height:10px;border-radius:50%;display:inline-block"></span><span>${esc(FP.groupeLabel ? FP.groupeLabel(k) : k)}</span></label>`).join('')
+        + `</div></div>`;
+    }
     html += `<label class="block"><span class="text-xs text-slate-600">Note / état du véhicule (optionnel)</span>
         <input id="proc-note" type="text" class="field-input w-full mt-1" placeholder="Rayures, frais, remarques…"></label>
       <button type="button" id="proc-edl" class="btn btn-outline text-sm w-full justify-center"><i data-lucide="camera" class="w-4 h-4"></i> 📸 État des lieux (photos)</button>`;
@@ -4617,6 +4667,20 @@
     // réarme le rappel « relevé km à faire » (comme un relevé QR/manuel). Le km lui-même est déjà posé
     // (raise-only) plus haut ; ici on éteint juste le rappel pour ce véhicule.
     try { if (kmOk && v.immat && FP.marquerReleveKm) FP.marquerReleveKm(v.immat); } catch (e) {}
+    // GROUPE(S) saisis dans le formulaire de remise/reprise → on les enregistre si l'utilisateur les a
+    // changés (un changement de conducteur peut faire changer le véhicule de pôle). Pré-rempli = pas de
+    // changement = rien à persister. (Jamais pour la cession, qui n'affiche pas ce bloc.)
+    if (cat === 'prise' || cat === 'restitution') {
+      try {
+        const cbs = document.querySelectorAll('#proc-groupes .proc-groupe-cb');
+        if (cbs && cbs.length) {
+          let g = Array.from(cbs).filter(c => c.checked).map(c => c.value);
+          if (!g.length) g = ['non-classe'];
+          const avant = ((FP.vehGroupes ? FP.vehGroupes(v) : (v.groupes || [])) || []).slice().sort().join('|');
+          if (g.slice().sort().join('|') !== avant) { v.groupes = g; await persistVehFields(v, ['groupes']); }
+        }
+      } catch (e) {}
+    }
     _procEdit = false; $('proc-backdrop').classList.remove('open');
     try { renderTable(); renderKPIs(); } catch (e) {}
     try { if (typeof drawerVehId !== 'undefined' && drawerVehId === v.id && $('drawer') && $('drawer').classList.contains('open')) openDrawer(v.id); } catch (e) {}
