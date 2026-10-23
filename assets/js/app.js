@@ -6264,7 +6264,10 @@ FP.settings = {
       'vehDossierVente',
       // — Champs personnalisés : valeurs keyées par fiche (véhicule/conducteur) → fusion fine par clé ;
       //   et la liste des DÉFINITIONS (tableau d'objets à id) → fusion fine par id (jamais écrasée en bloc).
-      'vehCustom', 'condCustom', 'customFields']);
+      'vehCustom', 'condCustom', 'customFields',
+      // — Anti-doublon des automatisations (map { ruleId|itemKey|AAAA-MM → 1 }) et personnalisation des
+      //   colonnes de fiche ({ typeFiche → [ids] }) : maps keyées → fusion fine (jamais écrasées en bloc).
+      'automationDone', 'ficheCols', 'ficheColsOrder']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
     // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).
@@ -9691,7 +9694,9 @@ FP.recommandations = (data) => {
       .map(a => {
         const base = new Date(a.date);
         const isFps = FP.estFps(a);
-        const lim = a.dateLimiteForfaitaire ? new Date(a.dateLimiteForfaitaire) : (() => { const l = new Date(base); l.setDate(l.getDate() + (isFps ? 90 : 45)); return l; })();
+        // ⚠️ dateLimiteForfaitaire vit dans settings.amendeMontants (pas sur la ligne amende) → lire via FP.getAmendeMontants.
+        const _dlf = (((FP.getAmendeMontants && FP.getAmendeMontants(a.id)) || {}).dateLimiteForfaitaire) || a.dateLimiteForfaitaire;
+        const lim = _dlf ? new Date(_dlf) : (() => { const l = new Date(base); l.setDate(l.getDate() + (isFps ? 90 : 45)); return l; })();
         const jours = FP.joursRestants(lim); // minuit-à-minuit, cohérent avec Alertes/fiche
         const du = FP.montantDu ? FP.montantDu(a) : (Number(a.montantTTC) || 0);
         const maj = Number(a.montantMajore) || 0;
@@ -10303,7 +10308,8 @@ FP.buildAlertes = (data) => {
       if (!FP.estAPayer(a) || a.majoree) return false;              // déjà majorée = déjà au bon montant
       const base = a.date ? new Date(a.date) : null;
       const isFps = FP.estFps ? FP.estFps(a) : false;
-      let lim = a.dateLimiteForfaitaire ? new Date(a.dateLimiteForfaitaire)
+      const _dlf = (((FP.getAmendeMontants && FP.getAmendeMontants(a.id)) || {}).dateLimiteForfaitaire) || a.dateLimiteForfaitaire; // source: settings.amendeMontants
+      let lim = _dlf ? new Date(_dlf)
         : (base && !isNaN(base) ? (() => { const l = new Date(base); l.setDate(l.getDate() + (isFps ? 90 : 45)); return l; })() : null);
       if (!lim || isNaN(lim)) return false;
       lim.setHours(0, 0, 0, 0);
@@ -10315,7 +10321,7 @@ FP.buildAlertes = (data) => {
         niveau: 'warn', categorie: 'Amendes', sort: 999, muteKey: 'amende-echue',
         message: `${echues.length} amende${echues.length > 1 ? 's' : ''} : échéance dépassée (risque de majoration)`,
         detail: 'Le tarif de départ n\'est peut-être plus valable : règle-les vite et vérifie si un avis de majoration est arrivé. Le montant affiché reste le tarif de départ tant que l\'avis majoré n\'est pas importé (Parc Pilot n\'invente pas le majoré).',
-        vehicules: echues.map(a => ({ label: `${a.prenom || '—'}${a.numeroAvis ? ' · avis ' + a.numeroAvis : ''} — ${FP.euro(FP.montantDu(a))} (échéance ${a.dateLimiteForfaitaire ? FP.date(a.dateLimiteForfaitaire) : 'estimée'} dépassée)`, target: 'amendes.html?filtre=apayer' })),
+        vehicules: echues.map(a => { const _dlf = (((FP.getAmendeMontants && FP.getAmendeMontants(a.id)) || {}).dateLimiteForfaitaire) || a.dateLimiteForfaitaire; return ({ label: `${a.prenom || '—'}${a.numeroAvis ? ' · avis ' + a.numeroAvis : ''} — ${FP.euro(FP.montantDu(a))} (échéance ${_dlf ? FP.date(_dlf) : 'estimée'} dépassée)`, target: 'amendes.html?filtre=apayer' }); }),
       });
     }
   } catch (e) {}
@@ -14339,7 +14345,7 @@ FP.edl = {
         }
         const b64 = doc.output('datauristring').split(',')[1];
         // (smode / willSign déjà calculés plus haut — avant l'ajout conditionnel aux Documents)
-        let mailed = false, signed = false, sentForSign = false;
+        let mailed = false, signed = false, sentForSign = false, mailFail = false;
         const sig = doc.__edlSig || {};
         // Liste des signataires, DANS L'ORDRE DE SIGNATURE : le GESTIONNAIRE (signataire société)
         // signe D'ABORD (ordre 1) pour vérifier que tout est OK, puis le salarié (ordre 2) reçoit le
@@ -14484,17 +14490,19 @@ FP.edl = {
             : `Tu trouveras ci-joint l'<b>état des lieux</b> du véhicule <b>${esc(data.immat)}</b> (${esc(data.modele)}) qui t'est remis le ${esc(FP.date(data.date))}.`;
           const _bodyH = `<p style="margin:0 0 14px">Bonjour,</p><p style="margin:0 0 14px;line-height:1.5">${phrase}</p><p style="margin:0;line-height:1.5">Merci de vérifier, dater et signer.</p>`;
           const html = FP.mailShell ? FP.mailShell({ brand: data.socNom || '', logoUrl: '', title: 'État des lieux', bodyHtml: _bodyH }) : `<p>Bonjour,</p><p>${phrase}</p><p>Merci de vérifier, dater et signer.</p>`;
-          try { await FP.sendEmail({ to: data.to, cc: prof.mailCopie || '', subject: 'État des lieux (' + motLbl + ') · ' + data.immat, html, text: 'État des lieux (' + motLbl + ') du véhicule ' + data.immat + ' en pièce jointe.', replyTo: prof.mailExpediteur || '', attachments: [{ filename: fname, content: b64 }] }); mailed = true; } catch (e) {}
+          try { await FP.sendEmail({ to: data.to, cc: prof.mailCopie || '', subject: 'État des lieux (' + motLbl + ') · ' + data.immat, html, text: 'État des lieux (' + motLbl + ') du véhicule ' + data.immat + ' en pièce jointe.', replyTo: prof.mailExpediteur || '', attachments: [{ filename: fname, content: b64 }] }); mailed = true; } catch (e) { mailFail = true; console.warn('[edl mail]', e); }
         }
         // C-bis) SIGNÉ SUR PLACE : on envoie une COPIE du PDF déjà signé (au conducteur + copie société), si e-mail connu.
         if (surSigs && data.to && FP.sendEmail) {
           const _bodyH = `<p style="margin:0 0 14px">Bonjour,</p><p style="margin:0;line-height:1.5">Tu trouveras ci-joint l'<b>état des lieux ${isRestit ? 'de restitution ' : ''}</b>du véhicule <b>${esc(data.immat)}</b> (${esc(data.modele)}), <b>signé</b> le ${esc(FP.date(data.date))}.</p>`;
           const html = FP.mailShell ? FP.mailShell({ brand: data.socNom || '', logoUrl: '', title: 'État des lieux signé', bodyHtml: _bodyH }) : `<p>Bonjour,</p>${_bodyH}`;
-          try { await FP.sendEmail({ to: data.to, cc: prof.mailCopie || '', subject: 'État des lieux signé (' + motLbl + ') · ' + data.immat, html, text: 'État des lieux signé du véhicule ' + data.immat + ' en pièce jointe.', replyTo: prof.mailExpediteur || '', attachments: [{ filename: fname, content: b64 }] }); mailed = true; } catch (e) {}
+          try { await FP.sendEmail({ to: data.to, cc: prof.mailCopie || '', subject: 'État des lieux signé (' + motLbl + ') · ' + data.immat, html, text: 'État des lieux signé du véhicule ' + data.immat + ' en pièce jointe.', replyTo: prof.mailExpediteur || '', attachments: [{ filename: fname, content: b64 }] }); mailed = true; } catch (e) { mailFail = true; console.warn('[edl mail]', e); }
         }
         close();
         const seq = sentForSign && signersList.length > 1;   // gestionnaire d'abord, puis salarié
         if (FP.toast) FP.toast(surSigs ? (mailed ? '✓ État des lieux signé sur place, enregistré et envoyé' : '✓ État des lieux signé sur place et enregistré') : seq ? '✓ Lien de signature envoyé — à toi de signer d\'abord, le salarié sera notifié ensuite' : sentForSign ? '✓ Envoyé pour signature (lien e-mail)' : signed ? '✓ Envoyé pour signature (Yousign)' : (mailed ? '✓ État des lieux enregistré et envoyé' : (url ? '✓ État des lieux enregistré dans les Documents' : '✓ État des lieux généré')));
+        // ⚠️ Anti « ✓ menteur » : l'e-mail au conducteur était attendu mais a échoué → on le DIT (l'EDL reste enregistré).
+        if (mailFail) { try { alert('⚠️ L\'e-mail de l\'état des lieux au conducteur n\'a PAS pu être envoyé (adresse invalide ou problème réseau).\n\nL\'état des lieux est bien enregistré dans les Documents du véhicule — vérifie l\'adresse du conducteur et renvoie-le.'); } catch (e) {} }
       } catch (e) {
         ov._busy = false; btn.disabled = false; btn.innerHTML = old; console.warn('[edl]', e);
         // Erreur PERSISTANTE et lisible (au lieu d'un « Échec » fugace) → on sait la vraie cause.
@@ -19126,8 +19134,10 @@ FP.relances = {
       if (FP.estAPayer && !FP.estAPayer(a)) return;
       const montant = FP.montantDu ? FP.montantDu(a) : a.montant; if (!montant) return;
       const chauffeur = (a.prenom && a.prenom !== '—') ? String(a.prenom).trim() : '';
-      const j = a.dateLimiteMinore ? this._jours(a.dateLimiteMinore) : null;
-      out.push({ type: 'amende', amende: a, immat: a.immat || '', conducteur: chauffeur, contact: this._contact(chauffeur), montant, dueDate: a.dateLimiteMinore || '', joursRestants: j, urgence: this._urg(j) });
+      // ⚠️ dateLimiteMinore vit dans settings.amendeMontants (pas sur la ligne amende) → lire via FP.getAmendeMontants.
+      const _dlm = (((FP.getAmendeMontants && FP.getAmendeMontants(a.id)) || {}).dateLimiteMinore) || a.dateLimiteMinore || '';
+      const j = _dlm ? this._jours(_dlm) : null;
+      out.push({ type: 'amende', amende: a, immat: a.immat || '', conducteur: chauffeur, contact: this._contact(chauffeur), montant, dueDate: _dlm, joursRestants: j, urgence: this._urg(j) });
     });
     return out;
   },
