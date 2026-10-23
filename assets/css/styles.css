@@ -1,6 +1,16 @@
 /* Auto-flotte — feuille de styles personnalisée
    (complète Tailwind via CDN — voir <head> des pages HTML) */
 
+/* ⚠️ TACTILE (iPad / tablette) — filet de sécurité « on peut TOUJOURS écrire dans un champ ».
+   Sur Safari iOS, un ancêtre en `user-select: none` (classe Tailwind `select-none`, en-tête de
+   tableau, poignée de glissement…) rend les <input>/<textarea> enfants NON MODIFIABLES (bug WebKit ;
+   Chrome n'est pas touché). On FORCE donc la sélection de texte sur tous les champs de saisie, partout,
+   quel que soit le parent. Sans effet ailleurs (comportement déjà par défaut hors de ce cas). */
+input, textarea, select, [contenteditable="true"], [contenteditable=""] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* ===== Sélection multi-lignes réutilisable (FP.bulkSelect) ===== */
 .fp-bulk-selall { display: inline-flex; align-items: center; gap: .5rem; font-size: .82rem; color: #5A6577; cursor: pointer; margin-bottom: .6rem; width: max-content; user-select: none; }
 .fp-bulk-selall input { width: 15px; height: 15px; accent-color: #F97316; cursor: pointer; margin: 0; }
