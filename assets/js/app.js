@@ -1335,6 +1335,10 @@ FP.aenDetail = (v) => {
 };
 // Total AEN annuel de la flotte (véhicules AVEC conducteur affecté = usage privé possible).
 FP.aenAnnuelFlotte = (vehicules) => (vehicules || []).reduce((s, v) => {
+  // Véhicule SORTI de la flotte (vendu / cédé / restitué / HS / archivé) → pas d'avantage en nature.
+  // Avant, un véhicule au statut « vendu » mais avec un nom de chauffeur réel restait compté (bug) :
+  // on aligne l'AEN sur le même périmètre que la TVS et l'assurance (FP.horsFlotte).
+  if (!v || (FP.horsFlotte && FP.horsFlotte(v))) return s;
   const ch = v && v.chauffeur && String(v.chauffeur).trim();
   const excl = ['', '—', 'x', 'X', 'Siège', 'Dépôt', 'Navette', 'VENDU', 'Fenwick'];
   if (!ch || excl.includes(String(v.chauffeur).trim())) return s;
