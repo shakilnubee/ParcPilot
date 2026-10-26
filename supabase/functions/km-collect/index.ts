@@ -816,18 +816,36 @@ Deno.serve(async (req) => {
         // La fusion « delta » côté client (rev) préserve cet ajout serveur lors des sauvegardes suivantes.
         try {
           const soc = qr.societe || "PXP";
-          const cur = await db.from("app_settings").select("data").eq("id", soc).maybeSingle();
-          const d = (cur.data && cur.data.data && typeof cur.data.data === "object") ? cur.data.data : {};
-          d.inspections = (d.inspections && typeof d.inspections === "object") ? d.inspections : {};
           const rec = {
             id: "INS" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
             date: new Date().toISOString().slice(0, 10),
             sens: label, km: kmValid ? kmEdl : null, items: {},
             note: "Envoyé par le conducteur (portail QR)", source: "portail",
           };
-          const prev = Array.isArray(d.inspections[qr.vehicule_id]) ? d.inspections[qr.vehicule_id] : [];
-          d.inspections[qr.vehicule_id] = [rec, ...prev];
-          await db.from("app_settings").upsert({ id: soc, data: d });
+          // ⚠️ COMPARE-AND-SWAP sur `rev` (même garde que le client, cf. app.js _pushSettings) : on lit
+          // data+rev, on ajoute l'inspection, puis on n'écrit QUE si `rev` n'a pas bougé depuis la lecture.
+          // Sans ça, un gestionnaire qui enregistrait un réglage au MÊME instant voyait sa sauvegarde
+          // écrasée en silence par ce blob relu avant son écriture (lost update — règle 0-perte ①/⑥).
+          const MAX = 5;
+          let saved = false;
+          for (let attempt = 0; attempt < MAX && !saved; attempt++) {
+            const cur = await db.from("app_settings").select("data, rev").eq("id", soc).maybeSingle();
+            const d = (cur.data && cur.data.data && typeof cur.data.data === "object") ? cur.data.data : {};
+            const rev = (cur.data && typeof cur.data.rev === "number") ? cur.data.rev : null;
+            d.inspections = (d.inspections && typeof d.inspections === "object") ? d.inspections : {};
+            const prev = Array.isArray(d.inspections[qr.vehicule_id]) ? d.inspections[qr.vehicule_id] : [];
+            d.inspections[qr.vehicule_id] = [rec, ...prev];
+            if (rev == null) {
+              // Pas de ligne (ou colonne rev absente = SQL concurrence pas appliqué) → upsert simple (comportement d'avant).
+              await db.from("app_settings").upsert({ id: soc, data: d });
+              saved = true;
+            } else {
+              // N'écrit que si rev inchangé ; .select() renvoie les lignes réellement modifiées.
+              const w = await db.from("app_settings").update({ data: d }).eq("id", soc).eq("rev", rev).select("id");
+              if (!w.error && Array.isArray(w.data) && w.data.length > 0) saved = true;
+              // 0 ligne = un autre poste a écrit entre-temps → on reboucle (relit rev + ré-ajoute l'inspection).
+            }
+          }
         } catch (_e) { /* l'historique est best-effort : l'envoi des photos réussit quand même */ }
         // Notifie le gestionnaire : on enregistre AUSSI une « demande conducteur » (type 'etat_lieux',
         // statut 'nouveau') dans declarations_conducteur → même badge + alerte + inbox que les sinistres.

@@ -25,7 +25,7 @@
       try{ if(window.lucide&&lucide.createIcons) lucide.createIcons(); }catch(e){}
   (function ulysTab(){
     const ust = { search: '', annee: 'all', expanded: false };
-    const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
     // Dé-doublonné par n° de facture (comme Total Fleet) → un n° = une seule ligne, KPI = total des
     // factures affichées, jamais compté deux fois même si la base contient un doublon d'un ancien import.
     const list = () => {
@@ -668,7 +668,7 @@
       } else { more.innerHTML = ''; }
       if (window.lucide) lucide.createIcons();
     }
-    function esc(s){ return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])); }
+    function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
     $('tf-search').addEventListener('input', (e) => { tfState.search = e.target.value; render(); });
     $('tf-filter-annee').addEventListener('change', (e) => { tfState.annee = e.target.value; render(); });

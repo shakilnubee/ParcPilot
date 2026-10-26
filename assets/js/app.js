@@ -1288,7 +1288,10 @@ FP.aenBaremePour = (v, cfg) => {
 // Renvoie le détail AEN d'un véhicule, ou null si non calculable / non concerné.
 //   { applicable, method:'acheté'|'loué', bareme:'ancien'|'nouveau', elec, base, taux, brutAnnuel, abattement, netAnnuel, netMensuel, reason? }
 FP.aenDetail = (v) => {
-  if (!v || (FP.estVendu && FP.estVendu(v))) return null;
+  // ⚠️ MÊME périmètre que FP.aenAnnuelFlotte (qui exclut via FP.horsFlotte) : sinon le COMPTEUR
+  // « X véhicules · forfait » (aenDetail) et le TOTAL € (aenAnnuelFlotte) divergeaient pour un
+  // véhicule cédé/restitué/HS (compté dans le nombre, absent du montant). Source unique = FP.horsFlotte.
+  if (!v || (FP.horsFlotte ? FP.horsFlotte(v) : (FP.estVendu && FP.estVendu(v)))) return null;
   const cfg = FP.aenConfig();
   if (!cfg.actif) return null;
   const bareme = FP.aenBaremePour(v, cfg);
@@ -2172,6 +2175,17 @@ FP.refreshDataCache = function () {
       try { localStorage.setItem(CK, JSON.stringify({ vehicules: d.vehicules, amendes: d.amendes, conducteurs: d.conducteurs })); } catch (e2) {}
     }
   } catch (e) {}
+};
+// ⚠️ REVENANTS (bug vécu) : une suppression/ajout d'amende/facture/véhicule/conducteur mutait la mémoire
+// (window.FP_DATA) + Supabase mais PAS le cache société (fp_data_cache_v4_<soc>) → en changeant de page,
+// le 1er rendu repartait du cache périmé et l'élément supprimé « flashait » (ou l'ajout manquait) jusqu'au
+// fp:data-ready. On resynchronise donc le cache après CHAQUE écriture des 4 tables cachées, à la source
+// unique (FP.persist). Débounce 250 ms → un import/suppression en lot ne réécrit le cache qu'UNE fois
+// (pas de O(n²) de JSON.stringify). Un pagehide force un dernier flush (cf. _flushOnLeave).
+FP._syncDataCacheSoon = function (table) {
+  if (!(table === 'vehicules' || table === 'amendes' || table === 'factures' || table === 'conducteurs')) return;
+  try { clearTimeout(FP.__dcTimer); } catch (e) {}
+  try { FP.__dcTimer = setTimeout(function () { try { FP.refreshDataCache(); } catch (e) {} }, 250); } catch (e) {}
 };
 
 // ===== CORBEILLE DOCUMENTS (rétention 7 jours) =====
@@ -12708,8 +12722,8 @@ FP.persist = {
   _abandonnerEchecs() { this._saveQ(this._loadQ().filter(it => !it.failed)); },
   // Chaque écriture : on tente la base ; si ça échoue, on garde en file locale
   // (filet de sécurité) et on renverra automatiquement plus tard.
-  async insert(table, row) { return this._write({ op: 'insert', table, row }, () => FP.db.insert(table, row)); },
-  async upsert(table, row, fusion) { return this._write(fusion ? { op: 'upsert', table, row, fusion } : { op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
+  async insert(table, row) { FP._syncDataCacheSoon(table); return this._write({ op: 'insert', table, row }, () => FP.db.insert(table, row)); },
+  async upsert(table, row, fusion) { FP._syncDataCacheSoon(table); return this._write(fusion ? { op: 'upsert', table, row, fusion } : { op: 'upsert', table, row }, () => FP.db.upsert(table, row)); },
   // ⚠️ Renvoi d'une écriture de RÉGLAGES restée en file : relit la ligne serveur et FUSIONNE (FP._fusion.rejouer),
   // au lieu de remplacer toute la ligne par la copie en file (cause de vidages complets vécus le 17/10/2026).
   async _rejouerReglages(it) {
@@ -12721,7 +12735,7 @@ FP.persist = {
     const remote = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : null;
     return FP.db.upsert('app_settings', { id, data: FP._fusion.rejouer(remote, it) });
   },
-  async update(table, id, fields) { return this._write({ op: 'update', table, id, fields }, () => FP.db.update(table, id, fields)); },
+  async update(table, id, fields) { FP._syncDataCacheSoon(table); return this._write({ op: 'update', table, id, fields }, () => FP.db.update(table, id, fields)); },
   // Appel d'une fonction serveur (RPC) avec la MÊME garantie que les autres écritures (file durable, retente,
   // erreur visible). `meta.remplace` : clé d'une écriture « remplace tout » (ex. tous les congés d'un conducteur) —
   // une écriture plus récente de même clé REMPLACE la précédente encore en file (sinon l'ancienne, renvoyée après
@@ -12738,6 +12752,7 @@ FP.persist = {
   // pour pouvoir le RESTAURER depuis Paramètres. Rétro-compatible : sans record, aucune capture.
   async delete(table, id, record) {
     try { if (record && FP.trash) FP.trash.add(table, record); } catch (e) {}
+    FP._syncDataCacheSoon(table);
     return this._write({ op: 'delete', table, id }, () => FP.db.delete(table, id));
   },
   _flushing: false,
@@ -12927,7 +12942,7 @@ if (typeof window !== 'undefined') {
   // Dernier filet avant que la page parte (navigation, fermeture, mise en arrière-plan mobile) :
   // on tente un flush de ce qui reste en file. La file étant DÉJÀ écrite (file optimiste), rien
   // n'est perdu même si ce flush n'a pas le temps d'aboutir — il repartira à la page suivante.
-  const _flushOnLeave = () => { try { if (FP.persist.pendingCount() > 0) FP.persist.flush(); } catch (e) {} };
+  const _flushOnLeave = () => { try { if (FP.persist.pendingCount() > 0) FP.persist.flush(); } catch (e) {} try { clearTimeout(FP.__dcTimer); FP.refreshDataCache(); } catch (e) {} };
   window.addEventListener('pagehide', _flushOnLeave);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _flushOnLeave(); });
 }

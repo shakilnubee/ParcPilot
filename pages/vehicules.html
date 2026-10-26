@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026h">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1196,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026g"></script>
-<script src="../assets/js/supabase-client.js?v=20261026g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026h"></script>
+<script src="../assets/js/supabase-client.js?v=20261026h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1213,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261026g"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261026g"></script>
+<script src="../assets/js/fleet-docs.js?v=20261026h"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261026h"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026g"></script><script>
+<script src="../assets/js/app.min.js?v=20261026h"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2045,7 +2045,7 @@
           </div>
           <!-- Appareil photo (une prise à la fois, on peut recommencer) et sélection multiple : les deux ACCUMULENT -->
           <input id="edl-file-cam" type="file" accept="image/*" capture="environment" multiple class="hidden" />
-          <input id="edl-file" type="file" accept="image/*,application/pdf,.pdf" multiple class="hidden" />
+          <input id="edl-file" type="file" accept="image/*,application/pdf,.pdf,.heic,.heif" multiple class="hidden" />
           <div id="edl-previews" class="flex flex-wrap gap-2 mt-2"></div>
           <p class="text-xs text-slate-400 mt-1">Tu peux <b>reprendre l'appareil photo plusieurs fois</b> : chaque photo s'ajoute (elle ne remplace pas les précédentes). Photos du véhicule <b>et/ou</b> le fichier de l'état des lieux (PDF).</p></div>
           <button type="button" id="insp-save" class="btn btn-dark text-sm w-full justify-center"><i data-lucide="clipboard-check" class="w-4 h-4"></i> Enregistrer l'état des lieux</button>
@@ -2739,9 +2739,12 @@
       ? active
       : active.filter(v => FP.vehGroupes(v).includes(state.groupe));
 
+    // ⚠️ Statut comparé de façon TOLÉRANTE (min/espaces) : un véhicule importé en « Actif »/« ACTIF »/« actif »
+    // ne doit pas disparaître du compteur (cohérent avec FP.estVendu/horsFlotte qui normalisent déjà).
+    const _st = v => String(v.statut || '').toLowerCase().trim();
     $('kpi-total').textContent       = scope.length;
-    $('kpi-actifs').textContent      = scope.filter(v => v.statut === 'actif').length;
-    $('kpi-entretien').textContent   = scope.filter(v => v.statut === 'entretien').length;
+    $('kpi-actifs').textContent      = scope.filter(v => _st(v) === 'actif').length;
+    $('kpi-entretien').textContent   = scope.filter(v => _st(v) === 'entretien').length;
 
     // Compteurs des onglets (sur la flotte active, hors vendus — un véhicule dans 2 groupes compte dans les 2)
     const cntAll = document.getElementById('cnt-all');

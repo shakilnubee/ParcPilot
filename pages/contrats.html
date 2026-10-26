@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026h">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -839,8 +839,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026g"></script>
-<script src="../assets/js/supabase-client.js?v=20261026g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026h"></script>
+<script src="../assets/js/supabase-client.js?v=20261026h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -856,11 +856,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026g"></script>
+<script src="../assets/js/app.min.js?v=20261026h"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -868,10 +868,12 @@
 
   // Labels des groupes fournis par FP.groupeLabel (configurables via /pages/parametres.html)
   const estActif = v => !FP.horsFlotte(v); // source unique (couvre vendu/à vendre/cédé/hors-service/archivé/restitué)
-  // Parc POSSÉDÉ (pour TVS + assurance) = tout sauf vendu/vendue — MÊME règle que Statistiques et
-  // le dashboard (FP.estVendu). ⚠️ « à vendre » est encore possédé → toujours assuré et taxé (TVS),
-  // donc COMPTÉ. (Le reste de la page — leasing — garde estActif : pas de loyer sur un véhicule sorti.)
-  const owned = () => (data.vehicules || []).filter(v => (FP.estVendu ? !FP.estVendu(v) : true));
+  // Parc POSSÉDÉ (pour TVS + assurance) = tout sauf SORTI de flotte (vendu/cédé/restitué/HS/archivé) —
+  // MÊME règle que Statistiques/TCO (FP.horsFlotte). ⚠️ « à vendre » est encore possédé (pas dans horsFlotte)
+  // → toujours assuré et taxé (TVS), donc COMPTÉ. Avant : FP.estVendu seul → un véhicule cédé/restitué
+  // restait compté dans l'assurance ici alors que le TCO le mettait à 0 (deux chiffres). (Le reste de la
+  // page — leasing — garde estActif : pas de loyer sur un véhicule sorti.)
+  const owned = () => (data.vehicules || []).filter(v => (FP.horsFlotte ? !FP.horsFlotte(v) : (FP.estVendu ? !FP.estVendu(v) : true)));
   // ⚠️ Reconstruit à CHAQUE chargement Supabase (fp:data-ready) — sinon les véhicules / factures
   // leasing importés restent invisibles (vehicules est une COPIE filtrée, pas une réf. vivante).
   let vehicules = [], leasingFactures = [], leasingByVeh = {}, leasingImmats = new Set();
@@ -3246,11 +3248,15 @@
       let fields = null;
       try { fields = (FP.scanIA) ? await FP.scanIA(file, 'contrat-cadre', prompt, { maxTokens: 8192 }) : null; }
       catch (e) { console.warn('[cadre scan IA]', e); }
-      let pdfArr = [];
-      try { const url = FP.uploadScan ? await FP.uploadScan(file, 'contrats-cadre') : ''; if (url) pdfArr = [{ name: file.name || 'Contrat', url }]; } catch (e) { console.warn('[cadre pdf join]', e); }
+      let pdfArr = []; let pdfFailed = false;
+      // ⚠️ Échec d'upload JAMAIS silencieux (règle 0-perte ③) : si le PDF ne s'est pas téléversé, on le DIT
+      // (avant : simple console.warn + « ✓ Contrat lu » → l'utilisateur enregistrait le contrat SANS son PDF).
+      try { const url = FP.uploadScan ? await FP.uploadScan(file, 'contrats-cadre') : ''; if (url) pdfArr = [{ name: file.name || 'Contrat', url }]; else pdfFailed = true; }
+      catch (e) { console.warn('[cadre pdf join]', e); pdfFailed = true; }
       // « Lu » = au moins un champ non vide (un objet {} tout à null = échec réel, pas un succès).
       const got = !!(fields && Object.keys(fields).some(k => { const v = fields[k]; return v != null && String(v).trim() !== ''; }));
       if (busy) { if (got) busy.done('✓ Contrat lu — vérifie les champs'); else busy.fail('Lecture impossible — complète à la main'); }
+      if (pdfFailed) { if (FP.notifyError) FP.notifyError('⚠️ Le PDF du contrat n\'a pas pu être joint — rattache-le dans la fenêtre (bouton « Joindre le PDF »).'); else if (FP.toast) FP.toast('⚠️ PDF non joint — rattache-le dans la fenêtre'); }
       const pf = mapScan(fields || {}); pf.pdf = pdfArr;
       openModal(null, pf);
       if (!got && FP.toast) {
