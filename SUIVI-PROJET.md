@@ -54,6 +54,12 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 26/10/2026 — Lot ergonomie 3 (finitions portail + sinistres)
+- **Portail conducteur** — messages d'erreur du relevé km **traduits** (6 langues) : l'Edge `km-collect` renvoie un **code** (`km_invalid`/`km_lower`) + repli FR, traduit côté `v.html`/`km.html` (fini la phrase en français qui surgit pour un conducteur étranger). · **Anti-spinner infini** : le chargement a un **délai max (~12 s)** → bascule sur l'écran d'erreur avec un bouton **« Réessayer »** (multilingue) au lieu d'un spinner sans fin sur réseau faible.
+- **Sinistres** — nouveau filtre **« Clôturés »** (compteur inclus) pour isoler les dossiers terminés.
+- **Statistiques — véhicules VENDUS exclus** (demande utilisateur) du **podium coût au km**, du **KPI « Coût d'usage / km »** (numérateur factures ET dénominateur km) et du **tableau TCO** (flag `vendu` sur chaque ligne TCO + filtre). · **Correctif AEN** : `FP.aenAnnuelFlotte` excluait seulement par nom de chauffeur → un véhicule **vendu** avec un chauffeur réel restait compté dans l'avantage en nature ; il est désormais exclu sur le même périmètre que la TVS/assurance (`FP.horsFlotte`). La **TVS excluait déjà** les vendus (inchangée).
+- `supabase/functions/km-collect/index.ts` (déployé auto à la fusion) + `v.html`/`km.html` + `sinistres.html` + `statistiques.html` + `app.js`. bump `?v= 20261026e → 20261026f`. check-bugs OK, test-calculs 33/33.
+
 ### 26/10/2026 — Lot ergonomie 2 (audit parcours « clients » : portail, sinistres, stats)
 Second audit (portail conducteur, sinistres, statistiques/TCO) → corrections. Décisions utilisateur : **compter la franchise**, **portail gardé ouvert**, **podium gardé**.
 - **Sinistres** — **la franchise est désormais comptée** dans le reste à charge : un sinistre « pris en charge » avec 500 € de franchise affiche **500 €** (plus « 0 € » trompeur). Source unique `FP.sinistreResteIncident` (agrégat KPI + carte). · Saisir un **« Remboursé » > 0** bascule **auto** le statut sur « Remboursé » (fin des statuts contradictoires). · La **mini-timeline du dossier est toujours visible** sur la carte (avant : cachée dans un volet replié). · Recherche élargie (**conducteur, n° de dossier, tiers**). · Bouton du haut renommé **« Nouveau sinistre (par sa facture) »** (évite le doublon avec « Déposer la facture » d'un sinistre déjà déclaré).

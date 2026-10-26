@@ -884,7 +884,8 @@ Deno.serve(async (req) => {
       const km = Math.round(Number(body.km));
       if (!qtok && !token) return json({ error: "Lien incomplet." }, 400);
       if (!Number.isFinite(km) || km <= 0 || km > 3000000) {
-        return json({ error: "Kilométrage invalide. Saisis un nombre (ex. 45 000)." }, 400);
+        // `code` = clé traduisible côté portail conducteur (6 langues) ; `error` = repli FR.
+        return json({ error: "Kilométrage invalide. Saisis un nombre (ex. 45 000).", code: "km_invalid" }, 400);
       }
 
       // Résout le véhicule concerné selon le mode (QR permanent ou lien e-mail).
@@ -903,7 +904,8 @@ Deno.serve(async (req) => {
 
       // Refuse un km ABERRANT (inférieur au km déjà connu) pour ne pas corrompre la fiche.
       if (kmRef != null && km < kmRef - 100) {
-        return json({ error: `Le kilométrage saisi (${km}) est inférieur au dernier relevé connu (${kmRef}). Vérifie ton compteur.` }, 400);
+        // `code` + `km`/`kmRef` → message traduit côté portail conducteur ; `error` = repli FR.
+        return json({ error: `Le kilométrage saisi (${km}) est inférieur au dernier relevé connu (${kmRef}). Vérifie ton compteur.`, code: "km_lower", km, kmRef }, 400);
       }
 
       // 1) Met à jour la fiche véhicule (seulement si le km reçu est supérieur au km actuel).
