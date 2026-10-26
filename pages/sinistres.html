@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026e">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -180,8 +180,8 @@
     <div class="mb-8 flex justify-end items-center gap-3 flex-wrap">
       <button class="btn btn-primary text-sm" id="sin-declare-btn" data-quickadd title="Déclarer un nouveau sinistre pas-à-pas (véhicule, lieu, circonstances, constat, photos)"><i data-lucide="clipboard-pen-line" class="w-4 h-4"></i> Déclarer un sinistre</button>
       <a class="btn btn-outline text-sm" href="../assets/docs/constat-amiable.pdf" download="Constat-amiable-accident.pdf" title="Télécharger un constat amiable vierge (à imprimer / garder dans la boîte à gants)"><i data-lucide="file-down" class="w-4 h-4"></i> Télécharger un constat</a>
-      <label class="btn btn-outline text-sm" style="cursor:pointer" title="Scanner / importer une facture de sinistre (même lecture que le scan du tableau de bord)">
-        <i data-lucide="scan-line" class="w-4 h-4"></i> Ajouter une facture sinistre
+      <label class="btn btn-outline text-sm" style="cursor:pointer" title="Crée un NOUVEAU sinistre à partir de sa facture (scan IA). Si le sinistre est déjà déclaré, utilise plutôt « Déposer la facture » sur sa carte pour ne pas créer de doublon.">
+        <i data-lucide="scan-line" class="w-4 h-4"></i> Nouveau sinistre (par sa facture)
         <input type="file" id="sin-facture-file" accept="image/*,application/pdf" multiple class="hidden">
       </label>
       <button class="btn btn-outline text-sm" id="sin-fiche-btn" title="Relevé des sinistres (PDF) — pour l'assureur"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
@@ -375,7 +375,7 @@
       <div class="flex flex-wrap items-center gap-3" id="sin-filterbar">
         <div class="relative flex-1 min-w-[220px]">
           <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-          <input id="search" type="text" placeholder="Véhicule, description, fournisseur…" class="w-full pl-10 pr-3 py-2 text-sm fp-search-field" />
+          <input id="search" type="text" placeholder="Véhicule, conducteur, n° de dossier, description…" class="w-full pl-10 pr-3 py-2 text-sm fp-search-field" />
         </div>
         <select id="filter-annee" class="text-sm border border-slate-200 rounded-lg px-3 py-2">
           <option value="all">Toutes les années</option>
@@ -419,8 +419,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026d"></script>
-<script src="../assets/js/supabase-client.js?v=20261026d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026e"></script>
+<script src="../assets/js/supabase-client.js?v=20261026e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -436,12 +436,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261026d" defer></script>
+<script src="../assets/js/app.min.js?v=20261026e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261026e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -476,7 +476,17 @@
     if (state.dateFrom && (s.date || '') < state.dateFrom) return false;
     if (state.dateTo && (s.date || '') > state.dateTo) return false;
     if (state.vehicule !== 'all' && s.vehiculeImmat !== state.vehicule) return false;
-    if (q && !(FP.norm(`${s.vehiculeImmat} ${s.description} ${s.fournisseur}`).includes(q))) return false;
+    if (q) {
+      // Recherche élargie : on retrouve aussi un sinistre par CONDUCTEUR, n° de dossier assureur et tiers
+      // (avant : seulement plaque/description/fournisseur → « le sinistre de Charles » ne remontait pas).
+      const _st = FP.settings.get();
+      const _gk = (_st.sinistreGroupes || {})[s.id] || s.id;
+      const _d = (_st.sinistreAssurance || {})[_gk] || {};
+      const _veh = FP.vehByImmat ? FP.vehByImmat(s.vehiculeImmat) : null;
+      const _cond = _d.conducteur || (_veh && _veh.chauffeur) || '';
+      const hay = `${s.vehiculeImmat} ${s.description} ${s.fournisseur} ${_cond} ${_d.numeroDossier || ''} ${_d.tiersNom || ''} ${_d.tiersPlaque || ''}`;
+      if (!FP.norm(hay).includes(q)) return false;
+    }
     return true;
   }
   function filtered() { return sinistres.filter(matchFilter); }
@@ -727,16 +737,22 @@
         const dv = (FP.settings.get().sinistreAssurance || {})[g.key] || {};
         const respOpts = [['', '—'], ['responsable', 'Responsable'], ['non-responsable', 'Non responsable'], ['partagee', 'Partagée'], ['en-cours', 'En cours']];
         const coutReel = g.lines.reduce((t, l) => t + FP.coutSinistre(l), 0); // 0 si Remboursé/PEC/devis (source unique)
-        const reste = coutReel - (Number(dv.rembourse) || 0);
+        // Reste à charge = source unique FP.sinistreResteIncident (compte la FRANCHISE sur un incident pris
+        // en charge → plus de « reste à charge 0 € » quand la société a payé la franchise).
+        const _pec = /pec|rembours/i.test(String(cur));
+        const reste = FP.sinistreResteIncident ? FP.sinistreResteIncident(coutReel, dv, _pec) : (coutReel - (Number(dv.rembourse) || 0));
         const vehCh = (veh && veh.chauffeur && veh.chauffeur !== '—') ? veh.chauffeur : '';
         const _inpCss = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
         // Ouverture via FP.openScan (URL signée) : le bucket des scans est privé → un lien public brut
         // ne s'ouvrirait pas. Repli Google Drive pour un éventuel identifiant Drive hérité.
         const courrierLien = dv.courrierUrl ? `<button type="button" class="sin-courrier-open" data-url="${escapeHtml(dv.courrierUrl)}" style="display:inline-flex;align-items:center;gap:.25rem;font-size:12px;color:var(--fp-accent);background:none;border:none;cursor:pointer;text-decoration:underline;margin-left:2px"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Voir le courrier</button>` : '';
+        // Mini-timeline TOUJOURS visible sur la carte (avant : enfouie dans le panneau « Dossier assurance »
+        // replié → il fallait déplier chaque carte pour voir où en est le dossier). Les CHAMPS de saisie
+        // restent, eux, dans le panneau repliable.
+        const sinTimeline = sinTimelineHTML(sinSteps(g, dv, cur));
         const dossierPanel = `
           <details class="mt-2 sin-doss-det" data-doss-key="${escapeHtml(g.key)}" ${sinDossOpen.has(g.key) ? 'open' : ''}>
-            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#475569;list-style:none" class="inline-flex items-center gap-1"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Dossier assurance — suivi <i data-lucide="chevron-down" class="w-3.5 h-3.5 sin-doss-chev" style="transition:transform .18s;color:#94a3b8"></i></summary>
-            ${sinTimelineHTML(sinSteps(g, dv, cur))}
+            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#475569;list-style:none" class="inline-flex items-center gap-1"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Dossier assurance — modifier le suivi <i data-lucide="chevron-down" class="w-3.5 h-3.5 sin-doss-chev" style="transition:transform .18s;color:#94a3b8"></i></summary>
             <label class="text-xs text-slate-500" style="display:block;margin-top:8px">Conducteur au moment du sinistre <span class="text-slate-400">(figé, sinon = chauffeur actuel)</span><input class="sin-doss" data-key="${g.key}" data-k="conducteur" type="text" value="${escapeHtml(dv.conducteur || '')}" placeholder="${escapeHtml(vehCh || '—')}" style="${_inpCss}"></label>
             <div class="grid grid-cols-3 gap-2 mt-2 sin-dg">
               <label class="text-xs text-slate-500">N° dossier assureur<input class="sin-doss" data-key="${g.key}" data-k="numeroDossier" type="text" value="${escapeHtml(dv.numeroDossier || '')}" placeholder="—" style="${_inpCss}"></label>
@@ -817,6 +833,7 @@
                 ${multi ? '' : `<button type="button" data-sin-del="${s.id}" title="Supprimer ce sinistre" class="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>`}
               </div>
             </div>
+            ${sinTimeline}
             ${dossierPanel}
             ${assocPanel}
             </div>
@@ -995,6 +1012,15 @@
       if (fld === 'franchise' || fld === 'rembourse') { val = (val === '' ? null : parseFloat(String(val).replace(',', '.'))); }
       if (val === '' || val == null) delete o[fld]; else o[fld] = val;
       if (!Object.keys(o).length) delete s.sinistreAssurance[key];
+      // ⚠️ Cohérence des statuts : si on saisit un REMBOURSÉ > 0 alors que le dossier est encore « à traiter »,
+      // on bascule automatiquement le suivi sur « Remboursé » (une seule source de vérité → plus de dossier
+      // qui affiche « remboursé » dans le reste à charge mais reste classé « en attente »). On ne touche PAS
+      // un statut déjà choisi explicitement (pec / refusé).
+      if (fld === 'rembourse' && Number(val) > 0) {
+        s.sinistreStatut = s.sinistreStatut || {};
+        const _cur = String(s.sinistreStatut[key] || '').toLowerCase();
+        if (!_cur || _cur === 'attente') s.sinistreStatut[key] = 'rembourse';
+      }
       // ⚠️ refreshAll (pas seulement renderTimeline) : les KPI « Sinistres responsables » / « Reste à charge »
       // vivent dans renderKPIs → sans ça, le haut de page reste périmé après un changement de dossier.
       FP.settings.save(s); refreshAll(); return;

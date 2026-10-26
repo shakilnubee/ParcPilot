@@ -54,6 +54,14 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 26/10/2026 — Lot ergonomie 2 (audit parcours « clients » : portail, sinistres, stats)
+Second audit (portail conducteur, sinistres, statistiques/TCO) → corrections. Décisions utilisateur : **compter la franchise**, **portail gardé ouvert**, **podium gardé**.
+- **Sinistres** — **la franchise est désormais comptée** dans le reste à charge : un sinistre « pris en charge » avec 500 € de franchise affiche **500 €** (plus « 0 € » trompeur). Source unique `FP.sinistreResteIncident` (agrégat KPI + carte). · Saisir un **« Remboursé » > 0** bascule **auto** le statut sur « Remboursé » (fin des statuts contradictoires). · La **mini-timeline du dossier est toujours visible** sur la carte (avant : cachée dans un volet replié). · Recherche élargie (**conducteur, n° de dossier, tiers**). · Bouton du haut renommé **« Nouveau sinistre (par sa facture) »** (évite le doublon avec « Déposer la facture » d'un sinistre déjà déclaré).
+- **Statistiques / TCO** — infobulles **ⓘ** sur **TVS**, **Avantage en nature** et **Coût d'usage/km** (vs €/km TCO « tout compris » du classement) — fin de la confusion « 3 coûts au km ». · Sous-titre sous le filtre Période (ce qu'il recalcule vs l'état actuel). · Camembert « Répartition par type » avec de **vrais libellés** (`FP.factures.typeLabel`, fini « ulys »/« reparation »).
+- **Portail conducteur (mobile)** — **garde-fou faute de frappe** sur le relevé km : un saut énorme (ex. un zéro en trop) demande une **confirmation douce** multilingue avant d'écraser la fiche (`v.html` + `km.html`). · Icône du relevé km **📸 → 🔢** (c'est une saisie, pas une photo).
+- Restent proposés (Lot 3) : messages d'erreur serveur traduits (Edge `km-collect`), spinner « Réessayer » si réseau lent, et finitions sinistres (clôturer sur la carte + filtre « clôturés », regroupement des boutons de documents).
+- `app.js` + sinistres/statistiques.html + `v.html`/`km.html` ; rebuild min, bump `?v= 20261026d → 20261026e`. check-bugs OK, test-calculs 33/33. Aucune modification Supabase.
+
 ### 26/10/2026 — Lot ergonomie 1 (audit facilité d'utilisation)
 Suite à un audit parcours-par-parcours (ajout véhicule, amende, restitution, prévenir un conducteur, comptes), corrections de friction, toutes sûres, sans toucher la logique métier :
 - **Amendes** — le bouton « Prévenir » propose désormais les **3 canaux** (SMS + WhatsApp + **E-mail**) dans la même fenêtre (règle 0septies respectée partout) · le **n° d'avis n'est plus obligatoire** pour une amende **étrangère** (plus de blocage navigateur) · une ligne **« 3 tarifs lus »** (minoré/forfaitaire/majoré, retenu en gras) s'affiche sous le montant après un scan, pour vérifier d'un coup d'œil · placeholder conducteur clarifié.
