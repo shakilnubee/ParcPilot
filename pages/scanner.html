@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20260921a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Scanner IA — Parc Pilot</title>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#0F1E3D">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="../assets/js/lucide.min.js?v=20261026h"></script>
+<script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
 <style>
   .drop { border:2px dashed var(--fp-border); border-radius:1rem; padding:2.5rem 1.5rem; text-align:center; cursor:pointer; transition:.15s; background:#fff; }
   .drop:hover, .drop.over { border-color:var(--fp-accent); background:#FFF7ED; }
@@ -46,7 +46,9 @@
   if (!remember && !alive) { localStorage.removeItem('sb-tzjuptlzoywjeigmyfuj-auth-token'); }
   sessionStorage.setItem('fp_session_alive', '1');
   var t; try { t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token')); } catch(e) {}
-  if (!t || !t.access_token || (t.expires_at && t.expires_at * 1000 < Date.now())) { window.location.replace('../login.html'); document.documentElement.style.display = 'none'; }
+  // ⚠️ Hors-ligne : ne PAS rediriger vers login.html (qui a besoin du réseau) sur un simple token expiré —
+  // même garde que dashboard.html (navigator.onLine !== false). Sinon un utilisateur hors-ligne reste bloqué.
+  if (!t || !t.access_token || (t.expires_at && t.expires_at * 1000 < Date.now() && navigator.onLine !== false)) { window.location.replace('../login.html'); document.documentElement.style.display = 'none'; }
 })();
 </script>
 <script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("../sw.js").catch(function(){});});}</script>
@@ -103,8 +105,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026h"></script>
-<script src="../assets/js/supabase-client.js?v=20261026h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
+<script src="../assets/js/supabase-client.js?v=20261026i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -120,11 +122,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261026h"></script>
-<script src="../assets/js/scanner2.js?v=20261026h"></script>
+<script src="../assets/js/app.min.js?v=20261026i"></script>
+<script src="../assets/js/scanner2.js?v=20261026i"></script>
 <script>
   if (window.lucide) lucide.createIcons();
   var $ = function (id) { return document.getElementById(id); };
@@ -372,26 +374,29 @@
     var items=[]; _batch.forEach(function(it,idx){ if(it.include && (it.status==='ok'||it.status==='ulys')) items.push({it:it, idx:idx}); });
     if(!items.length){ alert('Coche au moins un document à enregistrer.'); return; }
     var b=$('sc-batch-save'); if(b){ b.disabled=true; b.textContent='Enregistrement…'; }
-    var okc=0, failc=0;
+    var okc=0, failc=0, skipc=0;
     for(var i=0;i<items.length;i++){
       var it=items[i].it, idx=items[i].idx;
       try{
-        if(it.status==='ulys'){ await FP2.saveUlys(it.model); }
+        var res;
+        if(it.status==='ulys'){ res=await FP2.saveUlys(it.model); }
         else {
           var edited={}; var cont=$('sc-result').querySelector('[data-batch-fields="'+idx+'"]');
           if(cont) cont.querySelectorAll('[data-k]').forEach(function(el){ edited[el.getAttribute('data-k')]=(el.value||'').trim(); });
-          await FP2.save(it.model, edited);
+          res=await FP2.save(it.model, edited);
         }
-        it.saved=true; okc++;
+        // ⚠️ FP2.save NE LÈVE PAS quand l'utilisateur refuse un doublon (FP.dupe) : il renvoie {annule:true}.
+        // Sans ce test, un doublon refusé était compté « enregistré » (compteur menteur). On le compte « ignoré ».
+        if(res&&res.annule){ it.skipped=true; skipc++; } else { it.saved=true; okc++; }
       }catch(err){ it.saveErr=(err&&(err.message||err))||'échec'; failc++; }
       if(b) b.textContent='Enregistrement… '+(i+1)+'/'+items.length;
     }
-    var html='<div class="card p-5" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:1rem"><div class="font-extrabold text-emerald-800">✓ '+okc+' document(s) enregistré(s)'+(failc?(' · '+failc+' échec(s)'):'')+'</div>';
+    var html='<div class="card p-5" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:1rem"><div class="font-extrabold text-emerald-800">✓ '+okc+' document(s) enregistré(s)'+(skipc?(' · '+skipc+' doublon(s) ignoré(s)'):'')+(failc?(' · '+failc+' échec(s)'):'')+'</div>';
     if(failc){ html+='<ul class="text-sm text-red-700 mt-2" style="list-style:disc;margin-left:1.1rem">'; _batch.forEach(function(it){ if(it.saveErr) html+='<li>'+esc(it.name)+' — '+esc(it.saveErr)+'</li>'; }); html+='</ul>'; }
     html+='<p class="text-sm text-emerald-700 mt-1">Les fiches véhicules, l\'assurance, les conducteurs et les documents ont été mis à jour.</p>';
     html+='<button class="btn btn-dark mt-3" onclick="location.reload()"><i data-lucide="scan-line" class="w-4 h-4"></i> Déposer d\'autres documents</button></div>';
     $('sc-result').innerHTML=html; if(window.lucide) lucide.createIcons();
-    if(window.FP&&FP.toast) FP.toast('✓ '+okc+' document(s) enregistré(s)');
+    if(window.FP&&FP.toast) FP.toast('✓ '+okc+' document(s) enregistré(s)'+(skipc?(' · '+skipc+' doublon(s) ignoré(s)'):''));
   }
 
   // Dropzone

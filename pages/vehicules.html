@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20260921a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Véhicules — Parc Pilot</title>
@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1196,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026h"></script>
-<script src="../assets/js/supabase-client.js?v=20261026h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
+<script src="../assets/js/supabase-client.js?v=20261026i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1213,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261026h"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261026h"></script>
+<script src="../assets/js/fleet-docs.js?v=20261026i"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261026i"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026h"></script><script>
+<script src="../assets/js/app.min.js?v=20261026i"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2377,9 +2377,14 @@
     });
   }
 
-  function ctCell(iso) {
+  function ctCell(iso, v) {
     if (!iso || iso === '—') return '<span class="text-slate-400">—</span>';
     const label = FP.dateNum(iso);
+    // ⚠️ MÊMES exemptions que partout ailleurs (buildEcheances, fiche, Alertes, santeVehicule) : un véhicule
+    // SORTI de flotte (FP.horsFlotte) ou dont le CT ne s'applique pas (FP.ctIgnored : étranger, exempté) ne
+    // doit PAS afficher « CT dépassé » en rouge ici alors qu'il n'alerte nulle part ailleurs. On montre juste
+    // la date, en neutre. (Avant : la colonne colorait sans tester ces exemptions → rouge « dépassé » à tort.)
+    if (v && ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.ctIgnored && FP.ctIgnored(v)))) return `<span class="text-slate-400">${label}</span>`;
     // SOURCE UNIQUE de l'urgence/couleur du CT = FP.echeanceStatut (seuils = réglage ctJours) → même
     // couleur que la fiche, Contrats et les Alertes. (Avant : seuils 30/45 figés ici → incohérence.)
     const st = FP.echeanceStatut ? FP.echeanceStatut(iso, 'ct') : null;
@@ -2406,7 +2411,7 @@
     { key: 'categorie',             label: 'Catégorie',         defaultWidth: 110, render: v => `<span class="text-slate-600">${escapeHtml(v.categorie) || '—'}</span>` },
     { key: 'km',                    label: 'Km',                defaultWidth: 100, render: v => `${FP.num(FP.kmActuel ? FP.kmActuel(v) : v.km)} km` },
     { key: 'chauffeur',             label: 'Chauffeur',         defaultWidth: 140, render: v => (window.FP && FP.lienConducteur) ? FP.lienConducteur(v.chauffeur || '—') : escapeHtml(v.chauffeur || '—') },
-    { key: 'prochainCT',            label: 'Prochain CT',       defaultWidth: 170, render: v => ctCell(v.prochainCT) },
+    { key: 'prochainCT',            label: 'Prochain CT',       defaultWidth: 170, render: v => ctCell(v.prochainCT, v) },
     { key: 'statut',                label: 'Statut',            defaultWidth: 110, render: v => FP.statutBadge(v.statut) },
     { key: 'dateMiseEnCirculation', label: '1ère immat.',       defaultWidth: 120, render: v => v.dateMiseEnCirculation ? FP.dateNum(v.dateMiseEnCirculation) : '—' },
     { key: 'assurance',             label: 'Assurance',         defaultWidth: 220, render: v => escapeHtml(v.assurance) || '—' },

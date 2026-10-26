@@ -87,7 +87,13 @@
     b.supplements = cleanSupps(obj && obj.supplements);
     return b;
   }
-  function pushRemote(b) { var c = sb(); if (!c) return; try { c.from('app_settings').upsert({ id: 'bareme', data: clean(b) }).then(function () {}, function () {}); } catch (e) {} }
+  // ⚠️ L'échec de synchro du barème ne doit PAS être avalé (règle 0-perte ③) : on remonte une erreur VISIBLE
+  // (pastille/notif) pour que l'utilisateur sache que son tarif n'est pas parti sur les autres appareils.
+  function pushRemote(b) {
+    var c = sb(); if (!c) return;
+    var onErr = function (e) { try { if (window.FP && FP.notifyError) FP.notifyError('Barème : échec de la synchronisation — réessaie.'); } catch (_) {} try { console.warn('[bareme] push échec', e); } catch (_) {} };
+    try { c.from('app_settings').upsert({ id: 'bareme', data: clean(b) }).then(function (r) { if (r && r.error) onErr(r.error); }, onErr); } catch (e) { onErr(e); }
+  }
   function pull() {
     var c = sb(); if (!c) return Promise.resolve(null);
     return c.from('app_settings').select('data').eq('id', 'bareme').maybeSingle().then(function (r) {
