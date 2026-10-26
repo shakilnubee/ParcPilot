@@ -1813,6 +1813,7 @@
   let _relItems = [];
   function relWhen(it) {
     if (it.type === 'km') return it.statut === 'jamais' ? 'jamais reçu' : 'à relancer';
+    if (it.type === 'edl') { const j = it.joursRestants; return (j != null && j < -1) ? ('en attente depuis ' + (-j) + ' j') : 'en attente de signature'; }
     const j = it.joursRestants; if (j == null) return '';
     if (j < 0) return 'en retard de ' + (-j) + ' j'; if (j === 0) return "aujourd'hui"; if (j === 1) return 'demain'; return 'dans ' + j + ' j';
   }
@@ -1832,6 +1833,17 @@
         if (FP.kmCollecte._cache == null || !renderRelances._lastLoad || (now - renderRelances._lastLoad) > 4000) {
           renderRelances._lastLoad = now;
           FP.kmCollecte.load().then(() => { try { renderRelances(); } catch (e) {} }).catch(() => {});
+        }
+      }
+    } catch (e) {}
+    // États des lieux en attente de signature → même traitement : si pas encore chargés, on charge puis
+    // on re-render (sinon les relances EDL manqueraient au 1er affichage de l'onglet).
+    try {
+      if (FP.edlSign && FP.edlSign.load && FP.edlSign._pending == null) {
+        const now = Date.now();
+        if (!renderRelances._lastEdlLoad || (now - renderRelances._lastEdlLoad) > 4000) {
+          renderRelances._lastEdlLoad = now;
+          FP.edlSign.load().then(() => { try { renderRelances(); } catch (e) {} }).catch(() => {});
         }
       }
     } catch (e) {}
@@ -1878,7 +1890,7 @@
         <div class="font-extrabold flex items-center gap-2" style="color:var(--fp-primary)"><i data-lucide="megaphone" class="w-5 h-5"></i> Relances à faire</div>
         <div class="text-sm" style="font-weight:800;color:${_relItems.length ? '#B45309' : '#16a34a'}">${_relItems.length} en attente</div>
       </div>
-      <p class="text-xs text-slate-500 mb-3">Tout ce qu'il faut relancer aujourd'hui, au même endroit — <b>garage (contrôle technique, révision, entretien) à venir</b>, <b>relevé km en retard</b>, <b>amende à payer</b>. Pour chaque personne, <b>« Relancer »</b> ouvre le message <b>déjà rédigé</b> (💬 WhatsApp · 📱 SMS · 📧 e-mail) : tu appuies sur Envoyer, c'est gratuit et ça part de ton numéro. Le bouton <b>« Tout relancer par e-mail »</b> envoie d'un coup les rappels aux personnes dont on connaît l'e-mail.</p>
+      <p class="text-xs text-slate-500 mb-3">Tout ce qu'il faut relancer aujourd'hui — et <b>tout ce où tu attends une réponse de quelqu'un</b> — au même endroit : <b>garage (contrôle technique, révision, entretien) à venir</b>, <b>relevé km en retard</b>, <b>amende à payer</b>, <b>état des lieux à signer</b>. Pour chaque personne, <b>« Relancer »</b> ouvre le message <b>déjà rédigé</b> (💬 WhatsApp · 📱 SMS · 📧 e-mail) — pour un état des lieux, ça renvoie le <b>lien de signature</b> à la bonne personne. Tu appuies sur Envoyer, c'est gratuit et ça part de ton numéro. Le bouton <b>« Tout relancer par e-mail »</b> envoie d'un coup les rappels aux personnes dont on connaît l'e-mail.</p>
       ${withMail ? `<div class="flex gap-2 mb-2 flex-wrap"><button type="button" id="rel-all-mail" class="btn btn-outline text-xs" style="font-weight:800">📧 Tout relancer par e-mail (${withMail})</button></div>` : ''}
       ${_relItems.length ? order.map(section).join('') : '<div class="text-sm text-slate-400 py-4">Rien à relancer pour le moment. 🎉</div>'}
       ${(FP.relances.ignoredCount && FP.relances.ignoredCount()) ? `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--fp-border);font-size:12px;color:#94A3B8">${FP.relances.ignoredCount()} relance${FP.relances.ignoredCount() > 1 ? 's' : ''} ignorée${FP.relances.ignoredCount() > 1 ? 's' : ''} · <button type="button" id="rel-unign" style="border:none;background:none;color:var(--fp-accent);font-weight:700;cursor:pointer;text-decoration:underline;padding:0">↺ Réafficher</button></div>` : ''}
