@@ -1894,6 +1894,21 @@
     </div>`;
   }
 
+  // ⚠️ BULLE UNIQUE « 📋 États des lieux » (fusion des 2 anciennes bulles, demande utilisateur) : repliable
+  // (comme les autres rubriques de la fiche), contenu = « Par conducteur » (périodes + PDF/photos signés,
+  // avec ✕ sur chaque doc, bouton « Restitution signée sur place » par période) PUIS « Relevés & ajout »
+  // (inspections km/état avec ✕, photos, formulaire « Nouvel EDL » + « Lire le km »). Une seule source.
+  function edlBubbleHTML(v) {
+    let histo = ''; try { histo = edlHistoHTML(v); } catch (e) {}
+    let section = ''; try { section = edlSectionHTML(v); } catch (e) {}
+    if (!histo && !section) return '';
+    // <details open> : repliable, ouvert par défaut (comme la bulle « affectation »). Le résumé sert de titre.
+    return `<details class="fp-edl-details" open>
+      <summary class="font-semibold text-slate-900 border-b border-slate-200 pb-1 cursor-pointer">États des lieux <span class="text-xs font-normal text-slate-400">· cliquer pour replier</span></summary>
+      ${histo}${section}
+    </details>`;
+  }
+
   // « États des lieux par conducteur » : chaque EDL (remise/restitution) rattaché à la PÉRIODE
   // d'affectation qui le contient (source unique FP.edlHisto — jointure par date). Répond à la demande
   // « l'EDL doit être lié à l'affectation + à l'historique du véhicule ». Non destructif : s'ajoute sous
@@ -1913,7 +1928,11 @@
         // Le PDF n'est pas une vignette image → on l'ÉTIQUETTE clairement « État des lieux » (+ date) pour
         // le retrouver d'un coup d'œil (avant : une icône « PDF » anonyme, peu lisible).
         : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;height:70px;border-radius:7px;border:1px solid var(--fp-border);background:#f0f9ff;color:#0e7490;padding:4px;text-align:center"><i data-lucide="clipboard-list" style="width:19px;height:19px"></i><span style="font-size:8.5px;font-weight:700;line-height:1.05">État des lieux</span>${dt ? `<span style="font-size:7.5px;font-weight:600;color:#64748b">${escapeHtml(dt)}</span>` : ''}</div>`;
-      return `<a href="${escapeHtml(sanitizeUrl(d.url))}" target="_blank" rel="noopener" title="${escapeHtml('État des lieux' + (dt ? ' · ' + dt : '') + ' — ouvrir le PDF')}">${media}</a>`;
+      // ✕ pour supprimer ce document (même action que la corbeille Documents : data-doc-del, restaurable 7 j).
+      return `<div style="position:relative">
+        <a href="${escapeHtml(sanitizeUrl(d.url))}" target="_blank" rel="noopener" title="${escapeHtml('État des lieux' + (dt ? ' · ' + dt : '') + ' — ouvrir le PDF')}">${media}</a>
+        <button type="button" data-doc-del="${escapeHtml(d.id)}" title="Supprimer cet état des lieux" style="position:absolute;top:3px;right:3px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:20px;text-align:center;padding:0">✕</button>
+      </div>`;
     };
     const grp = (label, emo, arr) => arr.length ? `<div style="margin-top:6px"><div class="text-xs font-semibold" style="color:#475569">${emo} ${label} <span class="text-slate-400">(${arr.length})</span></div><div class="fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;margin-top:4px">${arr.map(tile).join('')}</div></div>` : '';
     // Date garantie DANS la période (borne « début » pour une remise, « fin »/aujourd'hui pour une
@@ -1925,6 +1944,9 @@
       if (deb && d < deb) d = deb; if (fin && d > fin) d = fin; return d;
     };
     const impBtn = (p, sens, txt) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-import data-veh="${escapeHtml(v.id)}" data-sens="${sens}" data-date="${_isoIn(p, sens)}"><i data-lucide="paperclip" class="w-3.5 h-3.5"></i> ${txt}</button>`;
+    // ✍️ Restitution SIGNÉE SUR PLACE rattachée à CETTE période (donc à CE conducteur, même déjà sorti) :
+    // l'EDL est daté dans la période (borne « fin ») → il se range sous ce conducteur, pas l'actuel.
+    const signBtn = (p) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-signplace data-veh="${escapeHtml(v.id)}" data-cond="${escapeHtml(p.conducteur || '')}" data-sens="restitution" data-date="${_isoIn(p, 'restitution')}"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i> ✍️ Restitution signée sur place</button>`;
     const period = (p) => {
       const cond = (p.conducteur && p.conducteur !== '—') ? p.conducteur : 'Conducteur non renseigné';
       const per = (p.debut ? FP.dateNum(p.debut) : 'origine') + ' → ' + (p.fin ? FP.dateNum(p.fin) : 'en cours');
@@ -1933,7 +1955,7 @@
         <div class="text-sm font-semibold text-slate-800">${escapeHtml(cond)}${!p.fin ? ' <span style="background:#dcfce7;color:#166534;padding:0 7px;border-radius:9999px;font-size:10px;font-weight:700">en cours</span>' : ''}</div>
         <div class="text-xs text-slate-500">${escapeHtml(per)}${km}</div>
         ${grp('Remise', '📥', p.remise)}${grp('Restitution', '📤', p.restitution)}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${impBtn(p, 'remise', 'Importer une remise (PDF)')}${impBtn(p, 'restitution', 'Importer une restitution (PDF)')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${signBtn(p)}${impBtn(p, 'remise', 'Importer une remise (PDF)')}${impBtn(p, 'restitution', 'Importer une restitution (PDF)')}</div>
       </div>`;
     };
     const periodsHtml = h.periodes.map(period).join('');
@@ -1941,8 +1963,10 @@
     const orphS = h.orphelins.filter(d => FP.edlHisto.sensDe(d) === 'restitution');
     const orph = h.orphelins.length ? `<div style="border:1px dashed var(--fp-border);border-radius:10px;padding:9px 11px;margin-bottom:8px"><div class="text-xs text-slate-500 mb-1">Non rattaché à une période d'affectation</div>${grp('Remise', '📥', orphR)}${grp('Restitution', '📤', orphS)}</div>` : '';
     if (!periodsHtml && !orph) return '';
-    return `<div class="mt-5">
-      <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1 flex items-center gap-2">États des lieux par conducteur <span class="text-xs font-normal text-slate-400">historique · affectation</span></div>
+    // Contenu INTERNE (sans titre de bulle) : la bulle fusionnée « 📋 États des lieux » (edlBubbleHTML)
+    // fournit le titre repliable. On garde juste un sous-titre « Par conducteur ».
+    return `<div class="mt-1">
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Par conducteur</div>
       ${periodsHtml}${orph}
     </div>`;
   }
@@ -1992,8 +2016,8 @@
     const items = INSP_ITEMS.map(it => `<label class="flex items-center justify-between gap-2 text-sm py-0.5"><span class="text-slate-600">${escapeHtml(it)}</span>
       <select class="insp-item field-input" data-item="${escapeHtml(it)}" style="width:auto;padding:3px 8px;font-size:12px"><option value="ok">OK</option><option value="ko">À signaler</option></select></label>`).join('');
     return `
-      <div>
-        <div class="font-semibold mb-3 text-slate-900 border-b border-slate-200 pb-1 flex items-center gap-2">État des lieux <span class="text-xs font-normal text-slate-400">${list.length} inspection${list.length > 1 ? 's' : ''} · ${photos.length} pièce${photos.length > 1 ? 's' : ''}</span></div>
+      <div class="mt-4">
+        <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Relevés (km / état) &amp; ajout <span class="font-normal text-slate-400 normal-case">— ${list.length} inspection${list.length > 1 ? 's' : ''} · ${photos.length} pièce${photos.length > 1 ? 's' : ''}</span></div>
         ${edlNoKm ? `<button type="button" data-edl-scan-km="${escapeHtml(v.id)}" class="btn btn-outline text-xs w-full justify-center mb-3" title="Lire le kilométrage des états des lieux importés (PDF/photo) avec l'IA et renseigner le km de début / restitution"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> 🤖 Lire le km de ${edlNoKm} état${edlNoKm > 1 ? 's' : ''} des lieux importé${edlNoKm > 1 ? 's' : ''}</button>` : ''}
         ${list.length ? `<div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Historique</div><div class="space-y-2 mb-4">${histRows}</div>` : ''}
         ${photos.length ? `<div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Photos</div><div class="mb-4 fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px">${photos.map(photoTile).join('')}</div>` : ''}
@@ -3811,9 +3835,7 @@
 
       ${tachesLieesHTML(v)}
 
-      ${edlSectionHTML(v)}
-
-      ${edlHistoHTML(v)}
+      ${edlBubbleHTML(v)}
 
       ${vehTimelineHTML(v)}
 
@@ -6154,6 +6176,17 @@
     if (e.target.closest('[data-edl-scan-km]')) {
       const vehId = e.target.closest('[data-edl-scan-km]').dataset.edlScanKm || state.editingId;
       await scanExistingEdlDocs(vehId);
+      return;
+    }
+    // ✍️ Restitution signée sur place RATTACHÉE À UNE PÉRIODE précise (conducteur déjà sorti compris) :
+    // on ouvre l'EDL avec le conducteur de la période ET sa date de fin → le PDF se range sous CE conducteur.
+    if (e.target.closest('[data-edl-signplace]')) {
+      const b = e.target.closest('[data-edl-signplace]');
+      const vehId = b.dataset.veh || (typeof drawerVehId !== 'undefined' ? drawerVehId : null) || state.editingId;
+      const vv = (data.vehicules || []).find(x => String(x.id) === String(vehId));
+      if (vv && window.FP && FP.edl && FP.edl.open) {
+        FP.edl.open(vv, { sens: b.dataset.sens || 'restitution', conducteur: b.dataset.cond || '', date: b.dataset.date || '' });
+      } else if (FP.toast) { FP.toast('État des lieux indisponible (connexion requise).'); }
       return;
     }
     if (e.target.closest('[data-insp-del]')) {
