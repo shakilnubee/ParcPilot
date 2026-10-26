@@ -54,6 +54,23 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 26/10/2026 — Audit profond #3 (angle complémentaire) : 13 correctifs
+Troisième passe, **angle différent** des 2 premières (par PAGE et par FLUX bout-en-bout + domaines non encore tracés : performance/volumétrie, dates/échéances, imports/robustesse, automatisations, PWA/accessibilité). Verdict d'ensemble inchangé : plateforme **solide**. **13 correctifs** :
+- **① [ÉLEVÉ] Facture Ulys — `Math.max` aveugle réintroduit** dans le parseur canonique (`app.js` `FP.ulys.parse`) : si le « NET A PAYER TTC … € » n'était pas lu (glyphe € perdu par pdf.js), le TTC prenait le **plus grand nombre de la page** (référence parasite → ex. 1875 €), HT/TVA dérivés → triplet faux mais cohérent, importé en silence. Remplacé par la recherche d'un **couple base/TVA cohérent** (TVA≈20 %) ; sinon TTC=null → facture signalée illisible au lieu d'un montant inventé.
+- **② [MOYEN] Dépôt groupé au scanner — compteur menteur** : un doublon refusé (FP.dupe renvoie `{annule:true}` sans lever) était compté « enregistré ». Désormais compté **« doublon ignoré »** (bilan + toast honnêtes).
+- **③ [MOYEN] Export « Coût par véhicule » (Stats) ≠ écran** : l'export incluait les véhicules sortis de flotte (total gonflé). Aligné sur le filtre écran (`FP.horsFlotte`).
+- **④ [MOYEN] Colonne « Prochain CT » (tableau Véhicules)** affichait « CT dépassé » en rouge pour un véhicule **étranger/exempté** (`FP.ctIgnored`) ou **vendu** (`FP.horsFlotte`), alors qu'il n'alerte nulle part ailleurs. Exemptions désormais respectées (date neutre).
+- **⑤ [MOYEN] `pp-build` — purge totale du cache + reload à chaque navigation croisée** (liens↔app, km↔v) : la constante de build divergeait entre pages (même clé localStorage) → purge/reload inutiles. Normalisée sur le build unique (la fraîcheur après déploiement reste assurée par la sonde `version.json` + le Service Worker).
+- **⑥ Tableau de bord — KPI km figés** : les raccourcis « Km en lot / par photo » émettent `fp:veh-km` (pas `fp:data-ready`) → « Km total » et « N à compléter » ne se rafraîchissaient qu'après F5. Listener `fp:veh-km` ajouté.
+- **⑦ Perf à l'échelle (×10)** : `FP.derniereRevisionInfo` (santé véhicule, tableau de bord) et `FP.santeConducteur` (grille conducteurs) rebalayaient TOUTE la table factures **par entité** (O(véhicules×factures)). Nouvel **index plaque→factures mémorisé** (`FP.facturesParImmat`, invalidé à chaque écriture de factures) → une seule construction par rendu. + `FP.coutMois` ne redédoublonne plus 14× sur le tableau de bord.
+- **⑧ Permis (en-tête fiche conducteur)** : puce « valide/expiré » calculée à l'heure courante → « expiré » le matin du jour J alors que le détail le disait valide. Passée à `FP.joursRestants` (minuit→minuit).
+- **⑨ Recherche Amendes** débouncée (180 ms) comme la page Factures.
+- **⑩ Scanner hors-ligne** : ne redirige plus vers `login.html` (qui a besoin du réseau) sur un simple token expiré hors-ligne (même garde que le dashboard).
+- **⑪ Barème** (`bareme.js`) : l'échec de synchro n'est plus **avalé** → erreur visible (`FP.notifyError`).
+- **⑫ `docRequis` / `automations`** ajoutés à `COLLECTION_KEYS` (fusion fine par id, comme `customFields`) → plus d'écrasement en bloc si deux appareils éditent ces listes en même temps.
+- Laissés (faibles/atténués/risqués) : repli `Math.max` du scanner générique (neutralisé par lecture par libellé), lecture Total Fleet par ordre de fragments (OK sur le gabarit connu), seuil de couleur « fin de leasing » 90/180 vs 30/60 (décision métier), rappels CT-veille/Ulys côté Edge (double-envoi seulement sur retry cron), quelques `aria-label` de boutons « fermer ».
+- Fichiers : `app.js` (+min), `bareme.js`, `scanner/statistiques/vehicules/conducteurs/amendes.html`, `dashboard.html`, + normalisation `pp-build` sur 37 pages. bump `?v= 20261026h → 20261026i`. check-bugs OK, test-calculs 33/33.
+
 ### 26/10/2026 — Audit profond #2 (8 auditeurs) : 11 correctifs de fiabilité
 Deuxième passe complète (8 auditeurs parallèles), chaque trouvaille vérifiée dans le vrai code. Verdict d'ensemble : plateforme **très solide** (sécurité, isolation, synchro « exceptionnellement blindées », OCR verrouillé, source unique largement respectée). **11 vrais problèmes corrigés** :
 - **① Documents perso d'un conducteur effacés à tort** (`conducteurs.html`) : « Supprimer » un conducteur lié à des véhicules/amendes = **masquage réversible**, mais `condDocsRemove` tournait quand même → effaçait ses pièces d'identité (CI, titre de séjour) et **dé-masquait son n° de permis**. Déplacé en suppression **définitive** uniquement.

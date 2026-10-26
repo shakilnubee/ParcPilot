@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20260921a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Dashboard — Parc Pilot</title>
@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261026h">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261026i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261026h"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261026i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261026h">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261026i">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -619,8 +619,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261026h"></script>
-<script src="assets/js/supabase-client.js?v=20261026h"></script>
+<script src="assets/js/vendor/supabase.js?v=20261026i"></script>
+<script src="assets/js/supabase-client.js?v=20261026i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -636,10 +636,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261026h"></script>
+<script src="assets/js/app.min.js?v=20261026i"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -669,7 +669,7 @@
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(initUpsell, 500); });
 })();
 </script>
-<script src="assets/js/vendor/chart.umd.min.js?v=20261026h" defer></script>
+<script src="assets/js/vendor/chart.umd.min.js?v=20261026i" defer></script>
 <script>
   lucide.createIcons();
 
@@ -839,7 +839,8 @@
     const spark = document.getElementById('kpi-couts-spark'); if (!spark || !FP.sparklineHTML) return;
     const months = [];
     for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push(FP.ymLocal(d)); }
-    const série = months.map(ym => FP.coutMois(data, ym)); // source unique (dédup + filtre exploit), cohérent avec le KPI
+    const _dedSpark = FP.dedupeFactures((data && data.factures) || []); // dédoublonne UNE fois pour les 6 mois
+    const série = months.map(ym => FP.coutMois(data, ym, _dedSpark)); // source unique (dédup + filtre exploit), cohérent avec le KPI
     if (série.some(v => v > 0)) spark.innerHTML = FP.sparklineHTML(série, { width: 110, height: 26, color: '#0e7490' });
   })();
 
@@ -1068,7 +1069,8 @@
   // sans bloquer l'affichage des KPIs (→ navigation fluide, pas de gris).
   // ⚠️ Recalcule les données à CHAQUE appel + détruit l'ancien graphe → suit les données en direct.
   function drawDashCharts() {
-  const monthlyTotals = months.map(m => FP.coutMois(data, m.ym)); // source unique (dédup + filtre exploit), cohérent avec le KPI et la sparkline
+  const _dedMonthly = FP.dedupeFactures((data && data.factures) || []); // dédoublonne UNE fois pour tous les mois
+  const monthlyTotals = months.map(m => FP.coutMois(data, m.ym, _dedMonthly)); // source unique (dédup + filtre exploit), cohérent avec le KPI et la sparkline
   { // sous-titre tendance (variation 1er → dernier mois)
     const first = monthlyTotals[0], last = monthlyTotals[monthlyTotals.length - 1];
     const deltaPct = first > 0 ? Math.round(((last - first) / first) * 100) : 0;
@@ -1348,6 +1350,20 @@
     if (typeof refreshAlertes === 'function') refreshAlertes();
     if (typeof renderSante === 'function') renderSante();
     if (typeof renderOnboarding === 'function') renderOnboarding();
+  });
+
+  // ⚠️ Les raccourcis km du dashboard (« Km en lot », « Km par photo ») passent par FP.setVehKm qui émet
+  // fp:veh-km (PAS fp:data-ready) → sans ce listener, « Km total de la flotte » et « N à compléter » restaient
+  // figés sur l'ancienne valeur jusqu'à un F5 (l'utilisateur croyait que ça n'avait pas marché).
+  document.addEventListener('fp:veh-km', () => {
+    try {
+      const fa = (data.vehicules || []).filter(v => !FP.estVendu(v));
+      const km = fa.reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (v.km || 0)), 0);
+      const kEl = document.getElementById('kpi-km'); if (kEl) kEl.textContent = FP.num(km) + ' km';
+      if (window.FP && FP.suivi) FP.suivi.ctx().then(ctx => { const c = FP.suivi.counts(fa, ctx); const el = document.getElementById('kpi-suivi'); if (el) { el.textContent = c.complets + ' / ' + c.total; el.style.color = (c.incomplets === 0 && c.total > 0) ? '#16a34a' : (c.incomplets > 0 ? 'var(--fp-warn)' : ''); } const d = document.getElementById('kpi-suivi-delta'); if (d) d.textContent = c.incomplets > 0 ? (c.incomplets + ' à compléter →') : 'flotte à jour ✓'; }).catch(() => {});
+      if (typeof renderSante === 'function') renderSante();
+      if (typeof renderVehicules === 'function') renderVehicules();
+    } catch (e) {}
   });
 
   // Le compteur « demandes conducteur » arrive en async (après fp:data-ready) → re-render des alertes

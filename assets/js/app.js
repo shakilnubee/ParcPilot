@@ -1641,7 +1641,9 @@ FP.dedupeFactures = (list) => {
 };
 // ⚠️ HELPER CANONIQUE — coût d'exploitation d'un mois : factures dédoublonnées par n° + filtre exploit.
 // Même chiffre partout (dashboard, écran mural, rapport direction) — sinon un doublon de n° gonflait le mois.
-FP.coutMois = (data, ym) => (FP.dedupeFactures(((data && data.factures) || [])).filter(f => (f.date || '').slice(0, 7) === ym && FP.coutFactureExploit(f)).reduce((s, f) => s + (Number(f.montantTTC) || 0), 0));
+// `_ded` (optionnel) = liste de factures DÉJÀ dédoublonnée (FP.dedupeFactures), pour éviter de re-dédoublonner
+// à chaque mois quand on boucle sur plusieurs mois (sparkline/graphes du dashboard). Même résultat, moins de travail.
+FP.coutMois = (data, ym, _ded) => ((Array.isArray(_ded) ? _ded : FP.dedupeFactures(((data && data.factures) || []))).filter(f => (f.date || '').slice(0, 7) === ym && FP.coutFactureExploit(f)).reduce((s, f) => s + (Number(f.montantTTC) || 0), 0));
 // ⚠️ HELPER CANONIQUE — URL ouvrable d'une FACTURE (table `factures`) : fileId = URL http (stockage
 // Supabase) OU id Google Drive ; 'IMP-…' ou vide = aucun fichier. SOURCE UNIQUE sur FP (utilisée par
 // FP.facturesZip ET FP.docsFolder). ⚠️ Avant, _factUrl n'existait QUE sur FP.docsFolder → FP.facturesZip
@@ -1771,9 +1773,11 @@ FP.compteCommeRevision = (f) => {
 FP.derniereRevisionInfo = (v, factures) => {
   try {
     if (!v || !v.immat) return { date: null, facture: null };
-    const list = factures || (window.FP_DATA && FP_DATA.factures) || [];
     const nk = FP.normImmat(v.immat);
-    const mine = list.filter(f => f && FP.normImmat(f.vehiculeImmat) === nk && FP.compteCommeRevision(f) && f.date)
+    // Index plaque→factures mémorisé (évite de refiltrer toute la table factures à chaque véhicule).
+    const scope = FP.facturesParImmat ? (FP.facturesParImmat(factures).get(nk) || [])
+      : (factures || (window.FP_DATA && FP_DATA.factures) || []).filter(f => f && FP.normImmat(f.vehiculeImmat) === nk);
+    const mine = scope.filter(f => f && FP.compteCommeRevision(f) && f.date)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const last = mine.length ? mine[mine.length - 1] : null;
     return { date: last ? last.date : null, facture: last };
@@ -2184,9 +2188,28 @@ FP.refreshDataCache = function () {
 // (pas de O(n²) de JSON.stringify). Un pagehide force un dernier flush (cf. _flushOnLeave).
 FP._syncDataCacheSoon = function (table) {
   if (!(table === 'vehicules' || table === 'amendes' || table === 'factures' || table === 'conducteurs')) return;
+  if (table === 'factures') FP._factMut++;   // invalide l'index plaque→factures (cf. FP.facturesParImmat)
   try { clearTimeout(FP.__dcTimer); } catch (e) {}
   try { FP.__dcTimer = setTimeout(function () { try { FP.refreshDataCache(); } catch (e) {} }, 250); } catch (e) {}
 };
+// ⚠️ INDEX plaque→factures MÉMORISÉ (perf à l'échelle) : des helpers par véhicule (FP.derniereRevisionInfo,
+// FP.santeVehicule) refiltraient TOUTE la table factures à chaque véhicule → O(véhicules × factures) à chaque
+// rendu du tableau de bord / de la grille. On construit l'index UNE fois et on le réutilise. SÛRETÉ : le cache
+// est invalidé dès que les factures changent (compteur FP._factMut bumpé par FP._syncDataCacheSoon à chaque
+// écriture de factures, et par fp:data-ready au rechargement) → il ne peut PAS devenir périmé. Pour une liste
+// AUTRE que window.FP_DATA.factures (ex. appel avec `factures` explicite), on construit sans mettre en cache.
+FP._factMut = 0;
+FP._fpiCache = null; FP._fpiSig = '';
+FP.facturesParImmat = function (factures) {
+  const glob = (window.FP_DATA && FP_DATA.factures) || [];
+  const list = factures || glob;
+  const build = () => { const m = new Map(); for (let i = 0; i < list.length; i++) { const f = list[i]; if (!f) continue; const k = FP.normImmat(f.vehiculeImmat); if (!k) continue; let a = m.get(k); if (!a) { a = []; m.set(k, a); } a.push(f); } return m; };
+  if (list !== glob) return build();   // liste ad hoc → pas de cache (sa signature n'est pas suivie)
+  const sig = glob.length + '.' + FP._factMut;
+  if (FP._fpiCache && FP._fpiSig === sig) return FP._fpiCache;
+  FP._fpiCache = build(); FP._fpiSig = sig; return FP._fpiCache;
+};
+try { document.addEventListener('fp:data-ready', function () { FP._factMut++; }); } catch (e) {}
 
 // ===== CORBEILLE DOCUMENTS (rétention 7 jours) =====
 // Un document supprimé (fiche véhicule OU alerte « doublons ») n'est plus effacé sèchement : on le
@@ -6404,7 +6427,10 @@ FP.settings = {
       'vehCustom', 'condCustom', 'customFields',
       // — Anti-doublon des automatisations (map { ruleId|itemKey|AAAA-MM → 1 }) et personnalisation des
       //   colonnes de fiche ({ typeFiche → [ids] }) : maps keyées → fusion fine (jamais écrasées en bloc).
-      'automationDone', 'ficheCols', 'ficheColsOrder']);
+      'automationDone', 'ficheCols', 'ficheColsOrder',
+      // — Listes de DÉFINITIONS à id (même nature que customFields) : documents obligatoires et règles
+      //   d'automatisation → fusion fine PAR ID (sinon un ajout concurrent multi-appareils écrasait l'autre).
+      'docRequis', 'automations']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
     // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).
@@ -9751,7 +9777,11 @@ FP.santeConducteur = (d, data) => {
   if (immats.length) {
     const ni = (x) => FP.normImmat ? FP.normImmat(x) : String(x || '').toUpperCase();
     const set = new Set(immats.map(ni));
-    const sins = (data.factures || []).filter(f => (f.type || '').toLowerCase() === 'sinistre' && f.vehiculeImmat && set.has(ni(f.vehiculeImmat)) && (FP.coutSinistre ? FP.coutSinistre(f) > 0 : (Number(f.montantTTC) || 0) > 0));
+    // Index plaque→factures mémorisé (évite de rebalayer TOUTE la table factures à chaque conducteur).
+    const estSin = f => (f.type || '').toLowerCase() === 'sinistre' && (FP.coutSinistre ? FP.coutSinistre(f) > 0 : (Number(f.montantTTC) || 0) > 0);
+    let sins;
+    if (FP.facturesParImmat) { const idx = FP.facturesParImmat(data && data.factures); sins = []; set.forEach(k => { (idx.get(k) || []).forEach(f => { if (f && estSin(f)) sins.push(f); }); }); }
+    else sins = (data.factures || []).filter(f => estSin(f) && f.vehiculeImmat && set.has(ni(f.vehiculeImmat)));
     const groups = {}; sins.forEach(f => { (groups[f.vehiculeImmat] = groups[f.vehiculeImmat] || []).push(f); });
     let nInc = 0;
     Object.values(groups).forEach(fs => {
@@ -15522,7 +15552,18 @@ FP.ulys = {
     if (mTtc) ttc = N(mTtc[1]);
     const page1 = t.split(/Badge n[°ºo]/)[0];
     const p1nums = toNums(page1);
-    if (ttc == null && p1nums.length) ttc = Math.max.apply(null, p1nums);
+    // ⚠️ JAMAIS Math.max aveugle (bug vécu « 1875 € » cité dans CLAUDE.md) : si « NET A PAYER TTC … € » n'a pas
+    // été lu, on ne DEVINE pas le TTC avec le plus grand nombre de la page (souvent une référence parasite).
+    // On cherche un couple base/TVA cohérent (TVA ≈ 20 % de la base) dans les nombres de la 1re page ; TTC = base + TVA.
+    // Si aucun couple cohérent → ttc reste null → la facture est signalée illisible (handleUlysImport la saute)
+    // au lieu d'importer un montant FAUX en silence.
+    if (ttc == null && p1nums.length) {
+      let bestT = null;
+      for (const b of p1nums) for (const tv of p1nums) {
+        if (b > 0 && tv > 0 && Math.abs(b * 0.20 - tv) <= 0.02) { if (!bestT || b > bestT.b) bestT = { b, tv }; }
+      }
+      if (bestT) ttc = +(bestT.b + bestT.tv).toFixed(2);
+    }
     if (ttc != null){
       let best = null;
       for (const b of p1nums) for (const tv of p1nums){

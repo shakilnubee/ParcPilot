@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20260921a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Conducteurs — Parc Pilot</title>
@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -676,8 +676,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026h"></script>
-<script src="../assets/js/supabase-client.js?v=20261026h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
+<script src="../assets/js/supabase-client.js?v=20261026i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -693,12 +693,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261026h"></script>
-<script src="../assets/js/app.min.js?v=20261026h"></script>
+<script src="../assets/js/fleet-docs.js?v=20261026i"></script>
+<script src="../assets/js/app.min.js?v=20261026i"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1669,7 +1669,9 @@
     // Chips + GROSSE jauge de points de permis dans l'en-tête (comme l'artefact)
     const hdrRest = pointsRestants(d);
     const gCol = hdrRest >= 9 ? '#34d399' : hdrRest >= 6 ? '#fbbf24' : '#f87171';
-    const permisOk = !d.permisExpiration || new Date(d.permisExpiration) > new Date();
+    // ⚠️ Décompte minuit→minuit via FP.joursRestants (pas new Date()>new Date() qui compare à l'HEURE courante
+    // → « expiré » le matin du jour J alors que la ligne de détail le dit encore valide). Même source que l'échéance.
+    const permisOk = !d.permisExpiration || (FP.joursRestants ? FP.joursRestants(d.permisExpiration) >= 0 : new Date(d.permisExpiration) > new Date());
     const hdrChips = [permisOk ? '<span class="fp-chip good">Permis valide</span>' : '<span class="fp-chip bad">Permis expiré</span>'];
     // Score de suivi conducteur (source unique FP.santeConducteur) — chip en tête, couleur = niveau.
     const dSante = FP.santeConducteur ? FP.santeConducteur(d, data) : null;
