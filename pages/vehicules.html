@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026g">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1196,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026f"></script>
-<script src="../assets/js/supabase-client.js?v=20261026f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026g"></script>
+<script src="../assets/js/supabase-client.js?v=20261026g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1213,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261026f"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261026f"></script>
+<script src="../assets/js/fleet-docs.js?v=20261026g"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261026g"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026f"></script><script>
+<script src="../assets/js/app.min.js?v=20261026g"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -4362,14 +4362,22 @@
     renderTabBar(); renderKPIs(); renderTable();
     alert(`Synchronisation terminée ✓\n${done} véhicule(s) envoyé(s) au serveur. Ils sont maintenant visibles sur tous les postes.`);
   }
-  async function persistVehicleDelete(id) {
+  async function persistVehicleDelete(id, rec) {
     if (!dbAvailable()) return;
+    // ⚠️ Suppression DURABLE (règle intégrité ⑥) : FP.persist.delete enfile l'opération AVANT l'appel
+    // réseau (survit à une navigation/fermeture immédiate) et dépose une copie en corbeille (restauration).
+    // Repli FP.db.delete si la file durable n'est pas dispo.
     try {
-      const res = await FP.db.delete('vehicules', id);
-      if (res && res.error) throw res.error;
+      if (FP.persist && FP.persist.delete) {
+        const v = rec || (data.vehicules || []).find(x => x.id === id);
+        await FP.persist.delete('vehicules', id, v);
+      } else {
+        const res = await FP.db.delete('vehicules', id);
+        if (res && res.error) throw res.error;
+      }
     } catch (err) {
       console.error('[deleteVehicle]', err);
-      alert("⚠️ Supprimé à l'écran, mais la suppression dans la base a échoué :\n" + (err.message || err));
+      if (FP.notifyError) FP.notifyError("Suppression véhicule : échec serveur — en attente de renvoi.");
     }
   }
 
@@ -6177,6 +6185,9 @@
             try { const url = await FP.uploadScan(files[i], 'etat-des-lieux/' + normImmat(v.immat || 'veh')); if (url) { await addVehDoc(vehId, 'etat-des-lieux', rec.sens, url); ok++; } } catch (err) { console.error('[edl upload]', err); }
           }
           if (ok && !v.etatDesLieux) { v.etatDesLieux = true; try { persistVehFields(v, 'etatDesLieux'); } catch (e) {} }
+          // ⚠️ Échec d'écriture JAMAIS silencieux (règle intégrité ③) : si une ou plusieurs photos n'ont pas
+          // été envoyées, on le DIT clairement au lieu d'afficher un « ✓ » menteur.
+          if (ok < files.length && FP.notifyError) FP.notifyError(`État des lieux : ${files.length - ok} photo(s) non envoyée(s) — réessaie.`);
           if (FP.toast) FP.toast(`✓ État des lieux enregistré · ${ok}/${files.length} pièce(s)`);
           openDrawer(vehId);
         })();
@@ -7984,6 +7995,10 @@
     renderKPIs();     // …puis remplit les compteurs (sinon ils restaient à « — »)
     renderTable();
     openVehFromUrl(); // au cas où le véhicule n'existait pas encore avant Supabase
+    // ⚠️ Les documents (table `documents`) sont chargés à l'init, mais FP.supabase/auth peut ne pas être
+    // prêt à ce moment → loadVehDocs() retournait vide. On recharge DÈS que les données live sont là
+    // (auth établie) pour que carte grise / EDL / docs véhicule apparaissent sans rechargement manuel.
+    try { loadVehDocs(); } catch (e) {}
   });
 
   // Statuts de collecte km (demande envoyée / km reçu) : chargés une fois puis la fiche

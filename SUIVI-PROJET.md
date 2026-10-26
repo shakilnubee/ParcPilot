@@ -54,6 +54,23 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 26/10/2026 — Audit complet (8 auditeurs) : 13 correctifs de fiabilité
+Audit systématique (8 domaines, chaque trouvaille vérifiée dans le vrai code avant correction — 0 faille XSS, 0 régression critique). **13 vrais problèmes corrigés** :
+- **① Perte de conducteurs possible** (`supabase-client.js`) : un blip réseau sur la **seule** table `conducteurs` renvoyait `[]` → l'écran et le cache pouvaient être vidés (« 46 → 0 »). Désormais `null` en cas d'erreur → les conducteurs déjà chargés sont **préservés** (gardes `Array.isArray` + repli `window.FP_DATA` dans `_writeDataCache`).
+- **② Relevé km du portail — échec silencieux** (`km-collect`) : les écritures (fiche véhicule + journal) ne vérifiaient pas l'erreur → un « ✓ enregistré » pouvait **mentir**. Contrôle ajouté → code `km_save` + message **traduit** (6 langues) côté `v.html`/`km.html`.
+- **③ Sinistres — KPI « Reste à charge »** : comptait `coûtRéel − remboursé` à la main → ignorait la **franchise** d'un dossier pris en charge. Passé à la source unique `FP.sinistreResteIncident` (comme la carte + Statistiques).
+- **④ Statistiques — véhicules sortis de flotte** : le podium coût/km, le KPI coût/km et le tableau TCO filtraient `FP.estVendu` (vendu seulement) → un véhicule **cédé/restitué/HS** restait compté. Aligné sur `FP.horsFlotte` (même périmètre que l'annulation des charges).
+- **⑤ Fiche véhicule — « Dépensé {année} »** : le reste à charge sinistre était sommé **facture par facture** (le remboursement, saisi **par incident**, n'était pas déduit) → total surévalué vs TCO/Budget. Passé en bloc à `FP.resteChargeSinistre`.
+- **⑥ État des lieux — photos non envoyées en silence** (`vehicules.html`) : si une photo échouait à l'upload, le toast affichait quand même « ✓ » → alerte `FP.notifyError` ajoutée (« N photo(s) non envoyée(s) »).
+- **⑦ Documents véhicule non rechargés** (`vehicules.html`) : `loadVehDocs()` ne tournait qu'à l'init (avant l'auth) → carte grise/EDL/docs pouvaient rester invisibles. Rechargés sur `fp:data-ready`.
+- **⑧ Suppression véhicule durable** (`vehicules.html`) : passait par `FP.db.delete` (perdue si navigation immédiate) → passée par `FP.persist.delete` (file durable + corbeille).
+- **⑨ MAJ km en lot (tableau de bord)** : copie locale divergente de `FP.setVehKm` (pas d'override local, pas d'événement, `kmDernierReleve` non recalé) → déléguée à l'écrivain canonique `FP.setVehKm` (source unique).
+- **⑩ Camembert factures (stats)** : libellés via un helper inexistant → nouveau `FP.factureTypeLabel` (source unique code → libellé).
+- **⑪ Facture — édition de la description** (`factures.html`) : n'relançait pas le recalcul de la fiche véhicule → « dernière révision »/date pneus figées (ces champs sont détectés sur la **description**). `description` ajoutée au déclencheur.
+- **⑫ Infobulles stats** corrigées (leasing compté dans le coût d'usage/km, retiré de la liste des ajouts TCO).
+- **⑬ Alerte « PDF contrat leasing manquant »** (`notifications.html`) : lisait `leasingDocs` par clé brute (`.toUpperCase()`) → un PDF déjà joint était vu « manquant » selon le format de plaque. Lecture tolérante `FP._mapGetImmat`.
+- Fichiers : `supabase-client.js`, `app.js` (+min), `km-collect`, `v.html`, `km.html`, `vehicules.html`, `factures.html`, `notifications.html`, `sinistres.html`, `statistiques.html`, `dashboard.html`. bump `?v= 20261026f → 20261026g`. check-bugs OK, test-calculs 33/33.
+
 ### 26/10/2026 — Lot ergonomie 3 (finitions portail + sinistres)
 - **Portail conducteur** — messages d'erreur du relevé km **traduits** (6 langues) : l'Edge `km-collect` renvoie un **code** (`km_invalid`/`km_lower`) + repli FR, traduit côté `v.html`/`km.html` (fini la phrase en français qui surgit pour un conducteur étranger). · **Anti-spinner infini** : le chargement a un **délai max (~12 s)** → bascule sur l'écran d'erreur avec un bouton **« Réessayer »** (multilingue) au lieu d'un spinner sans fin sur réseau faible.
 - **Sinistres** — nouveau filtre **« Clôturés »** (compteur inclus) pour isoler les dossiers terminés.
