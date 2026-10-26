@@ -9328,7 +9328,11 @@ FP.affectations = {
       let idx = -1;
       try {
         const _d = (date && /^\d{4}-\d{2}-\d{2}/.test(String(date))) ? String(date).slice(0, 10) : null;
-        if (_d && FP.edlHisto && FP.edlHisto.dansPeriode) { for (let i = list.length - 1; i >= 0; i--) { if (FP.edlHisto.dansPeriode(_d, list[i])) { idx = i; break; } } }
+        // 1) Appartenance PAR SENS (tranche la borne partagée : une restitution datée le jour de fin d'une
+        //    période fermée met à jour CETTE période, pas la période ouverte du conducteur actuel).
+        if (_d && FP.edlHisto && FP.edlHisto.appartientSens) { for (let i = list.length - 1; i >= 0; i--) { if (FP.edlHisto.appartientSens(_d, sens, list[i])) { idx = i; break; } } }
+        // 2) Repli : simple contenance (borne sans conflit de voisin).
+        if (idx < 0 && _d && FP.edlHisto && FP.edlHisto.dansPeriode) { for (let i = list.length - 1; i >= 0; i--) { if (FP.edlHisto.dansPeriode(_d, list[i])) { idx = i; break; } } }
       } catch (e) {}
       if (idx < 0) { for (let i = list.length - 1; i >= 0; i--) { if (!list[i].fin) { idx = i; break; } } } // sinon : période ouverte
       if (idx < 0) idx = list.length - 1;                              // repli : la dernière période
@@ -9399,6 +9403,25 @@ FP.edlHisto = {
     if (fin && date > fin) return false;
     return true;
   },
+  // ⚠️ RÈGLE DE BORNE PARTAGÉE (source unique) : la FIN d'une période = le DÉBUT de la suivante (ex. Samira
+  // finit le 23/10, Enguerrand commence le 23/10). Un EDL daté sur cette borne appartient aux DEUX périodes
+  // selon dansPeriode → il faut trancher par le SENS :
+  //   • une RESTITUTION datée au DÉBUT d'une période = restitution du conducteur PRÉCÉDENT (elle CLÔT sa
+  //     période) → elle n'appartient PAS à cette période-ci ;
+  //   • une REMISE datée à la FIN d'une période = remise du conducteur SUIVANT (elle OUVRE la période
+  //     d'après) → elle n'appartient PAS à cette période-ci.
+  // On n'exclut jamais une période d'UN SEUL JOUR (deb == fin) ni une borne « vide » (origine / en cours).
+  appartientSens(date, sens, a) {
+    const dd = String(date || '').slice(0, 10);
+    if (!this.dansPeriode(dd, a)) return false;
+    const deb = (a && a.debut) ? String(a.debut).slice(0, 10) : '';
+    const fin = (a && a.fin) ? String(a.fin).slice(0, 10) : '';
+    const isResti = /resti|sort/i.test(String(sens || ''));
+    if (isResti && deb && dd === deb && dd !== fin) return false; // restitution sur le début → période précédente
+    if (!isResti && fin && dd === fin && dd !== deb) return false; // remise sur la fin → période suivante
+    return true;
+  },
+  appartient(d, a) { return this.appartientSens(this.dateDe(d), this.sensDe(d), a); },
   // Historique EDL d'un véhicule groupé par période d'affectation.
   // → { periodes: [{ ...a, remise:[docs], restitution:[docs] }], orphelins:[docs], total }
   parVehicule(veh, docs) {
@@ -9409,7 +9432,10 @@ FP.edlHisto = {
       .map(a => Object.assign({}, a, { remise: [], restitution: [] }));
     const orphelins = [];
     eds.forEach(d => {
-      const p = periodes.find(x => this.dansPeriode(this.dateDe(d), x));
+      // Priorité à l'appartenance PAR SENS (tranche les bornes partagées remise↔restitution). Repli sur
+      // dansPeriode pour une borne SANS période concurrente (ex. 1re période du véhicule) → pas d'orphelin.
+      let p = periodes.find(x => this.appartient(d, x));
+      if (!p) p = periodes.find(x => this.dansPeriode(this.dateDe(d), x));
       (p ? p[this.sensDe(d)] : orphelins).push(d);
     });
     return { periodes, orphelins, total: eds.length };
@@ -9420,7 +9446,9 @@ FP.edlHisto = {
     return (affPeriodes || []).map(a => {
       const eds = this.docsDe(docs, a.vehId);
       const remise = [], restitution = [];
-      eds.forEach(d => { if (this.dansPeriode(this.dateDe(d), a)) (this.sensDe(d) === 'restitution' ? restitution : remise).push(d); });
+      // Même règle de borne partagée que parVehicule (sens-aware) : une restitution datée au DÉBUT de la
+      // période du conducteur suivant ne « déborde » pas sur lui, et inversement pour une remise.
+      eds.forEach(d => { if (this.appartient(d, a)) (this.sensDe(d) === 'restitution' ? restitution : remise).push(d); });
       return Object.assign({}, a, { remise, restitution });
     });
   }
