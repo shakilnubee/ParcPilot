@@ -9322,7 +9322,15 @@ FP.affectations = {
       const s = FP.settings.get();
       const list = (s.affectations && Array.isArray(s.affectations[vehId])) ? s.affectations[vehId] : null;
       if (!list || !list.length) return false;
-      let idx = -1; for (let i = list.length - 1; i >= 0; i--) { if (!list[i].fin) { idx = i; break; } }
+      // ⚠️ On cible EN PRIORITÉ la période qui CONTIENT la date de l'EDL (via FP.edlHisto.dansPeriode) :
+      // un EDL de restitution DATÉ dans une période déjà fermée (ex. restitution signée sur place d'un
+      // conducteur sorti) doit mettre à jour CETTE période, PAS la période ouverte du conducteur actuel.
+      let idx = -1;
+      try {
+        const _d = (date && /^\d{4}-\d{2}-\d{2}/.test(String(date))) ? String(date).slice(0, 10) : null;
+        if (_d && FP.edlHisto && FP.edlHisto.dansPeriode) { for (let i = list.length - 1; i >= 0; i--) { if (FP.edlHisto.dansPeriode(_d, list[i])) { idx = i; break; } } }
+      } catch (e) {}
+      if (idx < 0) { for (let i = list.length - 1; i >= 0; i--) { if (!list[i].fin) { idx = i; break; } } } // sinon : période ouverte
       if (idx < 0) idx = list.length - 1;                              // repli : la dernière période
       const sv = String(sens || '').toLowerCase();
       const isSortie = sv.indexOf('resti') >= 0 || sv.indexOf('sort') >= 0;
@@ -14097,7 +14105,10 @@ FP.edl = {
     // formulaire (sélecteur ci-dessous) → PDF + e-mail + page de signature suivent ce choix.
     const _condLang0 = (FP.condLangue ? FP.condLangue(cond) : 'fr');
     const km = FP.kmActuel ? FP.kmActuel(veh) : (veh.km || 0);
-    const today = new Date().toISOString().slice(0, 10);
+    // Date de l'EDL : par défaut aujourd'hui, MAIS si l'appelant passe opts.date (ex. restitution signée sur
+    // place rattachée à une période déjà fermée → date de fin de la période), on l'utilise → l'EDL se range
+    // sous la bonne période / le bon conducteur (jointure par date dans FP.edlHisto).
+    const today = (opts.date && /^\d{4}-\d{2}-\d{2}/.test(String(opts.date))) ? String(opts.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
     const modele = ((veh.marque || '') + ' ' + (veh.modele || '')).trim();
     const inp = (id, val, ph) => `<input id="${id}" value="${esc(val)}" placeholder="${esc(ph || '')}" style="flex:1 1 180px;min-width:0;max-width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:13px">`;
     const infoRow = (lbl, field) => `<label style="display:flex;gap:10px 12px;align-items:center;flex-wrap:wrap;margin-bottom:7px"><span style="flex:0 0 155px;min-width:120px;font-size:13px;color:#64748b">${lbl}</span>${field}</label>`;
