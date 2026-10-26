@@ -14224,7 +14224,7 @@ FP.edl = {
         ${infoRow('Modèle du véhicule', inp('edl-modele', modele))}
         ${infoRow('Immatriculation', inp('edl-immat', veh.immat || ''))}
         ${infoRow('Kilométrage', inp('edl-km', km))}
-        ${infoRow('Date de remise', `<input id="edl-date" type="date" value="${esc(today)}" style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:13px">`)}
+        ${infoRow(`<span id="edl-date-lbl">${sens === 'restitution' ? 'Date de restitution' : 'Date de remise'}</span>`, `<input id="edl-date" type="date" value="${esc(today)}" style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:13px">`)}
         ${sec('État extérieur — cochez / précisez')}
         ${this.EXT.map(l => rowInput('ext', l)).join('')}
         ${ta('edl-com-ext', 'Commentaires (extérieur)…')}
@@ -14274,6 +14274,16 @@ FP.edl = {
     </div>`;
     document.body.appendChild(ov);
     if (window.lucide) lucide.createIcons();
+    // Le libellé de la date suit le TYPE choisi (remise ↔ restitution) → plus d'ambiguïté « c'est bien la
+    // date de restitution que je mets ? » quand on bascule le type en haut de la fenêtre.
+    try {
+      ov.querySelectorAll('input[name="edl-sens"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+          var resti = (ov.querySelector('input[name="edl-sens"]:checked') || {}).value === 'restitution';
+          var l = ov.querySelector('#edl-date-lbl'); if (l) l.textContent = resti ? 'Date de restitution' : 'Date de remise';
+        });
+      });
+    } catch (e) {}
     // Signataire société : par défaut = le GESTIONNAIRE CONNECTÉ (celui qui fait l'état des lieux),
     // si aucun signataire société n'a été réglé dans Paramètres → Société. → les 2 e-mails (conducteur
     // + gestionnaire) sont remplis automatiquement, sans rien saisir.

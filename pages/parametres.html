@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026d">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -862,8 +862,10 @@
         <div class="set-sub-h"><i data-lucide="users-round"></i> Utilisateurs &amp; accès</div>
         <p class="set-sub-d" style="margin-bottom:.4rem">Crée et gère les accès à la plateforme. Tout est appliqué automatiquement (aucune manipulation Supabase).</p>
         <ul class="text-xs text-slate-500 mb-4" style="line-height:1.75;list-style:disc;padding-left:1.1rem">
+          <li><b>CEO</b> — super-administrateur : accès à <b>toutes les sociétés</b> (réservé à l'éditeur de la plateforme).</li>
           <li><b>Admin</b> — sa société : tous les droits + configuration + gestion des comptes.</li>
           <li><b>Gestionnaire</b> — sa société : ajoute / modifie / supprime les données, mais pas la configuration ni les comptes.</li>
+          <li><b>Espace salarié (chauffeur)</b> — accès limité pour un conducteur à ses propres infos : <i>bientôt disponible</i>.</li>
         </ul>
 
         <div id="users-list" class="mb-4"><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:84%"></div></div><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:66%"></div></div><div class="fp-skel-row"><div class="fp-skel fp-skel-chip"></div><div class="fp-skel fp-skel-line" style="width:74%"></div></div></div>
@@ -926,8 +928,8 @@
 <!-- Toast -->
 <div class="toast" id="toast">Enregistré ✓</div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026c"></script>
-<script src="../assets/js/supabase-client.js?v=20261026c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026d"></script>
+<script src="../assets/js/supabase-client.js?v=20261026d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -943,10 +945,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261026c"></script>
+<script src="../assets/js/app.min.js?v=20261026d"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -2790,9 +2792,9 @@
           </div>
           <select class="field-input text-sm" data-uacc style="width:150px"${u.self ? ' disabled title="Vous ne pouvez pas changer votre propre accès"' : ''}>${accesOptions(isCEO, u.acces)}</select>
           ${socSelHtml}
-          <button class="btn btn-outline text-xs" data-uresetmail title="Envoyer un e-mail de réinitialisation — la personne choisit elle-même son nouveau mot de passe"><i data-lucide="mail" class="w-4 h-4"></i></button>
-          <button class="btn btn-outline text-xs" data-ureset title="Fixer un mot de passe manuellement (tu le communiques)"><i data-lucide="key-round" class="w-4 h-4"></i></button>
-          <button class="btn btn-outline text-xs" data-udel title="Supprimer le compte"${u.self ? ' disabled style="opacity:.4"' : ''}><i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i></button>
+          <button class="btn btn-outline text-xs" data-uresetmail title="Envoyer un e-mail de réinitialisation — la personne choisit elle-même son nouveau mot de passe"><i data-lucide="mail" class="w-4 h-4"></i> Réinit. par e-mail</button>
+          <button class="btn btn-outline text-xs" data-ureset title="Fixer un mot de passe manuellement (tu le communiques à la personne)"><i data-lucide="key-round" class="w-4 h-4"></i> Définir mot de passe</button>
+          <button class="btn btn-outline text-xs" data-udel title="Supprimer le compte"${u.self ? ' disabled style="opacity:.4"' : ''}><i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i> <span class="text-red-600">Supprimer</span></button>
         </div>`;
       }).join('');
       if (window.lucide) lucide.createIcons();
@@ -2866,6 +2868,7 @@
         accSel.disabled = true; if (socSel2) socSel2.disabled = true;
         const r = await call({ action: 'updateRole', id, acces, societe });
         if (r.error) alert('Modification refusée : ' + r.error);
+        else if (FP.toast) FP.toast('✓ Accès mis à jour');   // feedback positif (sinon doute « ça a marché ? »)
         load();
       });
       listEl.addEventListener('click', async (e) => {

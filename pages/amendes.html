@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026d">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -453,7 +453,7 @@
 
       <div>
         <div class="field-label">Conducteur *</div>
-        <div class="ac-wrap"><input class="field-input" id="am-prenom" placeholder="Prénom" required autocomplete="off" /></div>
+        <div class="ac-wrap"><input class="field-input" id="am-prenom" placeholder="Prénom Nom — choisir ou créer" required autocomplete="off" /></div>
       </div>
       <div>
         <div class="field-label">Véhicule concerné (plaque)</div>
@@ -468,6 +468,9 @@
         <div><div class="field-label">Montant (€) *</div><input class="field-input" type="text" inputmode="decimal" id="am-montant" placeholder="0" required /></div>
         <div><div class="field-label">Points retirés *</div><input class="field-input" type="number" id="am-points" min="0" step="1" placeholder="0" required /><div class="text-xs text-slate-400 mt-0.5">Calculés selon l'infraction — modifiable</div></div>
       </div>
+      <!-- Contrôle « 3 tarifs lus » après un scan d'avis (minoré / forfaitaire / majoré) : l'utilisateur
+           vérifie d'un coup d'œil que l'IA a bien séparé les montants (le retenu = minoré, en gras). -->
+      <div id="am-breakdown" class="hidden text-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"></div>
       <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
         <input type="checkbox" id="am-etrangere" class="w-4 h-4 accent-amber-600" />
         Amende étrangère (pas de retrait de points en France)
@@ -521,8 +524,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026c"></script>
-<script src="../assets/js/supabase-client.js?v=20261026c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026d"></script>
+<script src="../assets/js/supabase-client.js?v=20261026d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -538,12 +541,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026c"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261026c" defer></script>
+<script src="../assets/js/app.min.js?v=20261026d"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261026d" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2265,6 +2268,8 @@
     if ($('am-immat')) $('am-immat').value = ''; if ($('am-veh-choix')) $('am-veh-choix').innerHTML = '';
     _avisFile = null; _pointsTouched = false; _scanBreakdown = null; // ⚠️ sinon la ventilation 3 tarifs d'un avis scanné reste collée à l'amende suivante saisie à la main
     $('am-etrangere').checked = false; $('am-points').removeAttribute('disabled');
+    if ($('am-avis')) { $('am-avis').setAttribute('required', 'required'); $('am-avis').placeholder = 'ex. 0012345678'; } // réinit : avis obligatoire (sauf si « étrangère » re-cochée)
+    renderScanBreakdown(); // efface la ligne « 3 tarifs lus » de l'amende précédente
     $('am-is-majoration').checked = false; $('am-majoration-pick').classList.add('hidden');
     $('am-doublon-banner').classList.add('hidden');
     const _ab = $('am-anomalies'); if (_ab) _ab.innerHTML = '';
@@ -2287,6 +2292,26 @@
     box.innerHTML = FP.amendeAnomaliesBanner
       ? FP.amendeAnomaliesBanner(a, _scanBreakdown, { hint: "Corrigez le champ concerné ci-dessus avant d'enregistrer." })
       : '';
+    renderScanBreakdown();
+  }
+  // Ligne de contrôle « 3 tarifs lus » (minoré / forfaitaire / majoré) montrée AU MOMENT de vérifier le
+  // scan, avant d'enregistrer — le montant retenu (= minoré) est en gras. But : vérifier d'un coup d'œil
+  // que l'IA a bien séparé les 3 montants (régression récurrente). Lecture seule, même source que la fiche.
+  function renderScanBreakdown() {
+    const box = $('am-breakdown'); if (!box) return;
+    const b = _scanBreakdown;
+    const has = b && (b.montantMinore != null || b.montantForfaitaire != null || b.montantMajore != null);
+    if (!has) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    const euro = v => (v == null || v === '') ? '—' : (FP.euro ? FP.euro(v) : v + ' €');
+    const retenu = FP.parseMontant ? FP.parseMontant($('am-montant').value) : parseFloat($('am-montant').value);
+    const cell = (lbl, v) => {
+      const on = (v != null && retenu != null && isFinite(retenu) && Math.abs(Number(v) - Number(retenu)) < 0.5);
+      return `<span style="${on ? 'font-weight:800;color:#0f1e3d' : 'color:#64748b'}">${lbl} ${euro(v)}</span>`;
+    };
+    box.innerHTML = '<span style="color:#475569">🧾 3 tarifs lus sur l\'avis — </span>'
+      + cell('minoré', b.montantMinore) + ' · ' + cell('forfaitaire', b.montantForfaitaire) + ' · ' + cell('majoré', b.montantMajore)
+      + '<span style="color:#94a3b8"> — le montant retenu (en gras) n\'est jamais le majoré.</span>';
+    box.classList.remove('hidden');
   }
   function updateQueueBanner() {
     const b = $('av-queue-banner'); if (!b) return;
@@ -2362,8 +2387,10 @@
     $('am-telepaiement').value = ''; $('am-cle').value = '';
     if ($('am-immat')) $('am-immat').value = ''; if ($('am-veh-choix')) $('am-veh-choix').innerHTML = '';
     _avisFile = null;
-    _pointsTouched = false;
+    _pointsTouched = false; _scanBreakdown = null;
     $('am-etrangere').checked = false; $('am-points').removeAttribute('disabled');
+    if ($('am-avis')) { $('am-avis').setAttribute('required', 'required'); $('am-avis').placeholder = 'ex. 0012345678'; }
+    renderScanBreakdown();
     // Réinitialise le bloc majoration
     populateMajorationParents();
     $('am-is-majoration').checked = false;
@@ -2951,8 +2978,15 @@
   $('am-motif').addEventListener('input', autoPointsFromMotif);
   // Amende étrangère : 0 point, champ points désactivé
   $('am-etrangere').addEventListener('change', (e) => {
-    if (e.target.checked) { $('am-points').value = '0'; $('am-points').setAttribute('disabled', 'disabled'); }
-    else { $('am-points').removeAttribute('disabled'); }
+    if (e.target.checked) {
+      $('am-points').value = '0'; $('am-points').setAttribute('disabled', 'disabled');
+      // Une amende étrangère n'a souvent PAS de n° d'avis au format ANTAI → on ne le rend plus
+      // obligatoire (sinon le navigateur bloque l'enregistrement sur un champ impossible à remplir).
+      const av = $('am-avis'); if (av) { av.removeAttribute('required'); av.placeholder = 'N° d\'avis (si disponible)'; }
+    } else {
+      $('am-points').removeAttribute('disabled');
+      const av = $('am-avis'); if (av) { av.setAttribute('required', 'required'); av.placeholder = 'N° d\'avis'; }
+    }
   });
   // Panneau d'envoi de mail proposé juste après l'enregistrement
   $('ps-paiement').addEventListener('click', () => { mailPaiement(); closeAmendeModal(); });
@@ -3057,13 +3091,21 @@
     if (!state.currentId || !(window.FP && FP.msg)) return;
     const a = data.amendes.find(x => x.id === state.currentId); if (!a) return;
     const prenom = a.prenom || '';
-    const tel = (FP.conducteurContact ? (FP.conducteurContact(prenom).tel || '') : '');
+    const contact = FP.conducteurContact ? FP.conducteurContact(prenom) : {};
+    const tel = (contact && contact.tel) || '';
+    const email = (contact && contact.email) || '';   // 3 canaux TOUJOURS (SMS + WhatsApp + E-mail) — règle 0septies
     const nomAff = (FP.prenomAffiche ? FP.prenomAffiche(prenom) : prenom) || prenom;
     const isRelance = !(FP.estPayee && FP.estPayee(a)) && !!(a.relanceLe || a.relance);
     const plaque = a.immatriculation || a.plaque || '';
     const nbp = String(plaque || '').replace(/-/g, '‑').replace(/ /g, ' ');
     const txt = `Bonjour ${prenom || ''},\n${isRelance ? 'Petit rappel : ' : ''}une amende${plaque ? ' concernant le véhicule ' + nbp : ''} a été envoyée par e-mail. À consulter dès que possible pour éviter une majoration 💵.`;
-    FP.msg.open({ phone: tel, nom: nomAff, title: 'Prévenir ' + (nomAff || 'le conducteur'), text: txt });
+    let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
+    let logo = ''; try { const p = FP.societeProfil ? FP.societeProfil() : {}; logo = p.logoUrl || p.logoDataUrl || ''; } catch (e) {}
+    FP.msg.open({
+      phone: tel, email: email, nom: nomAff, title: 'Prévenir ' + (nomAff || 'le conducteur'), text: txt,
+      emailSubject: (isRelance ? 'Rappel — amende à régler' : 'Amende à consulter') + (plaque ? ' — ' + plaque : ''),
+      emailNomSoc: soc, emailLogo: logo
+    });
   });
   $('drawer-conteste').addEventListener('click', markConteste);
 
