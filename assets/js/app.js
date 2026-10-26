@@ -2448,6 +2448,55 @@ FP.filterSheet = function (barEl) {
   } catch (e) {}
 };
 
+// ⚠️ SOURCE UNIQUE — rend une « bulle » (rubrique de fiche) REPLIABLE, avec mémoire par appareil.
+// Utilisé sur la fiche conducteur ET la fiche véhicule (cohérence : même flèche, même comportement).
+// • `card` = l'élément bulle (son 1er enfant = le titre : .fiche-title / .font-semibold.border-b / <summary>…).
+// • `scope` = 'cond' | 'veh' (préfixe de clé de mémoire).
+// Ouvertes par défaut (rien de caché) ; si l'utilisateur replie une bulle, l'état est mémorisé
+// (localStorage, clé = scope + titre normalisé) et re-appliqué à la prochaine ouverture de fiche.
+// Ne casse RIEN : un <details> natif (ex. la bulle « États des lieux ») garde son toggle natif ;
+// une bulle en <div> voit son contenu (hors titre) enveloppé dans un .fp-coll-body masquable.
+// Un clic sur un élément interactif du titre (lien/bouton/champ/édition) NE replie PAS.
+FP.makeCollapsible = function (card, scope) {
+  try {
+    if (!card || card.__fpColl) return;
+    var HSEL = '.fiche-title,.cc-title,.font-semibold.border-b,summary,h3,h4';
+    var kids = Array.prototype.slice.call(card.children), head = null;
+    for (var i = 0; i < kids.length; i++) {
+      var c = kids[i];
+      if (c.matches && c.matches(HSEL)) { head = c; break; }
+      if (c.querySelector && c.querySelector(HSEL)) { head = c; break; }
+    }
+    if (!head) return;
+    var titleEl = (head.matches && head.matches(HSEL)) ? head : (head.querySelector ? head.querySelector(HSEL) : head);
+    var title = (((titleEl || head).textContent) || '').trim();
+    if (!title) return;
+    var slug = title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+    if (!slug) return;
+    var key = 'fp_coll_' + (scope || 'x') + '_' + slug;
+    var st = null; try { st = localStorage.getItem(key); } catch (e) {}
+    var save = function (v) { try { localStorage.setItem(key, v); } catch (e) {} };
+    card.__fpColl = true; card.classList.add('fp-coll');
+    // <details> natif : on garde son toggle, on ajoute juste la mémoire.
+    if (card.tagName === 'DETAILS') {
+      if (st === 'c') card.open = false; else if (st === 'o') card.open = true;
+      card.addEventListener('toggle', function () { save(card.open ? 'o' : 'c'); });
+      return;
+    }
+    head.classList.add('fp-coll-head');
+    // Enveloppe tout ce qui suit le titre dans un corps masquable.
+    var body = document.createElement('div'); body.className = 'fp-coll-body';
+    var n = head.nextSibling; while (n) { var nx = n.nextSibling; body.appendChild(n); n = nx; }
+    card.appendChild(body);
+    if (st === 'c') card.classList.add('fp-collapsed');
+    head.setAttribute('role', 'button'); head.setAttribute('tabindex', '0');
+    var toggle = function () { var col = card.classList.toggle('fp-collapsed'); save(col ? 'c' : 'o'); };
+    var interactive = 'a,button,input,select,textarea,label,[contenteditable],[data-edit-key]';
+    head.addEventListener('click', function (e) { if (e.target.closest(interactive)) return; toggle(); });
+    head.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest(interactive)) { e.preventDefault(); toggle(); } });
+  } catch (e) {}
+};
+
 FP.filterResetButton = function (bar, opts) {
   try {
     opts = opts || {};
