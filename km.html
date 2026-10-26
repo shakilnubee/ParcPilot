@@ -112,6 +112,7 @@
           <div class="big-emoji">⛓️‍💥</div>
           <div class="ok-title" id="bad-title">Lien indisponible</div>
           <div class="sub" style="color:var(--muted)" id="bad-sub">Ce lien n'est plus valide.</div>
+          <button id="bad-retry" type="button" class="hide" onclick="location.reload()" style="margin-top:16px;padding:.7rem 1.4rem;border:none;border-radius:.7rem;background:var(--accent,#2563eb);color:#fff;font-size:1rem;font-weight:700;cursor:pointer">Réessayer</button>
         </div>
       </div>
     </div>
@@ -300,9 +301,12 @@
 
   if (!token && !qr) { show('bad'); applyStaticI18n(); $('bad-sub').textContent = t('incomplete'); return; }
 
-  // 1) Charger les infos du véhicule
-  fetch(FN + '?' + keyParam(), { headers: headers(), cache: 'no-store' })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+  // 1) Charger les infos du véhicule — avec un délai max (réseau faible : parking souterrain…) : au lieu
+  // d'un spinner infini, on bascule sur l'écran d'erreur (qui invite à réessayer) après ~12 s.
+  var _lc = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var _lt = setTimeout(function () { try { _lc && _lc.abort(); } catch (e) {} }, 12000);
+  fetch(FN + '?' + keyParam(), { headers: headers(), cache: 'no-store', signal: _lc ? _lc.signal : undefined })
+    .then(function (r) { clearTimeout(_lt); return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
     .then(function (res) {
       var d = res.d || {};
       if (!res.ok || !d.ok) { show('bad'); $('bad-sub').textContent = d.error || t('invalid'); return; }
@@ -315,8 +319,22 @@
       show('form'); paintForm();
       setTimeout(function () { $('km').focus(); }, 150);
     })
-    .catch(function () { show('bad'); $('bad-sub').textContent = t('conn'); });
+    .catch(function () {
+      clearTimeout(_lt); show('bad'); $('bad-sub').textContent = t('conn');
+      var rb = $('bad-retry'); if (rb) { var RM = { fr: 'Réessayer', en: 'Try again', es: 'Reintentar', it: 'Riprova', de: 'Erneut versuchen', zh: '重试' }; rb.textContent = RM[LANG] || RM.fr; rb.classList.remove('hide'); }
+    });
 
+  // Traduit un message d'erreur serveur à partir de son CODE (le serveur renvoie `code` + repli FR `error`).
+  function kmErrMsg(d) {
+    if (!d || !d.code) return '';
+    var n = (d.km != null) ? Number(d.km).toLocaleString(localeNb()) : '';
+    var r = (d.kmRef != null) ? Number(d.kmRef).toLocaleString(localeNb()) : '';
+    var M = {
+      km_invalid: { fr: 'Kilométrage invalide. Saisis un nombre (ex. 45 000).', en: 'Invalid mileage. Enter a number (e.g. 45,000).', es: 'Kilometraje no válido. Introduce un número (p. ej. 45 000).', it: 'Chilometraggio non valido. Inserisci un numero (es. 45.000).', de: 'Ungültiger Kilometerstand. Gib eine Zahl ein (z. B. 45.000).', zh: '里程无效。请输入数字（例如 45000）。' },
+      km_lower: { fr: 'Le kilométrage saisi (' + n + ') est inférieur au dernier relevé connu (' + r + '). Vérifie ton compteur.', en: 'The mileage entered (' + n + ') is lower than the last known reading (' + r + '). Please check your odometer.', es: 'El kilometraje (' + n + ') es inferior al último registrado (' + r + '). Revisa tu cuentakilómetros.', it: 'Il chilometraggio (' + n + ') è inferiore all\'ultimo noto (' + r + '). Controlla il contachilometri.', de: 'Der Kilometerstand (' + n + ') ist niedriger als der letzte bekannte (' + r + '). Bitte prüfe deinen Tacho.', zh: '输入的里程（' + n + '）低于上次记录（' + r + '）。请检查里程表。' }
+    };
+    var m = M[d.code]; return m ? (m[LANG] || m.fr) : '';
+  }
   // 2) Envoyer le km
   function submit() {
     var km = parseInt(($('km').value || '').replace(/[^0-9]/g, ''), 10);
@@ -344,7 +362,7 @@
         var d = res.d || {};
         if (!res.ok || !d.ok) {
           $('send').disabled = false; $('send').textContent = t('send');
-          $('err').textContent = d.error || t('sendfail'); $('err').style.display = 'block'; return;
+          $('err').textContent = kmErrMsg(d) || d.error || t('sendfail'); $('err').style.display = 'block'; return;
         }
         $('done-sub').innerHTML = t('saved')(Number(d.km).toLocaleString(localeNb()));
         show('done');
