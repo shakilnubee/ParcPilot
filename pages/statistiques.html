@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026g">
 <style>
   .chart-wrap { position: relative; height: 280px; }
   .chart-wrap-sm { position: relative; height: 220px; }
@@ -161,7 +161,7 @@
         <div class="kpi-ic violet"><i data-lucide="badge-euro"></i></div>
       </div></div>
       <div class="kpi"><div class="flex justify-between items-start gap-2">
-        <div><div class="kpi-label" title="Ce que la voiture coûte à ROULER (carburant, entretien, réparations) rapporté aux km, sur toute sa vie. Le « €/km (TCO) » du classement et du tableau ajoute en plus l'assurance, la TVS, le leasing et les amendes : il est donc toujours plus élevé. Les deux sont justes, ils ne mesurent simplement pas la même chose.">Coût d'usage / km <span class="text-slate-300 font-normal">ⓘ</span></div>
+        <div><div class="kpi-label" title="Ce que la voiture coûte à ROULER (carburant, entretien, réparations, leasing) rapporté aux km, sur toute sa vie. Le « €/km (TCO) » du classement et du tableau ajoute en plus l'assurance, la TVS et les amendes : il est donc toujours plus élevé. Les deux sont justes, ils ne mesurent simplement pas la même chose.">Coût d'usage / km <span class="text-slate-300 font-normal">ⓘ</span></div>
           <div class="kpi-value" id="kpi-perkm" style="color: var(--fp-accent)">—</div>
           <div class="kpi-delta">usage seul · à vie</div></div>
         <div class="kpi-ic"><i data-lucide="gauge"></i></div>
@@ -176,7 +176,7 @@
 
     <!-- Classement coût au km -->
     <div class="card p-5 mb-6">
-      <h3 class="font-bold text-slate-900 mb-1 flex items-center gap-2" title="Ici, le coût au km est calculé TOUT COMPRIS (usage + assurance + TVS + leasing + amendes) : c'est pourquoi il est plus élevé que le « Coût d'usage / km » affiché en haut (qui ne compte que carburant/entretien/réparations).">
+      <h3 class="font-bold text-slate-900 mb-1 flex items-center gap-2" title="Ici, le coût au km est calculé TOUT COMPRIS (usage + assurance + TVS + amendes) : c'est pourquoi il est plus élevé que le « Coût d'usage / km » affiché en haut (qui compte carburant/entretien/réparations/leasing, sans assurance/TVS/amendes).">
         <i data-lucide="gauge" class="w-4 h-4" style="color:#F97316"></i> Classement coût au km <span class="text-xs font-normal text-slate-400">(tout compris · <span id="perkm-periode">toutes années</span>)</span> <span class="text-slate-300 font-normal text-xs">ⓘ</span></h3>
       <p class="text-xs text-slate-400 mb-4">Coût total (factures + carburant + péages + assurance + TVS + amendes) rapporté au kilométrage. Véhicules de moins de 1 000 km exclus (coût/km non fiable quand le véhicule a très peu roulé).</p>
       <div class="grid md:grid-cols-2 gap-6">
@@ -320,8 +320,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026f"></script>
-<script src="../assets/js/supabase-client.js?v=20261026f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026g"></script>
+<script src="../assets/js/supabase-client.js?v=20261026g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -337,11 +337,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261026f"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261026f" defer></script>
+<script src="../assets/js/app.min.js?v=20261026g"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261026g" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -631,16 +631,17 @@
     $('kpi-achat').textContent = FP.euro(achat);
     // Coût d'usage / km = coût d'usage TOTAL (toutes années, dédoublonné) rapporté au km au compteur.
     // Métrique « à vie » cohérente : on ne divise PAS un coût d'une seule année par le km cumulé du véhicule.
-    // ⚠️ Coût d'usage / km = métrique de la FLOTTE ACTIVE → on EXCLUT les véhicules VENDUS au numérateur
-    // (leurs factures) ET au dénominateur (leurs km), sinon la moyenne est faussée (demande utilisateur).
-    const _soldSet = new Set((data.vehicules || []).filter(v => FP.estVendu && FP.estVendu(v)).map(v => FP.normImmat(v.immat)));
-    const _notSold = f => !_soldSet.has(FP.normImmat(f.vehiculeImmat));
+    // ⚠️ Coût d'usage / km = métrique de la FLOTTE ACTIVE → on EXCLUT les véhicules SORTIS de flotte
+    // (vendu/cédé/restitué/HS via FP.horsFlotte — même périmètre que les charges) au numérateur (leurs
+    // factures) ET au dénominateur (leurs km), sinon la moyenne est faussée.
+    const _outSet = new Set((data.vehicules || []).filter(v => FP.horsFlotte && FP.horsFlotte(v)).map(v => FP.normImmat(v.immat)));
+    const _inFleet = f => !_outSet.has(FP.normImmat(f.vehiculeImmat));
     const usageAllTime = (function () {
-      const ded = FP.dedupeFactures(factures).filter(_notSold);
+      const ded = FP.dedupeFactures(factures).filter(_inFleet);
       return ded.filter(f => isUsage(f) && !_sinT(f)).reduce((s, f) => s + (+f.montantTTC || 0), 0)
         + (FP.resteChargeSinistre ? FP.resteChargeSinistre(ded) : 0);
     })();
-    const totalKm = data.vehicules.filter(v => !(FP.estVendu && FP.estVendu(v))).reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (v.km || 0)), 0); // km compteur flotte active (source unique FP.kmActuel)
+    const totalKm = data.vehicules.filter(v => !(FP.horsFlotte && FP.horsFlotte(v))).reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (v.km || 0)), 0); // km compteur flotte active (source unique FP.kmActuel)
     $('kpi-perkm').textContent = totalKm > 0 ? FP.euroPrecis(usageAllTime / totalKm) : '—';
     // Top dépense = la plus grosse facture D'USAGE (entretien/répa/leasing/sinistre) —
     // on EXCLUT l'achat du véhicule (prix d'acquisition, affiché à part) ainsi que
@@ -699,7 +700,7 @@
     const perType = {}; fact.forEach(f => { const t = f.type || 'autre'; perType[t] = (perType[t] || 0) + coutReel(f); });
     charts.type = new Chart($('typeChart'), {
       type: 'doughnut',
-      data: { labels: Object.keys(perType).map(t => (FP.factures && FP.factures.typeLabel) ? FP.factures.typeLabel(t) : t), datasets: [{ data: Object.values(perType), backgroundColor: ['#1E3A8A', '#DC2626', '#16A34A', '#7C3AED', '#F59E0B', '#7F1D1D', '#94A3B8'], borderWidth: 0 }] },
+      data: { labels: Object.keys(perType).map(t => FP.factureTypeLabel ? FP.factureTypeLabel(t) : t), datasets: [{ data: Object.values(perType), backgroundColor: ['#1E3A8A', '#DC2626', '#16A34A', '#7C3AED', '#F59E0B', '#7F1D1D', '#94A3B8'], borderWidth: 0 }] },
       options: { cutout: '60%', plugins: { legend: { position: 'right', labels: { boxWidth: 14, font: { size: 13 } } }, tooltip: { callbacks: { label: ctx => `${ctx.label} : ${FP.euro(ctx.parsed)}` } } }, maintainAspectRatio: false, responsive: true }
     });
 
@@ -818,7 +819,7 @@
       // €/km : coût cumulé ÷ km compteur cumulé → n'a de sens qu'en « toutes années » ; sinon 0 (« — »).
       // Dénominateur = FP.kmActuel (source unique, comme la fiche véhicule), pas v.km brut.
       const kmA = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0);
-      return { id: v.id, immat: v.immat, modele: `${v.marque} ${v.modele}`.trim(), km: kmA, fact: factTotal, assur, tvs, amendes, total, perKm: (annee === 'all' && kmA >= MIN_KM_PERKM) ? total / kmA : 0, nb: fv.length, achatDate: achatF ? achatF.date : '', vendu: FP.estVendu ? FP.estVendu(v) : false };
+      return { id: v.id, immat: v.immat, modele: `${v.marque} ${v.modele}`.trim(), km: kmA, fact: factTotal, assur, tvs, amendes, total, perKm: (annee === 'all' && kmA >= MIN_KM_PERKM) ? total / kmA : 0, nb: fv.length, achatDate: achatF ? achatF.date : '', hf: FP.horsFlotte ? FP.horsFlotte(v) : false };
     }).sort((a, b) => b.total - a.total);
     renderTcoTable();
     renderPodiumPerKm(annee);
@@ -877,7 +878,7 @@
       const note = '<p class="text-sm text-slate-400 py-2">Le coût au km se calcule sur toute la vie du véhicule. Sélectionne « toutes années » pour le voir.</p>';
       $('podium-chers').innerHTML = note; $('podium-eco').innerHTML = note; return;
     }
-    const ranked = tcoData.filter(t => t.perKm > 0 && t.km > 0 && !t.vendu); // véhicules VENDUS exclus du classement coût/km (demande utilisateur)
+    const ranked = tcoData.filter(t => t.perKm > 0 && t.km > 0 && !t.hf); // véhicules SORTIS de flotte (vendu/cédé/restitué/HS) exclus — même périmètre que l'annulation des charges (FP.horsFlotte)
     const chers = ranked.slice().sort((a, b) => b.perKm - a.perKm).slice(0, 3);
     const eco   = ranked.slice().sort((a, b) => a.perKm - b.perKm).slice(0, 3);
     const medals = ['🥇', '🥈', '🥉'];
@@ -919,7 +920,7 @@
 
   function renderTcoTable() {
     const visible = tcoEditor ? tcoEditor.getVisibleColumns() : TCO_COLUMNS.map(c => c.key);
-    $('tco-tbody').innerHTML = tcoData.filter(t => !t.vendu).map(t => { // véhicules VENDUS exclus du tableau TCO (demande utilisateur)
+    $('tco-tbody').innerHTML = tcoData.filter(t => !t.hf).map(t => { // véhicules SORTIS de flotte exclus du tableau TCO (FP.horsFlotte — même périmètre que l'annulation des charges)
       const cells = visible.map(k => {
         const def = TCO_COLUMNS.find(c => c.key === k);
         if (!def) return '<td></td>';

@@ -342,7 +342,11 @@
         vehicules: filterSociete((v.data || []).map(toClient).map(reconcileVehKm)),
         amendes:   filterSociete((a.data || []).map(toClient)),
         factures:  filterSociete((f.data || []).map(toClient)),
-        conducteurs: filterSociete((c.data || []).map(toClient)),
+        // ⚠️ conducteurs = requête NON bloquante : en cas d'erreur (blip réseau sur CETTE table seule), on
+        // renvoie null (PAS []) → l'appelant ne doit PAS écraser les conducteurs déjà chargés par un tableau
+        // vide (sinon disparition en mémoire + cache, bug « 46 → 0 »). Les gardes Array.isArray + _writeDataCache
+        // (repli sur window.FP_DATA) préservent l'existant.
+        conducteurs: c.error ? null : filterSociete((c.data || []).map(toClient)),
       };
     },
 
@@ -422,12 +426,17 @@
   // Repli progressif si le quota est dépassé (véhicules+amendes+conducteurs, puis amendes+conducteurs).
   function _writeDataCache(data) {
     const CK = window.FP_CACHE_KEY || 'fp_data_cache_v4';
+    // ⚠️ Une table en échec (ex. conducteurs null) ne doit JAMAIS vider le cache : on retombe sur les
+    // données déjà en mémoire (window.FP_DATA) pour cette table — jamais un tableau vide issu d'une erreur.
+    const D = window.FP_DATA || {};
+    const pick = (k) => Array.isArray(data && data[k]) ? data[k] : (Array.isArray(D[k]) ? D[k] : []);
+    const veh = pick('vehicules'), amd = pick('amendes'), fac = pick('factures'), cond = pick('conducteurs');
     try { localStorage.removeItem('fp_data_cache'); } catch (e0) {}
     try {
-      localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, factures: data.factures, conducteurs: data.conducteurs }));
+      localStorage.setItem(CK, JSON.stringify({ vehicules: veh, amendes: amd, factures: fac, conducteurs: cond }));
     } catch (e) {
-      try { localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, conducteurs: data.conducteurs })); }
-      catch (e2) { try { localStorage.setItem(CK, JSON.stringify({ amendes: data.amendes, conducteurs: data.conducteurs })); } catch (e3) {} }
+      try { localStorage.setItem(CK, JSON.stringify({ vehicules: veh, amendes: amd, conducteurs: cond })); }
+      catch (e2) { try { localStorage.setItem(CK, JSON.stringify({ amendes: amd, conducteurs: cond })); } catch (e3) {} }
     }
   }
 

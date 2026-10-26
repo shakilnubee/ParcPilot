@@ -1607,6 +1607,19 @@ FP.resteChargeSinistre = function (factures) {
 // ⚠️ HELPER CANONIQUE — dédoublonnage des factures par n° (comme Statistiques / rapport direction) :
 // deux lignes qui partagent le même numeroFacture ne sont comptées qu'une fois (évite de gonfler les
 // totaux). Les factures sans numéro sont toutes gardées. À utiliser partout où on somme des factures.
+// ⚠️ SOURCE UNIQUE — libellé lisible d'un TYPE de facture (pour graphes/exports). Mappe les codes bruts
+// stockés en base (entretien, reparation, peage, ulys, leasing, sinistre, achat…) vers un libellé propre.
+FP.factureTypeLabel = (t) => {
+  const k = String(t || '').trim().toLowerCase();
+  const M = {
+    entretien: 'Entretien', reparation: 'Réparation', 'réparation': 'Réparation',
+    carburant: 'Carburant', essence: 'Carburant', peage: 'Péage', 'péage': 'Péage',
+    ulys: 'Péage (Ulys)', total: 'Carte Total', leasing: 'Leasing', location: 'Location',
+    sinistre: 'Sinistre', achat: 'Achat', cession: 'Cession', assurance: 'Assurance',
+    lavage: 'Lavage', parking: 'Parking', repas: 'Repas', amende: 'Amende', autre: 'Autre',
+  };
+  return M[k] || (k ? (k.charAt(0).toUpperCase() + k.slice(1)) : 'Autre');
+};
 FP.dedupeFactures = (list) => {
   const seen = new Set();
   // SOURCE UNIQUE : même normalisation/règle que FP.dupe pour les factures (n° normalisé — accents
@@ -1863,16 +1876,21 @@ FP.coutExploitAnnee = (v, annee, factures) => {
     const an = String(annee);
     const mine = FP.dedupeFactures(list.filter(f => FP.normImmat(f.vehiculeImmat) === FP.normImmat(v.immat)));
     let tot = 0;
+    const sinistres = [];
     mine.forEach(f => {
       if (!String(f.date || '').startsWith(an)) return;
       const t = String(f.type || '').toLowerCase();
-      // Sinistre = seulement le reste à charge (franchise), jamais le montant brut de réparation.
-      if (t === 'sinistre') { tot += (FP.coutSinistre ? FP.coutSinistre(f) : 0); return; }
+      // Sinistre = seulement le RESTE À CHARGE réel (franchise), après remboursement assureur.
+      // ⚠️ Le remboursement est saisi PAR INCIDENT (pas par facture) → on ne peut PAS le déduire
+      // facture par facture : on collecte les factures sinistre et on les passe EN BLOC à
+      // FP.resteChargeSinistre APRÈS la boucle (même source que TCO/Budget/Sinistres).
+      if (t === 'sinistre') { sinistres.push(f); return; }
       // Tout le reste de l'EXPLOITATION (entretien, réparation, CARBURANT, PÉAGES, autres frais) au TTC,
       // via le MÊME périmètre que le dashboard/budget/TCO (FP.coutFactureExploit = hors leasing/achat/cession).
       // Avant, « Dépensé {année} » ne comptait QUE l'entretien → il mentait vs le coût au km et le TCO.
       else if (FP.coutFactureExploit(f)) tot += Number(f.montantTTC) || 0;
     });
+    if (sinistres.length) tot += (FP.resteChargeSinistre ? FP.resteChargeSinistre(sinistres) : 0);
     return tot;
   } catch (e) { return 0; }
 };

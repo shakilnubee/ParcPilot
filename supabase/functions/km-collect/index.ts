@@ -909,19 +909,25 @@ Deno.serve(async (req) => {
       }
 
       // 1) Met à jour la fiche véhicule (seulement si le km reçu est supérieur au km actuel).
+      // ⚠️ On VÉRIFIE l'erreur (supabase-js ne jette pas) : jamais de « ✓ enregistré » menteur si l'écriture
+      // échoue (RLS transitoire, contention…) → le conducteur voit l'échec et peut réessayer (règle 0-perte ③).
       if (vehiculeId) {
         const cur = (await vehKm(db, vehiculeId)) || 0;
-        if (km > cur) await db.from("vehicules").update({ km }).eq("id", vehiculeId);
+        if (km > cur) {
+          const { error: upErr } = await db.from("vehicules").update({ km }).eq("id", vehiculeId);
+          if (upErr) return json({ error: "Échec de l'enregistrement du kilométrage. Réessaie.", code: "km_save" }, 500);
+        }
       }
 
       // 2) Journalise le relevé.
       const now = new Date().toISOString();
       if (qtok) {
         // QR permanent : chaque scan = une NOUVELLE ligne de relevé (historique par période).
-        await db.from("km_requests").insert({
+        const { error: insErr } = await db.from("km_requests").insert({
           token: "qr-" + crypto.randomUUID(), vehicule_id: vehiculeId, plaque, societe,
           chauffeur, km_avant: kmRef, km_recu: km, used_at: now, source: "qr",
         });
+        if (insErr) return json({ error: "Échec de l'enregistrement du relevé. Réessaie.", code: "km_save" }, 500);
         // Notifie le gestionnaire : un relevé km SPONTANÉ (portail QR) crée une « demande conducteur »
         // (type 'km', statut 'nouveau') → même badge + alerte + inbox que les sinistres. Best-effort :
         // si la table manque, le relevé km reste enregistré dans km_requests.
@@ -941,7 +947,8 @@ Deno.serve(async (req) => {
         });
       } else {
         // Lien e-mail : marque la demande comme répondue (idempotent).
-        await db.from("km_requests").update({ km_recu: km, used_at: now }).eq("token", token);
+        const { error: updErr } = await db.from("km_requests").update({ km_recu: km, used_at: now }).eq("token", token);
+        if (updErr) return json({ error: "Échec de l'enregistrement du relevé. Réessaie.", code: "km_save" }, 500);
       }
 
       return json({ ok: true, plaque, km });
