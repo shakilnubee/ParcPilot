@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
                 label: "État des lieux " + (row.sens === "restitution" ? "restitution" : "remise") + " — signé " + String(row.date || "").slice(0, 10),
                 url: signedPdfUrl, societe: row.societe || "PXP",
               });
-            } catch { /* best-effort */ }
+            } catch (e) { console.error("[edl-sign] documents insert échec (PDF signé récupérable via edl_signatures.signed_pdf_url)", e); }
           }
         }
       }
@@ -341,7 +341,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      await db.from("edl_signatures").update({ signataires: signers, statut, signed_pdf_url: signedPdfUrl }).eq("token", docToken);
+      // ⚠️ On VÉRIFIE l'erreur (supabase-js ne jette pas) : si cet enregistrement d'état échoue, ne JAMAIS
+      // répondre « signé » (sinon le signataire est re-sollicité au rechargement, sa signature perdue). 0-perte ③.
+      const { error: sigUpdErr } = await db.from("edl_signatures").update({ signataires: signers, statut, signed_pdf_url: signedPdfUrl }).eq("token", docToken);
+      if (sigUpdErr) return json({ error: "Échec de l'enregistrement de la signature. Réessaie.", code: "sign_save" }, 500);
 
       // Notifie le(s) gestionnaire(s) de la société : signature reçue, transmission au suivant, ou COMPLET.
       const nbSigned = required.filter((s) => s.signed).length;

@@ -421,7 +421,7 @@
               <button type="button" class="btn" id="sin-pick" data-i18n="btn_gallery">🖼️ Galerie</button>
             </div>
             <input id="sin-file-cam" type="file" accept="image/*" capture="environment" class="hide">
-            <input id="sin-file" type="file" accept="image/*" multiple class="hide">
+            <input id="sin-file" type="file" accept="image/*,.heic,.heif" multiple class="hide">
             <div class="thumbs" id="sin-thumbs"></div>
             <div class="msg err" id="sin-err"></div>
             <button class="btn dark block" id="sin-send" style="margin-top:1rem" data-i18n="btn_send_decl">Envoyer la déclaration</button>
@@ -442,7 +442,7 @@
           <div id="constat-body"></div>
           <!-- Champs fichier statiques (persistent malgré le re-render du formulaire) -->
           <input id="constat-file-cam" type="file" accept="image/*" capture="environment" class="hide">
-          <input id="constat-file" type="file" accept="image/*" multiple class="hide">
+          <input id="constat-file" type="file" accept="image/*,.heic,.heif" multiple class="hide">
           <div id="constat-done" class="center hide" style="padding:1rem 0">
             <div class="big-emoji">✅</div>
             <div class="ok-title">Constat envoyé</div>
@@ -500,7 +500,7 @@
               <button type="button" class="btn" id="que-pick" data-i18n="btn_gallery">🖼️ Galerie</button>
             </div>
             <input id="que-file-cam" type="file" accept="image/*" capture="environment" class="hide">
-            <input id="que-file" type="file" accept="image/*" multiple class="hide">
+            <input id="que-file" type="file" accept="image/*,.heic,.heif" multiple class="hide">
             <div class="thumbs" id="que-thumbs"></div>
             <div class="msg err" id="que-err"></div>
             <button class="btn dark block" id="que-send" style="margin-top:1rem" data-i18n="btn_send_que">Envoyer ma question</button>
@@ -2170,7 +2170,7 @@
       + '<input id="edl-km" type="number" inputmode="numeric" min="0" step="1" placeholder="' + esc(t('edl_km_ph')) + '" style="width:100%;padding:.7rem .8rem;border:1.5px solid var(--line,#dfe6ee);border-radius:.6rem;font-size:1rem;margin-bottom:.6rem">'
       + '<div class="btnrow"><button type="button" class="btn" id="edl-cam">' + esc(t('btn_photo')) + '</button><button type="button" class="btn" id="edl-pick">' + esc(t('btn_gallery')) + '</button></div>'
       + '<input id="edl-file-cam" type="file" accept="image/*" capture="environment" multiple class="hide">'
-      + '<input id="edl-file" type="file" accept="image/*" multiple class="hide">'
+      + '<input id="edl-file" type="file" accept="image/*,.heic,.heif" multiple class="hide">'
       + '<div class="thumbs" id="edl-thumbs"></div>'
       + '<div class="msg err" id="edl-err"></div>'
       + '<button class="btn dark block" id="edl-send" style="margin-top:.8rem">' + esc(t('btn_sendphotos')) + '</button>'

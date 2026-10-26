@@ -308,7 +308,10 @@ Deno.serve(async (req) => {
       // laissé un compte auth orphelin sans profil (qui, même en fail-closed, n'aurait plus accès).
       const { error } = await admin.auth.admin.deleteUser(id);
       if (error) return json({ error: error.message }, 500);
-      await admin.from("profiles").delete().eq("id", id);
+      // On VÉRIFIE aussi la suppression du profil : sinon une ligne `profiles` orpheline (sans compte auth)
+      // pouvait subsister en silence. Inoffensive (fail-closed) mais on respecte « chaque écriture vérifie son erreur ».
+      const { error: profErr } = await admin.from("profiles").delete().eq("id", id);
+      if (profErr) return json({ error: "Compte supprimé, mais le profil n'a pas pu être retiré : " + profErr.message, code: "profile_delete" }, 500);
       return json({ ok: true });
     }
 
