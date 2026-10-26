@@ -402,6 +402,35 @@
     for (const item of source) target.push(item);
   }
 
+  // ⚠️ SOURCE UNIQUE — signature LÉGÈRE des champs AFFICHÉS quelque part : si les données live sont
+  // identiques à ce qui est déjà affiché, on évite un re-rendu inutile (« grisaille »/page qui se remet).
+  // Utilisée au chargement (loadDataFromSupabase) ET à la re-synchro au 1er plan (FP.refreshData). ⚠️ Doit
+  // couvrir TOUS les champs affichés, sinon modifier un champ hors-liste ne déclenche pas 'fp:data-ready'
+  // et l'écran garde l'ancienne valeur (cf. règle anti « cache périmé »).
+  function _fpDataSig(d) {
+    const f = (arr, ks) => (arr || []).map(x => ks.map(k => (x[k] ?? '')).join('|')).join(';');
+    return f(d.vehicules, ['id','immat','marque','modele','version','km','kmDernierReleve','statut','chauffeur','prochainCT','dateDernierCT','derniereRevision','proprietaire','carburant','co2','puissanceFiscale','dateMiseEnCirculation','valeurAchat','prix','assurance','vin','couleur','boite','prixVente','groupes','categorie','pipelineStatut','autonomie','critAir','antiPollution','commentaire','photoUrl','dimensionPneus','sanef','cleSiege','cleSalarie','cgOrigSiege','cgOrigSalarie','cgUrl','cgFileId','dateChangementPneus'])
+         + '~' + (d.vehicules || []).map(v => (v.id || '') + ':' + (v.etatDesLieux ? JSON.stringify(v.etatDesLieux) : '')).join(';')
+         + '#' + f(d.amendes, ['id','statut','montant','montantTTC','montantMinore','montantForfaitaire','montantMajore','majoree','points','date','prenom','motif','numeroAvis','numeroTelepaiement','cle','avisUrl','justifUrl','commentaire','archived'])
+         + '#' + (d.amendes || []).map(a => (a.id || '') + ':' + ((a.pieces || []).length) + ':' + ((a.pieces || []).map(p => (p && (p.id || p.url)) || '').join(','))).join(';')
+         + '#' + f(d.factures, ['id','montantHT','montantTVA','montantTTC','type','date','vehiculeImmat','fournisseur','numeroFacture','km','description','categorie','source','conducteur','fileName','fileId','archived','url','fileUrl'])
+         + '#' + (d.factures || []).map(x => (x.id || '') + ':' + ((x.pieces || []).length) + ':' + ((x.pieces || []).map(p => (p && (p.id || p.url)) || '').join(','))).join(';')
+         + '#' + f(d.conducteurs, ['key','name','nom','prenom','masque','dateNaissance','poste','tel','email','adresse','permisNumero','permisExpiration','permisObtention','permisType','note']);
+  }
+
+  // Écrit le cache local des dernières données live (affichage initial de la prochaine page → zéro « flash »).
+  // Repli progressif si le quota est dépassé (véhicules+amendes+conducteurs, puis amendes+conducteurs).
+  function _writeDataCache(data) {
+    const CK = window.FP_CACHE_KEY || 'fp_data_cache_v4';
+    try { localStorage.removeItem('fp_data_cache'); } catch (e0) {}
+    try {
+      localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, factures: data.factures, conducteurs: data.conducteurs }));
+    } catch (e) {
+      try { localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, conducteurs: data.conducteurs })); }
+      catch (e2) { try { localStorage.setItem(CK, JSON.stringify({ amendes: data.amendes, conducteurs: data.conducteurs })); } catch (e3) {} }
+    }
+  }
+
   // ===== Loader async qui remplace les données dans window.FP_DATA =====
   FP.dbReady = (async function loadDataFromSupabase() {
     // S'assurer que window.FP_DATA existe avec les bonnes propriétés (sinon créer)
@@ -494,45 +523,21 @@
       // ⚠️ La signature doit couvrir TOUS les champs AFFICHÉS quelque part, sinon modifier un
       // champe hors-liste (ex. valeurAchat, marque, fournisseur, montantHT/TVA…) ne déclenche
       // pas 'fp:data-ready' et l'écran reste sur l'ancienne valeur. On liste large.
-      const sig = (d) => {
-        const f = (arr, ks) => (arr || []).map(x => ks.map(k => (x[k] ?? '')).join('|')).join(';');
-        return f(d.vehicules, ['id','immat','marque','modele','version','km','kmDernierReleve','statut','chauffeur','prochainCT','dateDernierCT','derniereRevision','proprietaire','carburant','co2','puissanceFiscale','dateMiseEnCirculation','valeurAchat','prix','assurance','vin','couleur','boite','prixVente','groupes','categorie','pipelineStatut','autonomie','critAir','antiPollution','commentaire','photoUrl','dimensionPneus','sanef','cleSiege','cleSalarie','cgOrigSiege','cgOrigSalarie','cgUrl','cgFileId','dateChangementPneus'])
-             + '~' + (d.vehicules || []).map(v => (v.id || '') + ':' + (v.etatDesLieux ? JSON.stringify(v.etatDesLieux) : '')).join(';')
-             + '#' + f(d.amendes, ['id','statut','montant','montantTTC','montantMinore','montantForfaitaire','montantMajore','majoree','points','date','prenom','motif','numeroAvis','numeroTelepaiement','cle','avisUrl','justifUrl','commentaire','archived'])
-             // Pièces jointes (tableau d'objets) : sérialisées à part (nombre + ids) pour que l'ajout/
-             // suppression d'un document sur un poste rafraîchisse la section Documents sur les autres.
-             + '#' + (d.amendes || []).map(a => (a.id || '') + ':' + ((a.pieces || []).length) + ':' + ((a.pieces || []).map(p => (p && (p.id || p.url)) || '').join(','))).join(';')
-             + '#' + f(d.factures, ['id','montantHT','montantTVA','montantTTC','type','date','vehiculeImmat','fournisseur','numeroFacture','km','description','categorie','source','conducteur','fileName','fileId','archived','url','fileUrl'])
-             + '#' + (d.factures || []).map(x => (x.id || '') + ':' + ((x.pieces || []).length) + ':' + ((x.pieces || []).map(p => (p && (p.id || p.url)) || '').join(','))).join(';')
-             + '#' + f(d.conducteurs, ['key','name','nom','prenom','masque','dateNaissance','poste','tel','email','adresse','permisNumero','permisExpiration','permisObtention','permisType','note']);
-      };
       // ⚠️ Anti « revenant » (M1) : avant de comparer/afficher/cacher, on applique à ces données
       // FRAÎCHES du serveur les écritures locales encore EN FILE (suppressions/ajouts/éditions pas
       // encore synchronisées). Sinon une suppression suivie d'une navigation immédiate reviendrait.
       try { if (window.FP && FP.persist && FP.persist.applyTo) FP.persist.applyTo(data); } catch (e) {}
-      const sigBefore = sig(window.FP_DATA);
-      const sigAfter  = sig(data);
+      const sigBefore = _fpDataSig(window.FP_DATA);
+      const sigAfter  = _fpDataSig(data);
       // Remplace les contenus in-place
       replaceArrayInPlace(window.FP_DATA.vehicules, data.vehicules);
       replaceArrayInPlace(window.FP_DATA.amendes,   data.amendes);
       replaceArrayInPlace(window.FP_DATA.factures,  data.factures);
       if (Array.isArray(data.conducteurs)) replaceArrayInPlace(window.FP_DATA.conducteurs, data.conducteurs);
       const dataChanged = (sigBefore !== sigAfter);
-      // Cache local des dernières données live → sert d'affichage initial à la prochaine
-      // ouverture (évite le "flash" data.js figé → vraies données). On garde le cache
-      // ⚠️ On cache TOUT (véhicules + amendes + factures) — et à jour à chaque chargement — pour
-      // que le 1er affichage de chaque page corresponde EXACTEMENT au live → zéro "flash" de
-      // chiffres. (data.js, lui, est un instantané figé qui devient périmé dès qu'on ajoute des
-      // données ; le cache, lui, est rafraîchi à chaque visite.) Lecture ~10 ms : négligeable.
-      const CK = window.FP_CACHE_KEY || 'fp_data_cache_v4';
-      try { localStorage.removeItem('fp_data_cache'); } catch (e0) {} // ancienne clé périmée
-      try {
-        localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, factures: data.factures, conducteurs: data.conducteurs }));
-      } catch (e) {
-        // Quota dépassé : on retombe sur véhicules + amendes + conducteurs (compteurs justes), sans factures
-        try { localStorage.setItem(CK, JSON.stringify({ vehicules: data.vehicules, amendes: data.amendes, conducteurs: data.conducteurs })); }
-        catch (e2) { try { localStorage.setItem(CK, JSON.stringify({ amendes: data.amendes, conducteurs: data.conducteurs })); } catch (e3) { /* tant pis */ } }
-      }
+      // Cache local des dernières données live → sert d'affichage initial à la prochaine ouverture
+      // (évite le "flash" data.js figé → vraies données). On cache TOUT (source unique _writeDataCache).
+      _writeDataCache(data);
       console.log(`[FP.db] Chargé depuis Supabase : ${data.vehicules.length} véhicules, ${data.amendes.length} amendes, ${data.factures.length} factures`);
       // Re-appliquer les overrides locaux (cases cochées par l'utilisateur, etc.)
       if (FP.loadVehicleOverrides) FP.loadVehicleOverrides();
@@ -697,11 +702,43 @@
     } catch (e) { FP._refreshingSettings = false; return Promise.resolve(false); }
   };
 
-  // Déclencheurs de re-synchro : retour de l'appli au 1er plan (crucial sur mobile/PWA), retour du
-  // réseau. Anti-rafale (8 s) pour ne pas spammer le serveur.
+  // ⚠️ RE-SYNCHRO DES DONNÉES (tables véhicules/amendes/factures/conducteurs) au retour au 1er plan.
+  // Avant, seuls les RÉGLAGES (app_settings) étaient re-lus au focus/bfcache (FP.refreshSettings) : une
+  // action faite ailleurs qui vit dans une TABLE (statut d'amende, pièce jointe, EDL sur la fiche, facture…)
+  // restait PÉRIMÉE sur l'écran tant qu'on n'avait pas rechargé la page À LA MAIN (ex. alertes « déjà
+  // traitées » qui restaient au tableau de bord jusqu'à un F5). On re-télécharge donc aussi les données,
+  // et on ne ré-émet 'fp:data-ready' QUE si la signature change (aucun clignotement si rien n'a bougé).
+  // Lecture seule (aucune écriture) ; les écritures locales en file sont ré-appliquées avant comparaison
+  // (anti « revenant »). Anti-concurrence via FP._refreshingData.
+  FP.refreshData = function () {
+    try {
+      if (!(FP.db && FP.db.loadAll)) return Promise.resolve(false);
+      if (FP._refreshingData) return Promise.resolve(false);
+      FP._refreshingData = true;
+      const release = (v) => { FP._refreshingData = false; return v; };
+      return FP.db.loadAll().then((data) => {
+        if (!data || !window.FP_DATA) return release(false);
+        try { if (window.FP && FP.persist && FP.persist.applyTo) FP.persist.applyTo(data); } catch (e) {}
+        const changed = (_fpDataSig(window.FP_DATA) !== _fpDataSig(data));
+        replaceArrayInPlace(window.FP_DATA.vehicules, data.vehicules);
+        replaceArrayInPlace(window.FP_DATA.amendes,   data.amendes);
+        replaceArrayInPlace(window.FP_DATA.factures,  data.factures);
+        if (Array.isArray(data.conducteurs)) replaceArrayInPlace(window.FP_DATA.conducteurs, data.conducteurs);
+        if (FP.loadVehicleOverrides) try { FP.loadVehicleOverrides(); } catch (e) {}
+        _writeDataCache(data);
+        if (changed) { try { document.dispatchEvent(new CustomEvent('fp:data-ready', { detail: { source: 'data-refresh', settingsChanged: false } })); } catch (e) {} }
+        return release(changed);
+      }).catch(() => release(false));
+    } catch (e) { FP._refreshingData = false; return Promise.resolve(false); }
+  };
+
+  // Déclencheurs de re-synchro : retour de l'appli au 1er plan (crucial sur mobile/PWA ET sur PC via le
+  // bfcache quand on revient avec « précédent »), retour du réseau. Anti-rafale (8 s) pour ne pas spammer.
+  // On re-synchronise RÉGLAGES **et** DONNÉES (sinon une modif faite ailleurs qui vit dans une table reste
+  // à l'écran jusqu'à un rechargement manuel).
   (function wireSettingsAutoRefresh() {
     let last = 0;
-    const kick = () => { const now = Date.now(); if (now - last < 8000) return; last = now; try { FP.refreshSettings(); } catch (e) {} };
+    const kick = () => { const now = Date.now(); if (now - last < 8000) return; last = now; try { FP.refreshSettings(); } catch (e) {} try { FP.refreshData(); } catch (e) {} };
     try { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') kick(); }); } catch (e) {}
     try { window.addEventListener('focus', kick); } catch (e) {}
     try { window.addEventListener('online', kick); } catch (e) {}   // respecte l'anti-rafale (évite les rafales si le réseau « flappe »)
