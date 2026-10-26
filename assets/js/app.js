@@ -9389,8 +9389,15 @@ FP.edlHisto = {
     // Une date ISO (AAAA-MM-JJ) encodée dans le libellé fait FOI : c'est la date RÉELLE de l'état des lieux
     // (saisie à l'import / à la génération), alors que created_at = simple date d'upload. Sans ça, un EDL
     // signé importé pour un ANCIEN conducteur se rattachait à la période du jour au lieu de la bonne.
-    const lm = String((d && d.label) || '').match(/(\d{4}-\d{2}-\d{2})/);
+    const lab = String((d && d.label) || '');
+    const lm = lab.match(/(\d{4}-\d{2}-\d{2})/);
     if (lm) return lm[1];
+    // ⚠️ Repli RÉTROACTIF : les EDL signés sur place enregistrés AVANT le correctif portaient la date au
+    // format FRANÇAIS (JJ/MM/AAAA) dans leur libellé — jamais lue par la regex ISO, donc dateDe retombait sur
+    // la date d'UPLOAD (aujourd'hui) → mauvais conducteur. On reconnaît donc aussi JJ/MM/AAAA et on la convertit
+    // en ISO (répare les documents déjà enregistrés sans avoir à les refaire).
+    const fr = lab.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+    if (fr) return fr[3] + '-' + fr[2] + '-' + fr[1];
     const s = String((d && (d.date || d.createdAt || d.created_at)) || ''); return s ? s.slice(0, 10) : '';
   },
   docsDe(docs, vehId) { return (docs || []).filter(d => d && d.type === 'etat-des-lieux' && (vehId == null || d.vehiculeId === vehId)); },
@@ -14366,6 +14373,12 @@ FP.edl = {
           } catch (e) {}
         }
         const fname = 'Etat-des-lieux-' + motLbl + '-' + (data.immat || 'vehicule') + '-' + data.date + '.pdf';
+        // ⚠️ DATE ISO (AAAA-MM-JJ) à ENCODER DANS LE LIBELLÉ des documents EDL : c'est elle qui FAIT FOI pour
+        // rattacher l'état des lieux à la BONNE période / au BON conducteur (FP.edlHisto.dateDe lit l'ISO du
+        // libellé en priorité, sinon il retombe sur la date d'UPLOAD = aujourd'hui → mauvais conducteur, bug
+        // signalé : une restitution signée sur place d'un conducteur déjà sorti partait dans la période du
+        // conducteur actuel). MÊME convention que l'import PDF (pages/vehicules.html).
+        const _edlIso = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(String(data.date))) ? String(data.date) : new Date().toISOString().slice(0, 10);
         // 📌 L'état des lieux fixe le KM + la DATE de prise en main / restitution → on enregistre une
         // inspection (source unique lue par l'affectation) et on ré-ancre la période EN COURS : la fiche
         // « Conducteurs — historique » affiche ensuite tout seule le « Km au début » et la date. Déterministe
@@ -14399,7 +14412,7 @@ FP.edl = {
         // ⚠️ Si le document part EN SIGNATURE, on n'ajoute PAS le PDF NON signé aux Documents du véhicule :
         // SEUL le PDF ENTIÈREMENT SIGNÉ y sera rangé (par l'edge edl-sign, une fois toutes les signatures faites).
         // Le PDF non signé reste uniquement dans le stockage (url = base sur laquelle l'edge appose les signatures).
-        if (url && FP.persist && !willSign) { try { await FP.persist.insert('documents', { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: (surSigs ? 'État des lieux ' + motLbl + ' signé ' : 'État des lieux ' + motLbl + ' ') + FP.date(data.date), url, driveId: null }); } catch (e) {} }
+        if (url && FP.persist && !willSign) { try { await FP.persist.insert('documents', { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: 'État des lieux — ' + motLbl + (surSigs ? ' signé' : '') + ' — ' + _edlIso, url, driveId: null }); } catch (e) {} }
         // Range AUSSI chaque photo dans la fiche « État des lieux » (label Entrée/Sortie = MÊME convention
         // que les photos envoyées par le conducteur via le QR → un seul endroit, pas de doublon de logique).
         if (Array.isArray(data.photos) && data.photos.length && FP.uploadScan && FP.persist) {
@@ -14438,7 +14451,7 @@ FP.edl = {
               // Nom DÉTERMINISTE (empreinte) → upsert : au ré-essai, la même image écrase le même fichier
               // au lieu d'en créer un nouveau, et l'insert ci-dessous est sauté (plus d'accumulation).
               const purl = await FP.uploadScan(new File([arr], 'edl.' + ext, { type: mime }), 'documents', { name: 'edl-' + motLbl + '-' + sensLabel.toLowerCase() + '-h' + h });
-              if (purl) await FP.persist.insert('documents', { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: sensLabel, url: purl, driveId: null }); else photoKo++;
+              if (purl) await FP.persist.insert('documents', { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: sensLabel + ' — ' + _edlIso, url: purl, driveId: null }); else photoKo++;
             } catch (e) { photoKo++; }
           }
           // ⚠️ M8 — photos EDL non enregistrées = feedback VISIBLE (plus de drop silencieux, règle 0-perte ③).
