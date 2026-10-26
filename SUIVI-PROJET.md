@@ -54,6 +54,14 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 26/10/2026 — Lot ergonomie 1 (audit facilité d'utilisation)
+Suite à un audit parcours-par-parcours (ajout véhicule, amende, restitution, prévenir un conducteur, comptes), corrections de friction, toutes sûres, sans toucher la logique métier :
+- **Amendes** — le bouton « Prévenir » propose désormais les **3 canaux** (SMS + WhatsApp + **E-mail**) dans la même fenêtre (règle 0septies respectée partout) · le **n° d'avis n'est plus obligatoire** pour une amende **étrangère** (plus de blocage navigateur) · une ligne **« 3 tarifs lus »** (minoré/forfaitaire/majoré, retenu en gras) s'affiche sous le montant après un scan, pour vérifier d'un coup d'œil · placeholder conducteur clarifié.
+- **Véhicule (ajout)** — à la **création**, une seule zone « Importer la carte grise » (les imports en lot + autre document sont masqués, réapparaissent en édition) · champs **anti-pollution** réordonnés (« dernier réalisé le » d'abord → « prochaine échéance » calculée) · **garde-fou société** déplacé **avant** l'ouverture du formulaire (plus de carte grise uploadée pour rien).
+- **Restitution / EDL** — le libellé de date suit le type (« Date de **restitution** » quand c'est une sortie) · checklists renommées **« Remise — je donne la voiture »** / **« Reprise — je récupère la voiture »**.
+- **Comptes** — les boutons d'action (réinit. e-mail / définir mot de passe / supprimer) ont un **libellé texte** (plus d'icône seule ambiguë) · **« ✓ Accès mis à jour »** après un changement de rôle · rôles **CEO** et **chauffeur** expliqués.
+- `app.js` + amendes/vehicules/parametres.html ; rebuild min, bump `?v= 20261026c → 20261026d`. check-bugs OK, test-calculs 33/33. Aucune modification Supabase.
+
 ### 26/10/2026 — Bulles repliables (fiches conducteur & véhicule)
 - Sur la fiche **véhicule** et la fiche **conducteur**, chaque rubrique (bulle) se **replie/déplie** d'un clic sur son titre (flèche à droite). **Ouvertes par défaut** (rien de caché) ; l'état replié est **mémorisé par appareil** (localStorage) et re-appliqué à l'ouverture suivante. Demande utilisateur (uniformité avec la bulle « États des lieux »).
 - **Source unique** : helper `FP.makeCollapsible(card, scope)` (app.js) appliqué à chaque bulle connue des deux fiches (aucun scan DOM hasardeux). Gère le `<details>` natif (EDL) ET les bulles en `<div>` (contenu enveloppé dans `.fp-coll-body`). Un clic sur un élément interactif du titre ne replie pas. CSS commun dans `styles.css`. Ne casse ni la mise en page 3 colonnes ni les formulaires (congés…). `app.js` + `styles.css` + 2 fiches + manuel ; bump `?v=` `20261026b → 20261026c`.

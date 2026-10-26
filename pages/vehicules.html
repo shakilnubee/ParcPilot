@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261026d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261026d">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -960,6 +960,10 @@
         </button>
         <div id="cg-status" class="hidden mt-2 text-xs leading-relaxed rounded-lg px-3 py-2"></div>
 
+        <!-- Zones secondaires (import en lot + autre document) : MASQUÉES à la création d'UN véhicule
+             pour ne pas noyer l'utilisateur sous 3 zones qui se ressemblent. Affichées en édition d'une
+             fiche existante (openModal gère l'affichage). L'import en lot reste aussi dans le menu Outils. -->
+        <div id="cg-import-extra">
         <!-- Import cartes mémo en lot : rattachées aux fiches existantes par immatriculation -->
         <input type="file" id="f-memo-file" accept="image/*,application/pdf" class="hidden" multiple />
         <button type="button" id="memo-trigger" class="w-full flex items-center gap-3 p-3 mt-2 border-2 border-dashed border-slate-300 rounded-lg hover:border-teal-500 hover:bg-teal-50/40 transition text-left">
@@ -985,6 +989,7 @@
           </span>
         </button>
         <div id="doc-scan-status" class="hidden mt-2 text-xs leading-relaxed rounded-lg px-3 py-2"></div>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -1055,14 +1060,17 @@
         </div>
       </div>
 
+      <!-- Anti-pollution (utilitaires) : on saisit la date du DERNIER contrôle (ce qu'on connaît), la
+           prochaine échéance se calcule toute seule (+1 an). Le champ « prochain » reste modifiable
+           pour les cas particuliers. Ordre « dernier → prochain » = sens de lecture naturel. -->
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div class="field-label">Prochain contrôle anti-pollution <span class="text-slate-400 normal-case font-normal">(utilitaires)</span></div>
-          <input class="field-input" type="date" id="f-antipol" />
+          <div class="field-label">Dernier anti-pollution réalisé le <span class="text-slate-400 normal-case font-normal">(utilitaires)</span></div>
+          <input class="field-input" type="date" id="f-antipol-dernier" title="Renseigne la date où le contrôle a été fait : la prochaine échéance se cale automatiquement 1 an après (contrôle annuel)." />
         </div>
         <div>
-          <div class="field-label">Dernier anti-pollution réalisé le <span class="text-slate-400 normal-case font-normal">(→ prochain +1 an)</span></div>
-          <input class="field-input" type="date" id="f-antipol-dernier" title="Renseigne la date où le contrôle a été fait : la prochaine échéance se cale automatiquement 1 an après (contrôle annuel)." />
+          <div class="field-label">Prochaine échéance <span class="text-slate-400 normal-case font-normal">(calculée — modifiable)</span></div>
+          <input class="field-input" type="date" id="f-antipol" />
         </div>
       </div>
 
@@ -1188,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026c"></script>
-<script src="../assets/js/supabase-client.js?v=20261026c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261026d"></script>
+<script src="../assets/js/supabase-client.js?v=20261026d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1205,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261026c"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261026c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261026d"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261026d"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026c"></script><script>
+<script src="../assets/js/app.min.js?v=20261026d"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2181,8 +2189,8 @@
         <button type="button" class="text-xs font-semibold mt-1 ml-4" style="color:var(--fp-primary)" data-edl-btn="${v.id}" title="Générer l'état des lieux de remise (pré-rempli, logo société, envoi e-mail)"><i data-lucide="clipboard-list" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> État des lieux (remise)</button>
         <div class="flex flex-wrap gap-2 mt-3">
           <button type="button" class="btn btn-outline text-xs" data-checklist="entreeFlotte" data-veh="${v.id}" title="Checklist de bienvenue / entrée d'un véhicule dans la flotte (éditable — commune à tous les véhicules)"><i data-lucide="log-in" class="w-3.5 h-3.5"></i> Checklist entrée flotte</button>
-          <button type="button" class="btn btn-outline text-xs" data-checklist="prise" data-veh="${v.id}" title="Checklist de remise du véhicule au conducteur (éditable)"><i data-lucide="user-check" class="w-3.5 h-3.5"></i> Checklist remise conducteur</button>
-          <button type="button" class="btn btn-outline text-xs" data-checklist="restitution" data-veh="${v.id}" title="Checklist de reprise du véhicule (éditable)"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Checklist reprise conducteur</button>
+          <button type="button" class="btn btn-outline text-xs" data-checklist="prise" data-veh="${v.id}" title="Checklist de remise du véhicule au conducteur (je DONNE la voiture à un conducteur)"><i data-lucide="user-check" class="w-3.5 h-3.5"></i> Remise — je donne la voiture</button>
+          <button type="button" class="btn btn-outline text-xs" data-checklist="restitution" data-veh="${v.id}" title="Checklist de reprise du véhicule (je RÉCUPÈRE la voiture d'un conducteur)"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Reprise — je récupère la voiture</button>
           <button type="button" class="btn btn-outline text-xs" data-checklist="sortieFlotte" data-veh="${v.id}" title="Checklist de cession / sortie de flotte (éditable — commune à tous les véhicules)"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Checklist cession</button>
         </div>
       </details>`;
@@ -4094,6 +4102,9 @@
     _cgExtra = null;
     const cgSt = $('cg-status'); cgSt.classList.add('hidden'); cgSt.innerHTML = '';
     const dsSt = $('doc-scan-status'); if (dsSt) { dsSt.classList.add('hidden'); dsSt.innerHTML = ''; }
+    // À la CRÉATION d'un véhicule : une seule zone « Importer la carte grise » (les zones « cartes mémo
+    // en lot » + « autre document » sont masquées → moins de confusion). Elles réapparaissent en édition.
+    const cgExtra = $('cg-import-extra'); if (cgExtra) cgExtra.classList.toggle('hidden', !vehicule);
     // Remplir les checkboxes groupes
     const currentGroupes = vehicule ? FP.vehGroupes(vehicule) : ['non-classe'];
     $('f-groupes-list').innerHTML = FP.groupeKeys().map(k => `
@@ -7211,7 +7222,10 @@
   { const ov = $('sim-ov'); if (ov) ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); }); }
   { const c = $('sim-content'); if (c) c.addEventListener('input', (e) => { if (e.target.closest('input')) computeSim(); }); }
 
-  $('btn-new').addEventListener('click', () => openModal(null));
+  // Garde-fou société AVANT d'ouvrir le formulaire (plutôt qu'après avoir scanné/rempli) : un CEO en vue
+  // « Toutes les sociétés » choisit d'abord la société → plus de carte grise uploadée pour rien ni de
+  // travail perdu au clic « Enregistrer ».
+  $('btn-new').addEventListener('click', () => { if (FP.exigeSocieteChoisie && !FP.exigeSocieteChoisie('d\'ajouter un véhicule')) return; openModal(null); });
   $('modal-close').addEventListener('click', closeModal);
   $('modal-cancel').addEventListener('click', closeModal);
   $('modal-backdrop').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
