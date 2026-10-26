@@ -1570,19 +1570,33 @@ FP.coutSinistre = (f) => {
 // facture, on REGROUPE d'abord par incident (settings.sinistreGroupes[id] || id), on somme le coût
 // (FP.coutSinistre → devis exclus, sinistre 100 % pris en charge = 0), puis on soustrait le remboursé.
 // Source unique pour toutes les vues « coût réel » (Coût d'usage, coût/km, TCO).
+// RESTE À CHARGE d'UN incident (source unique, utilisée par l'agrégat ET la carte sinistre) :
+//  reste = max(0, coûtRéel − remboursé) ; si l'incident est PRIS EN CHARGE par l'assureur (réparation à 0
+//  pour la société) mais qu'une FRANCHISE a été saisie, la société la paie → on la compte (décision
+//  utilisateur « compter la franchise »). Le max() évite tout double comptage quand coûtRéel > 0.
+FP.sinistreResteIncident = function (coutReel, dossier, isPec) {
+  dossier = dossier || {};
+  var rembourse = Number(dossier.rembourse) || 0;
+  var franchise = Number(dossier.franchise) || 0;
+  var reste = Math.max(0, (Number(coutReel) || 0) - rembourse);
+  if (isPec && franchise > 0) reste = Math.max(reste, franchise);
+  return reste;
+};
 FP.resteChargeSinistre = function (factures) {
   try {
     const s = FP.settings.get();
     const grp = s.sinistreGroupes || {}, doss = s.sinistreAssurance || {};
     const gk = id => grp[id] || id;
-    const byInc = {};
+    const byInc = {}, pec = {};
     (factures || []).forEach(f => {
       if (!f || (f.type || '').toLowerCase() !== 'sinistre') return;
       const k = gk(f.id);
       byInc[k] = (byInc[k] || 0) + (FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0));
+      const st = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : '';
+      if (st === 'pec' || st === 'rembourse') pec[k] = true;
     });
     let total = 0;
-    Object.keys(byInc).forEach(k => { total += Math.max(0, byInc[k] - (Number((doss[k] || {}).rembourse) || 0)); });
+    Object.keys(byInc).forEach(k => { total += FP.sinistreResteIncident(byInc[k], doss[k], pec[k]); });
     return total;
   } catch (e) { return (factures || []).filter(f => f && (f.type || '').toLowerCase() === 'sinistre').reduce((a, f) => a + (Number(f.montantTTC) || 0), 0); }
 };

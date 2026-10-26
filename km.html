@@ -322,6 +322,20 @@
     var km = parseInt(($('km').value || '').replace(/[^0-9]/g, ''), 10);
     $('err').style.display = 'none';
     if (!km || km <= 0) { $('err').textContent = t('needkm'); $('err').style.display = 'block'; return; }
+    // Garde-fou faute de frappe : saut énorme vs dernier km connu (> +20 000 km OU > ×1,5) → confirmation douce.
+    var _known = (CUR.kmConnu != null && !isNaN(Number(CUR.kmConnu))) ? Number(CUR.kmConnu) : null;
+    if (_known != null && km > _known && (km - _known > 20000 || km > _known * 1.5)) {
+      var _n = km.toLocaleString(localeNb()), _d = (km - _known).toLocaleString(localeNb());
+      var _M = {
+        fr: 'Tu as saisi ' + _n + ' km, soit +' + _d + ' km depuis le dernier relevé. C\'est bien ça ?',
+        en: 'You entered ' + _n + ' km, i.e. +' + _d + ' km since the last reading. Is that correct?',
+        es: 'Has introducido ' + _n + ' km, es decir +' + _d + ' km desde la última lectura. ¿Es correcto?',
+        it: 'Hai inserito ' + _n + ' km, cioè +' + _d + ' km dall\'ultima lettura. È corretto?',
+        de: 'Du hast ' + _n + ' km eingegeben, also +' + _d + ' km seit der letzten Ablesung. Stimmt das?',
+        zh: '您输入了 ' + _n + ' 公里，即自上次读数以来 +' + _d + ' 公里。确认吗？'
+      };
+      if (!window.confirm(_M[LANG] || _M.fr)) return;
+    }
     $('send').disabled = true; $('send').innerHTML = '<span class="spin" style="width:18px;height:18px;border-width:2px;vertical-align:-3px"></span> ' + esc(t('sending'));
     var _body = keyBody(); _body.km = km;
     fetch(FN, { method: 'POST', headers: headers(), body: JSON.stringify(_body) })

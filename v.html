@@ -356,7 +356,7 @@
         <!-- MENU -->
         <div id="v-menu" class="menu hide">
           <button class="tap veh" data-go="veh"><div class="ic">🚗</div><div class="tx"><div class="t" data-i18n="m_veh_t">Mon véhicule</div><div class="d" data-i18n="m_veh_d">Modèle, km, contrôle technique…</div></div><div class="chev">›</div></button>
-          <button class="tap km"  data-go="km"><div class="ic">📸</div><div class="tx"><div class="t" data-i18n="m_km_t">Relever mon kilométrage</div><div class="d" data-i18n="m_km_d">Saisir le km au compteur</div></div><div class="chev">›</div></button>
+          <button class="tap km"  data-go="km"><div class="ic">🔢</div><div class="tx"><div class="t" data-i18n="m_km_t">Relever mon kilométrage</div><div class="d" data-i18n="m_km_d">Saisir le km au compteur</div></div><div class="chev">›</div></button>
           <button class="tap doc" data-go="doc"><div class="ic">📄</div><div class="tx"><div class="t" data-i18n="m_doc_t">Mes documents</div><div class="d" data-i18n="m_doc_d">Carte grise, assurance, assistance</div></div><div class="chev">›</div></button>
           <button class="tap amd" data-go="amd"><div class="ic">🎫</div><div class="tx"><div class="t" data-i18n="m_amd_t">Mes amendes</div><div class="d" data-i18n="m_amd_d">Montants et numéros d'avis</div></div><div class="chev">›</div></button>
           <button class="tap sin" data-go="sin"><div class="ic">🚨</div><div class="tx"><div class="t" data-i18n="m_sin_t">J'ai un problème</div><div class="d" data-i18n="m_sin_d">Accident, panne, pneu, voyant… on te guide</div></div><div class="chev">›</div></button>
@@ -517,7 +517,7 @@
         <!-- RELEVÉ KM (inline, comme les autres rubriques — plus de navigation vers km.html) -->
         <div id="v-km" class="hide">
           <button class="back" data-back data-i18n="back">‹ Retour</button>
-          <div class="vtitle">📸 <span data-i18n="m_km_t">Relever mon kilométrage</span></div>
+          <div class="vtitle">🔢 <span data-i18n="m_km_t">Relever mon kilométrage</span></div>
           <div id="km-form-wrap">
             <label class="f" for="km-input" id="km-label">Kilométrage actuel au compteur</label>
             <div class="kmknown" id="km-known"></div>
@@ -1152,7 +1152,7 @@
   var VIEWS = ['v-menu', 'v-veh', 'v-doc', 'v-sin', 'v-constat', 'v-edl', 'v-amd', 'v-vente', 'v-ventesl', 'v-guide', 'v-que', 'v-km', 'v-mydecl', 'v-bad'];
   // ===== MES SIGNALEMENTS : liste + statut + modification (tant que « nouveau »/non traité) =====
   var _mdList = [];
-  function mdTypeEmo(ty){ return ty==='km'?'📸':ty==='edl'?'📋':ty==='question'?'❓':ty==='probleme'?'🔧':'🚨'; }
+  function mdTypeEmo(ty){ return ty==='km'?'🔢':ty==='edl'?'📋':ty==='question'?'❓':ty==='probleme'?'🔧':'🚨'; }
   function mdTypeLbl(ty){ var k='md_type_'+ty; return t(k)!==k?t(k):t('md_type_sinistre'); }
   function mdStatusBadge(st){ var done=st&&st!=='nouveau'; return '<span style="font-weight:800;color:'+(done?'#16a34a':'#b45309')+'">'+esc(done?t('md_done'):t('md_wait'))+'</span>'; }
   var _MDBTN='style="width:auto;padding:.45rem .9rem;font-size:.84rem"';
@@ -1452,6 +1452,20 @@
     zh: { sub:'请提供您车辆的里程数。', label:'当前仪表盘里程', unit:'公里', km_ph:'例如 45000', send:'提交我的里程', sending:'发送中…', done_title:'谢谢！', done_sub:'您的里程已记录。', needkm:'请输入里程（数字）。', sendfail:'发送失败，请重试。', conn:'连接失败，请重试。', lastknown:function(v){return '最近已知里程：<b>'+v+' km</b>';}, saved:function(v){return '里程已记录：<b>'+v+' km</b>。';} }
   };
   function kmT(k) { var o = KM_I18N[LANG] || KM_I18N.fr; return (o[k] != null) ? o[k] : (KM_I18N.fr[k] != null ? KM_I18N.fr[k] : k); }
+  // Garde-fou « faute de frappe » (ex. un zéro en trop) : avant d'envoyer un km BEAUCOUP plus grand que le
+  // dernier connu, on demande une confirmation DOUCE (on ne bloque pas) → évite d'écraser la fiche avec un
+  // km aberrant qui fausserait révisions/alertes/TCO. Multilingue (le serveur, lui, refuse un km plus bas).
+  function kmConfirmMsg(n, d) {
+    var M = {
+      fr: 'Tu as saisi ' + n + ' km, soit +' + d + ' km depuis le dernier relevé. C\'est bien ça ?',
+      en: 'You entered ' + n + ' km, i.e. +' + d + ' km since the last reading. Is that correct?',
+      es: 'Has introducido ' + n + ' km, es decir +' + d + ' km desde la última lectura. ¿Es correcto?',
+      it: 'Hai inserito ' + n + ' km, cioè +' + d + ' km dall\'ultima lettura. È corretto?',
+      de: 'Du hast ' + n + ' km eingegeben, also +' + d + ' km seit der letzten Ablesung. Stimmt das?',
+      zh: '您输入了 ' + n + ' 公里，即自上次读数以来 +' + d + ' 公里。确认吗？'
+    };
+    return M[LANG] || M.fr;
+  }
   function renderKm() {
     var v = DATA.veh || {};
     // Réinitialise les états (formulaire visible, merci caché).
@@ -1473,6 +1487,11 @@
     var km = parseInt((($('km-input').value) || '').replace(/[^0-9]/g, ''), 10);
     var err = $('km-err'); err.textContent = ''; err.style.display = 'none';
     if (!km || km <= 0) { err.textContent = kmT('needkm'); err.style.display = 'block'; return; }
+    // Garde-fou faute de frappe : saut énorme vs dernier km connu (> +20 000 km OU > ×1,5) → confirmation douce.
+    var known0 = (DATA.veh && DATA.veh.km != null && !isNaN(Number(DATA.veh.km))) ? Number(DATA.veh.km) : null;
+    if (known0 != null && km > known0 && (km - known0 > 20000 || km > known0 * 1.5)) {
+      if (!window.confirm(kmConfirmMsg(km.toLocaleString(localeNb()), (km - known0).toLocaleString(localeNb())))) return;
+    }
     var send = $('km-send'); send.disabled = true;
     send.innerHTML = '<span class="spin" style="width:18px;height:18px;border-width:2px;vertical-align:-3px"></span> ' + esc(kmT('sending'));
     // Même endpoint que km.html ; le portail est arrivé par le QR permanent (h) → on l'envoie en `q`.
