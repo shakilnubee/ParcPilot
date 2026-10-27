@@ -629,6 +629,9 @@
     tbody.innerHTML = shown.map(e => {
       const rendu = !!e.dateRetour;
       const retard = estEnRetard(e);
+      // Contact de l'emprunteur (pour le bouton « Relancer » 3 canaux sur les retards) — source unique.
+      const _c = (!rendu && retard && FP.conducteurContact) ? FP.conducteurContact(empNom(e.emprunteur) || e.emprunteur) : null;
+      const _relText = 'Bonjour ' + (empNom(e.emprunteur) || '') + ', le véhicule ' + (e.vehicule || '') + ' emprunté le ' + FP.date(e.dateEmprunt) + ' n\'a pas encore été rendu (' + joursDepuis(e.dateEmprunt) + ' j). Merci de le rapporter dès que possible.';
       return `<tr data-id="${escapeHtml(e.id)}" class="${retard ? 'is-retard' : ''}" style="cursor:pointer" title="Cliquer pour modifier cet emprunt">
         <td class="font-mono font-semibold">${escapeHtml(vehLabel(e.vehicule))}</td>
         <td class="font-medium">${escapeHtml(empNom(e.emprunteur) || '—')}</td>
@@ -637,6 +640,7 @@
         <td>${rendu ? escapeHtml(empNom(e.renduPar || e.emprunteur)) : '<span class="text-slate-400">—</span>'}</td>
         <td>${rendu ? '<span class="fp-ech ok">Rendu</span>' : (retard ? `<span class="fp-ech danger">⚠️ Retard ${joursDepuis(e.dateEmprunt)} j</span>` : '<span class="fp-ech warn">En cours</span>')}</td>
         <td class="text-right whitespace-nowrap">
+          ${(!rendu && retard) ? `<button class="btn btn-outline !py-1 !px-2.5 text-xs" data-msg-open data-msg-phone="${escapeHtml((_c && _c.tel) || '')}" data-msg-email="${escapeHtml((_c && _c.email) || '')}" data-msg-nom="${escapeHtml(empNom(e.emprunteur) || '')}" data-msg-title="Rappel — véhicule à rendre" data-msg-text="${escapeHtml(_relText)}" title="Relancer l'emprunteur (SMS · WhatsApp · e-mail)"><i data-lucide="megaphone" class="w-3.5 h-3.5"></i> Relancer</button>` : ''}
           ${rendu
             ? `<button class="btn btn-outline !py-1 !px-2.5 text-xs" data-ret="${escapeHtml(e.id)}" title="Corriger le retour"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Retour</button>`
             : `<button class="btn btn-outline !py-1 !px-2.5 text-xs" data-ret="${escapeHtml(e.id)}"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Retour</button>`}
@@ -1016,6 +1020,7 @@
   backdropClose('modal-resa', closeResa);
   $('form-ret').addEventListener('submit', saveRet);
   $('tbody').addEventListener('click', e => {
+    if (e.target.closest('[data-msg-open]')) return; // bouton « Relancer » (géré par FP.msg.open) → pas d'ouverture de l'édition
     const ret = e.target.closest('[data-ret]'); if (ret) { openRet(ret.dataset.ret); return; }
     const edit = e.target.closest('[data-edit]'); if (edit) { openEdit(edit.dataset.edit); return; }
     const del = e.target.closest('[data-del]'); if (del) { delEmprunt(del.dataset.del); return; }
