@@ -471,6 +471,21 @@
   }
   rebuildFiltres();
 
+  // Filtre sur un véhicule via ?veh=<plaque> (ex. depuis la fiche conducteur → « Accidents »). Appliqué UNE fois,
+  // de façon TOLÉRANTE au format de plaque (FP.normImmat), et seulement si ce véhicule a des sinistres.
+  let _vehUrlDone = false;
+  function applyVehFromUrl() {
+    if (_vehUrlDone) return;
+    try {
+      const v = new URLSearchParams(location.search).get('veh'); if (!v) return;
+      const sel = $('filter-vehicule'); if (!sel) return;
+      const want = FP.normImmat ? FP.normImmat(v) : String(v).toUpperCase();
+      const opt = [...sel.options].find(o => o.value !== 'all' && ((FP.normImmat ? FP.normImmat(o.value) : o.value.toUpperCase()) === want));
+      if (opt) { _vehUrlDone = true; sel.value = opt.value; state.vehicule = opt.value; sinExpanded = false; renderTimeline(); }
+    } catch (e) {}
+  }
+  applyVehFromUrl();
+
   function matchFilter(s) {
     const q = FP.norm(state.search).trim();
     if (state.annee !== 'all' && !(s.date || '').startsWith(state.annee)) return false;
@@ -1741,6 +1756,7 @@
   document.addEventListener('fp:data-ready', () => {
     sinistres = (data.factures || []).filter(f => f.type === 'sinistre');
     rebuildFiltres();
+    applyVehFromUrl();   // le véhicule du ?veh peut n'apparaître qu'une fois les données live chargées
     renderKPIs(); renderTimeline(); renderCharts(); renderConducteursRisque(); coutPeriode.render();
     if (typeof renderDrive === 'function') renderDrive();
   });
