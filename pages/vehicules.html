@@ -4910,6 +4910,22 @@
     });
   });
 
+  // ⚠️ Peuple le filtre « Catégorie » à partir des catégories RÉELLEMENT présentes dans les données : sinon
+  // un véhicule d'une catégorie hors liste figée (Monospace, Électrique, importée par carte grise…) devenait
+  // INTROUVABLE par ce filtre. On garde les catégories standard + toutes celles vues, et la sélection en cours.
+  function populateCategories() {
+    const sel = $('filter-categorie'); if (!sel) return;
+    const cur = sel.value || 'all';
+    const base = ['Citadine', 'Berline', 'SUV', 'Utilitaire'];
+    const seen = new Set(base.map(x => x.toLowerCase()));
+    const extra = [];
+    (data.vehicules || []).forEach(v => { const c = (v && v.categorie || '').trim(); if (c && !seen.has(c.toLowerCase())) { seen.add(c.toLowerCase()); extra.push(c); } });
+    extra.sort((a, b) => a.localeCompare(b, 'fr'));
+    sel.innerHTML = '<option value="all">Toutes catégories</option>' + base.concat(extra).map(c => `<option${c === cur ? ' selected' : ''}>${FP.esc ? FP.esc(c) : c}</option>`).join('');
+    sel.value = cur;
+  }
+  populateCategories();
+  document.addEventListener('fp:data-ready', populateCategories);
   $('filter-categorie').addEventListener('change', (e) => { state.categorie = e.target.value; renderTable(); });
   // Bouton « Réinitialiser » de la barre de filtres (recherche + statut + catégorie).
   function resetVehFilters() {
@@ -7981,6 +7997,18 @@
       state.groupe = g;
       renderTabBar(); renderKPIs(); renderTable();
     }
+  })();
+
+  // Filtrage direct par STATUT via ?statut=… (ex. tuile « En entretien » du tableau de bord) → active la puce
+  // correspondante + filtre, comme un clic manuel. Valeurs reconnues = celles des puces (actif/entretien/à vendre/vendu).
+  (function applyStatutFromUrl() {
+    const s = new URLSearchParams(window.location.search).get('statut');
+    if (!s) return;
+    const known = ['all', 'actif', 'entretien', 'à vendre', 'vendu'];
+    if (!known.includes(s)) return;
+    state.statut = s;
+    try { document.querySelectorAll('.filter-chip[data-filter="statut"]').forEach(c => c.classList.toggle('active', c.dataset.value === s)); } catch (e) {}
+    renderTabBar(); renderKPIs(); renderTable();
   })();
 
   // Ouverture directe du formulaire « Nouveau véhicule » via ?new=1 (depuis le tableau de bord).

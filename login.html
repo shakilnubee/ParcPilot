@@ -494,8 +494,10 @@
       // Marqueur de session active (sera vidé à la fermeture du browser)
       sessionStorage.setItem('fp_session_alive', '1');
 
-      // On laisse l'animation hyperspace tourner au moins 1,5 s avant de basculer.
-      var _wait = Math.max(0, 1500 - (Date.now() - _loginT0));
+      // Animation hyperspace : on la laisse tourner un court instant (700 ms), mais pas au point de ralentir
+      // la connexion au quotidien. Respecte « mouvement réduit » (accessibilité) → bascule immédiate.
+      var _reduce = false; try { _reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+      var _wait = _reduce ? 0 : Math.max(0, 700 - (Date.now() - _loginT0));
       setTimeout(function(){ window.location.href = 'dashboard.html'; }, _wait);
     });
 
