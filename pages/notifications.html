@@ -148,6 +148,8 @@
 
     <div id="suivi-decisions" class="hidden"></div>
     <div id="suivi-relevekm" class="hidden"></div>
+    <!-- Bandeau de priorité : vue d'ensemble « qu'est-ce qui brûle ? » toutes catégories confondues -->
+    <div id="notif-summary" class="mb-5"></div>
     <div id="notif-cols" class="grid gap-6 md:grid-cols-2 xl:grid-cols-4"></div>
     <div id="suivi-echeances" class="hidden"></div>
     <div id="suivi-complet" class="hidden"></div>
@@ -326,6 +328,27 @@
         <div class="space-y-2 notif-colbody" id="col-${i}"${collapsed ? ' hidden' : ''}>${body}</div>
       </div>`;
     }).join('');
+    // Bandeau de priorité (vue d'ensemble toutes catégories) : X urgentes · Y bientôt · Z infos.
+    try {
+      const sb = document.getElementById('notif-summary');
+      if (sb) {
+        const nD = alerts.filter(a => a.niveau === 'danger').length;
+        const nW = alerts.filter(a => a.niveau === 'warn').length;
+        const nI = alerts.filter(a => a.niveau === 'info').length;
+        const tot = nD + nW + nI;
+        if (!tot) {
+          sb.innerHTML = '<div class="card p-3" style="background:#ECFDF5;border:1px solid #A7F3D0;color:#047857;font-weight:600">✓ Rien d\'urgent — tout est à jour.</div>';
+        } else {
+          const chip = (col, bg, txt, n, lbl) => n > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px;background:${bg};color:${col};border-radius:9999px;padding:4px 12px;font-weight:700;font-size:.9rem">${txt} ${n} ${lbl}</span>` : '';
+          sb.innerHTML = '<div class="card p-3 flex flex-wrap items-center gap-2">'
+            + '<span class="text-sm font-semibold text-slate-500 mr-1">Priorité :</span>'
+            + chip('#b91c1c', '#FEF2F2', '🔴', nD, nD > 1 ? 'urgentes' : 'urgente')
+            + chip('#b45309', '#FFFBEB', '🟠', nW, nW > 1 ? 'bientôt' : 'bientôt')
+            + chip('#1d4ed8', '#EFF6FF', '🔵', nI, nI > 1 ? 'infos' : 'info')
+            + '</div>';
+        }
+      }
+    } catch (e) {}
     renderMasquees();
     lucide.createIcons();
   }
@@ -1643,6 +1666,7 @@
     document.getElementById('suivi-decisions').classList.toggle('hidden', which !== 'decisions');
     document.getElementById('suivi-relevekm').classList.toggle('hidden', which !== 'relevekm');
     document.getElementById('notif-cols').classList.toggle('hidden', which !== 'alertes');
+    { const sb = document.getElementById('notif-summary'); if (sb) sb.classList.toggle('hidden', which !== 'alertes'); } // bandeau priorité = onglet Alertes seulement
     document.getElementById('notif-masquees').classList.toggle('hidden', which !== 'alertes');
     document.getElementById('suivi-echeances').classList.toggle('hidden', which !== 'echeances');
     document.getElementById('suivi-complet').classList.toggle('hidden', which !== 'complet');
