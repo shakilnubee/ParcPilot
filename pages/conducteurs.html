@@ -1770,17 +1770,17 @@
         </div>`));
     const amendesInner = d.amendes.length === 0 ? '<p class="text-sm text-slate-500">Aucune amende ✓</p>' :
       clampList(d.amendes.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(a => `
-        <div class="fiche-line">
+        <a href="amendes.html?amende=${encodeURIComponent(a.id || '')}" class="fiche-line" style="text-decoration:none;color:inherit" title="Ouvrir cette amende">
           <div class="min-w-0"><div class="font-medium truncate">${escapeHtml(a.motif || '—')}</div><div class="text-xs text-slate-500">${FP.date(a.date)}${(Number(a.points) || 0) > 0 ? ' · −' + a.points + ' pt' : ''}</div></div>
           <div class="text-right flex-shrink-0"><div class="font-semibold">${FP.montantDu(a) ? FP.euroPrecis(FP.montantDu(a)) : '—'}</div><div class="text-xs">${FP.estPayee(a) ? '<span class="text-emerald-600">Payée</span>' : '<span class="text-red-600">À payer</span>'}</div></div>
-        </div>`));
+        </a>`));
     // Accidents (sinistres déduits des factures)
     const accidentsInner = accs.length === 0 ? '<p class="text-sm text-slate-500">Aucun accident ✓</p>' :
       clampList(accs.map(c => `
-        <div class="fiche-line">
+        <a href="sinistres.html?veh=${encodeURIComponent(c.immat || '')}" class="fiche-line" style="text-decoration:none;color:inherit" title="Voir les sinistres de ce véhicule">
           <div class="min-w-0"><div class="font-medium">${FP.date(c.date)}</div><div class="text-xs text-slate-500">${escapeHtml(c.immat)}${c.n > 1 ? ' · ' + c.n + ' factures' : ''}</div></div>
           <div class="text-right flex-shrink-0"><div class="font-semibold">${c.montant ? FP.euroPrecis(c.montant) : '—'}</div></div>
-        </div>`));
+        </a>`));
     // Kilométrage AU COMPTEUR de son/ses véhicule(s) — c'est la somme des odomètres (km total de chaque
     // voiture, tous conducteurs confondus), PAS les km personnellement parcourus par ce conducteur. Ces
     // derniers figurent, DATÉS, dans « Historique d'affectation » ci-dessous (km fin − km début par période).

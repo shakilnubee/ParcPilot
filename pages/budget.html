@@ -137,6 +137,7 @@
     <div class="card overflow-hidden mb-6">
       <div class="p-5 pb-1"><h3 class="font-bold text-slate-900">Prévu vs réel par poste</h3>
         <p class="text-xs text-slate-400">Saisis ton budget annuel dans la colonne <b>« Prévu »</b> (enregistré tout seul). Le <b>« Réel »</b> est calculé depuis tes données. Les postes marqués <b>(annuel)</b> viennent de ta configuration (assurance, leasing, TVS) et non des factures de l'année.</p>
+        <button class="btn btn-outline text-xs mt-2" id="bud-from-n1" title="Pré-remplit la colonne « Prévu » avec les dépenses réelles de l'an dernier (postes annuels = config actuelle). Modifiable ensuite."><i data-lucide="history" class="w-3.5 h-3.5"></i> Partir du réel de l'an dernier</button>
       </div>
       <div class="scrollable">
         <table class="fp-table">
@@ -443,6 +444,17 @@
 
   // Saisie du budget → enregistrée tout seul (par société + année).
   $('bud-tbody').addEventListener('change', (e) => { const inp = e.target.closest('.bud-in'); if (!inp) return; setBudget(year, inp.dataset.key, inp.value); render(); if (window.FP && FP.toast) FP.toast('✓ Budget enregistré'); });
+  // « Partir du réel de l'an dernier » : pré-remplit la colonne Prévu de CHAQUE poste avec son réel N-1
+  // (postes « annuel » = valeur annuelle actuelle, qui n'a pas d'historique daté). Modifiable ensuite.
+  $('bud-from-n1') && $('bud-from-n1').addEventListener('click', async () => {
+    const yN1 = String(Number(year) - 1);
+    if (!(await FP.confirm(`Remplir la colonne « Prévu » ${year} à partir des dépenses réelles de ${yN1} ?\n\nTu pourras ensuite ajuster chaque poste. Les valeurs actuelles seront remplacées.`))) return;
+    try {
+      POSTES.forEach(p => { const base = Math.round((p.annuel ? p.reel(year) : p.reel(yN1)) || 0); setBudget(year, p.key, base > 0 ? String(base) : ''); });
+      render();
+      if (window.FP && FP.toast) FP.toast('✓ Budget pré-rempli depuis ' + yN1);
+    } catch (e) { if (FP.notifyError) FP.notifyError('Impossible de pré-remplir le budget.'); }
+  });
   $('bud-annee').addEventListener('change', (e) => { year = e.target.value; render(); });
   if (FP.filterResetButton) FP.filterResetButton($('bud-filterbar'), { onReset: () => { year = String(nowY); buildYears(); render(); } });
 
