@@ -2473,12 +2473,10 @@
       const def = DATA_COLUMNS.find(c => c.key === k);
       if (!def) return '';
       const label = getColLabel(k);
-      const SORTABLE = { prochainCT: 1, km: 1 };
-      if (state.groupe !== 'all') SORTABLE.modele = 1; // tri par modèle UNIQUEMENT dans un groupe (pas sur « Tous »)
+      // TOUTES les colonnes sont triables (immat, modèle, conducteur, statut, valeur, dates…) — comparateur
+      // générique plus bas (nombres, textes, dates ISO, cases ✓, vides à la fin). Avant : seulement CT et km.
       const arrow = state.sortKey === k ? (state.sortDir === 'asc' ? '▲' : '▼') : '⇅';
-      const sortBtn = SORTABLE[k]
-        ? `<button class="ct-sort-btn" data-sort-key="${k}" title="Trier">${arrow}</button>${state.sortKey === k ? `<button class="ct-sort-btn ct-sort-reset" data-sort-reset title="Revenir à l'ordre normal">↺</button>` : ''}`
-        : '';
+      const sortBtn = `<button class="ct-sort-btn" data-sort-key="${k}" title="Trier">${arrow}</button>${state.sortKey === k ? `<button class="ct-sort-btn ct-sort-reset" data-sort-reset title="Revenir à l'ordre normal">↺</button>` : ''}`;
       return `<th draggable="true" data-col-key="${k}" title="Glisser pour déplacer • Double-clic pour renommer"><span class="col-label">${label}</span>${sortBtn}<button class="col-hide-btn" data-hide-key="${k}" title="Masquer cette colonne">✕</button><div class="col-resize-handle" data-resize-key="${k}" title="Redimensionner"></div></th>`;
     }).join('');
     $('vehicules-thead').innerHTML = `
@@ -2777,18 +2775,34 @@
     });
     // Tri par colonne (échéance CT, km, ou modèle). ⚠️ Le tri par MODÈLE ne s'applique
     // QUE dans un groupe précis — sur « Tous » on l'ignore (ordre normal).
-    if (state.sortKey && !(state.sortKey === 'modele' && state.groupe === 'all')) {
+    if (state.sortKey) {
       const dir = state.sortDir === 'desc' ? -1 : 1;
       const key = state.sortKey;
-      if (key === 'modele') {
-        filteredList.sort((a, b) => String(a.modele || '').localeCompare(String(b.modele || ''), 'fr', { sensitivity: 'base' }) * dir);
-      } else {
-        const valOf = (v) => {
-          if (key === 'prochainCT') { const j = FP.joursRestants(v.prochainCT); return (j === null || j === undefined) ? Infinity : j; }
-          const n = Number(v[key]); return isFinite(n) ? n : Infinity; // sans valeur → à la fin
-        };
-        filteredList.sort((a, b) => { const va = valOf(a), vb = valOf(b); return va === vb ? 0 : (va - vb) * dir; });
-      }
+      const EMPTY = Symbol('empty'); // valeur manquante → toujours à la fin, quel que soit le sens du tri
+      const sortVal = (v) => {
+        if (key === 'prochainCT') { const j = FP.joursRestants(v.prochainCT); return (j == null) ? EMPTY : j; }
+        if (key === 'km') return (FP.kmActuel ? FP.kmActuel(v) : Number(v.km)) || 0;
+        if (key === 'valeurAchat') { const n = Number(v.valeurAchat); return n > 0 ? n : EMPTY; }
+        if (key === 'modele') { const s = ((v.marque || '') + ' ' + (v.modele || '')).trim(); return s ? s.toLowerCase() : EMPTY; }
+        if (key === 'derniereRevision') { const d = (FP.derniereRevision ? FP.derniereRevision(v).date : v.derniereRevision) || ''; return d || EMPTY; } // date ISO → ordre chronologique
+        if (key === 'groupes') { const g = (FP.vehGroupes ? FP.vehGroupes(v) : []).join(','); return g || EMPTY; }
+        if (['sanef', 'cleSiege', 'cleSalarie', 'cgOrigSiege', 'cgOrigSalarie', 'etatDesLieux'].includes(key)) return v[key] ? 1 : 0; // cases ✓
+        const raw = v[key];
+        if (raw == null || raw === '') return EMPTY;
+        const n = Number(raw);
+        if (typeof raw === 'number' || /^-?[\d\s.,]+$/.test(String(raw).trim())) return isFinite(n) ? n : EMPTY;
+        return String(raw).toLowerCase();
+      };
+      filteredList.sort((a, b) => {
+        const va = sortVal(a), vb = sortVal(b);
+        if (va === EMPTY && vb === EMPTY) return 0;
+        if (va === EMPTY) return 1;
+        if (vb === EMPTY) return -1;
+        let c;
+        if (typeof va === 'number' && typeof vb === 'number') c = va - vb;
+        else c = String(va).localeCompare(String(vb), 'fr', { sensitivity: 'base' });
+        return c * dir;
+      });
       return pinFavFirst(filteredList);
     }
     // Application de l'ordre custom utilisateur si défini (drag-and-drop des lignes)
