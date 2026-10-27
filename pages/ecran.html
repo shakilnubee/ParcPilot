@@ -22,49 +22,92 @@
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
 <link rel="stylesheet" href="../assets/css/styles.css?v=20261027a">
 <style>
-  body { background:#0B1220; color:#fff; overflow:hidden; }
-  .ec-top { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; }
-  .ec-btn { background:rgba(255,255,255,.1); border:none; color:#fff; padding:8px 14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:6px; }
-  .ec-btn:hover { background:rgba(255,255,255,.2); }
-  .ec-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; padding:10px 28px 20px; }
-  .ec-tile { background:linear-gradient(150deg,#111f38,#0d1830); border:1px solid rgba(255,255,255,.08); border-radius:22px; padding:26px 28px; position:relative; overflow:hidden; min-width:0; }
-  .ec-label { font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:#8aa0c4; font-weight:700; }
-  .ec-value { font-size:clamp(2.4rem,5vw,4rem); font-weight:900; line-height:1.05; margin-top:8px; letter-spacing:-.02em; }
-  .ec-sub { font-size:15px; color:#8aa0c4; margin-top:6px; }
-  .ec-ic { position:absolute; top:22px; right:24px; opacity:.16; }
-  .ec-ic svg { width:56px; height:56px; }
-  .ec-ticker { margin:6px 28px 0; background:rgba(255,255,255,.05); border-radius:16px; padding:16px 24px; display:flex; align-items:center; gap:16px; min-height:64px; }
-  .ec-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-  #ec-clock { font-variant-numeric:tabular-nums; font-weight:800; font-size:22px; }
-  /* Ambiance (derrière les tuiles) */
+  :root{ --ink:#e9eefc; --muted:#8aa0c4; }
+  *{ box-sizing:border-box; }
+  body { background:#070d1b; color:var(--ink); overflow:hidden; font-family:'Inter',system-ui,sans-serif; display:flex; flex-direction:column; height:100vh; }
+  .ec-top { flex:none; display:flex; align-items:center; justify-content:space-between; padding:20px 34px 8px; }
+  .ec-live{ display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:800; letter-spacing:.12em; color:#34d399; text-transform:uppercase; margin-right:4px; }
+  .ec-live b{ width:9px; height:9px; border-radius:50%; background:#34d399; animation:ecLive 2.2s ease-out infinite; }
+  @keyframes ecLive{ 0%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 70%{box-shadow:0 0 0 11px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+  .ec-btn { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); color:#fff; padding:9px 15px; border-radius:12px; cursor:pointer; font-weight:600; font-size:14px; display:inline-flex; align-items:center; gap:6px; text-decoration:none; backdrop-filter:blur(6px); transition:background .2s; }
+  .ec-btn:hover { background:rgba(255,255,255,.18); }
+  #ec-clock { font-family:'Space Grotesk',sans-serif; font-variant-numeric:tabular-nums; font-weight:700; font-size:22px; }
+
+  .ec-grid { flex:1; min-height:0; display:grid; grid-template-columns:repeat(12,1fr); grid-auto-rows:1fr;
+    grid-template-areas:"al al al pa pa pa ec ec ec c12 c12 c12" "al al al cm cm cm am am am c12 c12 c12";
+    gap:20px; padding:12px 34px; }
+  .ec-tile { position:relative; overflow:hidden; min-width:0; border-radius:24px;
+    background:linear-gradient(155deg, rgba(27,42,74,.92), rgba(10,18,36,.94));
+    border:1px solid rgba(255,255,255,.07); padding:26px 30px;
+    display:flex; flex-direction:column; justify-content:center;
+    box-shadow:0 26px 60px -32px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.06);
+    opacity:0; transform:translateY(20px) scale(.98); animation:ecIn .6s cubic-bezier(.2,.9,.25,1) forwards; }
+  @keyframes ecIn{ to{ opacity:1; transform:none } }
+  .ec-tile::after{ content:""; position:absolute; width:340px; height:340px; right:-130px; top:-150px; border-radius:50%;
+    background:radial-gradient(circle, var(--glow), transparent 68%); opacity:.15; pointer-events:none; }
+  .ec-tile.hero::before{ content:""; position:absolute; inset:0; border-radius:inherit; padding:1.4px;
+    background:linear-gradient(130deg, var(--glow), transparent 38%, transparent 62%, var(--glow)); background-size:220% 220%;
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite:exclude;
+    animation:ecBorder 7s linear infinite; opacity:.75; pointer-events:none; }
+  @keyframes ecBorder{ 0%{background-position:0% 50%} 100%{background-position:220% 50%} }
+  .ec-label { font-size:clamp(12px,1vw,15px); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800; position:relative; z-index:1; }
+  .ec-value { font-family:'Space Grotesk',sans-serif; font-size:clamp(2rem,4vw,3.4rem); font-weight:700; line-height:1; margin-top:10px; letter-spacing:-.02em; position:relative; z-index:1;
+    text-shadow:0 0 36px color-mix(in srgb, var(--glow) 55%, transparent); }
+  .ec-tile.hero .ec-value{ font-size:clamp(2.6rem,5vw,4.8rem); }
+  .ec-tile.has-spark{ justify-content:flex-start; padding-top:30px; }       /* le grand nombre en haut, la courbe en bas */
+  .ec-tile.has-spark .ec-value{ font-size:clamp(2.4rem,4.4vw,4.4rem); }
+  .ec-sub { font-size:clamp(12px,1vw,15px); color:var(--muted); margin-top:9px; font-weight:500; position:relative; z-index:1; }
+  .ec-ic { position:absolute; top:22px; right:24px; opacity:.22; color:var(--glow); }
+  .ec-ic svg { width:54px; height:54px; }
+  .ec-tile.hero .ec-ic svg{ width:72px; height:72px; }
+  .ec-pulse{ position:absolute; left:-50px; bottom:-50px; width:230px; height:230px; border-radius:50%;
+    background:radial-gradient(circle, var(--glow), transparent 64%); animation:ecPulse 2.4s ease-in-out infinite; pointer-events:none; }
+  @keyframes ecPulse{ 0%,100%{transform:scale(.9); opacity:.14} 50%{transform:scale(1.18); opacity:.3} }
+  .ec-spark{ position:absolute; left:0; right:0; bottom:0; width:100%; height:42%; display:block; z-index:0; }
+  .ec-spark-line{ stroke-dasharray:400; stroke-dashoffset:400; animation:ecDraw 1.6s .4s ease forwards; filter:drop-shadow(0 0 6px var(--glow)); }
+  @keyframes ecDraw{ to{ stroke-dashoffset:0 } }
+
+  .ec-ticker { flex:none; margin:0 34px 20px; background:linear-gradient(90deg, rgba(249,115,22,.1), rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:14px 22px; display:flex; align-items:center; gap:16px; overflow:hidden; }
+  .ec-ticker > i{ flex:none; }
+  #ec-ticker-txt{ overflow:hidden; flex:1; min-width:0; -webkit-mask:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); mask:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
+  .ec-marq{ display:inline-flex; align-items:center; gap:46px; white-space:nowrap; will-change:transform; animation:ecMarq 50s linear infinite; }
+  .ec-marq .it{ display:inline-flex; align-items:center; gap:10px; font-size:17px; font-weight:600; color:var(--ink); }
+  @keyframes ecMarq{ from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .ec-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; box-shadow:0 0 10px currentColor; }
+
   .ec-fx { position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; }
   .ec-fx canvas { position:absolute; inset:0; }
-  .ec-fx .au { position:absolute; border-radius:50%; filter:blur(110px); opacity:.28; }
-  .ec-fx .au1 { width:620px; height:620px; background:radial-gradient(circle,#F97316,transparent 70%); top:-200px; right:-160px; animation:ecA 18s ease-in-out infinite; }
-  .ec-fx .au2 { width:560px; height:560px; background:radial-gradient(circle,#38BDF8,transparent 70%); bottom:-220px; left:-180px; animation:ecB 22s ease-in-out infinite; }
+  .ec-fx .au { position:absolute; border-radius:50%; filter:blur(120px); }
+  .ec-fx .au1 { width:640px; height:640px; background:radial-gradient(circle,#F97316,transparent 70%); top:-220px; right:-160px; opacity:.3; animation:ecA 18s ease-in-out infinite; }
+  .ec-fx .au2 { width:580px; height:580px; background:radial-gradient(circle,#38BDF8,transparent 70%); bottom:-240px; left:-180px; opacity:.28; animation:ecB 22s ease-in-out infinite; }
+  .ec-fx .au3 { width:520px; height:520px; background:radial-gradient(circle,#a855f7,transparent 70%); top:28%; left:42%; opacity:.16; animation:ecA 27s ease-in-out infinite reverse; }
   @keyframes ecA { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-40px,30px) scale(1.1)} }
   @keyframes ecB { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(50px,-30px) scale(1.08)} }
-  @media (prefers-reduced-motion:reduce){ .ec-fx .au{animation:none} }
-  /* ===== MOBILE (téléphone) : le « mode écran » est conçu pour une TV (grille 3 colonnes figée,
-     overflow:hidden, horloge longue). Sur téléphone → en-tête qui déborde + valeurs coupées. On rend
-     l'écran lisible : en-tête qui s'enroule, grille 2 colonnes, valeurs plus petites, page scrollable. ===== */
-  @media (max-width: 640px){
-    body{ overflow:auto; -webkit-overflow-scrolling:touch; }
+  @media (prefers-reduced-motion:reduce){ .ec-fx .au,.ec-tile,.ec-tile.hero::before,.ec-pulse,.ec-spark-line,.ec-marq,.ec-live b{ animation:none !important } .ec-tile{ opacity:1; transform:none } .ec-spark-line{ stroke-dashoffset:0 } }
+
+  /* ===== MOBILE (téléphone) : bento figé → on empile, page scrollable, valeurs plus petites. ===== */
+  @media (max-width: 760px){
+    body{ display:block; height:auto; overflow:auto; -webkit-overflow-scrolling:touch; }
     .ec-top{ flex-wrap:wrap; row-gap:10px; padding:14px 16px; }
     .ec-top > div{ flex-wrap:wrap; gap:10px !important; min-width:0; }
     .ec-top svg{ width:118px; height:27px; }
     #ec-soc{ font-size:1rem !important; }
     #ec-clock{ white-space:nowrap; font-size:15px; }
     .ec-btn{ font-size:13px; padding:7px 11px; }
-    .ec-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:8px 16px 14px; }
-    .ec-tile{ padding:15px 16px; border-radius:16px; }
-    .ec-label{ font-size:12px; letter-spacing:.04em; }
-    .ec-value{ font-size:clamp(1.35rem,6.5vw,2rem); margin-top:6px; overflow-wrap:anywhere; }
-    .ec-sub{ font-size:11.5px; margin-top:4px; }
+    .ec-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:auto; grid-template-areas:none; gap:12px; padding:8px 16px 14px; }
+    .ec-tile{ grid-area:auto !important; padding:15px 16px; border-radius:16px; }
+    .ec-tile.hero{ grid-column:span 2; }
+    .ec-label{ letter-spacing:.04em; }
+    .ec-value{ font-size:clamp(1.4rem,6.5vw,2rem); margin-top:6px; overflow-wrap:anywhere; }
+    .ec-tile.hero .ec-value{ font-size:clamp(1.7rem,9vw,2.5rem); }
+    .ec-sub{ margin-top:5px; }
     .ec-ic{ top:12px; right:12px; }
     .ec-ic svg{ width:32px; height:32px; }
-    .ec-ticker{ margin:6px 16px 18px; padding:12px 16px; min-height:0; }
-    .ec-ticker .text-lg{ font-size:14px; }
+    .ec-tile.hero .ec-ic svg{ width:40px; height:40px; }
+    .ec-pulse{ width:150px; height:150px; }
+    .ec-ticker{ margin:6px 16px 18px; padding:12px 16px; }
+    .ec-marq .it{ font-size:14px; }
   }
 </style>
 <script>
@@ -81,7 +124,7 @@
 </head>
 <body>
 
-<div class="ec-fx" aria-hidden="true"><canvas id="ecfx"></canvas><div class="au au1"></div><div class="au au2"></div></div>
+<div class="ec-fx" aria-hidden="true"><canvas id="ecfx"></canvas><div class="au au1"></div><div class="au au2"></div><div class="au au3"></div></div>
 
 <div class="ec-top">
   <div class="flex items-center gap-4">
@@ -89,6 +132,7 @@
     <span id="ec-soc" class="text-lg font-bold" style="color:#8aa0c4"></span>
   </div>
   <div class="flex items-center gap-3">
+    <span class="ec-live"><b></b> En direct</span>
     <span id="ec-clock">—</span>
     <button class="ec-btn" id="ec-full"><i data-lucide="maximize" class="w-4 h-4"></i> Plein écran</button>
     <a href="../dashboard.html" class="ec-btn"><i data-lucide="log-out" class="w-4 h-4"></i> Quitter</a>
@@ -140,6 +184,9 @@
     const cout12 = FP.coutMois
       ? (function () { let t = 0; const base = new Date(ym + '-01'); for (let i = 0; i < 12; i++) { const m = new Date(base.getFullYear(), base.getMonth() - i, 1); const s = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0'); t += FP.coutMois(D, s); } return t; })()
       : facts.filter(f => (f.date || '').slice(0, 7) >= y12).reduce((s, f) => s + (+f.montantTTC || 0), 0);
+    // Série des 12 derniers mois (coût d'exploitation) pour la sparkline de la tuile « Coûts 12 mois ».
+    const serie = [];
+    if (FP.coutMois) { const base = new Date(ym + '-01'); for (let i = 11; i >= 0; i--) { const mo = new Date(base.getFullYear(), base.getMonth() - i, 1); const s = mo.getFullYear() + '-' + String(mo.getMonth() + 1).padStart(2, '0'); serie.push(FP.coutMois(D, s)); } }
     const alerts = FP.buildAlertes ? FP.buildAlertes(D) : [];
     const critiques = alerts.filter(a => a.niveau === 'danger' || a.niveau === 'warn').length;
     const ech = (FP.buildEcheances ? FP.buildEcheances(D) : []).filter(e => { const j = FP.joursRestants ? FP.joursRestants(e.date) : Math.ceil((new Date(e.date) - now) / 86400000); return j != null && j <= 90; }); // source unique (minuit→minuit)
@@ -150,41 +197,63 @@
     const amDu = amAPayerList.reduce((s, a) => s + (FP.montantDu ? FP.montantDu(a) : (Number(a.montant) || 0)), 0);
     // Véhicules disponibles (sans conducteur affecté) — utile pour réaffecter d'un coup d'œil.
     const dispo = actifs.filter(v => { const c = (v.chauffeur || '').toString().trim(); return !c || c === '—'; }).length;
-    return { nb: actifs.length, km, coutMois, cout12, critiques, ech, tvs, amAPayer, amDu, dispo };
+    return { nb: actifs.length, km, coutMois, cout12, critiques, ech, tvs, amAPayer, amDu, dispo, serie };
   }
   const eur = n => FP.euro ? FP.euro(n) : Math.round(n) + ' €';
   const num = n => FP.num ? FP.num(n) : String(n);
 
+  // Compteur animé (valeur précédente → nouvelle) avec easing — l'écran « prend vie » à chaque rendu.
+  function countUp(el, to, fmt) {
+    const from = Number(el.getAttribute('data-v') || 0);
+    if (!(to >= 0)) to = 0;
+    const t0 = performance.now(), dur = 1100;
+    (function step(t) {
+      let p = Math.min(1, (t - t0) / dur); p = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(from + (to - from) * p);
+      if (p < 1) requestAnimationFrame(step); else { el.textContent = fmt(to); el.setAttribute('data-v', to); }
+    })(performance.now());
+  }
+  // Mini-courbe (sparkline) animée des 12 derniers mois.
+  function spark(serie, color) {
+    if (!serie || serie.length < 2) return '';
+    const W = 100, H = 32, max = Math.max.apply(null, serie), min = Math.min.apply(null, serie), rng = (max - min) || 1;
+    const pts = serie.map((v, i) => [i / (serie.length - 1) * W, H - ((v - min) / rng) * (H - 4) - 2]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const gid = 'sg' + Math.random().toString(36).slice(2, 7);
+    return `<svg class="ec-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".4"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${line} L ${W} ${H} L 0 ${H} Z" fill="url(#${gid})"/>
+      <path class="ec-spark-line" d="${line}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  const col = { danger: '#F87171', warn: '#fbbf24', info: '#38bdf8' };
+
   function render() {
     const m = metrics();
-    // Tuiles réorganisées : en HAUT ce qui est URGENT / actionnable (à surveiller d'un coup d'œil),
-    // en BAS les indicateurs d'ARGENT. La tuile « Kilométrage total » (info de vanité, non actionnable)
-    // a été remplacée par « Amendes à payer » (actionnable, avec une échéance = risque de majoration).
+    const fN = v => num(Math.round(v)), fE = v => eur(Math.round(v));
+    // Bento : 2 tuiles HÉRO (Alertes = pouls de la flotte à gauche ; Coûts 12 mois + courbe à droite),
+    // bloc central 2×2 (Parc, Échéances, Coût du mois, Amendes). Valeurs en compteur animé.
     const tiles = [
-      { label: 'Parc actif', value: num(m.nb), sub: m.dispo ? (m.dispo + ' sans conducteur') : 'véhicules en service', ic: 'car', color: '#38bdf8' },
-      { label: 'Alertes actives', value: num(m.critiques), sub: 'à traiter', ic: 'siren', color: m.critiques ? '#F87171' : '#34d399' },
-      { label: 'Échéances 90 j', value: num(m.ech.length), sub: 'CT, assurance, leasing…', ic: 'calendar-clock', color: m.ech.length ? '#fbbf24' : '#34d399' },
-      { label: "Coût d'exploitation du mois", value: eur(m.coutMois), sub: 'entretien, réparations… (hors leasing/sinistres)', ic: 'wallet', color: '#F97316' },
-      { label: 'Amendes à payer', value: num(m.amAPayer), sub: m.amAPayer ? (eur(m.amDu) + ' à régler') : 'tout est réglé ✓', ic: 'file-warning', color: m.amAPayer ? '#F87171' : '#34d399' },
-      { label: 'Coûts 12 mois', value: eur(m.cout12), sub: 'glissants', ic: 'trending-up', color: '#f472b6' },
+      { area: 'al', label: 'Alertes actives', n: m.critiques, fmt: fN, sub: m.critiques ? 'à traiter maintenant' : 'tout est calme ✓', ic: 'siren', color: m.critiques ? '#F87171' : '#34d399', hero: true, pulse: m.critiques > 0 },
+      { area: 'pa', label: 'Parc actif', n: m.nb, fmt: fN, sub: m.dispo ? (m.dispo + ' sans conducteur') : 'véhicules en service', ic: 'car', color: '#38bdf8' },
+      { area: 'ec', label: 'Échéances 90 j', n: m.ech.length, fmt: fN, sub: 'CT, assurance, leasing…', ic: 'calendar-clock', color: m.ech.length ? '#fbbf24' : '#34d399' },
+      { area: 'cm', label: "Coût d'exploitation du mois", n: m.coutMois, fmt: fE, sub: 'entretien, réparations…', ic: 'wallet', color: '#F97316' },
+      { area: 'am', label: 'Amendes à payer', n: m.amAPayer, fmt: fN, sub: m.amAPayer ? (eur(m.amDu) + ' à régler') : 'tout est réglé ✓', ic: 'file-warning', color: m.amAPayer ? '#F87171' : '#34d399' },
+      { area: 'c12', label: 'Coûts 12 mois', n: m.cout12, fmt: fE, sub: 'glissants', ic: 'trending-up', color: '#f472b6', hero: true, spark: m.serie },
     ];
-    $('ec-grid').innerHTML = tiles.map(t => `<div class="ec-tile">
+    $('ec-grid').innerHTML = tiles.map((t, i) => `<div class="ec-tile${t.hero ? ' hero' : ''}${t.spark ? ' has-spark' : ''}" style="grid-area:${t.area};--glow:${t.color};animation-delay:${i * 80}ms">
+      ${t.pulse ? '<div class="ec-pulse"></div>' : ''}${t.spark ? spark(t.spark, t.color) : ''}
       <div class="ec-ic"><i data-lucide="${t.ic}"></i></div>
       <div class="ec-label">${t.label}</div>
-      <div class="ec-value" style="color:${t.color}">${t.value}</div>
+      <div class="ec-value" data-v="0" style="color:${t.color}">${t.fmt(0)}</div>
       <div class="ec-sub">${t.sub}</div>
     </div>`).join('');
-    // ticker : échéances les plus proches
-    const col = { danger: '#F87171', warn: '#fbbf24', info: '#38bdf8' };
-    _ticker = m.ech.slice(0, 12).map(e => ({ c: col[e.niveau] || '#8aa0c4', txt: `${esc(e.label)} — ${FP.dateNum ? FP.dateNum(e.date) : e.date}` }));
-    if (!_ticker.length) _ticker = [{ c: '#34d399', txt: 'Aucune échéance sous 90 jours — tout est à jour ✓' }];
-    _ti = 0; showTick();
+    $('ec-grid').querySelectorAll('.ec-value').forEach((el, i) => countUp(el, tiles[i].n, tiles[i].fmt));
+    // Bandeau défilant continu (échéances proches, en boucle sans couture = contenu dupliqué).
+    const items = m.ech.slice(0, 16).map(e => `<span class="it"><span class="ec-dot" style="color:${col[e.niveau] || '#8aa0c4'};background:${col[e.niveau] || '#8aa0c4'}"></span>${esc(e.label)} — ${FP.dateNum ? FP.dateNum(e.date) : e.date}</span>`).join('');
+    const inner = items || `<span class="it" style="color:#34d399"><span class="ec-dot" style="color:#34d399;background:#34d399"></span>Aucune échéance sous 90 jours — tout est à jour ✓</span>`;
+    $('ec-ticker-txt').innerHTML = `<div class="ec-marq">${inner}${inner}</div>`;
     if (window.lucide && lucide.createIcons) lucide.createIcons();
-  }
-  let _ticker = [], _ti = 0;
-  function showTick() {
-    const t = _ticker[_ti % _ticker.length]; if (!t) return;
-    $('ec-ticker-txt').innerHTML = `<span class="ec-dot" style="background:${t.c};display:inline-block;margin-right:10px"></span>${t.txt}`;
   }
 
   function clock() { const d = new Date(); $('ec-clock').textContent = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toTimeString().slice(0, 5); }
@@ -194,7 +263,6 @@
   render();
   clock();
   document.addEventListener('fp:data-ready', render);
-  setInterval(() => { _ti++; showTick(); }, 6000);         // fait défiler les alertes
   setInterval(clock, 30000);                                // horloge
   setInterval(() => { if (window.FP && FP.db && FP.supabase) FP.db.loadAll().then(d => { Object.assign(window.FP_DATA, d); render(); }).catch(() => {}); }, 300000); // rafraîchit les données (5 min)
 </script>
