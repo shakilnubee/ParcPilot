@@ -912,7 +912,7 @@
     { key: 'tvs',       label: 'TVS',          defaultWidth: 110, render: t => t.tvs ? FP.euro(t.tvs) : '<span class="text-slate-400">—</span>' },
     { key: 'amendes',   label: 'Amendes',      defaultWidth: 110, render: t => t.amendes ? FP.euro(t.amendes) : '<span class="text-slate-400">—</span>' },
     { key: 'total',     label: 'Coût total',   defaultWidth: 130, cellCls: 'font-extrabold', render: t => FP.euro(t.total) },
-    { key: 'perKm',     label: '€/km (TCO)',   defaultWidth: 110, render: t => `<span title="Coût TOTAL de possession (usage + leasing + assurance + TVS + amendes) ÷ km — différent du « Coût au km » d'exploitation de la fiche véhicule" class="${t.perKm > 1 ? 'text-red-600 font-semibold' : t.perKm > 0.5 ? 'text-amber-600' : 'text-slate-700'}">${t.perKm > 0 ? FP.euroPrecis(t.perKm) : '—'}</span>` },
+    { key: 'perKm',     label: '€/km (tout compris)',   defaultWidth: 130, render: t => `<span title="Coût TOTAL de possession (usage + leasing + assurance + TVS + amendes) ÷ km — différent du « Coût au km » d'exploitation de la fiche véhicule" class="${t.perKm > 1 ? 'text-red-600 font-semibold' : t.perKm > 0.5 ? 'text-amber-600' : 'text-slate-700'}">${t.perKm > 0 ? FP.euroPrecis(t.perKm) : '—'}</span>` },
     { key: 'nb',        label: 'Nb factures',  defaultWidth: 110, render: t => t.nb },
     { key: 'achatDate', label: 'Dernier achat',defaultWidth: 140, render: t => t.achatDate ? FP.date(t.achatDate) : '<span class="text-slate-400">—</span>' },
   ];

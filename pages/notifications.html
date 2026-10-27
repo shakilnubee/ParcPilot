@@ -1753,7 +1753,7 @@
     try { anchor.addEventListener('mouseleave', armClose); anchor.addEventListener('mouseenter', cancelClose); } catch (e) {}
     m.addEventListener('click', (ev) => {
       const del = ev.target.closest('[data-del]');
-      if (del) { ev.stopPropagation(); const id = del.getAttribute('data-del'); if (confirm('Supprimer la colonne « ' + col.label + ' » ? (les cases cochées pour cette colonne seront perdues)')) { FP.suivi.removePersoCol(id); close(); renderSuiviFlotte(); if (FP.toast) FP.toast('🗑️ Colonne supprimée'); } return; }
+      if (del) { ev.stopPropagation(); const id = del.getAttribute('data-del'); FP.confirm('Supprimer la colonne « ' + col.label + ' » ? (les cases cochées pour cette colonne seront perdues)').then(ok => { if (ok) { FP.suivi.removePersoCol(id); close(); renderSuiviFlotte(); if (FP.toast) FP.toast('🗑️ Colonne supprimée'); } }); return; }
       const b = ev.target.closest('[data-val]'); if (!b) return; ev.stopPropagation(); suiviSetOverride(vid, k, b.getAttribute('data-val')); close(); renderSuiviFlotte(); if (FP.toast) FP.toast('✓ Mis à jour');
     });
   }
@@ -1914,7 +1914,7 @@
   async function relAllMail(btn) {
     const items = _relItems.filter(it => it.contact && it.contact.email);
     if (!items.length || !(window.FP && FP.sendEmail)) return;
-    if (!confirm('Envoyer ' + items.length + ' e-mail' + (items.length > 1 ? 's' : '') + ' de relance maintenant ?')) return;
+    if (!(await FP.confirm('Envoyer ' + items.length + ' e-mail' + (items.length > 1 ? 's' : '') + ' de relance maintenant ?'))) return;
     btn.disabled = true; const old = btn.textContent; let ok = 0, ko = 0;
     for (const it of items) {
       btn.textContent = 'Envoi… (' + (ok + ko + 1) + '/' + items.length + ')';

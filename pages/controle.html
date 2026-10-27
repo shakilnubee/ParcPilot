@@ -517,7 +517,7 @@
       $('sanef-tbody').addEventListener('click', async (e) => {
         const del = e.target.closest('[data-sn-del]'); if (!del) return;
         const f = _snList().find(x => String(x.id) === String(del.getAttribute('data-sn-del'))); if (!f) return;
-        if (!confirm('Supprimer ce passage Sanef ?')) return;
+        if (!(await FP.confirm('Supprimer ce passage Sanef ?'))) return;
         if (FP.history && FP.history.commit) FP.history.commit();
         const arr = window.FP_DATA.factures, idx = arr.indexOf(f); if (idx >= 0) arr.splice(idx, 1);
         try { if (FP.persist && FP.persist.delete) FP.persist.delete('factures', f.id, f); } catch (err) {}
@@ -666,7 +666,7 @@
     const rm = e.target.closest('[data-rm-presta]');
     if (rm) {
       const id = rm.getAttribute('data-rm-presta'); const p = FP.prestataireById(id);
-      if (!confirm('Supprimer le prestataire « ' + (p ? p.nom : id) + ' » ?\n\nSes factures et les n° déjà saisis ne sont PAS effacés — seul le sous-onglet et la colonne disparaissent.')) return;
+      if (!(await FP.confirm('Supprimer le prestataire « ' + (p ? p.nom : id) + ' » ?\n\nSes factures et les n° déjà saisis ne sont PAS effacés — seul le sous-onglet et la colonne disparaissent.'))) return;
       FP.removePrestataire(id); renderPrestaTabs(); renderCartes(); switchTab('cartes');
       if (FP.toast) FP.toast('Prestataire supprimé');
       return;
