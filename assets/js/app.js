@@ -1285,8 +1285,96 @@ FP.aenBaremePour = (v, cfg) => {
   if (d && !isNaN(d) && !isNaN(bascule) && d < bascule) return 'ancien';
   return 'nouveau';
 };
+// ── AEN OFFICIEL (relevé fiscalité du loueur : AYVENS / Localease…) ────────────────────────────
+// Le loueur calcule lui-même, par véhicule, l'AEN mensuel RETENU (barème ancien/nouveau déjà choisi,
+// méthode loyer/achat déjà arbitrée, carburant inclus ou non). On IMPORTE ce chiffre et on l'utilise
+// comme SOURCE DE VÉRITÉ dans FP.aenDetail — « LIRE, JAMAIS DEVINER » : le montant exact du loueur
+// remplace l'estimation de PP. Stocké dans settings.aenOfficiel (synchronisé, dans COLLECTION_KEYS),
+// keyé par plaque normalisée : { <normImmat>: { hc, ac, periode, source, maj } } — hc = hors carburant,
+// ac = avec carburant (€/mois). FP.aenDetail choisit ac/hc selon cfg.carburantFourni.
+FP._aenOfficielMap = () => { try { return FP.settings.get().aenOfficiel || {}; } catch (e) { return {}; } };
+FP._aenOfficiel = (v) => {
+  if (!v || !v.immat || !FP.normImmat) return null;
+  const map = FP._aenOfficielMap(); const k = FP.normImmat(v.immat);
+  if (map[k]) return map[k];
+  try { for (const key in map) { if (FP.normImmat(key) === k) return map[key]; } } catch (e) {}
+  return null;
+};
+// Montant AEN officiel mensuel applicable à CE véhicule selon le réglage « carburant fourni ».
+FP.aenOfficielMontant = (v, carbFourni) => {
+  const off = FP._aenOfficiel(v); if (!off) return null;
+  const val = carbFourni ? (off.ac != null ? off.ac : off.hc) : (off.hc != null ? off.hc : off.ac);
+  return (val != null && Number(val) > 0) ? Number(val) : null;
+};
+// Parseur du relevé fiscalité AEN AYVENS / Localease (CSV « ; » — texte déjà décodé, ex. windows-1252).
+// S'ancre sur les LIBELLÉS de colonnes (jamais une position au hasard) : Immatriculation + les colonnes
+// « (Nouvel) AEN retenu Hors/Avec Carb. ». Repli sur les colonnes « ancien barème » si les « nouvel » = 0.
+// Renvoie { ok, rows:[{immat, norm, hc, ac, periode}], count, periodes:[], warnings:[] }.
+FP.aenImportCSV = (text) => {
+  const out = { ok: false, rows: [], count: 0, periodes: [], warnings: [] };
+  if (!text || typeof text !== 'string') { out.warnings.push('Fichier vide.'); return out; }
+  const fold = (s) => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const lines = text.split(/\r\n|\r|\n/).filter(l => l.trim() !== '');
+  if (lines.length < 2) { out.warnings.push('Aucune ligne de données.'); return out; }
+  const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/\t/g) || []).length ? ';' : '\t';
+  const head = lines[0].split(sep).map(fold);
+  const findCol = (fn) => { for (let i = 0; i < head.length; i++) { if (fn(head[i])) return i; } return -1; };
+  const iImmat = findCol(h => h.includes('immatriculation') || h === 'immat');
+  const iNewHC = findCol(h => h.includes('nouvel') && h.includes('retenu') && h.includes('hors'));
+  const iNewAC = findCol(h => h.includes('nouvel') && h.includes('retenu') && h.includes('avec'));
+  const iOldHC = findCol(h => !h.includes('nouvel') && h.includes('retenu') && h.includes('hors'));
+  const iOldAC = findCol(h => !h.includes('nouvel') && h.includes('retenu') && h.includes('avec'));
+  const iPer = findCol(h => h.includes('periode') && h.includes('traitement'));
+  if (iImmat < 0 || (iNewHC < 0 && iOldHC < 0 && iNewAC < 0 && iOldAC < 0)) {
+    out.warnings.push("Colonnes AEN introuvables (attendu : « Immatriculation » + « AEN retenu … »). Est-ce bien le relevé fiscalité du loueur ?");
+    return out;
+  }
+  const num = (s) => { if (s == null) return null; const t = String(s).replace(/\s| /g, '').replace(',', '.').replace(/[^0-9.\-]/g, ''); if (t === '' || t === '-' || t === '.') return null; const n = parseFloat(t); return isNaN(n) ? null : n; };
+  const seenPer = {};
+  for (let li = 1; li < lines.length; li++) {
+    const cols = lines[li].split(sep);
+    const immatRaw = (cols[iImmat] || '').trim();
+    if (!immatRaw) continue;
+    const norm = FP.normImmat(immatRaw);
+    if (!norm) continue;
+    const pick = (iNew, iOld) => { const vn = iNew >= 0 ? num(cols[iNew]) : null; if (vn != null && vn > 0) return vn; const vo = iOld >= 0 ? num(cols[iOld]) : null; return (vo != null && vo > 0) ? vo : null; };
+    const hc = pick(iNewHC, iOldHC);
+    const ac = pick(iNewAC, iOldAC);
+    if (hc == null && ac == null) continue;
+    const periode = iPer >= 0 ? (cols[iPer] || '').trim() : '';
+    if (periode) seenPer[periode] = 1;
+    out.rows.push({ immat: immatRaw, norm, hc, ac, periode });
+  }
+  out.count = out.rows.length;
+  out.periodes = Object.keys(seenPer);
+  out.ok = out.count > 0;
+  if (!out.ok) out.warnings.push('Aucune plaque avec un montant AEN lisible dans le fichier.');
+  return out;
+};
+// Applique un import AEN officiel dans les réglages (dernier import gagnant PAR plaque) + persiste.
+FP.aenAppliquerImport = (rows, source) => {
+  const s = FP.settings.get();
+  const map = Object.assign({}, s.aenOfficiel || {});
+  const maj = new Date().toISOString();
+  let n = 0;
+  (rows || []).forEach(r => {
+    if (!r || !r.norm) return;
+    map[r.norm] = { hc: (r.hc != null ? r.hc : null), ac: (r.ac != null ? r.ac : null), periode: r.periode || '', source: source || 'loueur', maj };
+    n++;
+  });
+  FP.settings.save({ aenOfficiel: map });
+  return n;
+};
+// Vide un relevé officiel pour une plaque (ou tout si aucun argument). Persiste.
+FP.aenResetOfficiel = (immat) => {
+  const s = FP.settings.get();
+  if (immat == null) { FP.settings.save({ aenOfficiel: {} }); return; }
+  const map = Object.assign({}, s.aenOfficiel || {}); const k = FP.normImmat(immat);
+  Object.keys(map).forEach(key => { if (FP.normImmat(key) === k) delete map[key]; });
+  FP.settings.save({ aenOfficiel: map });
+};
 // Renvoie le détail AEN d'un véhicule, ou null si non calculable / non concerné.
-//   { applicable, method:'acheté'|'loué', bareme:'ancien'|'nouveau', elec, base, taux, brutAnnuel, abattement, netAnnuel, netMensuel, reason? }
+//   { applicable, method:'acheté'|'loué', bareme:'ancien'|'nouveau', elec, base, taux, brutAnnuel, abattement, netAnnuel, netMensuel, officiel?, source?, periode?, estNetMensuel?, reason? }
 FP.aenDetail = (v) => {
   // ⚠️ MÊME périmètre que FP.aenAnnuelFlotte (qui exclut via FP.horsFlotte) : sinon le COMPTEUR
   // « X véhicules · forfait » (aenDetail) et le TOTAL € (aenAnnuelFlotte) divergeaient pour un
@@ -1305,6 +1393,15 @@ FP.aenDetail = (v) => {
   // dans Contrats affichait à tort « loyer inconnu ».
   const cc = FP.leasingCoutContrat ? FP.leasingCoutContrat(v.immat) : null;
   const cActif = c && (!FP.leasingActif || FP.leasingActif(c));
+  // ── SOURCE DE VÉRITÉ : montant AEN OFFICIEL importé du loueur (relevé fiscalité) ──
+  // S'il existe pour ce véhicule, il PRIME sur l'estimation (barème/méthode déjà arbitrés par le loueur).
+  // Il s'applique MÊME quand PP ne connaît pas le loyer (l'app afficherait sinon « loyer inconnu »).
+  const offMontant = FP.aenOfficielMontant ? FP.aenOfficielMontant(v, carbFourni) : null;
+  if (offMontant != null) {
+    const off = FP._aenOfficiel(v) || {};
+    const methodOff = (cActif || cc) ? 'loué' : (Number(v.valeurAchat) > 0 ? 'acheté' : 'loué');
+    return { applicable: true, officiel: true, source: off.source || 'loueur', periode: off.periode || '', method: methodOff, bareme, elec, carbFourni, taux: null, base: null, brutAnnuel: null, abattement: 0, netMensuel: offMontant, netAnnuel: offMontant * 12 };
+  }
   let base = 0, taux = 0, method, loyerAnnuel = null;
   if (cActif || cc) {
     const info = FP.leasingInfo ? FP.leasingInfo(v) : null;
@@ -6430,7 +6527,11 @@ FP.settings = {
       'automationDone', 'ficheCols', 'ficheColsOrder',
       // — Listes de DÉFINITIONS à id (même nature que customFields) : documents obligatoires et règles
       //   d'automatisation → fusion fine PAR ID (sinon un ajout concurrent multi-appareils écrasait l'autre).
-      'docRequis', 'automations']);
+      'docRequis', 'automations',
+      // — AEN OFFICIEL importé du loueur (relevé fiscalité AYVENS/Localease) : map { normImmat →
+      //   { hc, ac, periode, source, maj } } = montant AEN mensuel RETENU par le loueur, source de vérité
+      //   pour FP.aenDetail. Donnée keyée par plaque → fusion fine (jamais écrasée en bloc par un cache en retard).
+      'aenOfficiel']);
     // Familles DYNAMIQUES keyées par conducteur (n° carte/badge d'un prestataire perso : condNum_<id>).
     const isCollKey = (k) => COLLECTION_KEYS.has(k) || /^condNum_/.test(k);
     // Fonctions de fusion : source UNIQUE dans FP._fusion (bloc testé par tests/unit/fusion-reglages.mjs).

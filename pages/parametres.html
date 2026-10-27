@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261027a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261027a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261027a">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -530,6 +530,17 @@
         <button class="btn btn-outline text-sm" id="btn-reset-aen"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Barèmes par défaut</button>
       </div>
       <div id="aen-save-status" class="text-xs mt-2"></div>
+
+      <!-- Import du relevé fiscalité AEN du loueur (AYVENS / Localease…) -->
+      <div class="mt-6 p-4 rounded-lg border border-slate-200" style="background:#F8FAFC">
+        <div class="font-semibold text-slate-900 mb-1 flex items-center gap-2"><i data-lucide="file-up" class="w-4 h-4" style="color:var(--fp-accent)"></i> Montant officiel du loueur <span class="text-xs font-normal text-slate-500">(recommandé)</span></div>
+        <p class="text-xs text-slate-500 mb-3">Ton loueur (AYVENS / Localease…) calcule lui-même l'AEN mensuel <b>retenu</b> par véhicule et le fournit dans un <b>relevé de fiscalité</b> (fichier <code>.CSV</code>). Importe-le ici : Parc Pilot utilisera alors ce <b>montant exact</b> à la place de son estimation (badge <span style="color:var(--fp-accent);font-weight:700">• officiel</span> sur la fiche véhicule). Le barème ci-dessus sert de repli pour les véhicules absents du relevé.</p>
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="btn btn-outline text-sm" style="cursor:pointer"><i data-lucide="upload" class="w-4 h-4"></i> Importer un relevé CSV<input type="file" id="aen-import-file" accept=".csv,text/csv" style="display:none"></label>
+          <button class="btn btn-outline text-sm" id="btn-aen-reset-officiel" style="display:none"><i data-lucide="trash-2" class="w-4 h-4"></i> Oublier les montants importés</button>
+        </div>
+        <div id="aen-import-status" class="text-xs mt-2"></div>
+      </div>
       </div><!-- /.set-sub AEN -->
     </div>
 
@@ -928,8 +939,8 @@
 <!-- Toast -->
 <div class="toast" id="toast">Enregistré ✓</div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
-<script src="../assets/js/supabase-client.js?v=20261026i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261027a"></script>
+<script src="../assets/js/supabase-client.js?v=20261027a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -945,10 +956,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261027a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261026i"></script>
+<script src="../assets/js/app.min.js?v=20261027a"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -1830,6 +1841,54 @@
       try { const s = FP.settings.get(); delete s.aen; delete s.aenBareme; FP.settings.save(s); } catch(e){}
       fill(); const st=$('aen-save-status'); if(st){ st.textContent='↺ Barèmes par défaut rétablis (pense à Enregistrer).'; st.style.color='var(--fp-muted)'; }
     }); }
+
+    // ── Import du relevé fiscalité AEN du loueur (AYVENS / Localease…) ──
+    (function aenImportUI(){
+      const inp = $('aen-import-file'), st = $('aen-import-status'), resetBtn = $('btn-aen-reset-officiel');
+      if (!inp) return;
+      const set = (h, c) => { if (st) { st.innerHTML = h; st.style.color = c || 'var(--fp-muted)'; } };
+      function refreshState(){
+        let n = 0; try { n = Object.keys((FP.settings.get().aenOfficiel) || {}).length; } catch (e) {}
+        if (resetBtn) resetBtn.style.display = n > 0 ? '' : 'none';
+        if (n > 0 && st && !st.innerHTML) set('✓ <b>' + n + '</b> véhicule(s) utilisent actuellement le montant AEN officiel du loueur.', '#15803D');
+      }
+      refreshState();
+      document.addEventListener('fp:data-ready', refreshState);
+      // Lecture du fichier en windows-1252 (encodage des exports AYVENS/Localease), repli UTF-8.
+      function readFile(file){
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(r.error || new Error('lecture'));
+          try { r.readAsText(file, 'windows-1252'); } catch (e) { r.readAsText(file); }
+        });
+      }
+      inp.addEventListener('change', async () => {
+        const file = inp.files && inp.files[0]; if (!file) return;
+        if (FP.canManageSociete && !FP.canManageSociete()) { set('⚠️ Réservé à l\'administrateur.', '#B91C1C'); inp.value=''; return; }
+        set('⏳ Lecture du relevé…');
+        try {
+          const text = await readFile(file);
+          const res = FP.aenImportCSV ? FP.aenImportCSV(text) : { ok:false, warnings:['Fonction indisponible.'] };
+          if (!res.ok) { set('⚠️ ' + (res.warnings[0] || 'Fichier non reconnu.'), '#B91C1C'); inp.value=''; return; }
+          const perLbl = res.periodes && res.periodes.length ? res.periodes.join(', ') : '—';
+          const ok = FP.confirm ? await FP.confirm('Importer les montants AEN officiels de ' + res.count + ' véhicule(s) (période : ' + perLbl + ') ?\nCes montants remplaceront l\'estimation de Parc Pilot pour ces véhicules.') : true;
+          if (!ok) { set('Import annulé.'); inp.value=''; return; }
+          const n = FP.aenAppliquerImport(res.rows, (file.name||'').toLowerCase().includes('ayvens') ? 'AYVENS' : 'loueur');
+          set('✓ <b>' + n + '</b> montant(s) AEN officiel(s) importé(s) (période ' + perLbl + '). La fiche de chaque véhicule affiche désormais le montant du loueur (badge « officiel »).', '#15803D');
+          refreshState();
+          try { FP.toast && FP.toast('AEN : ' + n + ' montant(s) officiel(s) importé(s)'); } catch (e) {}
+        } catch (e) { set('⚠️ Impossible de lire le fichier (' + (e && e.message ? e.message : 'erreur') + ').', '#B91C1C'); }
+        inp.value='';
+      });
+      if (resetBtn) resetBtn.addEventListener('click', async () => {
+        if (FP.canManageSociete && !FP.canManageSociete()) { set('⚠️ Réservé à l\'administrateur.', '#B91C1C'); return; }
+        if (FP.confirm && !(await FP.confirm('Oublier tous les montants AEN importés du loueur ? Parc Pilot reviendra à son estimation par barème.'))) return;
+        try { FP.aenResetOfficiel && FP.aenResetOfficiel(); } catch (e) {}
+        set('↺ Montants officiels oubliés. L\'AEN repart sur l\'estimation par barème.');
+        refreshState();
+      });
+    })();
   })();
 
   { const sw = $('soc-switch'); if (sw) sw.addEventListener('change', e => switchSociete(e.target.value)); }
