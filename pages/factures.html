@@ -745,6 +745,14 @@
   }
 
   // === Config colonnes éditables ===
+  // ⚠️ Incohérence HT + TVA ≠ TTC (tolérance 2 cts) — repère PERSISTANT (avant : seul un toast fugace à l'édition).
+  // Renvoie false si l'un des 3 montants manque (on ne signale que les triplets complets et faux).
+  function faIncoherent(f) {
+    if (!f || f.montantHT == null || f.montantTVA == null || f.montantTTC == null) return false;
+    const h = Number(f.montantHT), t = Number(f.montantTVA), c = Number(f.montantTTC);
+    if (![h, t, c].every(Number.isFinite)) return false;
+    return Math.abs((h + t) - c) > 0.02;
+  }
   const FACTURES_COLUMNS = [
     { key: 'date',          label: 'Date',         defaultWidth: 110, render: f => FP.date(f.date) },
     { key: 'vehiculeImmat', label: 'Véhicule',     defaultWidth: 110, cellCls: 'font-mono text-sm', render: f => f.vehiculeImmat ? FP.lienVehicule(f.vehiculeImmat) : '—' },
@@ -753,7 +761,7 @@
     { key: 'type',          label: 'Type',         defaultWidth: 100, render: f => typePill(f.type) },
     { key: 'montantHT',     label: 'HT',           defaultWidth: 100, render: f => f.montantHT != null ? FP.euroPrecis(f.montantHT) : '<span class="text-slate-400">—</span>' },
     { key: 'montantTVA',    label: 'TVA',          defaultWidth: 90,  render: f => f.montantTVA != null ? FP.euroPrecis(f.montantTVA) : '<span class="text-slate-400">—</span>' },
-    { key: 'montantTTC',    label: 'Montant TTC',  defaultWidth: 130, cellCls: 'font-semibold', render: f => f.montantTTC ? FP.euroPrecis(f.montantTTC) : '<span class="text-slate-400">—</span>' },
+    { key: 'montantTTC',    label: 'Montant TTC',  defaultWidth: 130, cellCls: 'font-semibold', render: f => (f.montantTTC ? FP.euroPrecis(f.montantTTC) : '<span class="text-slate-400">—</span>') + (faIncoherent(f) ? ' <span title="HT + TVA ≠ TTC — montants à vérifier" style="color:#b91c1c">⚠️</span>' : '') },
     { key: 'numeroFacture', label: 'N° facture',   defaultWidth: 130, cellCls: 'font-mono text-xs text-slate-500', render: f => escapeHtml(f.numeroFacture) || '—' },
     { key: 'km',            label: 'Km',           defaultWidth: 90,  render: f => f.km ? FP.num(f.km) + ' km' : '—' },
   ];
@@ -957,6 +965,7 @@
         <div class="kpi p-3"><div class="kpi-label">TVA</div><div class="kpi-value" style="font-size:1rem"><span id="fa-tva-val" class="cursor-pointer hover:underline" title="Cliquer pour modifier">${f.montantTVA != null ? FP.euroPrecis(f.montantTVA) : empty}</span></div></div>
         <div class="kpi p-3"><div class="kpi-label">TTC</div><div class="kpi-value" style="font-size:1rem; color: var(--fp-primary)"><span id="fa-ttc-val" class="cursor-pointer hover:underline" title="Cliquer pour modifier">${f.montantTTC != null ? FP.euroPrecis(f.montantTTC) : empty}</span></div></div>
       </div>
+      ${faIncoherent(f) ? `<div class="text-xs" style="color:#b91c1c;font-weight:600">⚠️ HT + TVA (${FP.euroPrecis(Number(f.montantHT) + Number(f.montantTVA))}) ≠ TTC (${FP.euroPrecis(Number(f.montantTTC))}) — à vérifier</div>` : ''}
 
       <div class="fp-panel space-y-3">
       <div class="grid grid-cols-2 gap-3">
