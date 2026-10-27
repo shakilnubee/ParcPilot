@@ -247,7 +247,9 @@
     const todayIso = `${_tn.getFullYear()}-${String(_tn.getMonth() + 1).padStart(2, '0')}-${String(_tn.getDate()).padStart(2, '0')}`;
     // À venir + dépassés non réglés (on garde tout ce qui est >= il y a 30j, trié par date)
     const limitPast = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-    const upcoming = events.filter(e => e.date >= limitPast).slice(0, 40);
+    const _allUpcoming = events.filter(e => e.date >= limitPast);
+    const upcoming = _allUpcoming.slice(0, 40);
+    const _more = _allUpcoming.length - upcoming.length; // nb d'échéances au-delà de l'affichage (avant : coupées en silence)
     if (!upcoming.length) {
       document.getElementById('ech-list').innerHTML = '<p class="text-slate-500 text-sm">Aucune échéance à venir. 🎉</p>';
       return;
@@ -267,7 +269,9 @@
         </div>
         ${e.target ? '<i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>' : ''}
       </${tag}>`;
-    }).join('');
+    }).join('')
+      // + N autres échéances non affichées (avant : coupées en silence à 40) → lien vers la liste complète.
+      + (_more > 0 ? `<a href="renouvellements.html" class="ech-row" style="justify-content:center;color:var(--fp-primary);font-weight:600">+ ${_more} autre${_more > 1 ? 's' : ''} échéance${_more > 1 ? 's' : ''} — voir tout</a>` : '');
     lucide.createIcons();
   }
 

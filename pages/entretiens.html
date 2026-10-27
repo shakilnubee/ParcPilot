@@ -229,7 +229,7 @@
         const vSearch=document.getElementById('garages-veh-search');
         rows.addEventListener('change',(e)=>{ const inp=e.target.closest('[data-g-id]'); if(!inp) return; const id=inp.getAttribute('data-g-id'),field=inp.getAttribute('data-g-field'); const g=FP.getPrestataires().find(x=>x&&x.id===id); if(!g) return; g[field]=(inp.value||'').trim(); FP.savePrestataire(g); status('✓ Enregistré'); renderMarques(); renderVehicules(); });
         rows.addEventListener('click',(e)=>{
-          const del=e.target.closest('[data-g-del]'); if(del){ if(confirm('Supprimer ce garage du carnet d\'adresses ?')){ FP.deletePrestataire(del.getAttribute('data-g-del')); window.renderGaragesSection(); status('✓ Supprimé'); } return; }
+          const del=e.target.closest('[data-g-del]'); if(del){ FP.confirm('Supprimer ce garage du carnet d\'adresses ?').then(ok=>{ if(ok){ FP.deletePrestataire(del.getAttribute('data-g-del')); window.renderGaragesSection(); status('✓ Supprimé'); } }); return; }
           const pdfDel=e.target.closest('[data-g-pdf-del]'); if(pdfDel){ const g=FP.getPrestataires().find(x=>x&&x.id===pdfDel.getAttribute('data-g-pdf-del')); if(g){ g.pdfUrl=null; g.pdfName=null; FP.savePrestataire(g); renderRows(); status('✓ PDF retiré'); } return; }  /* ⚠️ null (pas delete) : savePrestataire FUSIONNE → un delete serait ré-écrasé par l'ancienne valeur */
           const pdfOpen=e.target.closest('[data-g-pdf-open]'); if(pdfOpen){ e.preventDefault(); const u=pdfOpen.getAttribute('data-g-pdf-open'); if(u){ if(window.FP&&FP.openScan) FP.openScan(u); else window.open(u,'_blank','noopener'); } return; }
           const pdf=e.target.closest('[data-g-pdf]'); if(pdf){ _pdfTarget=pdf.getAttribute('data-g-pdf'); if(pdfFile) pdfFile.click(); return; }

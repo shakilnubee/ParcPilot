@@ -208,6 +208,7 @@
     <div class="card p-4 mb-6 flex flex-wrap items-center gap-3" id="tache-filterbar">
       <div class="flex gap-1 flex-wrap" id="filters-statut">
         <button class="filter-chip active" data-value="actives">À faire</button>
+        <button class="filter-chip" data-value="prioritaires">🔴 Prioritaires</button>
         <button class="filter-chip" data-value="retard">En retard</button>
         <button class="filter-chip" data-value="avenir">À venir</button>
         <button class="filter-chip" data-value="faites">Terminées</button>
@@ -590,6 +591,7 @@
       const done = isDone(t);
       if (state.filtre === 'actives' && done) return false;
       if (state.filtre === 'faites' && !done) return false;
+      if (state.filtre === 'prioritaires') { if (done || t.priorite !== 'haute') return false; } // tâches prioritaires non terminées
       // En retard : non faite + échéance dépassée. À venir : non faite + échéance aujourd'hui ou après.
       if (state.filtre === 'retard') { if (done || !t.echeance) return false; const e = echeanceInfo(t); if (!e || !e.retard) return false; }
       if (state.filtre === 'avenir') { if (done || !t.echeance) return false; const j = FP.joursRestants(t.echeance); if (j != null && j < 0) return false; }
@@ -597,9 +599,14 @@
     });
   }
   function sortTasks(rows) {
+    // Priorité HAUTE en tête (le badge « 🔴 Prioritaire » doit avoir un effet sur l'ordre) : avant, une tâche
+    // prioritaire SANS échéance (9999-12-31) tombait sous toutes les tâches datées. Ordre : terminé → priorité → échéance → création.
+    const prioRank = p => (p === 'haute' ? 0 : (p === 'basse' ? 2 : 1));
     return rows.slice().sort((a, b) => {
       const da = isDone(a), db = isDone(b);
       if (da !== db) return da ? 1 : -1;
+      const pa = prioRank(a.priorite), pb = prioRank(b.priorite);
+      if (pa !== pb) return pa - pb;
       const ea = a.echeance || '9999-12-31', eb = b.echeance || '9999-12-31';
       if (ea !== eb) return ea.localeCompare(eb);
       return (b.createdAt || '').localeCompare(a.createdAt || '');

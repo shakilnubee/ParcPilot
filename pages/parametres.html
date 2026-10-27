@@ -2478,7 +2478,7 @@
     if (addBtn) addBtn.addEventListener('click', () => openForm(null));
     wrap.addEventListener('click', e => {
       const ed = e.target.closest('[data-dr-edit]'); if (ed) { const r = allReq().find(x => x.id === ed.getAttribute('data-dr-edit')); if (r) openForm(r); return; }
-      const dl = e.target.closest('[data-dr-del]'); if (dl) { if (confirm('Retirer cette exigence ?')) removeReq(dl.getAttribute('data-dr-del')); return; }
+      const dl = e.target.closest('[data-dr-del]'); if (dl) { FP.confirm('Retirer cette exigence ?').then(ok => { if (ok) removeReq(dl.getAttribute('data-dr-del')); }); return; }
     });
     render();
   }
@@ -2559,7 +2559,7 @@
     $('au-add') && $('au-add').addEventListener('click', () => openForm(null));
     wrap.addEventListener('click', e => {
       const ed = e.target.closest('[data-au-edit]'); if (ed) { const r = all().find(x => x.id === ed.getAttribute('data-au-edit')); if (r) openForm(r); return; }
-      const dl = e.target.closest('[data-au-del]'); if (dl) { if (confirm('Retirer cette règle ?')) removeRule(dl.getAttribute('data-au-del')); return; }
+      const dl = e.target.closest('[data-au-del]'); if (dl) { FP.confirm('Retirer cette règle ?').then(ok => { if (ok) removeRule(dl.getAttribute('data-au-del')); }); return; }
     });
     const resBox = $('au-result');
     $('au-test') && $('au-test').addEventListener('click', async () => {
@@ -2571,7 +2571,7 @@
     $('au-run') && $('au-run').addEventListener('click', async () => {
       const prev = await FP.automations.run({ test: true });
       const mailRules = prev.resume.filter(x => x.action === 'email' && x.neufs > 0).reduce((n, x) => n + x.neufs, 0);
-      if (mailRules > 0 && !confirm('Cette exécution va envoyer ' + mailRules + ' e-mail(s). Continuer ?')) return;
+      if (mailRules > 0 && !(await FP.confirm('Cette exécution va envoyer ' + mailRules + ' e-mail(s). Continuer ?'))) return;
       resBox.innerHTML = '<span class="text-slate-500">Exécution…</span>';
       const r = await FP.automations.run({});
       resBox.innerHTML = '<div class="p-3 rounded-lg" style="background:#F0FDF4;border:1px solid #BBF7D0">✓ Exécuté — <b>' + r.totalTache + '</b> tâche(s) créée(s), <b>' + r.totalMail + '</b> e-mail(s) envoyé(s)' + (r.totalSkip ? ', ' + r.totalSkip + ' ignoré(s)' : '') + '.</div>';
