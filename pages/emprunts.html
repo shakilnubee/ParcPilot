@@ -444,7 +444,10 @@
   function empHasConfig() { const c = empDispoCfg(); return c.g.size > 0 || c.v.size > 0; }
   // Renvoie les véhicules prêtables : ceux cochés OU appartenant à un groupe coché. Rien coché = tous.
   function empDispoVehs() {
-    const all = (data.vehicules || []);
+    // ⚠️ Un véhicule SORTI de flotte (vendu/cédé/restitué/HS/archivé → FP.horsFlotte) n'est JAMAIS prêtable,
+    // même s'il est encore rangé dans le groupe « À vendre » (bug vécu : GP-232-WF, vendu, proposé à l'emprunt).
+    // ⚠️ FP.horsFlotte ≠ « à vendre » : un véhicule « à vendre » est encore possédé → il reste prêtable.
+    const all = (data.vehicules || []).filter(v => !(window.FP && FP.horsFlotte && FP.horsFlotte(v)));
     if (!empHasConfig()) return all;
     const c = empDispoCfg();
     // ⚠️ Appartenance au groupe via la SOURCE UNIQUE FP.vehGroupes (comme la page Véhicules) — sinon un
@@ -917,7 +920,8 @@
   }
   function renderDispoVehs(q) {
     const nq = (window.FP && FP.norm) ? FP.norm(q || '') : String(q || '').toLowerCase();
-    const list = (data.vehicules || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''))
+    const list = (data.vehicules || []).filter(v => !(window.FP && FP.horsFlotte && FP.horsFlotte(v)))  // pas de véhicule sorti de flotte (vendu/cédé/restitué/HS) dans la config de prêt
+      .slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''))
       .filter(v => !nq || ((window.FP && FP.norm) ? FP.norm(`${v.immat} ${v.marque} ${v.modele}`) : `${v.immat} ${v.marque} ${v.modele}`.toLowerCase()).includes(nq));
     $('dispo-vehs').innerHTML = list.length ? list.map(v => {
       const on = _dispoSel.v.has(v.id);
