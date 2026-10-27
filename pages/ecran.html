@@ -144,19 +144,28 @@
     const critiques = alerts.filter(a => a.niveau === 'danger' || a.niveau === 'warn').length;
     const ech = (FP.buildEcheances ? FP.buildEcheances(D) : []).filter(e => { const j = FP.joursRestants ? FP.joursRestants(e.date) : Math.ceil((new Date(e.date) - now) / 86400000); return j != null && j <= 90; }); // source unique (minuit→minuit)
     const tvs = FP.tvsAnnuelleFlotte ? FP.tvsAnnuelleFlotte(D.vehicules) : actifs.reduce((s, v) => { const d = FP.tvsDetail ? FP.tvsDetail(v) : null; return s + (d && d.applicable && d.total != null ? d.total : 0); }, 0);
-    return { nb: actifs.length, km, coutMois, cout12, critiques, ech, tvs };
+    // Amendes « à payer » (actionnable) — source unique FP.estAPayer + montant dû FP.montantDu (majoré si dépassé).
+    const amAPayerList = (D.amendes || []).filter(a => FP.estAPayer ? FP.estAPayer(a) : /a *payer/i.test(((a && a.statut) || '').toLowerCase()));
+    const amAPayer = amAPayerList.length;
+    const amDu = amAPayerList.reduce((s, a) => s + (FP.montantDu ? FP.montantDu(a) : (Number(a.montant) || 0)), 0);
+    // Véhicules disponibles (sans conducteur affecté) — utile pour réaffecter d'un coup d'œil.
+    const dispo = actifs.filter(v => { const c = (v.chauffeur || '').toString().trim(); return !c || c === '—'; }).length;
+    return { nb: actifs.length, km, coutMois, cout12, critiques, ech, tvs, amAPayer, amDu, dispo };
   }
   const eur = n => FP.euro ? FP.euro(n) : Math.round(n) + ' €';
   const num = n => FP.num ? FP.num(n) : String(n);
 
   function render() {
     const m = metrics();
+    // Tuiles réorganisées : en HAUT ce qui est URGENT / actionnable (à surveiller d'un coup d'œil),
+    // en BAS les indicateurs d'ARGENT. La tuile « Kilométrage total » (info de vanité, non actionnable)
+    // a été remplacée par « Amendes à payer » (actionnable, avec une échéance = risque de majoration).
     const tiles = [
-      { label: 'Parc actif', value: num(m.nb), sub: 'véhicules en service', ic: 'car', color: '#38bdf8' },
-      { label: "Coût d'exploitation du mois", value: eur(m.coutMois), sub: 'entretien, réparations… (hors leasing/sinistres)', ic: 'wallet', color: '#F97316' },
+      { label: 'Parc actif', value: num(m.nb), sub: m.dispo ? (m.dispo + ' sans conducteur') : 'véhicules en service', ic: 'car', color: '#38bdf8' },
       { label: 'Alertes actives', value: num(m.critiques), sub: 'à traiter', ic: 'siren', color: m.critiques ? '#F87171' : '#34d399' },
-      { label: 'Échéances 90 j', value: num(m.ech.length), sub: 'CT, assurance, leasing…', ic: 'calendar-clock', color: '#fbbf24' },
-      { label: 'Kilométrage total', value: num(m.km) + ' km', sub: 'cumul flotte', ic: 'gauge', color: '#a78bfa' },
+      { label: 'Échéances 90 j', value: num(m.ech.length), sub: 'CT, assurance, leasing…', ic: 'calendar-clock', color: m.ech.length ? '#fbbf24' : '#34d399' },
+      { label: "Coût d'exploitation du mois", value: eur(m.coutMois), sub: 'entretien, réparations… (hors leasing/sinistres)', ic: 'wallet', color: '#F97316' },
+      { label: 'Amendes à payer', value: num(m.amAPayer), sub: m.amAPayer ? (eur(m.amDu) + ' à régler') : 'tout est réglé ✓', ic: 'file-warning', color: m.amAPayer ? '#F87171' : '#34d399' },
       { label: 'Coûts 12 mois', value: eur(m.cout12), sub: 'glissants', ic: 'trending-up', color: '#f472b6' },
     ];
     $('ec-grid').innerHTML = tiles.map(t => `<div class="ec-tile">
