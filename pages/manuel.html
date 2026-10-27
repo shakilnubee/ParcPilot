@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261027a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261027a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261027a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -997,6 +997,7 @@
           <br>Il faut donc renseigner la <b>valeur d'achat</b> (véhicule acheté) ou le <b>loyer</b> (leasing) et l'<b>énergie</b> pour obtenir le calcul (sinon la fiche affiche « à compléter »).</div>
         <div class="man-item">📅 <b>Deux barèmes, choisis automatiquement</b> : la réforme du <b>01/02/2025</b> a durci le barème. PP applique le <b>bon barème tout seul</b> selon la <b>date de mise à disposition</b> du véhicule au salarié : mis à dispo <b>avant</b> cette date → <b>ancien barème</b> (plus doux : acheté 9 %/6 %, loué 30 %, abattement élec 50 %) ; <b>depuis</b> → <b>nouveau barème</b> (acheté 15 %/10 %, loué 50 %, abattement élec 70 %). La fiche véhicule indique quel barème est utilisé (« ancien bar. » / « nouv. bar. »). La plupart des véhicules déjà en service restent donc à l'ancien barème.</div>
         <div class="man-item">⚙️ <b>Taux réglables</b> : <b>Paramètres → Société → « Avantage en Nature (AEN) »</b> (admin) — les <b>deux barèmes</b> (ancien + nouveau) sont éditables côte à côte, avec la <b>date de bascule</b>, l'abattement électrique, le plafond, « carburant fourni » et « inclure l'assurance » (synchronisés sur tous tes appareils). ⚠️ Le <b>plafond d'abattement électrique</b> est revalorisé chaque année (vérifie la valeur en cours sur urssaf.fr). Réservé à l'administrateur.</div>
+        <div class="man-item">📄 <b>Montant officiel du loueur (recommandé)</b> : ton loueur (AYVENS / Localease…) calcule lui-même l'AEN mensuel <b>retenu</b> par véhicule et le fournit dans un <b>relevé de fiscalité</b> (fichier <code>.CSV</code>). Dans <b>Paramètres → Société → « Avantage en Nature » → « Montant officiel du loueur »</b>, clique <b>« Importer un relevé CSV »</b> et choisis le fichier. Parc Pilot lit la colonne « AEN retenu » de chaque plaque et affiche désormais ce <b>montant exact</b> à la place de son estimation — la fiche véhicule porte alors un petit badge <b>« • officiel »</b>. Le barème réglable ci-dessus continue de servir de <b>repli</b> pour les véhicules absents du relevé. Le bouton <b>« Oublier les montants importés »</b> revient à l'estimation. (Le fichier est rattaché par <b>plaque</b>, peu importe l'écriture avec ou sans tirets.)</div>
 
         <div class="man-zone">TCO (coût total par véhicule)</div>
         <div class="man-item">TCO = factures d'usage + leasing (depuis l'offre) + <b>malus écologique</b> + assurance + TVS + amendes du conducteur. <b>Le prix d'achat est exclu.</b> Le <b>malus</b> (coût unique payé au départ) est compté <b>en entier</b> en « toutes années », et sur l'<b>année de début du contrat</b> quand on filtre une année. En <b>« toutes années »</b>, tout est <b>cumulé depuis l'achat</b> (assurance et TVS × ancienneté du véhicule) = coût total à vie ; en filtrant une année, ce sont les montants de cette année. Le €/km = TCO ÷ km, calculé sur toute la vie du véhicule.</div>
@@ -1037,8 +1038,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
-<script src="../assets/js/supabase-client.js?v=20261026i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261027a"></script>
+<script src="../assets/js/supabase-client.js?v=20261027a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1054,10 +1055,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261027a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261026i"></script>
+<script src="../assets/js/app.min.js?v=20261027a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

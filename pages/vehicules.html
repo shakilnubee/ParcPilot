@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261027a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261026i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261027a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261026i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261027a">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1196,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261026i"></script>
-<script src="../assets/js/supabase-client.js?v=20261026i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261027a"></script>
+<script src="../assets/js/supabase-client.js?v=20261027a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1213,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261026i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261027a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261026i"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261026i"></script>
+<script src="../assets/js/fleet-docs.js?v=20261027a"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261027a"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261026i"></script><script>
+<script src="../assets/js/app.min.js?v=20261027a"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -3825,7 +3825,12 @@
             if (!aen) return '<span class="text-slate-400">—</span>';
             if (!aen.applicable) return `<span class="text-amber-600" title="Complète la donnée pour calculer l'AEN">${aen.reason || 'à compléter'}</span>`;
             const barLbl = aen.bareme === 'ancien' ? 'ancien barème (avant réforme 2025)' : 'nouveau barème (réforme 2025)';
-            const det = `${barLbl} · ${aen.method} · ${aen.taux}%${aen.elec && aen.abattement ? ' · −' + FP.euro(aen.abattement) + ' abatt. élec' : ''}${aen.carbFourni ? ' · carburant fourni' : ''}`;
+            if (aen.officiel) {
+              const srcLbl = aen.source && aen.source !== 'loueur' ? aen.source : 'loueur';
+              const det = `Montant officiel du loueur (${srcLbl})${aen.periode ? ' · période ' + aen.periode : ''} · ${aen.method}${aen.carbFourni ? ' · carburant fourni' : ' · hors carburant'}`;
+              return `<span title="${escapeHtml(det)}"><b>${FP.euro(aen.netMensuel)}</b>/mois <span class="text-slate-400 text-xs">(${FP.euro(aen.netAnnuel)}/an)</span> <span class="text-xs" style="color:var(--fp-accent);font-weight:700" title="${escapeHtml(det)}">• officiel ${escapeHtml(srcLbl)}</span></span>`;
+            }
+            const det = `${barLbl} · ${aen.method} · ${aen.taux}%${aen.elec && aen.abattement ? ' · −' + FP.euro(aen.abattement) + ' abatt. élec' : ''}${aen.carbFourni ? ' · carburant fourni' : ''} · estimation`;
             return `<span title="${det}"><b>${FP.euro(aen.netMensuel)}</b>/mois <span class="text-slate-400 text-xs">(${FP.euro(aen.netAnnuel)}/an · ${aen.bareme === 'ancien' ? 'ancien bar.' : 'nouv. bar.'})</span></span>`;
           })()}</span></div>
           <div class="flex justify-between"><span class="text-slate-600">Dernier CT</span><span class="font-medium" data-df="dateDernierCT" data-dt="date">${v.dateDernierCT ? FP.dateNum(v.dateDernierCT) : '<span class="text-slate-400">—</span>'}</span></div>
