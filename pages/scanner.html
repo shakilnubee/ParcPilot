@@ -284,7 +284,11 @@
       var target = await FP2.save(_model, edited);
       // Doublon refusé par l'utilisateur (anti-doublon central) : on n'affiche PAS « enregistré ».
       if(target && target.annule){ if(btn){ btn.disabled=false; btn.innerHTML='<i data-lucide="check" class="w-4 h-4"></i> Confirmer &amp; enregistrer'; if(window.lucide)lucide.createIcons(); } if(window.FP&&FP.toast) FP.toast('Enregistrement annulé (doublon)'); return; }
-      $('sc-result').innerHTML = '<div class="card p-5" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:1rem"><div class="font-extrabold text-emerald-800">✓ Enregistré dans « '+esc((window.FP&&FP.trash?FP.trash.typeLabel(target.table):target.table))+' »</div><p class="text-sm text-emerald-700 mt-1">L\'élément est en base. Recharge l\'onglet concerné (Ctrl+Maj+R) pour le voir.</p><button class="btn btn-dark mt-3" onclick="location.reload()"><i data-lucide="scan-line" class="w-4 h-4"></i> Scanner un autre document</button></div>';
+      // Lien DIRECT vers la page concernée (plus de « Ctrl+Maj+R » incompréhensible pour un non-dev).
+      var _pageMap = { factures: 'factures.html', amendes: 'amendes.html', vehicules: 'vehicules.html', documents: 'vehicules.html', conducteurs: 'conducteurs.html', sinistres: 'sinistres.html', entretiens: 'entretiens.html' };
+      var _pg = _pageMap[target.table] || null;
+      var _lbl = esc((window.FP&&FP.trash?FP.trash.typeLabel(target.table):target.table));
+      $('sc-result').innerHTML = '<div class="card p-5" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:1rem"><div class="font-extrabold text-emerald-800">✓ Enregistré dans « '+_lbl+' »</div><p class="text-sm text-emerald-700 mt-1">C\'est en base et synchronisé.</p><div class="flex flex-wrap gap-2 mt-3">'+(_pg?('<a class="btn btn-dark" href="'+_pg+'"><i data-lucide="arrow-right" class="w-4 h-4"></i> Ouvrir « '+_lbl+' »</a>'):'')+'<button class="btn btn-outline" onclick="location.reload()"><i data-lucide="scan-line" class="w-4 h-4"></i> Scanner un autre document</button></div></div>';
       if(window.FP&&FP.toast) FP.toast('✓ Document enregistré');
       if(window.lucide) lucide.createIcons();
     } catch(err){
