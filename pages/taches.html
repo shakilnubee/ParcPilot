@@ -538,7 +538,11 @@
     return v ? `${v.immat} · ${v.marque} ${v.modele}`.trim() : '';
   }
   function fillVehSelect(sel, current) {
-    const opts = (data.vehicules || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''))
+    // Véhicules SORTIS de flotte (vendu/cédé/restitué/HS → FP.horsFlotte) exclus : on ne crée pas une tâche
+    // sur un véhicule qu'on ne possède plus. EXCEPTION : on garde TOUJOURS le véhicule DÉJÀ sélectionné de la
+    // tâche en cours d'édition (même s'il a été vendu depuis) → sinon sa valeur serait perdue à l'enregistrement.
+    const opts = (data.vehicules || []).filter(v => v && (v.id === current || !(window.FP && FP.horsFlotte && FP.horsFlotte(v))))
+      .slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''))
       .map(v => `<option value="${escapeHtml(v.id)}"${v.id === current ? ' selected' : ''}>${escapeHtml(v.immat)} · ${escapeHtml(v.marque)} ${escapeHtml(v.modele)}</option>`).join('');
     sel.innerHTML = '<option value="">— Aucun —</option>' + opts;
   }

@@ -1564,7 +1564,7 @@
       sdSource = prefill.sourceDecl || null;
       const sel = $('sd-veh');
       if (sel) {
-        const vehs = ((window.FP_DATA && FP_DATA.vehicules) || data.vehicules || []).filter(v => !(FP.estVendu && FP.estVendu(v))).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
+        const vehs = ((window.FP_DATA && FP_DATA.vehicules) || data.vehicules || []).filter(v => !(FP.horsFlotte ? FP.horsFlotte(v) : (FP.estVendu && FP.estVendu(v)))).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || '')); // sortis de flotte exclus (vendu/cédé/restitué/HS) : pas de nouveau sinistre dessus
         sel.innerHTML = '<option value="">— choisir —</option>' + vehs.map(v => `<option value="${escapeHtml(v.immat || '')}">${escapeHtml(v.immat || '?')} — ${escapeHtml((v.marque || '') + ' ' + (v.modele || ''))}</option>`).join('');
         if (FP.searchSelect && sel.dataset.ssDone !== '1') FP.searchSelect(sel, { placeholder: 'Rechercher un véhicule…' });
       }
