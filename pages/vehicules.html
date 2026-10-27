@@ -2009,14 +2009,29 @@
         <button type="button" data-doc-del="${escapeHtml(p.id)}" title="Supprimer" style="position:absolute;top:3px;right:3px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:11px;line-height:22px;text-align:center;padding:0">✕</button>
       </div>`;
     };
+    // Lien RELEVÉ ↔ PDF SIGNÉ : si un état des lieux signé (document) existe pour la MÊME date + le MÊME
+    // sens que cette ligne d'historique, on l'affiche directement sur la ligne → l'utilisateur comprend
+    // que c'est le MÊME événement (la mesure km/état ET sa preuve PDF), pas deux saisies en double.
+    const _edlDocByKey = {};
+    try {
+      if (FP.edlHisto) {
+        FP.edlHisto.docsDe(getVehDocs(v.id), v.id).forEach(d => {
+          const dt = FP.edlHisto.dateDe(d);
+          const sn = FP.edlHisto.sensDe(d) === 'restitution' ? 'Sortie' : 'Entrée';
+          if (dt) { const k = sn + '|' + dt; if (!_edlDocByKey[k]) _edlDocByKey[k] = d; }
+        });
+      }
+    } catch (e) {}
     const histRows = list.map(ins => {
       const flags = Object.entries(ins.items || {}).filter(([, val]) => val === 'ko').map(([k]) => k);
       const badge = ins.sens === 'Sortie'
         ? '<span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:700">📤 Sortie</span>'
         : '<span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:700">📥 Entrée</span>';
+      const _doc = _edlDocByKey[(ins.sens === 'Sortie' ? 'Sortie' : 'Entrée') + '|' + ins.date];
+      const _docLink = _doc ? `<a href="${escapeHtml(sanitizeUrl(_doc.url))}" target="_blank" rel="noopener" class="text-xs" style="color:var(--fp-accent);font-weight:600;text-decoration:none" title="Ouvrir l'état des lieux signé (PDF) — c'est la preuve de CE relevé, pas un doublon">📄 PDF signé</a>` : '';
       return `<div style="border:1px solid var(--fp-border);border-radius:10px;padding:9px 11px;position:relative">
         <button type="button" data-insp-del="${escapeHtml(ins.id)}" title="Supprimer" style="position:absolute;top:7px;right:7px;background:rgba(15,30,61,.1);color:#64748b;border:none;border-radius:6px;width:22px;height:22px;cursor:pointer">✕</button>
-        <div class="flex items-center gap-2 flex-wrap">${badge}<span class="text-sm font-semibold text-slate-800">${escapeHtml(FP.dateNum(ins.date))}</span>${ins.km != null ? `<span class="text-xs text-slate-500">${FP.num(ins.km)} km</span>` : ''}</div>
+        <div class="flex items-center gap-2 flex-wrap">${badge}<span class="text-sm font-semibold text-slate-800">${escapeHtml(FP.dateNum(ins.date))}</span>${ins.km != null ? `<span class="text-xs text-slate-500">${FP.num(ins.km)} km</span>` : ''}${_docLink}</div>
         ${flags.length ? `<div class="text-xs mt-1" style="color:#dc2626">⚠ À signaler : ${flags.map(escapeHtml).join(', ')}</div>` : '<div class="text-xs mt-1 text-emerald-600">✓ Rien à signaler</div>'}
         ${ins.note ? `<div class="text-xs text-slate-500 mt-1">${escapeHtml(ins.note)}</div>` : ''}
       </div>`;
@@ -4666,14 +4681,32 @@
     const dossB = $('proc-dossier'); if (dossB) dossB.addEventListener('click', () => { try { if (FP.docsFolder) FP.docsFolder.open(v, { title: '📁 Dossier de vente — ' + (v.immat || '') }); } catch (e) {} });
     if (window.lucide) lucide.createIcons();
   }
-  // Enregistre un état des lieux de SORTIE daté (km + note) dans l'historique du véhicule (settings.inspections).
+  // Enregistre un état des lieux daté (km + note) dans l'historique du véhicule (settings.inspections).
+  // ⚠️ IDEMPOTENT (même règle que FP.affectations.ensureInspection) : si un état des lieux existe DÉJÀ
+  // pour la même DATE + le même SENS (ex. créé par la signature de l'EDL « 📸 État des lieux »), on le
+  // COMPLÈTE (km/note manquants) au lieu d'en créer un 2e → plus de doublon « Sortie » dans l'historique
+  // quand on fait les photos signées PUIS « Terminer la reprise » avec une note. Sens normalisé Entrée/Sortie
+  // (comme ensureInspection et le badge d'affichage), pour que les deux chemins se retrouvent bien.
   function recordInspection(vehId, km, date, note, sens) {
     try {
       const s = FP.settings.get();
       s.inspections = (s.inspections && typeof s.inspections === 'object') ? s.inspections : {};
       const kmN = (Number.isFinite(km) && km >= 0) ? km : null;
-      const rec = { id: 'INS' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date: date || new Date().toISOString().slice(0, 10), sens: sens || 'Sortie', km: kmN, items: {}, note: note || 'État des lieux' };
-      s.inspections[vehId] = [rec, ...(s.inspections[vehId] || [])];
+      const d = date || new Date().toISOString().slice(0, 10);
+      const sv = String(sens || '').toLowerCase();
+      const sn = (sv.indexOf('sort') >= 0 || sv.indexOf('resti') >= 0) ? 'Sortie' : 'Entrée';
+      const listv = s.inspections[vehId] || [];
+      const existing = listv.find(x => x && x.date === d && x.sens === sn);
+      if (existing) {
+        let ch = false;
+        if (kmN != null && existing.km == null) { existing.km = kmN; ch = true; }
+        // Remplace une note générique (« État des lieux (…) ») par la vraie note saisie à la reprise.
+        if (note && (!existing.note || /^État des lieux/i.test(existing.note))) { existing.note = note; ch = true; }
+        if (ch) FP.settings.save(s);
+        return;
+      }
+      const rec = { id: 'INS' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), date: d, sens: sn, km: kmN, items: {}, note: note || 'État des lieux' };
+      s.inspections[vehId] = [rec, ...listv];
       FP.settings.save(s);
     } catch (e) {}
   }
