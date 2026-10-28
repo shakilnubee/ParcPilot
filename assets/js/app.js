@@ -11738,6 +11738,31 @@ FP.prompt = (message, defaultValue, opts) => FP.dialog(Object.assign({ type: 'pr
 // Remplace la pop-up native alert() par la version stylée (DROP-IN : aucun appel à changer).
 try { window.alert = function (m) { FP.alert(m); }; } catch (e) {}
 
+// ── Anti-fermeture accidentelle des fenêtres pendant une SÉLECTION de texte (global) ──────────
+// Bug vécu : en sélectionnant du texte à la souris dans un champ d'une fenêtre (mousedown DANS le
+// champ, puis glisser et relâcher HORS de la fenêtre), le navigateur émet un « click » dont la cible
+// est le FOND de la modale → tous les gestionnaires « clic sur le fond = fermer » (if e.target === ov)
+// fermaient la fenêtre et faisaient PERDRE la saisie. Correctif unique et global : si un clic COMMENCE
+// dans un champ de saisie (input/textarea/contenteditable) et se TERMINE ailleurs (hors du champ),
+// c'est une sélection de texte, pas un clic de fermeture → on neutralise ce clic en phase de capture
+// (stopImmediatePropagation) AVANT qu'un handler de fond ne se déclenche. N'affecte que ce cas précis
+// (le mousedown doit partir d'un champ texte) → les clics normaux, boutons et vraies fermetures par
+// clic extérieur restent inchangés.
+(function () {
+  var downField = null;
+  document.addEventListener('mousedown', function (e) {
+    var t = e.target;
+    downField = (t && t.closest) ? t.closest('input, textarea, [contenteditable=""], [contenteditable="true"]') : null;
+  }, true);
+  document.addEventListener('click', function (e) {
+    var f = downField; downField = null;                 // valable uniquement pour CE clic
+    if (!f) return;
+    var t = e.target;
+    if (t === f || (f.contains && f.contains(t))) return; // clic normal / resté dans le champ → rien
+    try { e.stopImmediatePropagation(); } catch (_) {}    // sélection de texte relâchée ailleurs → pas de fermeture
+  }, true);
+})();
+
 // ── Infobulles « à la sauce Parc Pilot » — remplacent les tooltips gris natifs (title=) ──
 // À la 1re survol d'un élément portant `title`, on déplace le texte dans `data-fp-tip` et on
 // retire `title` (→ plus de bulle native), puis on affiche une infobulle stylée. Fonctionne
