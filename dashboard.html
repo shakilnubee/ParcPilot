@@ -1160,7 +1160,7 @@
         const top = all.slice(0, 5);
         if (top.length && FP.galerie3d) {
           // Podium compact sur le TDB (~moitié de la hauteur d'un gros anneau) : height réduite.
-          FP.galerie3d.mount(_podGal, [{ title: 'Top 5', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.', height: 190 });
+          FP.galerie3d.mount(_podGal, [{ title: 'Top', color: '#D4A017', count: top.length, cardsHtml: top.map((d, i) => _podCardHtml(d, i)) }], { empty: 'Aucune amende cette année.', height: 190 });
         } else { if (_podGal._fpgDestroy) _podGal._fpgDestroy(); _podGal.innerHTML = '<p class="text-sm text-slate-400 p-4">Aucune amende cette année.</p>'; }
       }
       return;
