@@ -3916,8 +3916,12 @@
       const _colFor = (el) => {
         const h = el.querySelector('.font-semibold, .fiche-title, .field-label, summary, h3, h4');
         const t = ((h ? h.textContent : el.textContent) || '').toLowerCase();
+        // « États des lieux » (pluriel : le titre est « États… », l'ancien test « état des lieux » au
+        // singulier ne matchait jamais) → colonne du CONDUCTEUR, juste sous « Conducteurs — historique ».
+        // Doit être testé AVANT les autres (sinon tombait en colonne 1 par défaut, sous « Pneus »).
+        if (/[eé]tats? des lieux/.test(t)) return 2;
         if (/co[uû]t|budget|kilom[eé]tr|relev[eé]|pneu|entretien|r[eé]vision/.test(t)) return 1;
-        if (/document|[eé]tat des lieux|cl[eé]|carte grise|administratif|assurance/.test(t)) return 0;
+        if (/document|cl[eé]|carte grise|administratif|assurance/.test(t)) return 0;
         if (/collaborateur|conducteur|affectation|chronolog|historique|sinistre|simulateur|remplacer|restitution|note|alerte|journal/.test(t)) return 2;
         return 1;
       };
