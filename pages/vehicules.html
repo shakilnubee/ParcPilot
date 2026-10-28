@@ -4677,7 +4677,18 @@
         : '<i data-lucide="check" class="w-4 h-4"></i> Terminer la reprise');
     if (cat === 'restitution' || cat === 'prise') { try { const inp = $('proc-newcond'); if (inp && FP.conducteurPicker) FP.conducteurPicker(inp, {}); } catch (e) {} }
     const edlSens = cat === 'prise' ? 'remise' : 'restitution';
-    const edlB = $('proc-edl'); if (edlB) edlB.addEventListener('click', () => { try { if (FP.edl) FP.edl.open(v, { sens: edlSens, conducteur: v.chauffeur || '' }); } catch (e) {} });
+    const edlB = $('proc-edl'); if (edlB) edlB.addEventListener('click', () => {
+      try {
+        if (!FP.edl) return;
+        // L'EDL doit s'ouvrir avec le BON conducteur. Pour une REMISE, c'est celui à qui on DONNE la voiture
+        // (saisi juste au-dessus dans « Conducteur »), même si le véhicule était libre (v.chauffeur vide).
+        // Pour une RESTITUTION, c'est le conducteur SORTANT qui rend = le chauffeur actuel du véhicule.
+        let cond = v.chauffeur || '';
+        if (cat === 'prise') { const typed = (($('proc-newcond') || {}).value || '').trim(); if (typed) cond = typed; }
+        const d = (($('proc-date') || {}).value || '').trim();   // même date que la checklist
+        FP.edl.open(v, { sens: edlSens, conducteur: cond, date: d || undefined });
+      } catch (e) {}
+    });
     const dossB = $('proc-dossier'); if (dossB) dossB.addEventListener('click', () => { try { if (FP.docsFolder) FP.docsFolder.open(v, { title: '📁 Dossier de vente — ' + (v.immat || '') }); } catch (e) {} });
     if (window.lucide) lucide.createIcons();
   }
