@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261029b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261029c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261029b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261029c">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -525,8 +525,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261029b"></script>
-<script src="../assets/js/supabase-client.js?v=20261029b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261029c"></script>
+<script src="../assets/js/supabase-client.js?v=20261029c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -542,12 +542,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261029b"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261029b" defer></script>
+<script src="../assets/js/app.min.js?v=20261029c"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261029c" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -3236,6 +3236,16 @@
   }
   $('drawer-prev').addEventListener('click', () => gotoAdjacentAmende(-1));
   $('drawer-next').addEventListener('click', () => gotoAdjacentAmende(1));
+  // Flèches clavier ← → entre amendes quand la fiche est ouverte (même ergonomie que véhicules/conducteurs).
+  // Désactivé pendant une saisie, et si une couche est ouverte PAR-DESSUS (photo, aperçu, menu).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (!$('drawer').classList.contains('open')) return;
+    const ae = document.activeElement;
+    if (ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)) return;
+    try { if (document.getElementById('fp-lb') || document.querySelector('.fp-dp') || (FP._fpAdHocOverlays && FP._fpAdHocOverlays().length)) return; } catch (_) {}
+    e.preventDefault(); gotoAdjacentAmende(e.key === 'ArrowLeft' ? -1 : 1);
+  });
   // (le bouton drawer-pay reçoit son action dans openDrawer : payer / annuler le paiement)
   $('drawer-designer').addEventListener('click', markDesigne);
   // Formate le n° d'avis quand on quitte le champ (FPS espacé / contravention attaché)

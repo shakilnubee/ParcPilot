@@ -6840,6 +6840,49 @@ FP.darkMode = {
   toggle() { this.set(!this.get()); return this.get(); },
 };
 
+// === Aide clavier (touche « ? ») — liste CONTEXTUELLE des raccourcis, adaptée au thème (clair/sombre) ===
+// Discrète, non bloquante, désactivée pendant une saisie. Fermée par Échap (capture → ne ferme rien
+// derrière), clic sur le fond, ou × . N'invente pas de raccourci : ne liste que ceux réellement actifs.
+FP.shortcutsHelp = {
+  _el: null, _onKey: null,
+  open() {
+    if (this._el) return;
+    const path = (location.pathname || '').toLowerCase();
+    const rows = [
+      ['Échap', 'Fermer / revenir en arrière'],
+      ['Ctrl/⌘ + K', 'Recherche globale'],
+      ['Tab / Maj + Tab', 'Élément interactif suivant / précédent'],
+      ['Entrée', 'Ouvrir / valider l’élément actif'],
+      ['?', 'Afficher cette aide'],
+    ];
+    if (/vehicules|conducteurs|amendes|factures/.test(path)) rows.push(['← / →', 'Fiche précédente / suivante (quand une fiche est ouverte)']);
+    const esc = FP.esc || (x => String(x == null ? '' : x));
+    const body = rows.map(r => '<div style="display:flex;gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--fp-border)"><kbd style="min-width:104px;text-align:center;font-family:var(--fp-mono);font-size:12px;background:var(--fp-bg);border:1px solid var(--fp-border);border-radius:6px;padding:3px 8px;color:var(--fp-text)">' + esc(r[0]) + '</kbd><span style="color:var(--fp-text);font-size:14px">' + esc(r[1]) + '</span></div>').join('');
+    const el = document.createElement('div');
+    el.id = 'fp-help-overlay';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Raccourcis clavier');
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,20,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    el.innerHTML = '<div style="background:var(--fp-surface);color:var(--fp-text);max-width:440px;width:100%;border:1px solid var(--fp-border);border-radius:16px;box-shadow:var(--fp-shadow-lg);padding:20px 22px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><h2 style="font-family:var(--fp-title);font-size:18px;font-weight:700;margin:0;color:var(--fp-text)">Raccourcis clavier</h2><button type="button" aria-label="Fermer" data-close style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:24px;line-height:1">&times;</button></div>'
+      + body
+      + '<p style="margin:12px 0 0;color:var(--fp-muted);font-size:12px">Les raccourcis sont désactivés pendant la saisie dans un champ.</p></div>';
+    el.addEventListener('click', (e) => { if (e.target === el || (e.target.closest && e.target.closest('[data-close]'))) this.close(); });
+    document.body.appendChild(el); this._el = el;
+    // Échap EN CAPTURE → on ferme CETTE aide et on empêche le garde global de fermer une couche derrière.
+    this._onKey = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); this.close(); } };
+    document.addEventListener('keydown', this._onKey, true);
+    try { const b = el.querySelector('[data-close]'); if (b) b.focus(); } catch (_) {}
+  },
+  close() { try { if (this._onKey) document.removeEventListener('keydown', this._onKey, true); } catch (_) {} this._onKey = null; if (this._el) { try { this._el.remove(); } catch (_) {} this._el = null; } },
+  toggle() { this._el ? this.close() : this.open(); },
+};
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const ae = document.activeElement;
+  if (ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)) return;
+  e.preventDefault(); try { FP.shortcutsHelp.toggle(); } catch (_) {}
+});
+
 // « Ignorer » réutilisable (toute la plateforme) : masque une info manquante / une alerte
 // pour qu'elle ne compte plus (ex. conformité, CO₂ à compléter…). Clé libre (ex. 'conf:ct:<id>').
 // Mémorisé PAR SOCIÉTÉ dans les réglages (settings.ignores) ; get() conserve la clé automatiquement.
