@@ -740,13 +740,18 @@
   // montrerait une tâche déjà faite / obsolète qui disparaîtrait juste après. On attend donc la 1re
   // « fp:data-ready » (données + réglages authentiques) avant d'afficher la vraie liste.
   let _dashTachesReady = false;
+  // Données déjà disponibles ? (cache peuplé synchroniquement). Dans ce cas on affiche TOUT DE SUITE,
+  // sans attendre « fp:data-ready » — qui n'est PAS ré-émis quand rien n'a changé (→ sinon blocage sur
+  // « Chargement… »). On n'attend que lors d'un vrai démarrage à froid (aucune donnée encore chargée).
+  const _dashDataReady = () => { try { return !!(window.FP_DATA && Array.isArray(FP_DATA.vehicules) && FP_DATA.vehicules.length); } catch (e) { return false; } };
   function renderDashTaches() {
     const box = document.getElementById('dash-taches-list'), cnt = document.getElementById('dash-taches-count');
     if (!box) return;
-    if (!_dashTachesReady) {
+    if (!_dashTachesReady && !_dashDataReady()) {
       if (box._lastHtml !== '__wait') { box.innerHTML = '<span class="text-slate-400">Chargement des tâches…</span>'; box._lastHtml = '__wait'; if (cnt) cnt.textContent = ''; }
       return;
     }
+    _dashTachesReady = true;
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     let taches = []; try { const t = FP.settings.get().taches; if (Array.isArray(t)) taches = t; } catch (e) {}
     const isDone = t => t.statut === 'done' || (t.statut == null && !!t.fait); // MÊME règle que pages/taches.html
@@ -791,6 +796,9 @@
   }
   renderDashTaches();
   window.addEventListener('fp:data-ready', function () { _dashTachesReady = true; renderDashTaches(); });
+  // Filet de sécurité : si « fp:data-ready » n'arrive jamais (hors-ligne, cache vide, aucune donnée à
+  // charger), on débloque quand même l'affichage pour ne jamais rester figé sur « Chargement… ».
+  setTimeout(function () { _dashTachesReady = true; renderDashTaches(); }, 1500);
 
   // Amendes restant à payer (statut « à payer ») — TOUTES années (l'argent dû reste dû, 2026 comme 2027).
   const amendesAPayer = (data.amendes || []).filter(a => FP.estAPayer(a)).length;
