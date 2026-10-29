@@ -227,7 +227,7 @@
     </div>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
       <div class="kpi kpi-link" id="kpi-card-total" title="Voir toutes les amendes"><div class="flex justify-between items-start gap-2"><div>
         <div class="kpi-label">Total amendes</div>
         <div class="kpi-value" id="kpi-total">—</div>
@@ -243,6 +243,11 @@
         <div class="kpi-value" id="kpi-payees" style="color: var(--fp-ok)">—</div>
         <div class="kpi-delta up" id="kpi-payees-montant">—</div>
       </div><div class="kpi-ic ok"><i data-lucide="check-circle-2"></i></div></div></div>
+      <div class="kpi kpi-link" id="kpi-card-designees" title="Voir les amendes désignées (conducteur désigné — plus à votre charge)"><div class="flex justify-between items-start gap-2"><div>
+        <div class="kpi-label">Désignées</div>
+        <div class="kpi-value" id="kpi-designees" style="color:#3730A3">—</div>
+        <div class="kpi-delta" id="kpi-designees-sub">conducteur désigné</div>
+      </div><div class="kpi-ic" style="background:#E0E7FF;color:#3730A3"><i data-lucide="user-check"></i></div></div></div>
       <div class="kpi kpi-link" id="kpi-card-points" title="Voir les amendes avec retrait de points"><div class="flex justify-between items-start gap-2"><div>
         <div class="kpi-label">Points retirés</div>
         <div class="kpi-value" id="kpi-points" style="color: var(--fp-warn)">—</div>
@@ -817,6 +822,9 @@
     const all = (state.annee === 'all') ? data.amendes.slice() : data.amendes.filter(a => anneeOf(a) === state.annee);
     const apayer = all.filter(a => FP.estAPayer(a));
     const payees = all.filter(a => FP.estPayee(a));
+    // Désignées = conducteur désigné confirmé (statut « désignée », comparé de façon tolérante accents/casse).
+    // Une désignée n'est NI « à payer » NI « payée » → sans ce compteur, elle n'apparaissait dans aucun KPI.
+    const designees = all.filter(a => String(a.statut || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim() === 'designee');
     const points = all.reduce((s, a) => s + (Number(a.points) || 0), 0);
     const montantApayer = apayer.reduce((s,a) => s + montantDu(a), 0);
     const montantPayees = payees.reduce((s,a) => s + montantDu(a), 0);
@@ -827,6 +835,8 @@
     $('kpi-apayer-montant').textContent = FP.euro(montantApayer) + ' dus';
     $('kpi-payees').textContent = payees.length;
     $('kpi-payees-montant').textContent = FP.euro(montantPayees) + ' réglés';
+    { const d = $('kpi-designees'); if (d) d.textContent = designees.length; }
+    { const ds = $('kpi-designees-sub'); if (ds) ds.textContent = designees.length ? FP.euro(designees.reduce((s, a) => s + montantDu(a), 0)) + ' (non dus)' : 'conducteur désigné'; }
     $('kpi-points').textContent = points;
   }
 
@@ -3077,6 +3087,7 @@
   { const c = $('kpi-card-total');  if (c) c.addEventListener('click', () => applyKpiFilter('all', false)); }
   { const c = $('kpi-card-apayer'); if (c) c.addEventListener('click', () => applyKpiFilter('à payer', false)); }
   { const c = $('kpi-card-payees'); if (c) c.addEventListener('click', () => applyKpiFilter('payée', false)); }
+  { const c = $('kpi-card-designees'); if (c) c.addEventListener('click', () => applyKpiFilter('désignée', false)); }
   { const c = $('kpi-card-points'); if (c) c.addEventListener('click', () => applyKpiFilter('all', true)); }
   $('filter-annee').addEventListener('change', e => { state.annee = e.target.value; renderKPIs(); renderTable(); renderCharts(); });
   $('filter-motif').addEventListener('change', e => { state.motif = e.target.value; renderTable(); });
