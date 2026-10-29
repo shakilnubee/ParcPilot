@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261029d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261029e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261029d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261029e">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -177,6 +177,7 @@
         <span id="fa-topexports" class="inline-flex items-center gap-3">
           <span id="fa-export-mount"></span>
           <button class="btn btn-outline text-sm" id="fa-fiche-btn" title="Relevé de dépenses (PDF) des factures affichées"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+          <button class="btn btn-outline text-sm" id="fa-zip-btn" title="Télécharger les PDF des factures (filtrées ou cochées) dans un ZIP, rangés par véhicule"><i data-lucide="folder-down" class="w-4 h-4"></i> Télécharger les PDF</button>
           <span id="fa-recap-mount"></span>
         </span>
         <button class="btn btn-outline text-sm" id="btn-import-lot" title="Déposer plusieurs PDF : l'IA lit chaque facture et la crée automatiquement"><i data-lucide="files" class="w-4 h-4"></i> Importer un lot (PDF)</button>
@@ -592,8 +593,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261029d"></script>
-<script src="../assets/js/supabase-client.js?v=20261029d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261029e"></script>
+<script src="../assets/js/supabase-client.js?v=20261029e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -609,13 +610,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261029d"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261029d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261029d" defer></script>
+<script src="../assets/js/app.min.js?v=20261029e"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261029e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261029e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1625,6 +1626,23 @@
       baseName: () => 'factures-comptable-' + (state.mois !== 'all' ? state.mois : (state.annee !== 'all' ? state.annee : 'tout')),
     });
     // Relevé de dépenses PDF (aperçu + téléchargement) — factures affichées (filtres en cours).
+    // Télécharger les PDF en ZIP (rangés par véhicule) — réutilise FP.facturesZipList (helper canonique).
+    // Mode B (cochées) si une sélection existe, sinon Mode A (toutes les factures FILTRÉES, hors pagination).
+    if (document.getElementById('fa-zip-btn')) document.getElementById('fa-zip-btn').addEventListener('click', async () => {
+      const all = filtered();
+      const sel = (faBulk && typeof faBulk.has === 'function') ? all.filter(f => faBulk.has(f.fileId)) : [];
+      const listeBrute = sel.length ? sel : all;
+      const liste = FP.dedupeFactures ? FP.dedupeFactures(listeBrute) : listeBrute;
+      if (!liste.length) { if (FP.toast) FP.toast('Aucune facture à télécharger (ajuste les filtres).'); return; }
+      const hasPdf = f => { const u = FP._factUrl ? FP._factUrl(f) : ''; return !!u; };
+      const dispo = liste.filter(hasPdf).length, manquants = liste.length - dispo;
+      const per = state.mois !== 'all' ? state.mois : (state.annee !== 'all' ? state.annee : '');
+      const quoi = sel.length ? (sel.length + ' facture(s) cochée(s)') : (liste.length + ' facture(s) filtrée(s)');
+      const recap = quoi + '\n' + dispo + ' PDF disponible(s)' + (manquants ? ' · ' + manquants + ' sans PDF (listés dans rapport_export.csv)' : '') + '\n\nTélécharger ' + dispo + ' PDF en ZIP ?';
+      const ok = FP.confirm ? await FP.confirm(recap) : window.confirm(recap);
+      if (!ok) return;
+      FP.facturesZipList(liste, { name: 'Factures_Parc_Pilot' + (per ? '_' + String(per).replace(/[^\w-]/g, '') : '') });
+    });
     if (document.getElementById('fa-fiche-btn')) document.getElementById('fa-fiche-btn').addEventListener('click', () => {
       if (!(FP.fiche && FP.fiche.open)) return;
       const rows = filtered().slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
