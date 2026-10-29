@@ -417,6 +417,9 @@ FP.tvsDetail = (v) => {
 // estVendu = véhicule qui ne t'appartient plus (sorti du parc). Utilisé pour la
 // FLOTTE / le parc / la TVS (une voiture "à vendre" est encore possédée → comptée).
 FP.estVendu = (v) => { const s = ((v && v.statut) || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); return s === 'vendu' || s === 'vendue'; };
+// SOURCE UNIQUE « véhicule en entretien » — statut comparé de façon TOLÉRANTE (min/espaces) pour que le
+// compteur du dashboard et la page Véhicules comptent pareil (« Entretien »/« ENTRETIEN »/« entretien »).
+FP.estEnEntretien = (v) => ((v && v.statut) || '').toString().toLowerCase().trim() === 'entretien';
 // horsFlotte = véhicule DÉFINITIVEMENT sorti (vendu, cédé, hors service, archivé, restitué).
 // ⚠️ « À VENDRE » N'EN FAIT PAS PARTIE (consigne utilisateur) : un véhicule en vente est ENCORE à toi →
 // il se comporte comme un véhicule NORMAL partout (alertes, échéances CT/assurance, stats, TCO, km…) ;
@@ -6318,7 +6321,14 @@ FP.settings = {
     'pointsManuel', 'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
     'rapprIgnore', 'tfAnomOk', 'ignores', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes',
     'sinistreAssurance', 'sinistreDossiers', 'zoneNotes', 'corbeille',
-    'vehCustom', 'condCustom', 'docRequisNA', 'automationDone'],
+    'vehCustom', 'condCustom', 'docRequisNA', 'automationDone',
+    // ⚠️ AJOUT (audit 2026-10-29) : maps de DONNÉES keyées déjà dans COLLECTION_KEYS mais oubliées ici →
+    // la ceinture anti-vidage de save() ne les restaurait pas si un cache incomplet les vidait. Mêmes
+    // garde-fous que les autres (bloque seulement un passage « plein (≥2) → totalement vide »).
+    'garageParMarque', 'vehGarage', 'archiveDocs', 'aenOfficiel', 'vehDossierVente',
+    'revisionIntervalleVeh', 'revisionOverride', 'checklistDone', 'condLangues', 'leasingDocs',
+    'leasingNumero', 'restitutionChecklist', 'suiviFlotte', 'vehRdvGarage', 'vehDin',
+    'vehImmobilise', 'kmSuiviExclus', 'amendesJustifWatch', 'contratsCadre'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -8331,7 +8341,7 @@ FP.revisionIntervallePerso = (v) => { try { return !!(v && v.id != null && ((FP.
 // d'alerte (danger / warn / info) ou null si rien à signaler.
 FP.revisionInfo = (v) => {
   const intervalle = FP.revisionIntervalle(v);
-  const km = Number(v.km) || 0;
+  const km = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0);   // SOURCE UNIQUE : km réel (max km / dernier relevé), comme la fiche/table/alertes
   const today = new Date();
 
   // Rythme estimé (km/jour) à partir de la mise en circulation — sert à relier km et dates
@@ -11385,7 +11395,7 @@ FP.rapportDirection = (data) => {
 
   const alerts = FP.buildAlertes ? FP.buildAlertes(data) : [];
   const ech = (FP.buildEcheances ? FP.buildEcheances(data) : []).filter(e => {
-    const diff = Math.ceil((new Date(e.date) - now) / 86400000); return diff <= 90;
+    const diff = FP.joursRestants ? FP.joursRestants(e.date) : Math.ceil((new Date(e.date) - now) / 86400000); return diff <= 90;   // SOURCE UNIQUE d'échéance (minuit→minuit)
   }).slice(0, 14);
 
   const eur = (n) => FP.euro ? FP.euro(n) : Math.round(n) + ' €';
@@ -19546,7 +19556,7 @@ FP.relances = {
       // ⚠️ dateLimiteMinore vit dans settings.amendeMontants (pas sur la ligne amende) → lire via FP.getAmendeMontants.
       const _dlm = (((FP.getAmendeMontants && FP.getAmendeMontants(a.id)) || {}).dateLimiteMinore) || a.dateLimiteMinore || '';
       const j = _dlm ? this._jours(_dlm) : null;
-      out.push({ type: 'amende', amende: a, immat: a.immat || '', conducteur: chauffeur, contact: this._contact(chauffeur), montant, dueDate: _dlm, joursRestants: j, urgence: this._urg(j) });
+      out.push({ type: 'amende', amende: a, immat: (FP.amendePlaque ? FP.amendePlaque(a) : (a.immatriculation || a.plaque || a.immat || '')), conducteur: chauffeur, contact: this._contact(chauffeur), montant, dueDate: _dlm, joursRestants: j, urgence: this._urg(j) });
     });
     return out;
   },
