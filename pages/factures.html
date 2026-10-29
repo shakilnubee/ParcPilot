@@ -2206,7 +2206,11 @@
         if (vid !== '__noplate__' && !vehIds[vid]) { const k = nImmat(vid); if (k && vidByImmat[k]) vid = vidByImmat[k]; }
         (byVeh[vid] = byVeh[vid] || { docs: [], facts: [] }).docs.push(d);
       });
-      ((window.FP_DATA.factures) || []).forEach(f => { const k = nImmat(f.vehiculeImmat); const vid = (k && vidByImmat[k]) || '__noplate__'; (byVeh[vid] = byVeh[vid] || { docs: [], facts: [] }).facts.push(f); });
+      // ⚠️ Factures GLOBALES / multi-véhicules (TotalEnergies, Ulys) : elles n'ont PAS de plaque unique →
+      // au lieu d'encombrer « Sans plaque » (qui doit rester « à classer »), on les range dans un dossier
+      // dédié « Factures globales (société) ». Détection via la SOURCE UNIQUE FP.estTotalFleet/FP.estUlys.
+      const _estGlobal = f => { try { return (FP.estTotalFleet && FP.estTotalFleet(f)) || (FP.estUlys && FP.estUlys(f)); } catch (e) { return false; } };
+      ((window.FP_DATA.factures) || []).forEach(f => { const k = nImmat(f.vehiculeImmat); let vid = (k && vidByImmat[k]) || '__noplate__'; if (vid === '__noplate__' && _estGlobal(f)) vid = '__global__'; (byVeh[vid] = byVeh[vid] || { docs: [], facts: [] }).facts.push(f); });
       return byVeh;
     }
     function docTile(d, DL) {
@@ -2246,14 +2250,15 @@
       const DL = docLabels();
       const q = ($('doc-search').value || '').toLowerCase();
       const byVeh = driveGroups();
-      const folderImmat = vid => (vid === '__noplate__' ? 'Sans plaque' : vehImmat(vid));
+      const folderImmat = vid => (vid === '__noplate__' ? 'Sans plaque' : (vid === '__global__' ? 'Factures globales' : vehImmat(vid)));
       if (!driveFolder) {
         // Niveau 1 : un dossier par véhicule (documents + factures) + un dossier « Sans plaque »
         const chauffeurOf = veh => (veh && veh.chauffeur && String(veh.chauffeur).trim() && String(veh.chauffeur).trim() !== '—') ? String(veh.chauffeur).trim() : '';
         let entries = Object.entries(byVeh).map(([vid, o]) => ({ vid, o, veh: vehById(vid), immat: folderImmat(vid), ch: chauffeurOf(vehById(vid)), n: o.docs.length + o.facts.length }));
         // Recherche : plaque + marque/modèle + PRÉNOM du conducteur (pour retrouver un dossier par son conducteur).
         if (q) entries = entries.filter(e => (e.immat + ' ' + (e.veh ? (e.veh.marque + ' ' + e.veh.modele) : '') + ' ' + e.ch).toLowerCase().includes(q));
-        entries.sort((a, b) => ((a.vid === '__noplate__') - (b.vid === '__noplate__')) || (a.immat || '').localeCompare(b.immat || ''));
+        const _rank = vid => vid === '__global__' ? 1 : (vid === '__noplate__' ? 2 : 0);   // véhicules, puis Factures globales, puis Sans plaque
+        entries.sort((a, b) => (_rank(a.vid) - _rank(b.vid)) || (a.immat || '').localeCompare(b.immat || ''));
         if (!entries.length) { box.innerHTML = '<div class="card">' + (FP.emptyHTML ? FP.emptyHTML({ icon: 'folder-open', title: 'Aucun document', text: 'Utilise « Importer un document » ou « Importer une facture » pour commencer.' }) : 'Aucun document.') + '</div>'; try { if (window.lucide) lucide.createIcons(); } catch (e) {} return; }
         box.innerHTML = `<div class="doc-grid">` + entries.map(e => {
           const soon = e.o.docs.some(d => { const dd = getExp(d.id); if (!dd) return false; const j = FP.joursRestants(dd); return j != null && j >= 0 && j <= 30; });
@@ -2261,9 +2266,9 @@
           const dot = expired ? '#DC2626' : (soon ? '#F59E0B' : '');
           return `<button type="button" data-folder="${escapeHtml(e.vid)}" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 10px;border:1px solid var(--fp-border);border-radius:12px;background:#fff;cursor:pointer">
             ${dot ? `<span style="position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:${dot}"></span>` : ''}
-            <i data-lucide="${e.vid === '__noplate__' ? 'folder-search' : 'folder'}" style="width:40px;height:40px;color:${e.vid === '__noplate__' ? '#94a3b8' : '#F59E0B'}"></i>
+            <i data-lucide="${e.vid === '__noplate__' ? 'folder-search' : (e.vid === '__global__' ? 'building-2' : 'folder')}" style="width:40px;height:40px;color:${e.vid === '__noplate__' ? '#94a3b8' : (e.vid === '__global__' ? '#0e7490' : '#F59E0B')}"></i>
             <div style="font-family:monospace;font-weight:800;color:#0f1e3d">${escapeHtml(e.immat)}</div>
-            <div style="font-size:11px;color:#64748b">${e.vid === '__noplate__' ? 'Non rattachées à un véhicule' : (e.veh ? escapeHtml(e.veh.marque + ' ' + e.veh.modele) : '—')}</div>
+            <div style="font-size:11px;color:#64748b">${e.vid === '__noplate__' ? 'À classer (non rattachées)' : (e.vid === '__global__' ? 'TotalEnergies, Ulys… (multi-véhicules)' : (e.veh ? escapeHtml(e.veh.marque + ' ' + e.veh.modele) : '—'))}</div>
             ${e.ch ? `<div style="font-size:11px;color:#F97316;font-weight:600">${escapeHtml(e.ch)}</div>` : ''}
             <div style="font-size:11px;color:#94a3b8">${e.n} doc${e.n > 1 ? 's' : ''}</div>
           </button>`;
