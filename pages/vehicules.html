@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261028a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261029a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261029a">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1196,8 +1196,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261028a"></script>
-<script src="../assets/js/supabase-client.js?v=20261028a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261029a"></script>
+<script src="../assets/js/supabase-client.js?v=20261029a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1213,13 +1213,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261028a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261028a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261028a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261029a"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261029a"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261028a"></script><script>
+<script src="../assets/js/app.min.js?v=20261029a"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2762,7 +2762,7 @@
     const _st = v => String(v.statut || '').toLowerCase().trim();
     $('kpi-total').textContent       = scope.length;
     $('kpi-actifs').textContent      = scope.filter(v => _st(v) === 'actif').length;
-    $('kpi-entretien').textContent   = scope.filter(v => _st(v) === 'entretien').length;
+    $('kpi-entretien').textContent   = scope.filter(v => FP.estEnEntretien ? FP.estEnEntretien(v) : _st(v) === 'entretien').length;
 
     // Compteurs des onglets (sur la flotte active, hors vendus — un véhicule dans 2 groupes compte dans les 2)
     const cntAll = document.getElementById('cnt-all');
@@ -5618,7 +5618,7 @@
       { label: 'Marque',          value: v => v.marque || '' },
       { label: 'Modèle',          value: v => v.modele || '' },
       { label: 'Catégorie',       value: v => v.categorie || '' },
-      { label: 'Km',              value: v => { const n = Number(v.km); return isNaN(n) ? null : n; }, number: true, noTotal: true },
+      { label: 'Km',              value: v => { const n = FP.kmActuel ? FP.kmActuel(v) : Number(v.km); return (n == null || isNaN(n)) ? null : n; }, number: true, noTotal: true },
       { label: 'Conducteur',      value: v => (v.chauffeur && v.chauffeur !== '—') ? v.chauffeur : '' },
       { label: 'Statut',          value: v => v.statut || '' },
       { label: 'Prochain CT',     value: v => v.prochainCT || '' },

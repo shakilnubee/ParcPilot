@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261028a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261029a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261029a">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -676,8 +676,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261028a"></script>
-<script src="../assets/js/supabase-client.js?v=20261028a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261029a"></script>
+<script src="../assets/js/supabase-client.js?v=20261029a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -693,12 +693,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261028a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261028a"></script>
-<script src="../assets/js/app.min.js?v=20261028a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261029a"></script>
+<script src="../assets/js/app.min.js?v=20261029a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1766,7 +1766,7 @@
             <a href="vehicules.html?immat=${encodeURIComponent(v.immat || '')}" title="Voir la fiche véhicule" style="text-decoration:none" onclick="event.stopPropagation()"><span class="plate-badge" style="cursor:pointer">${escapeHtml(v.immat)}</span></a>
             <span class="text-xs text-slate-500 truncate">${escapeHtml(v.marque)} ${escapeHtml(v.modele)}</span>
           </div>
-          <div class="text-right flex-shrink-0">${FP.statutBadge(v.statut)}<span class="text-xs text-slate-500 ml-1">${FP.num(v.km)} km</span></div>
+          <div class="text-right flex-shrink-0">${FP.statutBadge(v.statut)}<span class="text-xs text-slate-500 ml-1">${FP.num(FP.kmActuel ? FP.kmActuel(v) : (v.km || 0))} km</span></div>
         </div>`));
     const amendesInner = d.amendes.length === 0 ? '<p class="text-sm text-slate-500">Aucune amende ✓</p>' :
       clampList(d.amendes.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(a => `
@@ -1787,7 +1787,7 @@
     const totalKm = d.vehicules.reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (v.km || 0)), 0);
     const kmInner = d.vehicules.length === 0 ? '<p class="text-sm text-slate-500">Aucun véhicule.</p>' :
       `<div class="fiche-line"><span class="text-slate-600" title="Somme des compteurs de ses véhicules (tous conducteurs confondus). Les km réellement parcourus par ce conducteur sont dans l'historique d'affectation.">Total au compteur</span><span class="font-bold" style="font-size:1.05rem">${FP.num(totalKm)} km</span></div>`
-      + (d.vehicules.length > 1 ? clampList(d.vehicules.map(v => `<div class="fiche-line"><span class="flex items-center gap-2"><a href="vehicules.html?immat=${encodeURIComponent(v.immat || '')}" title="Voir la fiche véhicule" style="text-decoration:none" onclick="event.stopPropagation()"><span class="plate-badge" style="cursor:pointer">${escapeHtml(v.immat)}</span></a><span class="text-xs text-slate-500">${escapeHtml(v.marque)} ${escapeHtml(v.modele)}</span></span><span class="text-sm font-medium">${FP.num(v.km || 0)} km</span></div>`)) : '');
+      + (d.vehicules.length > 1 ? clampList(d.vehicules.map(v => `<div class="fiche-line"><span class="flex items-center gap-2"><a href="vehicules.html?immat=${encodeURIComponent(v.immat || '')}" title="Voir la fiche véhicule" style="text-decoration:none" onclick="event.stopPropagation()"><span class="plate-badge" style="cursor:pointer">${escapeHtml(v.immat)}</span></a><span class="text-xs text-slate-500">${escapeHtml(v.marque)} ${escapeHtml(v.modele)}</span></span><span class="text-sm font-medium">${FP.num(FP.kmActuel ? FP.kmActuel(v) : (v.km || 0))} km</span></div>`)) : '');
 
     // Historique d'affectation daté : tous les véhicules conduits par ce conducteur, avec périodes.
     const affCandidates = [d.name, d.nom ? (d.name + ' ' + d.nom) : '', d.prenom, (d.prenom && d.nom) ? (d.prenom + ' ' + d.nom) : ''].filter(Boolean);
@@ -2760,7 +2760,7 @@
     doc.autoTable({
       startY: cy, margin: { left: 12, right: 12 }, didDrawPage: footer,
       head: [['Plaque', 'Véhicule', 'Statut', 'Km']],
-      body: d.vehicules.length ? d.vehicules.map(v => [clean(v.immat), clean((v.marque || '') + ' ' + (v.modele || '')), clean(v.statut || '—'), clean(FP.num(v.km || 0)) + ' km']) : [['—', 'Aucun véhicule assigné', '', '']],
+      body: d.vehicules.length ? d.vehicules.map(v => [clean(v.immat), clean((v.marque || '') + ' ' + (v.modele || '')), clean(v.statut || '—'), clean(FP.num(FP.kmActuel ? FP.kmActuel(v) : (v.km || 0))) + ' km']) : [['—', 'Aucun véhicule assigné', '', '']],
       styles: { fontSize: 9, cellPadding: 2.2, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1 },
       headStyles: { fillColor: [15, 30, 61], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 250, 252] },

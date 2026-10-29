@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261029a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261028a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261029a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261028a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261029a">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -839,8 +839,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261028a"></script>
-<script src="../assets/js/supabase-client.js?v=20261028a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261029a"></script>
+<script src="../assets/js/supabase-client.js?v=20261029a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -856,11 +856,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261028a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261029a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261028a"></script>
+<script src="../assets/js/app.min.js?v=20261029a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -5360,7 +5360,10 @@
       const val = parseFloat(((inp && inp.value) || '').replace(/[^\d,.\-]/g, '').replace(',', '.'));
       if (!Number.isFinite(val) || val <= 0) { if (inp) inp.focus(); return; }
       const s = FP.settings.get(); s.assurancePrimes = (s.assurancePrimes && typeof s.assurancePrimes === 'object') ? s.assurancePrimes : {};
-      s.assurancePrimes[immat] = { ht: null, ttc: val }; FP.settings.save(s);
+      // ⚠️ Réutiliser la clé plaque DÉJÀ enregistrée (tout format) au lieu d'en créer une 2e (HL-724-CD vs
+      // HL724CD) → pas de prime en double. On ne change pas le format de la clé existante (règle 0-plaques).
+      const _k = normPlaque(immat); let _ek = immat; for (const key in s.assurancePrimes) { if (normPlaque(key) === _k) { _ek = key; break; } }
+      s.assurancePrimes[_ek] = { ht: null, ttc: val }; FP.settings.save(s);
       renderAssurance(); renderKPIs();
       if (FP.toast) FP.toast(`Prime enregistrée pour ${immat} : ${FP.euro(val)}/an`);
       return;
