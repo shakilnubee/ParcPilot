@@ -232,7 +232,22 @@
         const addBtn=document.getElementById('btn-add-garage');
         const pdfFile=document.getElementById('garage-pdf-file');
         const vSearch=document.getElementById('garages-veh-search');
-        rows.addEventListener('change',(e)=>{ const inp=e.target.closest('[data-g-id]'); if(!inp) return; const id=inp.getAttribute('data-g-id'),field=inp.getAttribute('data-g-field'); const g=FP.getPrestataires().find(x=>x&&x.id===id); if(!g) return; g[field]=(inp.value||'').trim(); FP.savePrestataire(g); status('✓ Enregistré'); renderMarques(); renderVehicules(); });
+        // Enregistre UN champ garage (immédiat ou différé). On relit le garage courant, on met à jour le
+        // champ, puis FP.savePrestataire (→ localStorage synchrone + Supabase). Source unique de sauvegarde.
+        const saveField=(inp)=>{ if(!inp) return; const id=inp.getAttribute('data-g-id'),field=inp.getAttribute('data-g-field'); if(!id||!field) return; const g=FP.getPrestataires().find(x=>x&&x.id===id); if(!g) return; const val=(inp.value||'').trim(); if((g[field]||'')===val) return; g[field]=val; FP.savePrestataire(g); };
+        // ⚠️ ANTI-PERTE : on enregistre DÈS LA FRAPPE (débounce), pas seulement au blur. Avant, la sauvegarde
+        // n'avait lieu que sur « change » (déclenché au blur) : si l'utilisateur tapait le nom puis cliquait un
+        // lien du menu SANS cliquer ailleurs d'abord, le blur/change ne partait pas → le garage n'était jamais
+        // persisté → « il s'enlève quand je reviens ». localStorage est synchrone, donc même en quittant la page
+        // juste après, la valeur est au moins dans le cache + la file d'envoi durable.
+        let _typeTimer=null, _typeInp=null;
+        rows.addEventListener('input',(e)=>{ const inp=e.target.closest('[data-g-id]'); if(!inp) return; _typeInp=inp; if(_typeTimer) clearTimeout(_typeTimer); _typeTimer=setTimeout(()=>{ _typeTimer=null; saveField(_typeInp); }, 500); });
+        // Dernier filet : si on quitte/masque la page alors qu'une frappe est encore en attente (débounce non
+        // écoulé), on force l'enregistrement tout de suite (localStorage synchrone + file d'envoi durable).
+        const _flushType=()=>{ if(_typeTimer){ clearTimeout(_typeTimer); _typeTimer=null; saveField(_typeInp); } };
+        window.addEventListener('pagehide', _flushType);
+        document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') _flushType(); });
+        rows.addEventListener('change',(e)=>{ const inp=e.target.closest('[data-g-id]'); if(!inp) return; if(_typeTimer){ clearTimeout(_typeTimer); _typeTimer=null; } saveField(inp); status('✓ Enregistré'); renderMarques(); renderVehicules(); });
         // Quand on quitte la zone d'édition : si un re-render avait été reporté (mise à jour serveur arrivée
         // pendant la saisie), on le rejoue maintenant que plus aucun champ n'est focalisé (anti-perte de saisie).
         rows.addEventListener('focusout',()=>{ setTimeout(()=>{ if(rows._pendingRender && !(document.activeElement && rows.contains(document.activeElement))){ rows._pendingRender=false; renderRows(); } }, 120); });
