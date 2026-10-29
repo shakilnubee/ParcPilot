@@ -7999,7 +7999,7 @@ try { window.addEventListener('fp:data-ready', () => { if (FP.refreshProspectsBa
 
 // Badge rouge « demandes conducteur » (déclarations envoyées depuis le QR véhicule, statut 'nouveau')
 // sur le lien Sinistres du menu. Isolation société = RLS (le compte ne compte que sa société).
-FP.declCondCount = 0; FP.declCondSinCount = 0; FP.declCondEdlCount = 0; FP.declCondKmCount = 0; FP.declCondQuestionCount = 0;
+FP.declCondCount = 0; FP.declCondSinCount = 0; FP.declCondEdlCount = 0; FP.declCondKmCount = 0; FP.declCondQuestionCount = 0; FP.declCondAutreCount = 0;
 FP.refreshDeclCondBadge = async () => {
   try {
     if (!FP.supabase) return;
@@ -8019,11 +8019,16 @@ FP.refreshDeclCondBadge = async () => {
       if (!r.error) _rows = r.data || [];
     } catch (e) { /* on continue : signatures EDL + scans QR restent comptés */ }
     const count = _rows.length;
-    FP.declCondEdlCount = _rows.filter(x => String(x.type || '') === 'etat_lieux').length;
-    FP.declCondKmCount = _rows.filter(x => String(x.type || '') === 'km').length;
-    FP.declCondQuestionCount = _rows.filter(x => String(x.type || '') === 'question').length;
-    // Sinistres/problèmes = tout le reste (types 'sinistre'/'probleme' ou vide).
-    FP.declCondSinCount = count - FP.declCondEdlCount - FP.declCondKmCount - FP.declCondQuestionCount;
+    const _dtype = x => String(x && x.type || '').trim().toLowerCase();
+    FP.declCondEdlCount = _rows.filter(x => _dtype(x) === 'etat_lieux').length;
+    FP.declCondKmCount = _rows.filter(x => _dtype(x) === 'km').length;
+    FP.declCondQuestionCount = _rows.filter(x => _dtype(x) === 'question').length;
+    // ⚠️ CLASSIFICATION ROBUSTE (anti « tout le reste → Sinistres ») : on compte les sinistres/problèmes
+    // EXPLICITEMENT (types 'sinistre'/'probleme', + lignes HÉRITÉES sans type car le portail d'origine ne
+    // faisait QUE des sinistres). Un type INCONNU (ex. futur type mal nommé) n'est plus compté À TORT comme
+    // sinistre : il va dans declCondAutreCount → alerte « Autres » dédiée, jamais perdu, jamais faux-sinistre.
+    FP.declCondSinCount = _rows.filter(x => { const t = _dtype(x); return t === 'sinistre' || t === 'probleme' || t === ''; }).length;
+    FP.declCondAutreCount = count - FP.declCondEdlCount - FP.declCondKmCount - FP.declCondQuestionCount - FP.declCondSinCount;
     const changed = (count !== FP.declCondCount); FP.declCondCount = count;
     // Le compteur arrive en ASYNC après fp:data-ready → on prévient les vues d'alertes de se re-rendre
     // (dashboard « À traiter », page Suivi & alertes) pour que l'alerte « demande conducteur » apparaisse.
@@ -8041,7 +8046,7 @@ FP.refreshDeclCondBadge = async () => {
     try { if (FP.offreAchat && FP.offreAchat.load) { await FP.offreAchat.load(); offreUnseen = FP.offreAchat._unseen || 0; } } catch (e) {}
     // BADGE « Sinistres » = uniquement les déclarations de type sinistre/problème (pas km/état des lieux).
     // BADGE « Suivi & alertes » = demandes conducteur (km, état des lieux, question) + signatures reçues + scans QR.
-    const notifCount = FP.declCondKmCount + FP.declCondEdlCount + FP.declCondQuestionCount + edlUnseen + scanUnseen + offreUnseen;
+    const notifCount = FP.declCondKmCount + FP.declCondEdlCount + FP.declCondQuestionCount + FP.declCondAutreCount + edlUnseen + scanUnseen + offreUnseen;
     // Mémorise les valeurs → réappliquées après chaque reconstruction du menu (sinon la pastille
     // « disparaissait » quand la sidebar était rebâtie après le calcul du badge).
     FP._navBadgeVals = {
@@ -11128,7 +11133,7 @@ FP.buildAlertes = (data) => {
       out.push({
         niveau: 'info', categorie: 'États des lieux',
         message: nEdl > 1 ? `${nEdl} envois de photos d'état des lieux` : `1 envoi de photos d'état des lieux`,
-        detail: 'Un conducteur a envoyé des photos d\'état des lieux depuis le QR véhicule — à consulter dans Sinistres (Demandes conducteur).',
+        detail: 'Un conducteur a envoyé des photos d\'état des lieux depuis le QR véhicule — à consulter dans « Demandes conducteur » (onglet Sinistres).',
         sort: -90, target: 'sinistres.html',
         muteKey: 'decledl|' + nEdl,
       });
@@ -11141,7 +11146,7 @@ FP.buildAlertes = (data) => {
       out.push({
         niveau: 'warn', categorie: 'Conducteurs',
         message: nQ > 1 ? `${nQ} questions de conducteur` : `1 question de conducteur`,
-        detail: 'Un conducteur a posé une question depuis le QR véhicule — à consulter dans Sinistres (Demandes conducteur).',
+        detail: 'Un conducteur a posé une question depuis le QR véhicule — à consulter dans « Demandes conducteur » (onglet Sinistres).',
         sort: -95, target: 'sinistres.html',
         muteKey: 'declque|' + nQ,
       });
@@ -11154,9 +11159,23 @@ FP.buildAlertes = (data) => {
       out.push({
         niveau: 'info', categorie: 'Relevé km',
         message: nKm > 1 ? `${nKm} relevés kilométriques reçus` : `1 relevé kilométrique reçu`,
-        detail: 'Un conducteur a relevé son kilométrage depuis le QR véhicule — à consulter dans Sinistres (Demandes conducteur).',
+        detail: 'Un conducteur a relevé son kilométrage depuis le QR véhicule — à consulter dans « Demandes conducteur » (onglet Sinistres).',
         sort: -80, target: 'sinistres.html',
         muteKey: 'declkm|' + nKm,
+      });
+    }
+  } catch (e) {}
+  // Déclarations conducteur de type INCONNU (sécurité anti-perte : ne JAMAIS les laisser disparaître ni les
+  // compter à tort en « Sinistres »). Surfacées dans « Autres » → l'utilisateur les voit et peut les traiter.
+  try {
+    const nAutre = FP.declCondAutreCount || 0;
+    if (nAutre > 0) {
+      out.push({
+        niveau: 'warn', categorie: 'Autre',
+        message: nAutre > 1 ? `${nAutre} demandes conducteur à traiter` : `1 demande conducteur à traiter`,
+        detail: 'Demande(s) reçue(s) depuis le QR véhicule — à consulter dans « Demandes conducteur » (onglet Sinistres).',
+        sort: -70, target: 'sinistres.html',
+        muteKey: 'declautre|' + nAutre,
       });
     }
   } catch (e) {}
