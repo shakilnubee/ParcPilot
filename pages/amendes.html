@@ -418,6 +418,7 @@
   <input type="file" id="piece-file" accept="image/*,application/pdf" class="hidden" />
   <div class="p-6 border-t border-slate-200 flex flex-wrap gap-2 sticky bottom-0 bg-white z-10" style="box-shadow:0 -6px 16px -10px rgba(15,30,61,.25)">
     <button class="btn btn-primary text-sm flex-1 justify-center" id="drawer-pay"><i data-lucide="check" class="w-4 h-4"></i> Marquer payée</button>
+    <button class="btn btn-outline text-sm justify-center" id="drawer-justif" title="Joindre le justificatif de paiement (ouvre le sélecteur de fichiers · passe l'amende en payée)"><i data-lucide="paperclip" class="w-4 h-4"></i> Justificatif</button>
     <button class="btn btn-outline text-sm justify-center" id="drawer-designer" title="Conducteur désigné — l'amende n'est plus à votre charge"><i data-lucide="user-check" class="w-4 h-4"></i> Désigner</button>
     <button class="btn btn-outline text-sm" id="drawer-relance" title="Envoyer un email de relance au conducteur"><i data-lucide="mail" class="w-4 h-4"></i> Relancer</button>
     <button class="btn btn-outline text-sm" id="drawer-sms" title="Prévenir le conducteur par SMS / WhatsApp (envoi manuel gratuit)"><i data-lucide="message-circle" class="w-4 h-4"></i> SMS / WhatsApp</button>
@@ -1746,6 +1747,9 @@
     const _stA = String(a.statut || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
     $('drawer-designer').style.display = (_stA === 'designee' || FP.estPayee(a)) ? 'none' : '';
     { const cb = $('drawer-conteste'); if (cb) cb.style.display = (_stA === 'contestee' || FP.estPayee(a)) ? 'none' : ''; }
+    // Raccourci « Justificatif » (barre d'actions) : visible seulement sur une amende À PAYER (ni payée ni
+    // désignée) → joint le justificatif de PAIEMENT via le flux existant (attachJustif, intent 'pay').
+    { const jB = $('drawer-justif'); if (jB) { jB.style.display = (FP.estPayee(a) || _stA === 'designee') ? 'none' : ''; jB.onclick = () => { justifIntent = 'pay'; $('justif-file').click(); }; } }
     // Boutons dynamiques du justificatif (re-rendus à chaque ouverture)
     const jb = $('justif-btn'); if (jb) jb.onclick = () => { justifIntent = 'pay'; $('justif-file').click(); };
     const ju = $('justif-unarchive'); if (ju) ju.onclick = unarchiveAmende;
@@ -2938,6 +2942,32 @@
     if (file) attachJustif(file);
     e.target.value = '';
   });
+  // Raccourci : GLISSER-DÉPOSER un justificatif sur la fiche, ou le COLLER (Ctrl+V) → justificatif de
+  // PAIEMENT (même flux que le bouton : attachJustif intent 'pay' → passe en « payée » si l'envoi réussit,
+  // jamais si échec/annulation). N'agit que fiche ouverte, sur une amende À PAYER, et pas pendant une saisie.
+  (function justifQuickDrop() {
+    const dr = $('drawer'); if (!dr) return;
+    const canPayJustif = () => {
+      if (!dr.classList.contains('open') || !state.currentId) return false;
+      const a = data.amendes.find(x => x.id === state.currentId); if (!a) return false;
+      const st = String(a.statut || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      return !FP.estPayee(a) && st !== 'designee';
+    };
+    let ov = null;
+    const showOv = () => { if (ov || !canPayJustif()) return; ov = document.createElement('div'); ov.textContent = '📎 Déposez le justificatif de paiement'; ov.style.cssText = 'position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(15,30,61,.72);color:#fff;font-weight:700;font-size:1rem;border:3px dashed rgba(255,255,255,.6);border-radius:12px;pointer-events:none;padding:1rem;text-align:center'; dr.appendChild(ov); };
+    const hideOv = () => { if (ov) { try { ov.remove(); } catch (e) {} ov = null; } };
+    const hasFiles = dt => dt && Array.from(dt.types || []).indexOf('Files') !== -1;
+    dr.addEventListener('dragover', e => { if (!canPayJustif() || !hasFiles(e.dataTransfer)) return; e.preventDefault(); showOv(); });
+    dr.addEventListener('dragleave', e => { if (e.target === dr || e.relatedTarget === null) hideOv(); });
+    dr.addEventListener('drop', e => { hideOv(); if (!canPayJustif()) return; const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); e.stopPropagation(); justifIntent = 'pay'; attachJustif(f); });   // stopPropagation : empêche le drop GLOBAL (app.js) de ré-importer le fichier (anti double-import)
+    document.addEventListener('paste', e => {
+      if (!canPayJustif()) return;
+      const ae = document.activeElement;
+      if (ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)) return;
+      const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
+      if (f) { e.preventDefault(); justifIntent = 'pay'; attachJustif(f); }
+    });
+  })();
   $('piece-file').addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) addPiece(file);
