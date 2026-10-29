@@ -167,10 +167,10 @@
           : '<button type="button" class="btn btn-outline text-xs" data-g-pdf="'+esc(g.id)+'"><i data-lucide="paperclip" class="w-3.5 h-3.5"></i> Ajouter un PDF ou une photo (lu par l\'IA)</button>';
         return '<div class="rounded-lg border p-3" style="border-color:var(--fp-border)" data-g-row="'+esc(g.id)+'">'
           + '<div class="grid grid-cols-1 md:grid-cols-2 gap-2">'
-            + '<label class="text-xs font-semibold text-slate-500">Nom<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="nom" value="'+esc(g.nom||'')+'" placeholder="ex. BYD Enghien-les-Bains"></label>'
-            + '<label class="text-xs font-semibold text-slate-500">Adresse<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="adresse" value="'+esc(g.adresse||'')+'" placeholder="163 av. de la Division Leclerc…"></label>'
-            + '<label class="text-xs font-semibold text-slate-500">E-mail<input class="field-input w-full mt-1" type="email" data-g-id="'+esc(g.id)+'" data-g-field="email" value="'+esc(g.email||'')+'" placeholder="contact@garage.fr"></label>'
-            + '<label class="text-xs font-semibold text-slate-500">Téléphone<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="tel" value="'+esc(g.tel||'')+'" placeholder="+33 1 84 75 28 30"></label>'
+            + '<label class="text-xs font-semibold text-slate-500">Nom<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="nom" value="'+esc(g.nom||'')+'" placeholder="Nom du garage à saisir…"></label>'
+            + '<label class="text-xs font-semibold text-slate-500">Adresse<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="adresse" value="'+esc(g.adresse||'')+'" placeholder="Adresse à saisir (rue, CP, ville)…"></label>'
+            + '<label class="text-xs font-semibold text-slate-500">E-mail<input class="field-input w-full mt-1" type="email" data-g-id="'+esc(g.id)+'" data-g-field="email" value="'+esc(g.email||'')+'" placeholder="E-mail à saisir…"></label>'
+            + '<label class="text-xs font-semibold text-slate-500">Téléphone<input class="field-input w-full mt-1" data-g-id="'+esc(g.id)+'" data-g-field="tel" value="'+esc(g.tel||'')+'" placeholder="Téléphone à saisir…"></label>'
           + '</div>'
           + '<div class="flex items-center justify-between gap-2 mt-2 flex-wrap">'
             + '<div class="text-xs">'+pdf+' <span class="text-slate-400">— joint auto à l\'e-mail « Prévenir »</span></div>'
@@ -180,6 +180,11 @@
       }
       function renderRows(){
         const box=document.getElementById('garages-rows'); if(!box) return;
+        // ⚠️ ANTI-PERTE DE SAISIE : ne JAMAIS reconstruire les lignes pendant qu'un champ garage est en cours
+        // d'édition (un re-render déclenché par fp:data-ready effacerait le texte tapé mais pas encore validé
+        // par le blur → l'utilisateur voyait sa saisie « disparaître »). On re-render au prochain cycle.
+        const ae=document.activeElement;
+        if(ae && box.contains(ae)){ box._pendingRender=true; return; }
         const list=FP.getPrestataires?FP.getPrestataires():[];
         box.innerHTML = list.length ? list.map(rowHTML).join('') : '<p class="text-sm text-slate-400">Aucun garage enregistré. Clique « Ajouter un garage ».</p>';
         if(window.lucide) lucide.createIcons();
@@ -228,6 +233,9 @@
         const pdfFile=document.getElementById('garage-pdf-file');
         const vSearch=document.getElementById('garages-veh-search');
         rows.addEventListener('change',(e)=>{ const inp=e.target.closest('[data-g-id]'); if(!inp) return; const id=inp.getAttribute('data-g-id'),field=inp.getAttribute('data-g-field'); const g=FP.getPrestataires().find(x=>x&&x.id===id); if(!g) return; g[field]=(inp.value||'').trim(); FP.savePrestataire(g); status('✓ Enregistré'); renderMarques(); renderVehicules(); });
+        // Quand on quitte la zone d'édition : si un re-render avait été reporté (mise à jour serveur arrivée
+        // pendant la saisie), on le rejoue maintenant que plus aucun champ n'est focalisé (anti-perte de saisie).
+        rows.addEventListener('focusout',()=>{ setTimeout(()=>{ if(rows._pendingRender && !(document.activeElement && rows.contains(document.activeElement))){ rows._pendingRender=false; renderRows(); } }, 120); });
         rows.addEventListener('click',(e)=>{
           const del=e.target.closest('[data-g-del]'); if(del){ FP.confirm('Supprimer ce garage du carnet d\'adresses ?').then(ok=>{ if(ok){ FP.deletePrestataire(del.getAttribute('data-g-del')); window.renderGaragesSection(); status('✓ Supprimé'); } }); return; }
           const pdfDel=e.target.closest('[data-g-pdf-del]'); if(pdfDel){ const g=FP.getPrestataires().find(x=>x&&x.id===pdfDel.getAttribute('data-g-pdf-del')); if(g){ g.pdfUrl=null; g.pdfName=null; FP.savePrestataire(g); renderRows(); status('✓ PDF retiré'); } return; }  /* ⚠️ null (pas delete) : savePrestataire FUSIONNE → un delete serait ré-écrasé par l'ancienne valeur */
