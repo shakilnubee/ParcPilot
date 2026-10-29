@@ -6689,6 +6689,10 @@ FP.settings = {
     const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
     return 0.2126 * f(parseInt(hex.slice(0, 2), 16)) + 0.7152 * f(parseInt(hex.slice(2, 4), 16)) + 0.0722 * f(parseInt(hex.slice(4, 6), 16));
   },
+  // Vrai si le thème sombre est ACTUELLEMENT appliqué (classe peinte sur <body> = source de vérité
+  // affichée). ⚠️ Était NON DÉFINI → FP.chartInk/FP.setupChartTheme retombaient toujours sur le thème
+  // clair (graphiques peu lisibles en sombre). Source unique de l'état sombre pour le JS.
+  isDark() { try { return !!(document.body && document.body.classList.contains('fp-dark')); } catch (e) { return false; } },
   applyTheme() {
     const s = this.get();
     Object.entries(s.groupes).forEach(([k, v]) => {
@@ -6754,6 +6758,34 @@ try { FP.setupChartTheme(); } catch (e) {}
 document.addEventListener('DOMContentLoaded', () => { try { FP.setupChartTheme(); } catch (e) {} });
 document.addEventListener('fp:data-ready', () => { try { FP.setupChartTheme(); } catch (e) {} });
 
+// === Re-thème INSTANTANÉ des graphiques au changement de thème (sans refresh) ===
+// Met à jour SUR PLACE toutes les instances Chart.js (pas de recréation → pas d'erreur « canvas already
+// in use ») : couleur du texte des axes + légendes + grilles selon le thème, et bascule l'encre PRIMAIRE
+// des séries (navy ↔ bleu clair) pour rester lisible. Les couleurs de STATUT/GROUPE des séries ne sont pas
+// touchées (leur sens est préservé). Appelé par FP.darkMode.set().
+FP.retheme = (dark) => {
+  try { if (FP.setupChartTheme) FP.setupChartTheme(); } catch (e) {}
+  try {
+    if (!(window.Chart && Chart.instances)) return;
+    const txt = dark ? '#cbd5e1' : '#475569';
+    const grid = dark ? 'rgba(148,163,184,.18)' : 'rgba(15,30,61,.08)';
+    const oldInk = dark ? '#0F1E3D' : '#60A5FA';   // encre primaire AVANT la bascule
+    const newInk = dark ? '#60A5FA' : '#0F1E3D';
+    const eq = (a, b) => typeof a === 'string' && a.toUpperCase() === b.toUpperCase();
+    Object.values(Chart.instances).forEach(c => {
+      try {
+        const sc = (c.options && c.options.scales) || {};
+        Object.keys(sc).forEach(k => { const ax = sc[k]; if (ax && typeof ax === 'object') { ax.ticks = ax.ticks || {}; ax.ticks.color = txt; ax.grid = ax.grid || {}; ax.grid.color = grid; } });
+        try { if (c.options.plugins && c.options.plugins.legend && c.options.plugins.legend.labels) c.options.plugins.legend.labels.color = txt; } catch (e) {}
+        (c.data.datasets || []).forEach(ds => {
+          ['borderColor', 'backgroundColor', 'pointBackgroundColor', 'pointBorderColor'].forEach(key => { if (eq(ds[key], oldInk)) ds[key] = newInk; });
+        });
+        c.update('none');
+      } catch (e) {}
+    });
+  } catch (e) {}
+};
+
 // === Dernier sous-onglet ouvert d'une page (rouvre là où l'utilisateur était) ===
 // RÈGLE (consigne explicite) : chaque page à sous-onglets doit rouvrir sur le DERNIER onglet consulté.
 // Synchronisé (FP.settings → tous les appareils, règle 0-sync). pageKey = id court ('controle'…).
@@ -6799,6 +6831,11 @@ FP.darkMode = {
     try { localStorage.setItem('fp_dark_mode', v ? '1' : '0'); } catch (e) {}
     try { const s = FP.settings.get(); s.prefs = s.prefs || {}; s.prefs.darkMode = v; FP.settings.save(s); } catch (e) {}
     if (FP.settings && FP.settings.applyTheme) FP.settings.applyTheme();
+    // ⚠️ BASCULEMENT INSTANTANÉ (sans refresh) : le CSS bascule tout seul via la classe `fp-dark`, mais les
+    // éléments peints en JS (graphiques Chart.js) gardaient leurs couleurs → on les re-thème ici, et on
+    // émet `fp:theme-change` pour tout rendu dynamique qui voudrait réagir.
+    try { if (FP.retheme) FP.retheme(v); } catch (e) {}
+    try { document.dispatchEvent(new CustomEvent('fp:theme-change', { detail: { dark: v } })); } catch (e) {}
   },
   toggle() { this.set(!this.get()); return this.get(); },
 };

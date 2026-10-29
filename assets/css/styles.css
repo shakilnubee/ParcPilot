@@ -2379,3 +2379,78 @@ details.fp-coll > summary::after {
 }
 details.fp-coll[open] > summary::after { transform: rotate(45deg); }
 details.fp-coll > summary:hover::after { opacity: .8; }
+
+/* =========================================================================
+   FILET DE SÉCURITÉ — LISIBILITÉ DU MODE SOMBRE (couleurs inline en dur)
+   Beaucoup d'éléments portent leur couleur directement dans style="…" (hérité
+   des pages). En sombre, ces couleurs claires restaient illisibles. On les
+   corrige ICI par SÉLECTEUR D'ATTRIBUT : aucun HTML modifié, et RIEN ne change
+   en mode clair (règles sous body.fp-dark uniquement). Le flag [i] couvre
+   majuscules/minuscules. Le !important est NÉCESSAIRE ici (une règle ne peut
+   l'emporter sur un style inline qu'avec !important) — ce n'est pas superflu.
+   ⚠️ On NE touche PAS aux accents de marque (orange), ni aux fonds de STATUT
+   PLEINS (boutons rouges/verts/bleus) : seuls les textes/fonds NEUTRES et les
+   PASTELS de fond sont adaptés, en préservant la teinte (donc le sens métier).
+   ========================================================================= */
+/* --- Textes neutres FONCÉS → texte clair lisible --- */
+body.fp-dark [style*="color:#0f1e3d" i], body.fp-dark [style*="color: #0f1e3d" i],
+body.fp-dark [style*="color:#0b1220" i], body.fp-dark [style*="color: #0b1220" i],
+body.fp-dark [style*="color:#0f172a" i], body.fp-dark [style*="color: #0f172a" i],
+body.fp-dark [style*="color:#111a2b" i], body.fp-dark [style*="color: #111a2b" i],
+body.fp-dark [style*="color:#0b0b0b" i], body.fp-dark [style*="color: #0b0b0b" i],
+body.fp-dark [style*="color:#111827" i], body.fp-dark [style*="color: #111827" i],
+body.fp-dark [style*="color:#1e293b" i], body.fp-dark [style*="color: #1e293b" i] { color: var(--fp-text) !important; }
+
+/* --- Textes neutres MOYENS (gris foncé) → gris clair lisible --- */
+body.fp-dark [style*="color:#334155" i], body.fp-dark [style*="color: #334155" i],
+body.fp-dark [style*="color:#475569" i], body.fp-dark [style*="color: #475569" i],
+body.fp-dark [style*="color:#526075" i], body.fp-dark [style*="color: #526075" i],
+body.fp-dark [style*="color:#5a6577" i], body.fp-dark [style*="color: #5a6577" i],
+body.fp-dark [style*="color:#64748b" i], body.fp-dark [style*="color: #64748b" i],
+body.fp-dark [style*="color:#374151" i], body.fp-dark [style*="color: #374151" i],
+body.fp-dark [style*="color:#4b5563" i], body.fp-dark [style*="color: #4b5563" i] { color: var(--fp-muted) !important; }
+
+/* --- Textes de STATUT → éclaircis (même teinte = même sens) --- */
+body.fp-dark [style*="color:#b91c1c" i], body.fp-dark [style*="color: #b91c1c" i],
+body.fp-dark [style*="color:#dc2626" i], body.fp-dark [style*="color: #dc2626" i],
+body.fp-dark [style*="color:#991b1b" i], body.fp-dark [style*="color: #991b1b" i],
+body.fp-dark [style*="color:#7f1d1d" i], body.fp-dark [style*="color: #7f1d1d" i] { color: #f87171 !important; }
+body.fp-dark [style*="color:#047857" i], body.fp-dark [style*="color: #047857" i],
+body.fp-dark [style*="color:#059669" i], body.fp-dark [style*="color: #059669" i],
+body.fp-dark [style*="color:#166534" i], body.fp-dark [style*="color: #166534" i],
+body.fp-dark [style*="color:#15803d" i], body.fp-dark [style*="color: #15803d" i],
+body.fp-dark [style*="color:#14532d" i], body.fp-dark [style*="color: #14532d" i] { color: #34d399 !important; }
+body.fp-dark [style*="color:#92400e" i], body.fp-dark [style*="color: #92400e" i],
+body.fp-dark [style*="color:#b45309" i], body.fp-dark [style*="color: #b45309" i],
+body.fp-dark [style*="color:#9a3412" i], body.fp-dark [style*="color: #9a3412" i] { color: #fbbf24 !important; }
+body.fp-dark [style*="color:#0e7490" i], body.fp-dark [style*="color: #0e7490" i],
+body.fp-dark [style*="color:#0f766e" i], body.fp-dark [style*="color: #0f766e" i] { color: #2dd4bf !important; }
+body.fp-dark [style*="color:#3730a3" i], body.fp-dark [style*="color: #3730a3" i],
+body.fp-dark [style*="color:#1e3a8a" i], body.fp-dark [style*="color: #1e3a8a" i],
+body.fp-dark [style*="color:#1e40af" i], body.fp-dark [style*="color: #1e40af" i] { color: #93c5fd !important; }
+
+/* --- Fonds BLANCS / gris très clairs NEUTRES → surface sombre ---
+   (#fff traité avec « ; » ou fin de chaîne pour ne PAS attraper #fff7ed/#fffbeb) */
+body.fp-dark [style*="background:#ffffff" i], body.fp-dark [style*="background: #ffffff" i],
+body.fp-dark [style*="background-color:#ffffff" i], body.fp-dark [style*="background-color: #ffffff" i],
+body.fp-dark [style*="background:#fff;" i], body.fp-dark [style$="background:#fff" i],
+body.fp-dark [style*="background: #fff;" i], body.fp-dark [style$="background: #fff" i],
+body.fp-dark [style*="background:#f8fafc" i], body.fp-dark [style*="background: #f8fafc" i],
+body.fp-dark [style*="background:#f1f5f9" i], body.fp-dark [style*="background: #f1f5f9" i],
+body.fp-dark [style*="background:#eef1f6" i], body.fp-dark [style*="background: #eef1f6" i],
+body.fp-dark [style*="background:#eef2f7" i], body.fp-dark [style*="background: #eef2f7" i],
+body.fp-dark [style*="background:#f4f6fa" i], body.fp-dark [style*="background: #f4f6fa" i],
+body.fp-dark [style*="background:#fbfcfe" i], body.fp-dark [style*="background: #fbfcfe" i],
+body.fp-dark [style*="background:#e2e8f0" i], body.fp-dark [style*="background: #e2e8f0" i] { background-color: var(--fp-surface) !important; }
+
+/* --- Fonds PASTELS de statut → teinte sombre (sens préservé) --- */
+body.fp-dark [style*="background:#fef2f2" i], body.fp-dark [style*="background:#fee2e2" i],
+body.fp-dark [style*="background:#fecaca" i], body.fp-dark [style*="background:#fff1f2" i] { background-color: rgba(239,68,68,.15) !important; }
+body.fp-dark [style*="background:#fffbeb" i], body.fp-dark [style*="background:#fef3c7" i],
+body.fp-dark [style*="background:#fff7ed" i], body.fp-dark [style*="background:#ffedd5" i] { background-color: rgba(245,158,11,.15) !important; }
+body.fp-dark [style*="background:#ecfdf5" i], body.fp-dark [style*="background:#dcfce7" i],
+body.fp-dark [style*="background:#f0fdf4" i], body.fp-dark [style*="background:#d1fae5" i] { background-color: rgba(16,185,129,.15) !important; }
+body.fp-dark [style*="background:#dbeafe" i], body.fp-dark [style*="background:#eff6ff" i],
+body.fp-dark [style*="background:#eef2ff" i], body.fp-dark [style*="background:#e0e7ff" i],
+body.fp-dark [style*="background:#ede9fe" i] { background-color: rgba(59,130,246,.15) !important; }
+body.fp-dark [style*="background:#ecfeff" i], body.fp-dark [style*="background:#f0f9ff" i] { background-color: rgba(45,212,191,.13) !important; }
