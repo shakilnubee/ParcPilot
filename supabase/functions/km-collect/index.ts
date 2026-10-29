@@ -108,7 +108,7 @@ async function vehInfo(db: ReturnType<typeof createClient>, vehiculeId: string |
 //  • date : dernière révision (ou mise en circulation à défaut) + intervalle en mois, avancée jusqu'à
 //    une date FUTURE si aucune révision n'est encore enregistrée. Renvoie { date, km } (valeurs ou null).
 function prochaineRevision(v: Record<string, unknown>, revKm: number, revMois: number, alerteKm: number, alerteJours: number) {
-  const km = v.km != null ? Number(v.km) : 0;
+  const km = Math.max(Number(v.km) || 0, Number(v.km_dernier_releve) || 0);   // km RÉEL (max km / dernier relevé) — MÊME source que FP.kmActuel (app.js), sinon la révision était sous-estimée
   const today = new Date();
   const dRevStr = String(v.derniere_revision || "");
   const hasRev = !!(dRevStr && dRevStr !== "—" && !isNaN(new Date(dRevStr).getTime()));
