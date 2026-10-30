@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **21/10/2026** (vue Galerie 3D : flèches clavier, podium Amendes, Tableau de bord)
+> Dernière mise à jour : **30/10/2026** (module « Acheter » — migration `dossiers_achat` ajoutée : testée sur staging, **pas encore appliquée en production**)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
