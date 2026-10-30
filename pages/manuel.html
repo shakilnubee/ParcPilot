@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030k">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -903,6 +903,8 @@
         <div class="man-zone">Emprunt véhicule</div>
         <div class="man-item">Noter qui a pris quel véhicule, quand, et quand il l'a rendu. Champs : véhicule, emprunteur, date/heure, retour + « rendu par ». Statuts En cours / Rendu / <b>Retard</b> (non rendu &gt; 2 j, alerte rouge). On peut aussi <b>réserver</b> un véhicule pour plus tard (bouton « Démarrer » pour lancer l'emprunt). Anti-doublon = même véhicule + emprunteur + date.</div>
         <div class="man-item"><b>🚗 Véhicules disponibles pour l'emprunt</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — bouton <b>« Véhicules disponibles »</b> : tu choisis quelles voitures peuvent être prêtées, <b>par groupe</b> (ex. « À vendre ») <b>et/ou une par une</b>. Seules celles-ci apparaissent ensuite dans « Nouvel emprunt » et « Réserver ». <b>Rien de coché = tous les véhicules</b> sont proposés (comportement par défaut). Réglage propre à chaque société, synchronisé sur tous les appareils. <i>(Correctif : cocher un groupe comme « À vendre » inclut bien <b>tous</b> ses véhicules, comme sur la page Véhicules.)</i></div>
+        <div class="man-item"><b>🔗 Réservation en ligne par tes collègues (sans compte)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — tu peux laisser tes collègues <b>demander un véhicule eux-mêmes</b>, sans compte Parc Pilot, via un <b>lien sécurisé</b>. Déplie le bloc <b>« Lien de réservation en ligne »</b> (réservé à l'<b>administrateur</b>) → <b>« Générer le lien »</b> puis <b>« Copier »</b> (tu peux le partager par mail, WhatsApp, l'afficher…). Clique <b>« Choisir les véhicules »</b> pour décider <b>quelles voitures</b> sont proposées en ligne (par groupe et/ou une par une) : <b>par défaut aucune</b> n'est visible, c'est à toi d'ouvrir l'accès. Besoin de couper l'accès ? <b>« Réinitialiser »</b> crée un nouveau lien et <b>désactive l'ancien</b> aussitôt.</div>
+        <div class="man-item"><b>📥 Demandes de réservation en attente</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand un collègue remplit le formulaire, sa demande arrive dans l'encadré <b>« Demandes de réservation en attente »</b> (et une <b>alerte</b> + une <b>notification</b> te préviennent). Tu vois le véhicule, qui demande, le créneau et le motif, puis tu <b>« Acceptes »</b> (la réservation s'ajoute à ton <b>tableau « Réservations »</b> habituel et le collègue reçoit un <b>e-mail de confirmation</b>) ou tu <b>refuses</b> (il est aussi prévenu par e-mail). Le site <b>ne propose que les véhicules réellement libres</b> sur le créneau demandé : il tient compte des <b>réservations</b>, des <b>emprunts en cours</b>, du <b>statut</b> du véhicule et des <b>immobilisations</b> — pas de double réservation possible.</div>
         <div class="man-item"><b>🧾 Relevé PDF / Excel PARTOUT + filtre par période</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — règle générale : <b>sur chaque page où il y a un export Excel, il y a aussi un bouton « Relevé PDF »</b> (Véhicules, Conducteurs, Amendes, Sinistres, Factures, Contrats, Budget, Entretiens, Emprunts, À vendre). La fenêtre est la même partout : tu <b>choisis les colonnes</b>, tu les <b>réordonnes en glissant ⠿</b>, et sur les pages avec des <b>dates</b> (amendes, factures, sinistres, entretiens, emprunts) tu peux fixer une <b>période « Du → Au »</b> pour que le PDF/Excel/CSV contienne <b>exactement</b> cette période. Le compteur de lignes se met à jour en direct quand tu changes les dates.</div>
         <div class="man-zone">Tâches — ton organiseur de flotte</div>
         <div class="man-item">🗂️ <b>Ton organiseur de flotte</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — la page Tâches sert à <b>planifier</b> (elle ne remplace pas la page Alertes, qui te signale ce qui arrive tout seul). Chaque tâche a un <b>type</b> : 📅 <b>Rendez-vous</b> (garage, carrosserie, livraison, restitution…), ✅ <b>Action</b> (une chose à faire) ou 📦 <b>Achat</b> (pneus, carte carburant, badge…). À la création tu peux choisir un <b>motif rapide</b> (Révision, Contrôle technique, Pneus…), un <b>véhicule</b> et un <b>conducteur</b> (recherche par frappe, ou création si nouveau), une <b>date</b> (+ <b>heure</b> pour un RDV), un <b>lieu / garage / fournisseur</b>, une <b>priorité</b> et une <b>checklist</b> d'étapes à cocher.</div>
@@ -1058,8 +1060,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030j"></script>
-<script src="../assets/js/supabase-client.js?v=20261030j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030k"></script>
+<script src="../assets/js/supabase-client.js?v=20261030k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1075,10 +1077,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030j"></script>
+<script src="../assets/js/app.min.js?v=20261030k"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

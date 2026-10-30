@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030k">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -164,6 +164,41 @@
         </table>
       </div>
       <div id="resa-empty" class="hidden p-8 text-center text-slate-500 text-sm">Aucune réservation à venir. Clique sur « Réserver » pour planifier un véhicule.</div>
+    </div>
+
+    <!-- Demandes de réservation en ligne (portail public) EN ATTENTE → à valider -->
+    <div class="card p-0 mb-6 overflow-hidden hidden" id="resa-inbox" style="border:1px solid #FDE68A">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 gap-3" style="background:#FFFBEB">
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 min-w-0"><i data-lucide="inbox" class="w-4 h-4 flex-shrink-0" style="color:#D97706"></i> Demandes de réservation en attente <span id="demande-count" class="text-xs font-normal text-amber-600"></span></h2>
+      </div>
+      <div class="scrollable">
+        <table class="fp-table">
+          <thead><tr><th>Véhicule</th><th>Demandé par</th><th>Du</th><th>Au</th><th>Motif</th><th></th></tr></thead>
+          <tbody id="tbody-demandes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Configuration du lien de réservation public (ADMIN seulement) -->
+    <div class="card p-0 mb-6 overflow-hidden hidden" id="resa-config">
+      <button type="button" class="w-full flex items-center justify-between px-4 py-3 gap-3 text-left" id="resa-config-head">
+        <h2 class="font-bold text-slate-800 flex items-center gap-2 min-w-0"><i data-lucide="link" class="w-4 h-4 flex-shrink-0" style="color:var(--fp-accent)"></i> Lien de réservation en ligne <span class="text-xs font-normal text-slate-400">(sans compte)</span></h2>
+        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 flex-shrink-0 transition-transform" id="resa-config-chev"></i>
+      </button>
+      <div class="px-4 pb-4 hidden" id="resa-config-body">
+        <p class="text-sm text-slate-500 mb-3">Partage ce lien à tes collègues : ils réservent un véhicule <b>sans compte Parc Pilot</b>. Chaque demande arrive ici dans « Demandes en attente » pour que tu l'acceptes ou la refuses.</p>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <input id="resa-link" class="field-input flex-1" style="min-width:220px" readonly placeholder="Clique sur « Générer le lien »" />
+          <button type="button" class="btn btn-dark !py-2 !px-3 text-sm" id="resa-link-copy"><i data-lucide="copy" class="w-4 h-4"></i> Copier</button>
+          <a id="resa-link-open" class="btn btn-outline !py-2 !px-3 text-sm hidden" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-4 h-4"></i> Ouvrir</a>
+          <button type="button" class="btn btn-outline !py-2 !px-3 text-sm" id="resa-link-gen"><i data-lucide="sparkles" class="w-4 h-4"></i> Générer le lien</button>
+          <button type="button" class="btn btn-outline !py-2 !px-3 text-sm hidden" id="resa-link-reset" title="Désactive l'ancien lien et en crée un nouveau"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Réinitialiser</button>
+        </div>
+        <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div class="text-sm text-slate-600"><b id="resa-veh-count">0</b> véhicule(s) proposé(s) à la réservation en ligne. <span class="text-slate-400">Par défaut aucun : tu choisis ceux visibles par les collègues.</span></div>
+          <button type="button" class="btn btn-outline !py-2 !px-3 text-sm flex-shrink-0" id="resa-veh-config"><i data-lucide="car" class="w-4 h-4"></i> Choisir les véhicules</button>
+        </div>
+      </div>
     </div>
 
     <!-- Recherche -->
@@ -365,8 +400,32 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030j"></script>
-<script src="../assets/js/supabase-client.js?v=20261030j"></script>
+<!-- Modal : véhicules PROPOSÉS à la réservation en ligne (portail public) -->
+<div class="modal-backdrop" id="modal-reservables">
+  <div class="modal p-6" style="max-width:560px">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-xl font-extrabold">Véhicules proposés à la réservation en ligne</h2>
+      <button aria-label="Fermer" class="p-2 hover:bg-slate-100 rounded-lg" id="rsv-close"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <p class="text-sm text-slate-500 mb-4">Coche les <b>groupes</b> et/ou les <b>véhicules</b> visibles par les collègues sur le lien public. <span class="text-amber-600 font-semibold">Par défaut, aucun véhicule n'est proposé</span> (exposition volontaire).</p>
+    <div class="mb-4">
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Par groupe</div>
+      <div id="rsv-groupes" class="flex flex-wrap gap-2"></div>
+    </div>
+    <div>
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Un par un</div>
+      <input id="rsv-search" class="field-input mb-2" placeholder="Filtrer par plaque ou modèle…" autocomplete="off" />
+      <div id="rsv-vehs" style="max-height:280px;overflow-y:auto;border:1px solid var(--fp-border);border-radius:10px;padding:6px"></div>
+    </div>
+    <div class="flex gap-2 pt-4">
+      <button type="button" class="btn btn-outline flex-1 justify-center" id="rsv-cancel">Annuler</button>
+      <button type="button" class="btn btn-dark flex-1 justify-center" id="rsv-save"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/vendor/supabase.js?v=20261030k"></script>
+<script src="../assets/js/supabase-client.js?v=20261030k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -382,10 +441,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030j"></script>
+<script src="../assets/js/app.min.js?v=20261030k"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -1027,8 +1086,142 @@
     const tr = e.target.closest('tr[data-id]'); if (tr) { openEdit(tr.dataset.id); }
   });
 
+  // ============================================================
+  //  RÉSERVATION EN LIGNE (portail public) — config du lien + véhicules + boîte de réception.
+  //  Source UNIQUE : FP.reservations (app.js). Demandes en attente = table `reservations` ; une
+  //  demande ACCEPTÉE est recopiée dans la liste de réservations existante (settings.reservations)
+  //  via FP.reservations.accept → pas de système concurrent.
+  // ============================================================
+  function isoToFr(iso) { try { const d = new Date(iso); return isNaN(d.getTime()) ? '—' : d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return '—'; } }
+
+  // ----- Boîte de réception (demandes en attente) -----
+  function renderDemandes() {
+    const R = window.FP && FP.reservations; const pend = (R && R._pending) || [];
+    const card = $('resa-inbox'), tbody = $('tbody-demandes'), cnt = $('demande-count');
+    if (!card || !tbody) return;
+    if (!pend.length) { card.classList.add('hidden'); tbody.innerHTML = ''; if (cnt) cnt.textContent = ''; return; }
+    card.classList.remove('hidden');
+    if (cnt) cnt.textContent = '(' + pend.length + ')';
+    tbody.innerHTML = pend.map(p => `<tr data-demande="${escapeHtml(p.id)}">
+        <td class="font-mono font-semibold">${escapeHtml(vehLabel(p.immat))}</td>
+        <td class="font-medium">${escapeHtml(p.nom || '—')}${p.email ? `<div class="text-xs text-slate-400">${escapeHtml(p.email)}${p.tel ? ' · ' + escapeHtml(p.tel) : ''}</div>` : ''}</td>
+        <td>${isoToFr(p.debut)}</td>
+        <td>${isoToFr(p.fin)}</td>
+        <td class="text-xs text-slate-500">${escapeHtml(p.motif || '—')}</td>
+        <td class="text-right whitespace-nowrap">
+          <button class="btn btn-dark !py-1 !px-2.5 text-xs" data-demande-ok="${escapeHtml(p.id)}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Accepter</button>
+          <button class="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-600" data-demande-no="${escapeHtml(p.id)}" title="Refuser"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </td>
+      </tr>`).join('');
+    if (window.lucide) lucide.createIcons();
+    try { if (R && R.markSeen) R.markSeen(); } catch (e) {}
+  }
+  async function acceptDemande(id) {
+    const R = window.FP && FP.reservations; if (!R) return;
+    if (!(await FP.confirm('Accepter cette demande ? Le créneau sera réservé et le demandeur recevra un e-mail de confirmation.'))) return;
+    const res = await R.accept(id);
+    if (res && res.error) { if (FP.notifyError) FP.notifyError('Impossible d\'accepter la demande.'); else alert('Erreur lors de l\'acceptation.'); return; }
+    renderDemandes(); renderResas();
+    if (FP.toast) FP.toast('Réservation confirmée ✓');
+  }
+  async function refuseDemande(id) {
+    const R = window.FP && FP.reservations; if (!R) return;
+    if (!(await FP.confirm('Refuser cette demande ? Le demandeur en sera informé par e-mail.'))) return;
+    const res = await R.refuse(id, '');
+    if (res && res.error) { if (FP.notifyError) FP.notifyError('Impossible de refuser la demande.'); else alert('Erreur lors du refus.'); return; }
+    renderDemandes();
+    if (FP.toast) FP.toast('Demande refusée');
+  }
+
+  // ----- Configuration du lien public (ADMIN) -----
+  function resaConfigAllowed() { return !!(window.FP && FP.canManageSociete && FP.canManageSociete()); }
+  function refreshResaConfig() {
+    const card = $('resa-config'); if (!card) return;
+    if (!resaConfigAllowed()) { card.classList.add('hidden'); return; }
+    const R = FP.reservations; card.classList.remove('hidden');
+    const link = R.link();
+    const inp = $('resa-link'), open = $('resa-link-open'), gen = $('resa-link-gen'), reset = $('resa-link-reset');
+    if (inp) inp.value = link || '';
+    if (link) { if (open) { open.href = link; open.classList.remove('hidden'); } if (gen) gen.classList.add('hidden'); if (reset) reset.classList.remove('hidden'); }
+    else { if (open) open.classList.add('hidden'); if (gen) gen.classList.remove('hidden'); if (reset) reset.classList.add('hidden'); }
+    try { const all = (data.vehicules || []).filter(v => !(window.FP && FP.horsFlotte && FP.horsFlotte(v))); const n = all.filter(v => R.isReservable(v)).length; if ($('resa-veh-count')) $('resa-veh-count').textContent = n; } catch (e) {}
+  }
+  if ($('resa-config-head')) $('resa-config-head').addEventListener('click', () => {
+    const body = $('resa-config-body'), chev = $('resa-config-chev');
+    const nowHidden = body.classList.toggle('hidden');
+    if (chev) chev.style.transform = nowHidden ? '' : 'rotate(180deg)';
+  });
+  if ($('resa-link-gen')) $('resa-link-gen').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    await FP.reservations.ensureLink(); b.disabled = false; refreshResaConfig();
+    if (FP.toast) FP.toast('Lien généré ✓');
+  });
+  if ($('resa-link-reset')) $('resa-link-reset').addEventListener('click', async () => {
+    if (!(await FP.confirm('Réinitialiser le lien ? L\'ancien lien ne fonctionnera plus pour personne.'))) return;
+    await FP.reservations.resetToken(); refreshResaConfig();
+    if (FP.toast) FP.toast('Nouveau lien généré ✓');
+  });
+  if ($('resa-link-copy')) $('resa-link-copy').addEventListener('click', async () => {
+    const link = ($('resa-link') && $('resa-link').value) || '';
+    if (!link) { if (FP.toast) FP.toast('Génère d\'abord le lien'); return; }
+    try { await navigator.clipboard.writeText(link); if (FP.toast) FP.toast('Lien copié ✓'); }
+    catch (e) { try { $('resa-link').select(); document.execCommand('copy'); if (FP.toast) FP.toast('Lien copié ✓'); } catch (x) {} }
+  });
+
+  // ----- Modal : véhicules proposés à la réservation en ligne -----
+  let _rsvSel = { g: new Set(), v: new Set() };
+  function renderRsvGroupes() {
+    const groupes = (FP.settings.get().groupes) || {}; const keys = Object.keys(groupes);
+    $('rsv-groupes').innerHTML = keys.length ? keys.map(k => {
+      const on = _rsvSel.g.has(k), lbl = (groupes[k] && groupes[k].label) || k;
+      return `<button type="button" class="rsv-grp" data-g="${_escD(k)}" style="border:1.5px solid ${on ? '#0f766e' : 'var(--fp-border)'};background:${on ? '#ECFDF5' : '#fff'};color:${on ? '#0f766e' : '#475569'};border-radius:9999px;padding:.35rem .8rem;font-size:.82rem;font-weight:700;cursor:pointer">${on ? '✓ ' : ''}${_escD(lbl)}</button>`;
+    }).join('') : '<span class="text-xs text-slate-400">Aucun groupe défini.</span>';
+  }
+  function renderRsvVehs(q) {
+    const nq = (window.FP && FP.norm) ? FP.norm(q || '') : String(q || '').toLowerCase();
+    const list = (data.vehicules || []).filter(v => !(window.FP && FP.horsFlotte && FP.horsFlotte(v)))
+      .slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''))
+      .filter(v => !nq || ((window.FP && FP.norm) ? FP.norm(`${v.immat} ${v.marque} ${v.modele}`) : `${v.immat} ${v.marque} ${v.modele}`.toLowerCase()).includes(nq));
+    $('rsv-vehs').innerHTML = list.length ? list.map(v => {
+      const on = _rsvSel.v.has(v.id);
+      return `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="rsv-v" data-id="${_escD(v.id)}" ${on ? 'checked' : ''} style="width:16px;height:16px;accent-color:#0f766e"><span class="text-sm">${_escD(v.immat || '?')} · ${_escD(v.marque || '')} ${_escD(v.modele || '')}</span></label>`;
+    }).join('') : '<div class="text-xs text-slate-400 p-2">Aucun véhicule.</div>';
+  }
+  function openRsv() {
+    const c = FP.reservations.getReservablesCfg(); _rsvSel = { g: new Set(c.groupes), v: new Set(c.vehicules) };
+    renderRsvGroupes(); renderRsvVehs(''); if ($('rsv-search')) $('rsv-search').value = '';
+    $('modal-reservables').classList.add('open'); if (window.lucide) lucide.createIcons();
+  }
+  function closeRsv() { $('modal-reservables').classList.remove('open'); }
+  async function saveRsv() {
+    await FP.reservations.setReservablesCfg({ vehicules: [..._rsvSel.v], groupes: [..._rsvSel.g] });
+    closeRsv(); refreshResaConfig();
+    if (FP.toast) FP.toast('✓ Véhicules de réservation mis à jour');
+  }
+  if ($('resa-veh-config')) $('resa-veh-config').addEventListener('click', openRsv);
+  if ($('rsv-close')) $('rsv-close').addEventListener('click', closeRsv);
+  if ($('rsv-cancel')) $('rsv-cancel').addEventListener('click', closeRsv);
+  if ($('rsv-save')) $('rsv-save').addEventListener('click', saveRsv);
+  if ($('rsv-search')) $('rsv-search').addEventListener('input', e => renderRsvVehs(e.target.value));
+  if ($('rsv-groupes')) $('rsv-groupes').addEventListener('click', e => { const b = e.target.closest('.rsv-grp'); if (!b) return; const k = b.getAttribute('data-g'); if (_rsvSel.g.has(k)) _rsvSel.g.delete(k); else _rsvSel.g.add(k); renderRsvGroupes(); });
+  if ($('rsv-vehs')) $('rsv-vehs').addEventListener('change', e => { const c = e.target.closest('.rsv-v'); if (!c) return; const id = c.getAttribute('data-id'); if (c.checked) _rsvSel.v.add(id); else _rsvSel.v.delete(id); });
+  if ($('modal-reservables')) $('modal-reservables').addEventListener('click', e => { if (e.target === $('modal-reservables')) closeRsv(); });
+  if ($('tbody-demandes')) $('tbody-demandes').addEventListener('click', e => {
+    const ok = e.target.closest('[data-demande-ok]'); if (ok) { acceptDemande(ok.dataset.demandeOk); return; }
+    const no = e.target.closest('[data-demande-no]'); if (no) { refuseDemande(no.dataset.demandeNo); return; }
+  });
+
+  // Charge les demandes (table) puis affiche la boîte + la config. best-effort (table absente = inerte).
+  async function loadDemandes() {
+    try { if (window.FP && FP.reservations && FP.reservations.load) await FP.reservations.load(); } catch (e) {}
+    renderDemandes(); refreshResaConfig();
+  }
+  // Lien profond depuis l'alerte « demande de réservation à valider » → on fait défiler jusqu'à la boîte.
+  if (new URLSearchParams(location.search).get('resademande')) setTimeout(() => { const el = $('resa-inbox'); if (el && !el.classList.contains('hidden')) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 400);
+
   load();
   renderResas();
+  loadDemandes();
 
   // ---------- Import / Export CSV ----------
   FP.injectDataIO({
@@ -1067,7 +1260,7 @@
     },
   });
 
-  document.addEventListener('fp:data-ready', () => { fillVehSelect(); render(); renderResas(); });
+  document.addEventListener('fp:data-ready', () => { fillVehSelect(); render(); renderResas(); loadDemandes(); });
 </script>
 </body>
 </html>
