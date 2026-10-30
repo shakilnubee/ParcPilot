@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030c">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -548,8 +548,9 @@
       <summary><i data-lucide="ticket" class="w-5 h-5"></i> Amendes <i data-lucide="chevron-down" class="w-5 h-5 chev"></i></summary>
       <div class="acc-body">
         <div class="man-item"><b>🚗 Véhicule concerné (plaque)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le formulaire d'amende a un champ <b>« Véhicule concerné (plaque) »</b>. Au scan, la <b>plaque lue sur l'avis</b> le remplit automatiquement (c'est la voiture réellement verbalisée). Si l'avis n'a pas de plaque lisible : un conducteur avec <b>un seul</b> véhicule → sa plaque est pré-remplie ; un conducteur avec <b>plusieurs</b> véhicules → l'app te propose de <b>choisir</b> (« X a 2 véhicules : [plaque 1] [plaque 2] »). Résultat : la <b>plaque apparaît dans l'e-mail</b> envoyé au conducteur, même s'il a plusieurs voitures.</div>
-        <div class="man-zone">Les 4 chiffres du haut (sur l'année choisie)</div>
-        <div class="man-item"><b>Total amendes</b> (nombre + montant cumulé), <b>À payer</b> (nombre + euros dus), <b>Payées</b> (nombre + euros réglés), <b>Points retirés</b> (cumul des points de permis perdus).</div>
+        <div class="man-zone">Les compteurs du haut (sur l'année choisie)</div>
+        <div class="man-item"><b>Total amendes</b> (nombre + montant cumulé), <b>À payer</b> (nombre + euros dus), <b>À traiter</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span>, <b>Payées</b> (nombre + euros réglés), <b>Désignées</b> (conducteur désigné, plus à votre charge), <b>Points retirés</b> (cumul des points de permis perdus). <b>Chaque compteur est cliquable</b> et filtre la liste en dessous.</div>
+        <div class="man-item"><b>« À traiter » = amendes à classer</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — ce sont les amendes <b>sans statut clair</b> (importées/scannées mais pas encore marquées <b>à payer, payée, désignée ou contestée</b>). Avant, elles étaient comptées « À payer » par défaut ; maintenant elles ont leur <b>propre compteur</b> pour que rien ne passe à la trappe. But : la carte doit <b>tomber à 0</b> → tu cliques dessus, tu vois la liste, et tu classes chacune. Les 5 statuts (À payer · À traiter · Payée · Désignée · Contestée) sont <b>exclusifs</b> : additionnés, ils font le total — aucune amende n'est oubliée.</div>
 
         <div class="man-zone">Les 3 montants d'un avis</div>
         <div class="man-item">Un avis a 3 tarifs, lus par l'IA au scan : le <b>minoré</b> (paiement rapide, le plus petit), le <b>forfaitaire</b>, le <b>majoré</b> (le plus gros, si on paie en retard). L'app enregistre comme « à payer » le <b>minoré</b> — jamais le majoré. Le majoré ne s'applique que si vous passez l'amende en « majorée ».</div>
@@ -1047,8 +1048,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030b"></script>
-<script src="../assets/js/supabase-client.js?v=20261030b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030c"></script>
+<script src="../assets/js/supabase-client.js?v=20261030c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1064,10 +1065,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030b"></script>
+<script src="../assets/js/app.min.js?v=20261030c"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
