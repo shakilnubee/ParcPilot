@@ -92,11 +92,14 @@
   .cc-stat b { display:block; font-size:1rem; font-weight:900; color:var(--fp-text,#0B1220); font-variant-numeric:tabular-nums; }
   .cc-stat span { font-size:.56rem; text-transform:uppercase; letter-spacing:.05em; color:var(--fp-faint,#94A3B8); font-weight:800; }
   /* Vraie plaque d'immatriculation FR (même design que la fiche) dans les bulles */
-  .cond-cartes .plate { display:inline-flex; align-items:stretch; font-family:'Inter',system-ui,sans-serif; font-weight:800; letter-spacing:1px; color:#0b0b0b; background:#fff; border:2px solid #0b0b0b; border-radius:6px; overflow:hidden; line-height:1; box-shadow:0 3px 8px -5px rgba(0,0,0,.5); }
-  .cond-cartes .plate .eu { background:#1B48C4; color:#fff; font-size:.5rem; font-weight:800; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0 .35rem; }
-  .cond-cartes .plate .eu::before { content:"★★★"; font-size:.36rem; color:#FFD24D; letter-spacing:-1px; line-height:1; }
-  .cond-cartes .plate .num { padding:.28rem .5rem; font-size:.9rem; white-space:nowrap; }
-  .cond-cartes .plate-extra { display:inline-flex; align-items:center; padding:.28rem .5rem; border-radius:6px; background:var(--fp-bg); border:1px solid var(--fp-border); font-weight:800; font-size:.8rem; color:var(--fp-muted); }
+  /* ⚠️ Les cartes/galerie conducteurs sont rendues dans #drivers-grid (pas .cond-cartes) → sans ce
+     sélecteur, le <span class="eu">F</span> de la plaque s'affichait en texte brut (« FGD-056-CR »)
+     au lieu du bandeau bleu UE. On style donc la plaque dans LES DEUX conteneurs. */
+  .cond-cartes .plate, #drivers-grid .plate { display:inline-flex; align-items:stretch; font-family:'Inter',system-ui,sans-serif; font-weight:800; letter-spacing:1px; color:#0b0b0b; background:#fff; border:2px solid #0b0b0b; border-radius:6px; overflow:hidden; line-height:1; box-shadow:0 3px 8px -5px rgba(0,0,0,.5); }
+  .cond-cartes .plate .eu, #drivers-grid .plate .eu { background:#1B48C4; color:#fff; font-size:.5rem; font-weight:800; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0 .35rem; }
+  .cond-cartes .plate .eu::before, #drivers-grid .plate .eu::before { content:"★★★"; font-size:.36rem; color:#FFD24D; letter-spacing:-1px; line-height:1; }
+  .cond-cartes .plate .num, #drivers-grid .plate .num { padding:.28rem .5rem; font-size:.9rem; white-space:nowrap; }
+  .cond-cartes .plate-extra, #drivers-grid .plate-extra { display:inline-flex; align-items:center; padding:.28rem .5rem; border-radius:6px; background:var(--fp-bg); border:1px solid var(--fp-border); font-weight:800; font-size:.8rem; color:var(--fp-muted); }
   /* Une seule stat : amendes (chip coloré) */
   .cc-amende { margin-top:13px; display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:12px; font-weight:700; font-size:.82rem; }
   .cc-amende b { font-size:1.05rem; font-weight:900; font-variant-numeric:tabular-nums; }
