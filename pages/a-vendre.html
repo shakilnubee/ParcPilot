@@ -53,6 +53,18 @@
   .av-btn:disabled { opacity: .55; cursor: not-allowed; }
   body.fp-dark .av-btn { background: #0f1b30; color: #cbd5e1; }
   body.fp-dark .av-btn:hover { background: rgba(249,115,22,.14); }
+  /* Sous-onglets « À vendre / Acheter » (patron ctab de Contrats) */
+  .av-tabbar { display: inline-flex; gap: .25rem; background: var(--fp-bg, #eef2f7); border: 1px solid var(--fp-border); border-radius: .7rem; padding: .25rem; margin-bottom: 1.4rem; }
+  .av-tab { border: none; background: none; cursor: pointer; font-weight: 700; font-size: .9rem; color: var(--fp-muted); padding: .5rem 1.1rem; border-radius: .5rem; display: inline-flex; align-items: center; gap: .4rem; transition: background .12s, color .12s; }
+  .av-tab:hover { color: var(--fp-text); }
+  .av-tab.active { background: var(--fp-surface, #fff); color: var(--fp-primary); box-shadow: var(--fp-shadow, 0 1px 3px rgba(15,30,61,.12)); }
+  body.fp-dark .av-tab.active { background: #1e293b; color: #fff; }
+  .av-tab:focus-visible { outline: 2px solid var(--fp-accent); outline-offset: 2px; }
+  /* Carte d'un dossier d'achat (réutilise .veh-card). Puce de financement. */
+  .ach-fin { display: inline-block; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: .08rem .45rem; border-radius: 9999px; background: #E0E7FF; color: #3730A3; }
+  body.fp-dark .ach-fin { background: rgba(99,102,241,.18); color: #c7d2fe; }
+  .ach-info { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: .6rem; padding: .7rem .9rem; font-size: .82rem; margin-bottom: 1rem; }
+  body.fp-dark .ach-info { background: rgba(217,119,6,.15); color: #fde68a; border-color: rgba(217,119,6,.4); }
 </style>
 <script>
 (function(){
@@ -148,6 +160,13 @@
       </div>
     </div>
 
+    <!-- Sous-onglets : À vendre (existant) / Acheter (nouveau) -->
+    <div class="av-tabbar" role="tablist" aria-label="À vendre ou Acheter">
+      <button type="button" class="av-tab active" id="tab-vente" role="tab" aria-selected="true" aria-controls="sec-vente"><i data-lucide="tag" class="w-4 h-4"></i> À vendre</button>
+      <button type="button" class="av-tab" id="tab-achat" role="tab" aria-selected="false" aria-controls="sec-achat"><i data-lucide="shopping-cart" class="w-4 h-4"></i> Acheter</button>
+    </div>
+
+    <section id="sec-vente" role="tabpanel" aria-labelledby="tab-vente">
     <!-- KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
@@ -172,6 +191,66 @@
     <div class="pipeline" id="pipeline"></div>
 
     <p class="text-xs text-slate-500 mt-6">💡 Astuce : édite le prix visé et le statut directement sur chaque carte. Les modifs sont sauvegardées automatiquement.</p>
+    </section>
+
+    <!-- ===================== ACHETER (suivi d'acquisition) ===================== -->
+    <section id="sec-achat" role="tabpanel" aria-labelledby="tab-achat" hidden>
+      <div class="flex justify-between items-center gap-3 flex-wrap mb-4">
+        <p class="text-slate-500 text-sm">Suivi des acquisitions — du projet d'achat à l'intégration dans la flotte.</p>
+        <button type="button" class="btn btn-primary text-sm" id="btn-new-achat"><i data-lucide="plus" class="w-4 h-4"></i> Nouveau dossier d'achat</button>
+      </div>
+      <div id="achat-info" class="ach-info" hidden></div>
+      <!-- KPIs achat -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
+          <div class="kpi-label">Dossiers en cours</div><div class="kpi-value" id="ach-kpi-encours">—</div>
+        </div><div class="kpi-ic"><i data-lucide="shopping-cart"></i></div></div></div>
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
+          <div class="kpi-label">Montant commandé</div><div class="kpi-value" id="ach-kpi-montant" style="color: var(--fp-accent)">—</div>
+        </div><div class="kpi-ic"><i data-lucide="coins"></i></div></div></div>
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
+          <div class="kpi-label">Acomptes versés</div><div class="kpi-value" id="ach-kpi-acompte">—</div>
+        </div><div class="kpi-ic"><i data-lucide="banknote"></i></div></div></div>
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
+          <div class="kpi-label">À intégrer</div><div class="kpi-value" id="ach-kpi-aintegrer" style="color: var(--fp-ok)">—</div>
+        </div><div class="kpi-ic ok"><i data-lucide="car"></i></div></div></div>
+      </div>
+      <div class="pipeline" id="achat-pipeline"></div>
+      <p class="text-xs text-slate-500 mt-6">💡 Le coût réel du véhicule est porté par la <b>facture d'achat</b> (onglet Factures) — ce dossier sert au <b>suivi</b> de l'acquisition (statut, documents, acompte), sans double-compter.</p>
+    </section>
+
+    <!-- Modale : nouveau / modifier un dossier d'achat -->
+    <div id="achat-modal" class="modal-backdrop" style="display:none;position:fixed;inset:0;z-index:90;background:rgba(15,30,61,.5);align-items:center;justify-content:center;padding:1rem">
+      <div class="modal" style="background:var(--fp-surface,#fff);border-radius:1rem;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem 1.4rem">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-lg" id="achat-modal-title" style="color:var(--fp-text)">Nouveau dossier d'achat</h3>
+          <button type="button" id="achat-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><div class="field-label">Marque</div><input class="field-input w-full" id="ach-marque" placeholder="ex. Renault"></div>
+          <div><div class="field-label">Modèle</div><input class="field-input w-full" id="ach-modele" placeholder="ex. Clio"></div>
+          <div><div class="field-label">Version</div><input class="field-input w-full" id="ach-version" placeholder="ex. TCe 90"></div>
+          <div><div class="field-label">Motorisation</div><input class="field-input w-full" id="ach-motorisation" placeholder="essence / diesel / élec…"></div>
+          <div><div class="field-label">Fournisseur / concession</div><input class="field-input w-full" id="ach-fournisseur" placeholder="ex. Renault Paris 15"></div>
+          <div><div class="field-label">Financement</div>
+            <select class="field-input w-full" id="ach-financement">
+              <option value="">—</option><option value="comptant">Comptant</option><option value="credit">Crédit</option><option value="loa">LOA</option><option value="lld">LLD</option>
+            </select></div>
+          <div><div class="field-label">Prix HT (€)</div><input class="field-input w-full" id="ach-prixht" type="number" min="0" step="0.01" placeholder="ex. 18000"></div>
+          <div><div class="field-label">Prix TTC (€)</div><input class="field-input w-full" id="ach-prixttc" type="number" min="0" step="0.01" placeholder="ex. 21600"></div>
+          <div><div class="field-label">Acompte prévu (€)</div><input class="field-input w-full" id="ach-acompteprevu" type="number" min="0" step="0.01" placeholder="opt."></div>
+          <div><div class="field-label">Date de commande</div><input class="field-input w-full" id="ach-datecommande" type="date"></div>
+          <div><div class="field-label">Livraison prévue</div><input class="field-input w-full" id="ach-datelivprevue" type="date"></div>
+          <div><div class="field-label">Immatriculation (si connue)</div><input class="field-input w-full" id="ach-immat" placeholder="opt."></div>
+        </div>
+        <div class="mt-2"><div class="field-label">Notes</div><textarea class="field-input w-full" id="ach-notes" rows="2" placeholder="opt."></textarea></div>
+        <div id="achat-modal-err" class="ach-info" style="display:none" hidden></div>
+        <div class="flex gap-2 pt-4">
+          <button type="button" class="btn btn-outline flex-1 justify-center" id="achat-cancel">Annuler</button>
+          <button type="button" class="btn btn-primary flex-1 justify-center" id="achat-save"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -457,6 +536,177 @@
       if (!rows.length) { if (FP.toast) FP.toast('Aucun véhicule à vendre à exporter.'); else alert('Aucun véhicule.'); return; }
       FP.fiche.open({ key: 'a-vendre', title: 'Véhicules à vendre', cols: FP.ficheColsFromExport(AV_EXPORT_COLS), rows });
     }); }
+
+  // ===================== ACHETER — suivi d'acquisition (table dossiers_achat) =====================
+  // ⚠️ Dégrade proprement si la table n'existe pas encore côté prod (migration pas appliquée) :
+  // FP.db.select renvoie {data:[],error} → on affiche un bandeau d'info, pas de crash.
+  const ACHAT_STATUTS = [
+    { key: 'projet',            label: 'Projet d\'achat' },
+    { key: 'devis',             label: 'Devis reçu' },
+    { key: 'commande',          label: 'Commande validée' },
+    { key: 'acompte',           label: 'Acompte versé' },
+    { key: 'attente_livraison', label: 'Attente livraison' },
+    { key: 'livre',             label: 'Livré' },
+    { key: 'finalise',          label: 'Finalisé' },
+    { key: 'integre',           label: 'Intégré à la flotte' },
+    { key: 'suspendu',          label: 'Suspendu' },
+    { key: 'annule',            label: 'Annulé' },
+  ];
+  const ACHAT_LABEL = Object.fromEntries(ACHAT_STATUTS.map(s => [s.key, s.label]));
+  const FIN_LABEL = { comptant: 'Comptant', credit: 'Crédit', loa: 'LOA', lld: 'LLD' };
+  let _achats = [], _achatLoaded = false, _achatEditId = null, _achatTableMissing = false;
+
+  const achEsc = (s) => (FP.esc ? FP.esc(s) : String(s == null ? '' : s));
+  const achStatutOf = (d) => { const k = String(d.statut || 'projet'); return ACHAT_LABEL[k] ? k : 'projet'; };
+  const achEnCours = (d) => !['integre', 'annule'].includes(achStatutOf(d));
+
+  async function loadAchats() {
+    if (!(window.FP && FP.db && FP.db.select)) return;
+    try {
+      const res = await FP.db.select('dossiers_achat');
+      if (res && res.error) { _achatTableMissing = true; }
+      _achats = ((res && res.data) || []).filter(d => d && !d.deletedAt);
+      _achatLoaded = true;
+    } catch (e) { _achatTableMissing = true; _achats = []; _achatLoaded = true; }
+    renderAchat();
+  }
+
+  function renderAchatKPIs() {
+    const enCours = _achats.filter(achEnCours);
+    const montant = enCours.reduce((s, d) => s + (Number(d.prixTtc) || 0), 0);
+    const acomptes = _achats.reduce((s, d) => s + (Number(d.acomptePaye) || 0), 0);
+    const aIntegrer = _achats.filter(d => ['livre', 'finalise'].includes(achStatutOf(d))).length;
+    $('ach-kpi-encours').textContent = enCours.length;
+    $('ach-kpi-montant').textContent = FP.euro(montant);
+    $('ach-kpi-acompte').textContent = FP.euro(acomptes);
+    $('ach-kpi-aintegrer').textContent = aIntegrer;
+  }
+
+  function renderAchatPipeline() {
+    const box = $('achat-pipeline'); if (!box) return;
+    const byCol = {}; ACHAT_STATUTS.forEach(s => byCol[s.key] = []);
+    _achats.forEach(d => { (byCol[achStatutOf(d)] || byCol['projet']).push(d); });
+    // On masque les colonnes « Suspendu/Annulé » si vides (bruit visuel), on garde les 8 étapes toujours.
+    const cols = ACHAT_STATUTS.filter(s => !['suspendu', 'annule'].includes(s.key) || byCol[s.key].length);
+    box.innerHTML = cols.map(col => `
+      <div class="pipeline-col">
+        <h3>${achEsc(col.label)} <span class="count">${byCol[col.key].length}</span></h3>
+        ${byCol[col.key].map(d => {
+          const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'Véhicule à définir';
+          const sub = [d.version, d.fournisseur].filter(Boolean).join(' · ');
+          const prix = d.prixTtc ? FP.euroPrecis(d.prixTtc) : (d.prixHt ? FP.euroPrecis(d.prixHt) + ' HT' : '');
+          const fin = d.modeFinancement ? `<span class="ach-fin">${achEsc(FIN_LABEL[d.modeFinancement] || d.modeFinancement)}</span>` : '';
+          const liv = d.dateLivraisonPrevue ? `<div class="text-xs text-slate-500 mt-1">Livraison prévue : ${achEsc(FP.date(d.dateLivraisonPrevue))}</div>` : '';
+          const opts = ACHAT_STATUTS.map(s => `<option value="${s.key}" ${achStatutOf(d) === s.key ? 'selected' : ''}>${achEsc(s.label)}</option>`).join('');
+          return `
+            <div class="veh-card" data-ach="${achEsc(d.id)}">
+              <div class="flex justify-between items-start gap-2 mb-1">
+                <div class="min-w-0"><div class="font-bold text-sm truncate" style="color:var(--fp-text)">${achEsc(titre)}</div>
+                  ${sub ? `<div class="text-xs text-slate-500 truncate">${achEsc(sub)}</div>` : ''}</div>
+                ${prix ? `<span class="price">${achEsc(prix)}</span>` : ''}
+              </div>
+              ${fin}${liv}
+              <select class="status-select ach-statut" data-ach-id="${achEsc(d.id)}" title="Changer l'étape">${opts}</select>
+              <div class="av-actions">
+                <button type="button" class="av-btn ach-edit" data-ach-id="${achEsc(d.id)}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Modifier</button>
+                <button type="button" class="av-btn ach-archive" data-ach-id="${achEsc(d.id)}"><i data-lucide="archive" class="w-3.5 h-3.5"></i> Archiver</button>
+              </div>
+            </div>`;
+        }).join('') || '<p class="text-xs text-slate-400">—</p>'}
+      </div>`).join('');
+    if (window.lucide) try { lucide.createIcons(); } catch (e) {}
+  }
+
+  function renderAchat() {
+    const info = $('achat-info');
+    if (info) {
+      if (_achatTableMissing) { info.hidden = false; info.innerHTML = '⏳ Module « Acheter » en cours d\'activation : la base n\'est pas encore prête sur cet environnement (migration à appliquer). La création sera possible dès l\'activation.'; }
+      else { info.hidden = true; }
+    }
+    renderAchatKPIs();
+    renderAchatPipeline();
+  }
+
+  // ---- Bascule des sous-onglets ----
+  function showTab(which) {
+    const vente = which !== 'achat';
+    $('sec-vente').hidden = vente ? false : true;
+    $('sec-achat').hidden = vente ? true : false;
+    $('tab-vente').classList.toggle('active', vente); $('tab-vente').setAttribute('aria-selected', vente ? 'true' : 'false');
+    $('tab-achat').classList.toggle('active', !vente); $('tab-achat').setAttribute('aria-selected', !vente ? 'true' : 'false');
+    if (!vente && !_achatLoaded) loadAchats();
+  }
+  $('tab-vente').addEventListener('click', () => showTab('vente'));
+  $('tab-achat').addEventListener('click', () => showTab('achat'));
+  try { const h = (location.hash || '').replace('#', ''); const q = new URLSearchParams(location.search); if (h === 'achat' || q.get('tab') === 'achat') showTab('achat'); } catch (e) {}
+
+  // ---- Modale création / modification ----
+  const ACH_FIELDS = { marque: 'ach-marque', modele: 'ach-modele', version: 'ach-version', motorisation: 'ach-motorisation', fournisseur: 'ach-fournisseur', modeFinancement: 'ach-financement', prixHt: 'ach-prixht', prixTtc: 'ach-prixttc', acomptePrevu: 'ach-acompteprevu', dateCommande: 'ach-datecommande', dateLivraisonPrevue: 'ach-datelivprevue', immat: 'ach-immat', notes: 'ach-notes' };
+  function openAchatModal(d) {
+    _achatEditId = d ? d.id : null;
+    $('achat-modal-title').textContent = d ? 'Modifier le dossier d\'achat' : 'Nouveau dossier d\'achat';
+    Object.entries(ACH_FIELDS).forEach(([k, id]) => { const el = $(id); if (el) el.value = d && d[k] != null ? d[k] : ''; });
+    const err = $('achat-modal-err'); if (err) { err.style.display = 'none'; err.hidden = true; }
+    $('achat-modal').style.display = 'flex';
+    setTimeout(() => { try { $('ach-marque').focus(); } catch (e) {} }, 50);
+    if (window.lucide) try { lucide.createIcons(); } catch (e) {}
+  }
+  function closeAchatModal() { $('achat-modal').style.display = 'none'; _achatEditId = null; }
+  $('btn-new-achat').addEventListener('click', () => openAchatModal(null));
+  $('achat-close').addEventListener('click', closeAchatModal);
+  $('achat-cancel').addEventListener('click', closeAchatModal);
+  $('achat-modal').addEventListener('click', (e) => { if (e.target.id === 'achat-modal') closeAchatModal(); });
+
+  $('achat-save').addEventListener('click', async () => {
+    if (!(window.FP && FP.db && FP.db.insert)) return;
+    const val = (id) => { const el = $(id); return el ? el.value.trim() : ''; };
+    const num = (id) => { const v = val(id); return v === '' ? null : (Number(v.replace(',', '.')) || null); };
+    const rec = {
+      marque: val('ach-marque'), modele: val('ach-modele'), version: val('ach-version'), motorisation: val('ach-motorisation'),
+      fournisseur: val('ach-fournisseur'), modeFinancement: val('ach-financement'),
+      prixHt: num('ach-prixht'), prixTtc: num('ach-prixttc'), acomptePrevu: num('ach-acompteprevu'),
+      dateCommande: val('ach-datecommande') || null, dateLivraisonPrevue: val('ach-datelivprevue') || null,
+      immat: val('ach-immat'), notes: val('ach-notes'),
+    };
+    if (!rec.marque && !rec.modele && !rec.fournisseur) { const err = $('achat-modal-err'); if (err) { err.hidden = false; err.style.display = 'block'; err.textContent = 'Renseigne au moins la marque, le modèle ou le fournisseur.'; } return; }
+    const btn = $('achat-save'); btn.disabled = true;
+    try {
+      if (_achatEditId) {
+        const res = await FP.db.update('dossiers_achat', _achatEditId, rec); if (res && res.error) throw res.error;
+        const d = _achats.find(x => x.id === _achatEditId); if (d) Object.assign(d, rec);
+      } else {
+        const id = 'ACH-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        const row = Object.assign({ id: id, statut: 'projet' }, rec);
+        const res = await FP.db.insert('dossiers_achat', row); if (res && res.error) throw res.error;
+        _achats.push(row);
+      }
+      closeAchatModal(); renderAchat();
+      if (FP.toast) FP.toast('Dossier d\'achat enregistré.');
+    } catch (e) {
+      const err = $('achat-modal-err'); if (err) { err.hidden = false; err.style.display = 'block'; err.textContent = 'Échec de l\'enregistrement — ' + (_achatTableMissing ? 'module pas encore activé sur cet environnement.' : ((e && e.message) || 'réessaie.')); }
+    } finally { btn.disabled = false; }
+  });
+
+  // ---- Changement d'étape + modifier + archiver (délégation) ----
+  $('achat-pipeline').addEventListener('change', async (e) => {
+    const sel = e.target.closest('.ach-statut'); if (!sel) return;
+    const id = sel.getAttribute('data-ach-id'); const d = _achats.find(x => x.id === id); if (!d) return;
+    const prev = d.statut; d.statut = sel.value;
+    try { const res = await FP.db.update('dossiers_achat', id, { statut: d.statut }); if (res && res.error) throw res.error; renderAchat(); }
+    catch (err) { d.statut = prev; if (FP.notifyError) FP.notifyError('Échec — réessaie.'); renderAchat(); }
+  });
+  $('achat-pipeline').addEventListener('click', async (e) => {
+    const ed = e.target.closest('.ach-edit');
+    if (ed) { const d = _achats.find(x => x.id === ed.getAttribute('data-ach-id')); if (d) openAchatModal(d); return; }
+    const ar = e.target.closest('.ach-archive');
+    if (ar) {
+      const id = ar.getAttribute('data-ach-id'); const d = _achats.find(x => x.id === id); if (!d) return;
+      const ok = FP.confirm ? await FP.confirm('Archiver ce dossier d\'achat ?') : confirm('Archiver ce dossier d\'achat ?');
+      if (!ok) return;
+      try { const res = await FP.db.update('dossiers_achat', id, { deletedAt: new Date().toISOString() }); if (res && res.error) throw res.error; _achats = _achats.filter(x => x.id !== id); renderAchat(); if (FP.toast) FP.toast('Dossier archivé.'); }
+      catch (err) { if (FP.notifyError) FP.notifyError('Échec de l\'archivage — réessaie.'); }
+    }
+  });
 </script>
 </body>
 </html>
