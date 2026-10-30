@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030m">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030n">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030m"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030n"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030m">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030n">
 <style>
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
   .pipeline-col { background: #F8FAFC; border-radius: .85rem; padding: 1rem; min-height: 200px; }
@@ -250,15 +250,15 @@
         <div id="achat-modal-err" class="ach-info" style="display:none" hidden></div>
         <div class="flex gap-2 pt-4">
           <button type="button" class="btn btn-outline flex-1 justify-center" id="achat-cancel">Annuler</button>
-          <button type="button" class="btn btn-primary flex-1 justify-center" id="achat-save"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
+          <button type="button" class="btn btn-dark flex-1 justify-center" id="achat-save"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
         </div>
       </div>
     </div>
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030m"></script>
-<script src="../assets/js/supabase-client.js?v=20261030m"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030n"></script>
+<script src="../assets/js/supabase-client.js?v=20261030n"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -274,10 +274,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030n"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030m"></script>
+<script src="../assets/js/app.min.js?v=20261030n"></script>
 <script>
   lucide.createIcons();
   FP.loadVehicleOverrides();
