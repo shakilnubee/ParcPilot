@@ -1879,6 +1879,19 @@ FP.estAPayer = (a) => { const s = ((a && a.statut) || '').toString().trim().toLo
 // ⚠️ HELPER CANONIQUE — amende « payée » (symétrique de estAPayer, tolérant accents/casse) : « payée »,
 // « payee », « Payé »… tous reconnus. À utiliser partout au lieu de statut === 'payée' (sinon totaux faux).
 FP.estPayee = (a) => { const s = ((a && a.statut) || '').toString().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return s === 'payee' || s === 'paye'; };
+// ⚠️ HELPER CANONIQUE — classe une amende dans UN seul « panier » de statut (tolérant accents/casse) :
+//   'payee' | 'apayer' | 'designee' | 'contestee' | 'atraiter'.
+// « atraiter » = aucun statut clair (vide/inconnu) → amende importée mais pas encore classée (à payer /
+// désigner / contester). Les 5 paniers sont EXCLUSIFS et EXHAUSTIFS : leur somme = le total des amendes,
+// donc aucune amende ne « disparaît » des compteurs. Source unique pour KPI, chips et filtres.
+FP.amendeStatut = (a) => {
+  if (FP.estPayee(a)) return 'payee';
+  if (FP.estAPayer(a)) return 'apayer';
+  const s = ((a && a.statut) || '').toString().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (s === 'designee') return 'designee';
+  if (s === 'contestee') return 'contestee';
+  return 'atraiter';
+};
 // ⚠️ HELPER CANONIQUE — plaque d'une amende. L'amende NE STOCKE PAS de plaque : elle est liée au
 // CONDUCTEUR (prenom). On renvoie donc, dans l'ordre : un champ plaque explicite s'il existe, sinon la
 // plaque du véhicule du conducteur — UNIQUEMENT si UN SEUL véhicule (non vendu) correspond (sinon on

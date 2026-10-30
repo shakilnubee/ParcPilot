@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030c">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -227,7 +227,7 @@
     </div>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
       <div class="kpi kpi-link" id="kpi-card-total" title="Voir toutes les amendes"><div class="flex justify-between items-start gap-2"><div>
         <div class="kpi-label">Total amendes</div>
         <div class="kpi-value" id="kpi-total">—</div>
@@ -238,6 +238,11 @@
         <div class="kpi-value" id="kpi-apayer" style="color: var(--fp-danger)">—</div>
         <div class="kpi-delta" id="kpi-apayer-montant" style="color: var(--fp-danger)">—</div>
       </div><div class="kpi-ic danger"><i data-lucide="alert-circle"></i></div></div></div>
+      <div class="kpi kpi-link" id="kpi-card-atraiter" title="Amendes sans statut clair — à classer (payer / désigner / contester)"><div class="flex justify-between items-start gap-2"><div>
+        <div class="kpi-label">À traiter</div>
+        <div class="kpi-value" id="kpi-atraiter" style="color:#B45309">—</div>
+        <div class="kpi-delta" id="kpi-atraiter-sub">à classer</div>
+      </div><div class="kpi-ic" style="background:#FEF3C7;color:#B45309"><i data-lucide="inbox"></i></div></div></div>
       <div class="kpi kpi-link" id="kpi-card-payees" title="Voir les amendes payées"><div class="flex justify-between items-start gap-2"><div>
         <div class="kpi-label">Payées</div>
         <div class="kpi-value" id="kpi-payees" style="color: var(--fp-ok)">—</div>
@@ -288,6 +293,7 @@
         <div class="flex flex-wrap gap-2" id="filters-statut">
           <button class="filter-chip active" data-value="all">Toutes</button>
           <button class="filter-chip" data-value="à payer">À payer</button>
+          <button class="filter-chip" data-value="à traiter">À traiter</button>
           <button class="filter-chip" data-value="payée">Payées</button>
           <button class="filter-chip" data-value="désignée">Désignées</button>
           <button class="filter-chip" data-value="contestée">Contestées</button>
@@ -531,8 +537,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030b"></script>
-<script src="../assets/js/supabase-client.js?v=20261030b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030c"></script>
+<script src="../assets/js/supabase-client.js?v=20261030c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -548,12 +554,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261030b"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261030b" defer></script>
+<script src="../assets/js/app.min.js?v=20261030c"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261030c" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -763,13 +769,16 @@
   }
 
   function statutBadge(s) {
-    // Source unique : mêmes helpers tolérants (accents/casse/espaces) que le reste de l'app,
-    // sinon un statut « payee »/« paye » retombait à tort sur « À payer ».
-    const n = (s == null ? '' : String(s)).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    if ((FP.estPayee && FP.estPayee({ statut: s })) || n === 'payee' || n === 'paye') return '<span class="badge badge-ok">Payée</span>';
-    if (n === 'designee')  return '<span class="badge" style="background:#E0E7FF;color:#3730A3">Désignée</span>';
-    if (n === 'contestee') return '<span class="badge badge-info">Contestée</span>';
-    return '<span class="badge badge-danger">À payer</span>';
+    // SOURCE UNIQUE FP.amendeStatut (mêmes paniers que KPI + puces + filtres) → le badge affiché
+    // correspond EXACTEMENT au compteur qui l'englobe. Un statut vide/inconnu = « À traiter » (plus
+    // affiché « À payer » par défaut, ce qui faussait la lecture).
+    switch (FP.amendeStatut ? FP.amendeStatut({ statut: s }) : '') {
+      case 'payee':     return '<span class="badge badge-ok">Payée</span>';
+      case 'designee':  return '<span class="badge" style="background:#E0E7FF;color:#3730A3">Désignée</span>';
+      case 'contestee': return '<span class="badge badge-info">Contestée</span>';
+      case 'apayer':    return '<span class="badge badge-danger">À payer</span>';
+      default:          return '<span class="badge" style="background:#FEF3C7;color:#B45309">À traiter</span>';
+    }
   }
 
   // Populate motif filter dynamically — reconstruit aussi au chargement Supabase
@@ -800,8 +809,11 @@
       // Filtre par statut (tolérant casse/accents via les helpers — sinon une amende « À payer »
       // majuscule est comptée par le KPI mais ratée par la puce → compteurs qui divergent).
       if (state.statut !== 'all') {
-        if (state.statut === 'à payer') { if (!FP.estAPayer(a)) return false; }
-        else if (state.statut === 'payée') { if (!FP.estPayee(a)) return false; }
+        // SOURCE UNIQUE FP.amendeStatut (paniers exclusifs/exhaustifs) → la puce montre EXACTEMENT
+        // les mêmes amendes que le KPI du même nom (plus de divergence casse/accents/statut vide).
+        const B = { 'à payer': 'apayer', 'à traiter': 'atraiter', 'payée': 'payee', 'désignée': 'designee', 'contestée': 'contestee' };
+        const want = B[state.statut];
+        if (want) { if (FP.amendeStatut(a) !== want) return false; }
         else if (a.statut !== state.statut) return false;
       }
       if (state.onlyPoints && !((Number(a.points) || 0) > 0)) return false;
@@ -820,11 +832,14 @@
   function renderKPIs() {
     // KPIs sur l'année sélectionnée (ou toutes années)
     const all = (state.annee === 'all') ? data.amendes.slice() : data.amendes.filter(a => anneeOf(a) === state.annee);
-    const apayer = all.filter(a => FP.estAPayer(a));
-    const payees = all.filter(a => FP.estPayee(a));
-    // Désignées = conducteur désigné confirmé (statut « désignée », comparé de façon tolérante accents/casse).
-    // Une désignée n'est NI « à payer » NI « payée » → sans ce compteur, elle n'apparaissait dans aucun KPI.
-    const designees = all.filter(a => String(a.statut || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim() === 'designee');
+    // SOURCE UNIQUE FP.amendeStatut : 5 paniers exclusifs et exhaustifs (apayer+payee+designee+
+    // contestee+atraiter = total) → aucune amende n'échappe aux compteurs, et KPI = puces = filtres.
+    const apayer = all.filter(a => FP.amendeStatut(a) === 'apayer');
+    const payees = all.filter(a => FP.amendeStatut(a) === 'payee');
+    // Désignées = conducteur désigné confirmé (n'est NI à payer NI payée).
+    const designees = all.filter(a => FP.amendeStatut(a) === 'designee');
+    // À traiter = sans statut clair (vide/inconnu) → à classer (payer / désigner / contester).
+    const atraiter = all.filter(a => FP.amendeStatut(a) === 'atraiter');
     const points = all.reduce((s, a) => s + (Number(a.points) || 0), 0);
     const montantApayer = apayer.reduce((s,a) => s + montantDu(a), 0);
     const montantPayees = payees.reduce((s,a) => s + montantDu(a), 0);
@@ -837,6 +852,8 @@
     $('kpi-payees-montant').textContent = FP.euro(montantPayees) + ' réglés';
     { const d = $('kpi-designees'); if (d) d.textContent = designees.length; }
     { const ds = $('kpi-designees-sub'); if (ds) ds.textContent = designees.length ? FP.euro(designees.reduce((s, a) => s + montantDu(a), 0)) + ' (non dus)' : 'conducteur désigné'; }
+    { const t = $('kpi-atraiter'); if (t) t.textContent = atraiter.length; }
+    { const ts = $('kpi-atraiter-sub'); if (ts) ts.textContent = atraiter.length ? 'à classer (payer / désigner)' : 'tout est classé ✓'; }
     $('kpi-points').textContent = points;
   }
 
@@ -3086,6 +3103,7 @@
   }
   { const c = $('kpi-card-total');  if (c) c.addEventListener('click', () => applyKpiFilter('all', false)); }
   { const c = $('kpi-card-apayer'); if (c) c.addEventListener('click', () => applyKpiFilter('à payer', false)); }
+  { const c = $('kpi-card-atraiter'); if (c) c.addEventListener('click', () => applyKpiFilter('à traiter', false)); }
   { const c = $('kpi-card-payees'); if (c) c.addEventListener('click', () => applyKpiFilter('payée', false)); }
   { const c = $('kpi-card-designees'); if (c) c.addEventListener('click', () => applyKpiFilter('désignée', false)); }
   { const c = $('kpi-card-points'); if (c) c.addEventListener('click', () => applyKpiFilter('all', true)); }
