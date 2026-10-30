@@ -1498,13 +1498,24 @@ body:not(.fp-dark) .fp-table tbody tr:hover { background: color-mix(in srgb, var
    (bug corrigé : fenêtres d'édition qui paraissaient non stylées). Le focus/dark sont gérés ci-dessous. */
 .field-input {
   border: 1px solid var(--fp-border);
-  border-radius: .6rem;
-  padding: .5rem .7rem;
+  border-radius: .55rem;            /* aligné sur la référence (modale « Nouveau véhicule ») */
+  padding: .6rem .8rem;             /* idem réf PJ3 — champs un peu plus confortables, cohérents partout */
   font-size: .9rem;
-  background: #fff;
-  color: var(--fp-primary, #0F1E3D);
+  background: var(--fp-surface, #fff);  /* var → suit le thème (sombre) au lieu d'un blanc fixe */
+  color: var(--fp-text, #111A2B);
   line-height: 1.3;
   transition: border-color .12s, box-shadow .12s;
+}
+/* Libellé de champ standard (au-dessus du champ) — SOURCE UNIQUE globale (certaines pages le
+   redéfinissaient localement ; cette base évite les champs « sans libellé stylé » ailleurs). */
+.field-label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--fp-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: .35rem;
 }
 
 /* Champs de saisie : halo d'accent doux au focus (cohérent partout) */
