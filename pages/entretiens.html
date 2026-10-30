@@ -652,11 +652,14 @@
 
   function renderKPIs() {
     const rows = filtered();
-    // Coût = factures DÉDOUBLONNÉES (n° + TTC) — même règle que le dashboard/les fiches, sinon un doublon
-    // gonflait le total d'entretien. Le compteur, lui, garde le nombre de lignes réelles.
-    const total = (FP.dedupeFactures ? FP.dedupeFactures(rows) : rows).reduce((s,i) => s + (i.montantTTC || 0), 0);
-    $('kpi-total').textContent = rows.length;
-    { const sub = $('kpi-total-sub'); if (sub) sub.textContent = (state.annee && state.annee !== 'all') ? ('année ' + state.annee) : 'toutes années'; }
+    // Coût ET compteur sur les factures DÉDOUBLONNÉES (n° + TTC) — même règle que le dashboard/les fiches.
+    // Avant, le compteur gardait les lignes brutes → un doublon gonflait « Total interventions » alors que
+    // le coût, lui, était déjà dédoublonné (incohérence). On aligne les deux + on signale les doublons.
+    const ded = FP.dedupeFactures ? FP.dedupeFactures(rows) : rows;
+    const total = ded.reduce((s,i) => s + (i.montantTTC || 0), 0);
+    const dup = rows.length - ded.length;
+    $('kpi-total').textContent = ded.length;
+    { const sub = $('kpi-total-sub'); if (sub) sub.textContent = ((state.annee && state.annee !== 'all') ? ('année ' + state.annee) : 'toutes années') + (dup > 0 ? ' · ' + dup + ' doublon' + (dup > 1 ? 's' : '') + ' ignoré' + (dup > 1 ? 's' : '') : ''); }
     $('kpi-cout').textContent = FP.euro(total);
 
     // CT échéances depuis vehicules — anticipation = réglage `ctJours` (source unique, comme Alertes),
