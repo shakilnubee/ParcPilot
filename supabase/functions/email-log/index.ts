@@ -59,7 +59,12 @@ Deno.serve(async (req) => {
     const rows = pr.ok ? (await pr.json().catch(() => [])) : [];
     const prof = Array.isArray(rows) ? rows[0] : null;
     const role = String((prof && prof.role) || "").toLowerCase();
-    if (role !== "ceo") return json({ error: "Réservé au CEO." }, 403);
+    // CEO = définition CANONIQUE de la plateforme : is_admin === true (= super-admin), OU role 'ceo'.
+    // ⚠️ Avant, on exigeait role === 'ceo' STRICT → un vrai CEO dont le profil a is_admin=true mais role
+    //    non renseigné (cas réel) était refusé « Réservé au CEO » alors que le client le voit bien en CEO
+    //    (FP.role : is_admin===true ⇒ 'ceo'). On aligne le serveur sur le client (une seule source de vérité).
+    const isCeo = role === "ceo" || (prof && prof.is_admin === true);
+    if (!isCeo) return json({ error: "Réservé au CEO." }, 403);
   } catch (_) { return json({ error: "Vérification du rôle impossible." }, 403); }
 
   // 3) Liste Resend (lecture seule). limit 1..100.
