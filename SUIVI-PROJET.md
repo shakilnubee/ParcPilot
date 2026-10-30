@@ -1,7 +1,9 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **30/10/2026** (module « Acheter » — migration `dossiers_achat` ajoutée : testée sur staging, **pas encore appliquée en production**)
+> Dernière mise à jour : **30/10/2026** (réservation de véhicules — portail public `reserver.html` + gestion in-app dans Emprunt véhicule ; migration `reservations` testée sur staging, **pas encore appliquée en production**. Module « Acheter » : migration `dossiers_achat` également en attente de production.)
+>
+> ⚠️ **Deux migrations testées sur staging restent À APPLIQUER EN PRODUCTION (avec accord + sauvegarde)** : `dossiers_achat` (module Acheter) et `reservations` (réservation de véhicules). Tant qu'elles ne sont pas appliquées, ces deux fonctionnalités restent **inertes** en production (l'interface se dégrade proprement, aucune erreur visible).
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -53,6 +55,13 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 ---
 
 ## 5. Journal des réalisations
+
+### 30/10/2026 — Réservation de véhicules par lien public (Phases 3A/3B/3C) 🟡 (prête, testée sur staging, pas encore en production)
+Nouvelle fonctionnalité : un **collègue sans compte Parc Pilot** peut demander à réserver un véhicule via un **lien sécurisé** partagé par le gestionnaire, qui accepte ou refuse la demande depuis l'application.
+- **3A** — table `reservations` (1 réservation = 1 ligne, isolation par société via RLS, pas de policy anonyme) + helper `FP.vehDispo` (disponibilité d'un véhicule). Migration **testée sur staging**.
+- **3B** — **portail public** : page `reserver.html` (sans compte, 3 étapes : dates → véhicules disponibles → coordonnées) + fonction serveur `reservation` (service_role, protégée par un token société secret ; disponibilité vérifiée **côté serveur** ; prévient le gestionnaire par notification + e-mail et confirme au demandeur).
+- **3C** — **gestion in-app** (Emprunt véhicule) : génération/partage du lien, choix des **véhicules proposés** (par défaut aucun — exposition volontaire), **boîte de réception** des demandes (Accepter → réservation ajoutée à la liste existante + e-mail ; Refuser → e-mail), alerte « demandes à valider ». Une **seule source** par état (demandes en attente dans la table, réservations confirmées dans la liste existante). Disponibilité du portail **exhaustive** : réservations + emprunts en cours + statut + immobilisation.
+- ⚠️ **Inerte en production** tant que la migration `reservations` n'y est pas appliquée (en attente d'accord + sauvegarde).
 
 ### 26/10/2026 — Audit profond #3 (angle complémentaire) : 13 correctifs
 Troisième passe, **angle différent** des 2 premières (par PAGE et par FLUX bout-en-bout + domaines non encore tracés : performance/volumétrie, dates/échéances, imports/robustesse, automatisations, PWA/accessibilité). Verdict d'ensemble inchangé : plateforme **solide**. **13 correctifs** :
