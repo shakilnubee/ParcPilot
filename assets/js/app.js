@@ -7841,7 +7841,7 @@ FP.DEFAULT_NAV_LABELS = {
   'taches.html':       'Tâches',
   'statistiques.html': 'Statistiques',
   'vehicules.html':    'Véhicules',
-  'a-vendre.html':     'À vendre',
+  'a-vendre.html':     'Achat & vente',
   'emprunts.html':     'Emprunt véhicule',
   'conducteurs.html':  'Conducteurs',
   'amendes.html':      'Amendes',
@@ -8348,8 +8348,15 @@ FP.injectManualButton = function () {
 };
 try { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', FP.injectManualButton); else FP.injectManualButton(); } catch (e) {}
 
-// Active le glisser-déposer des onglets directement dans le menu de gauche (toutes pages)
+// ⚠️ SIDEBAR FIGÉE (demande utilisateur) : le glisser-déposer des onglets DIRECTEMENT dans le menu
+// de gauche est DÉSACTIVÉ. L'ordre des onglets se règle désormais UNIQUEMENT, et volontairement, dans
+// Paramètres → « Onglets ». On neutralise la fonction (no-op) pour que la sidebar ne soit plus
+// réorganisable à la souris sur AUCUNE page, et on retire tout attribut draggable déjà posé.
 FP.enableNavReorder = () => {
+  try { document.querySelectorAll('aside nav a[data-nav][draggable="true"]').forEach(a => a.removeAttribute('draggable')); } catch (e) {}
+};
+// Ancienne implémentation (conservée pour mémoire, inactive) :
+FP._enableNavReorderLegacy = () => {
   document.querySelectorAll('aside nav').forEach(nav => {
     if (nav.dataset.reorderable === '1') return; // évite double init
     nav.dataset.reorderable = '1';
