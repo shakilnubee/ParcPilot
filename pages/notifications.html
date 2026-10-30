@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030m">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030n">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030m"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030n"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030m">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030n">
 <style>
   .notif { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--fp-border); background: var(--fp-surface, #fff); text-decoration: none; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; box-shadow: 0 1px 2px rgba(15,30,61,.04); }
   .notif + .notif { margin-top: .55rem; }
@@ -161,8 +161,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030m"></script>
-<script src="../assets/js/supabase-client.js?v=20261030m"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030n"></script>
+<script src="../assets/js/supabase-client.js?v=20261030n"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -178,11 +178,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030n"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261030m"></script>
+<script src="../assets/js/app.min.js?v=20261030n"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1792,7 +1792,7 @@
       <p class="text-xs text-slate-500 mb-3">Créez une colonne de suivi <b>que vous cochez vous-même</b> (ex. « Gilet + triangle », « Vignette Crit'Air », « Kit mains-libres »). Elle apparaîtra pour tous les véhicules, en « à faire » tant que vous ne la cochez pas.</p>
       <div class="flex gap-2 mb-3">
         <input id="suivi-addcol-input" type="text" maxlength="40" placeholder="Nom de la colonne…" style="flex:1;border:1px solid var(--fp-border);border-radius:10px;padding:10px 12px;font-size:14px">
-        <button type="button" id="suivi-addcol-go" class="btn btn-primary text-sm" style="font-weight:800">Ajouter</button>
+        <button type="button" id="suivi-addcol-go" class="btn btn-dark text-sm" style="font-weight:800">Ajouter</button>
       </div>
       ${perso.length ? `<div class="text-xs font-bold text-slate-400 mb-1">Vos colonnes</div><div id="suivi-addcol-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">${perso.map(c => `<div class="flex items-center justify-between" style="background:#F1F5F9;border-radius:9px;padding:7px 11px"><span style="font-weight:700;font-size:13px">${c.emo} ${FP.esc(c.label)}</span><button type="button" class="suivi-addcol-del" data-id="${FP.esc(c.id)}" title="Supprimer" style="background:none;border:none;color:#B91C1C;font-weight:800;cursor:pointer;font-size:14px">✕</button></div>`).join('')}</div>` : ''}
       <div class="flex justify-end"><button type="button" id="suivi-addcol-close" class="btn btn-outline text-sm">Fermer</button></div>
@@ -1903,7 +1903,7 @@
         <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
           <span class="text-xs text-slate-400" title="Canaux disponibles">${chans}</span>
           <button type="button" class="rel-ign btn btn-outline text-xs" data-relign="${FP.esc(it.ignKey || '')}" data-rellabel="${FP.esc((it.immat || '') + ' · ' + ((tm.label) || it.type))}" title="Ignorer ce rappel — il ne comptera plus (réaffichable en bas de la liste)">Ignorer</button>
-          <button type="button" class="rel-send btn btn-primary text-xs" data-i="${it.__i}" style="font-weight:800">Relancer</button>
+          <button type="button" class="rel-send btn btn-dark text-xs" data-i="${it.__i}" style="font-weight:800">Relancer</button>
         </span>
       </div>`;
     };
