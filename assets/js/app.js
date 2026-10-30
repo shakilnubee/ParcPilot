@@ -1873,6 +1873,85 @@ FP.facturesZipList = async function (list, opts) {
     if (busy) busy.done(msg); else if (FP.toast) FP.toast(msg);
   } catch (e) { const m = 'Erreur lors de la création du ZIP : ' + (e && e.message || e); if (busy) busy.fail(m); else alert(m); }
 };
+// ⚠️ HELPER CANONIQUE — TÉLÉCHARGEMENT GROUPÉ EN ZIP (sélecteur « cochés sinon filtrés » + récap + ZIP).
+// Réutilisable par TOUT écran qui propose un téléchargement en lot (amendes → avis, documents, sinistres…).
+// Même logique de sélection partout : s'il y a une SÉLECTION cochée on prend celle-ci, sinon TOUT ce qui
+// correspond aux FILTRES de l'écran (hors pagination) — « tout coché par défaut ». Un récap clair demande
+// confirmation avant de télécharger. Même moteur de récupération que les factures : fichier Storage (signé)
+// = inclus ; Google Drive = listé dans liens-Drive.txt (le navigateur ne peut pas le mettre dans le ZIP) ;
+// aucun fichier = noté. Jamais deux fois le même fichier (dédoublonnage par URL).
+// opts : { filtered[] (requis), selected[], urlOf(it) (requis), nameOf(it) (requis), folderOf(it),
+//          rowOf(it)+csvHeader[] (rapport CSV), dedupe(list), noun, nounPlural, name, confirm=true }
+FP.bulkDownload = async function (opts) {
+  opts = opts || {};
+  const esc0 = (x) => String(x == null ? '' : x);
+  let liste = (Array.isArray(opts.selected) && opts.selected.length) ? opts.selected.slice()
+            : (Array.isArray(opts.filtered) ? opts.filtered.slice() : []);
+  const coché = (Array.isArray(opts.selected) && opts.selected.length);
+  if (typeof opts.dedupe === 'function') { try { liste = opts.dedupe(liste) || liste; } catch (e) {} }
+  liste = liste.filter(Boolean);
+  const noun = opts.noun || 'fichier', nounP = opts.nounPlural || (noun + 's');
+  if (!liste.length) { if (FP.toast) FP.toast('Rien à télécharger (ajuste les filtres ou la sélection).'); return; }
+  const urlOf = typeof opts.urlOf === 'function' ? opts.urlOf : (() => '');
+  const isDrive = (u, it) => /drive\.google\.com/.test(u) || (it && it.fileId && !/^https?:/i.test(it.fileId) && !/^IMP-/i.test(it.fileId));
+  // Pré-comptage pour un récap honnête (disponible = fichier récupérable ; Drive/aucun = à part).
+  let dispo = 0;
+  liste.forEach(it => { const u = urlOf(it) || ''; if (u && !isDrive(u, it)) dispo++; });
+  const manquants = liste.length - dispo;
+  const quoi = coché ? (liste.length + ' ' + (liste.length > 1 ? nounP : noun) + ' coché' + (liste.length > 1 ? 's' : ''))
+                     : (liste.length + ' ' + (liste.length > 1 ? nounP : noun) + ' filtré' + (liste.length > 1 ? 's' : ''));
+  const recap = quoi + '\n' + dispo + ' fichier(s) disponible(s)'
+    + (manquants ? ' · ' + manquants + ' sans fichier téléchargeable (listé(s) dans le rapport)' : '')
+    + '\n\nTélécharger ' + dispo + ' fichier(s) en ZIP ?';
+  if (opts.confirm !== false) { const ok = FP.confirm ? await FP.confirm(recap) : window.confirm(recap); if (!ok) return; }
+  const busy = FP.busy ? FP.busy('Préparation… 0/' + liste.length) : null;
+  try {
+    if (!window.JSZip && FP.ocr && FP.ocr.loadScript) { try { await FP.ocr.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'); } catch (e) {} }
+    if (!window.JSZip) { const m = 'Téléchargement ZIP indisponible (connexion requise).'; if (busy) busy.fail(m); else alert(m); return; }
+    const clean = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w .\-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 70);
+    const zip = new window.JSZip(), used = {}, seenFile = {};
+    let inc = 0, fail = 0, nofile = 0; const drive = [];
+    const hasCsv = Array.isArray(opts.csvHeader) && typeof opts.rowOf === 'function';
+    const rows = hasCsv ? [opts.csvHeader.slice()] : null;
+    for (let i = 0; i < liste.length; i++) {
+      const it = liste[i];
+      if (busy) busy.update('Préparation… ' + (i + 1) + '/' + liste.length);
+      const folder = opts.folderOf ? (clean(opts.folderOf(it)) || '') : '';
+      const base = (clean(opts.nameOf ? opts.nameOf(it) : '') || (noun + '-' + (i + 1)));
+      const url = urlOf(it) || '';
+      const isStore = /\/storage\/v1\/object\//.test(url) || /supabase\.co/.test(url);
+      let fileCol = '', motif = '';
+      if (url && !isDrive(url, it)) {
+        if (seenFile[url]) { fileCol = '(déjà inclus)'; motif = 'doublon de fichier'; }
+        else try {
+          const signed = (isStore && FP.signedScanUrl) ? (await FP.signedScanUrl(url, 600)) : url;
+          const resp = await fetch(signed || url); if (!resp.ok) throw new Error('http ' + resp.status);
+          const blob = await resp.blob();
+          const ext = /pdf/i.test(blob.type) ? '.pdf' : (/jpe?g/i.test(blob.type) ? '.jpg' : (/png/i.test(blob.type) ? '.png' : '.pdf'));
+          const dir = folder ? (folder + '/') : '';
+          let fn = dir + base + ext, k = 1; while (used[fn]) { fn = dir + base + ' (' + (++k) + ')' + ext; } used[fn] = 1;
+          zip.file(fn, blob); inc++; fileCol = fn; seenFile[url] = 1;
+        } catch (e) { fail++; fileCol = '(échec)'; motif = 'erreur de téléchargement (' + (e && e.message || e) + ')'; }
+      } else if (url) {
+        drive.push((folder ? folder + ' · ' : '') + base + '  →  ' + url);
+        fileCol = '(lien Google Drive — voir liens-Drive.txt)'; motif = 'fichier hébergé sur Google Drive';
+      } else { nofile++; fileCol = ''; motif = 'aucun fichier'; }
+      if (hasCsv) { try { const r = opts.rowOf(it) || []; r.push(fileCol, motif); rows.push(r.map(esc0)); } catch (e) {} }
+    }
+    if (hasCsv) {
+      const csv = '﻿' + rows.map(r => r.map(c => { const s = esc0(c); return /[;"\n]/.test(s) ? ('"' + s.replace(/"/g, '""') + '"') : s; }).join(';')).join('\r\n');
+      zip.file('rapport_export.csv', csv);
+    }
+    if (drive.length) zip.file('liens-Drive.txt', 'Fichiers hébergés sur Google Drive (non inclus, à récupérer depuis Drive) :\n\n' + drive.join('\n'));
+    const out = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(out);
+    a.download = (opts.name || 'Parc_Pilot') + '.zip';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch (e) {} }, 8000);
+    const msg = '✓ ' + inc + ' fichier(s) dans le ZIP' + (drive.length ? ' · ' + drive.length + ' sur Drive (liens)' : '') + (nofile ? ' · ' + nofile + ' sans fichier' : '') + (fail ? ' · ' + fail + ' échec(s)' : '');
+    if (busy) busy.done(msg); else if (FP.toast) FP.toast(msg);
+    if (drive.length) { setTimeout(function () { try { alert('ℹ️ ' + inc + ' fichier(s) dans le ZIP.\n\n' + drive.length + ' fichier(s) sont sur Google Drive : le navigateur ne peut pas les mettre dans le ZIP (sécurité Google). Leurs liens sont dans « liens-Drive.txt » à l\'intérieur du ZIP.'); } catch (e) {} }, 600); }
+  } catch (e) { const m = 'Erreur lors de la création du ZIP : ' + (e && e.message || e); if (busy) busy.fail(m); else alert(m); }
+};
 // ⚠️ HELPER CANONIQUE — amende « à payer » (statut tolérant aux accents/espaces/casse) : « à payer »,
 // « a payer », « À Payer » … sont tous reconnus, pour que dashboard, page Amendes et alertes comptent pareil.
 FP.estAPayer = (a) => { const s = ((a && a.statut) || '').toString().trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return s === 'a payer'; };

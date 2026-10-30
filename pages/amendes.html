@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030e">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -221,6 +221,7 @@
         </div>
         <span data-data-io></span>
         <span id="am-export-mount"></span>
+        <button class="btn btn-outline text-sm" id="am-zip-btn" title="Télécharger les avis PDF (cochés, sinon filtrés) dans un ZIP, rangés par conducteur"><i data-lucide="folder-down" class="w-4 h-4"></i> Télécharger les avis</button>
         <button class="btn btn-outline text-sm" id="am-fiche-btn" title="Relevé PDF des amendes affichées (ou du conducteur filtré)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-primary text-sm" id="btn-new" data-quickadd><i data-lucide="plus" class="w-4 h-4"></i> Nouvelle amende</button>
       </div>
@@ -537,8 +538,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030d"></script>
-<script src="../assets/js/supabase-client.js?v=20261030d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030e"></script>
+<script src="../assets/js/supabase-client.js?v=20261030e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -554,12 +555,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261030d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261030d" defer></script>
+<script src="../assets/js/app.min.js?v=20261030e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261030e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -3361,6 +3362,24 @@
       ],
     });
   }
+  // Télécharger les avis PDF en ZIP (cochés sinon filtrés), rangés par conducteur — helper canonique
+  // FP.bulkDownload (même sélecteur « cochés sinon filtrés » + récap que les factures, réutilisable).
+  if ($('am-zip-btn')) $('am-zip-btn').addEventListener('click', () => {
+    if (!FP.bulkDownload) return;
+    const all = filtered();
+    const sel = all.filter(a => state.selectedIds.has(a.id));
+    const prenomDe = a => { const p = String(a.prenom || '').trim(); if (!p) return 'Sans_conducteur'; return (FP.prenomAffiche ? FP.prenomAffiche(p) : p); };
+    const per = state.conducteur ? ('_' + state.conducteur) : (state.annee !== 'all' ? '_' + state.annee : '');
+    FP.bulkDownload({
+      filtered: all, selected: sel, noun: 'amende', nounPlural: 'amendes',
+      name: 'Avis_Parc_Pilot' + per.replace(/[^\w-]/g, ''),
+      urlOf: a => a.avisUrl || '',
+      folderOf: a => prenomDe(a),
+      nameOf: a => (String(a.date || '').slice(0, 10) + ' ' + prenomDe(a) + (a.numeroAvis ? ' ' + a.numeroAvis : '')),
+      csvHeader: ['Date', 'Conducteur', 'Motif', 'Montant dû', 'N° avis', 'Statut'],
+      rowOf: a => [String(a.date || '').slice(0, 10), prenomDe(a), a.motif || '', (FP.montantDu ? FP.euro(FP.montantDu(a)) : (a.montant || '')), a.numeroAvis || '', a.statut || ''],
+    });
+  });
   // Bouton du haut : relevé des amendes AFFICHÉES (filtres en cours).
   if ($('am-fiche-btn')) $('am-fiche-btn').addEventListener('click', () => {
     const suffix = state.conducteur ? ' — ' + state.conducteur : (state.annee !== 'all' ? ' ' + state.annee : '');
