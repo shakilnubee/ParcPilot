@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030e">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -561,6 +561,7 @@
         <div class="man-zone">La fiche d'une amende</div>
         <div class="man-item">Statuts : <b>À payer</b> (rouge), <b>Payée</b> (vert), <b>Contestée</b> (bleu), <b>Désignée</b> (violet = conducteur désigné, plus à votre charge). <b>Points</b> déduits automatiquement du motif (téléphone 3, feu rouge 4, stop 4, vitesse selon dépassement) — une case « amende étrangère » coupe le retrait. <b>N° d'avis</b>, <b>n° de télépaiement</b> + <b>clé</b> (avec boutons copier) pour payer en ligne.</div>
         <div class="man-item"><b>Désignation</b> — indique à l'ANTAI qui conduisait (l'amende n'est plus à la charge de l'entreprise). Le bouton « Désigner » envoie un e-mail au conducteur ; joindre le justificatif passe l'amende en « désignée ». <b>Astuce</b> : le justificatif de désignation compte que tu l'ajoutes via le bouton « Désigner » <b>ou</b> via « Ajouter un document » (libellé « Justificatif de désignation » / « Avis après désignation ») — dans les deux cas l'amende passe automatiquement en « désignée », sans redemander de pièce. <b>3 modèles d'e-mail</b> personnalisables (demande de paiement / de désignation / <b>relance</b>), avec le <b>prénom</b> ({prenom}) et la <b>plaque</b> ({plaque}) insérés automatiquement — modifiables dans Paramètres → Société. <b>🇬🇧 Version anglaise</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> : 3 modèles EN en plus. Si le conducteur est en <b>anglais</b> (fiche Conducteur → « Langue des e-mails »), l'e-mail part en anglais — <b>même en envoi groupé</b>, chacun dans sa langue. <b>✉️ Mise en page soignée</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> : chaque e-mail part avec un bel <b>en-tête</b> (nom/logo de ta société, la <b>plaque</b> en grand, le <b>destinataire</b>, le <b>montant</b> et le <b>n° d'avis</b>) et un <b>pied de page</b> « Ta société · via Parc Pilot ». <b>Tous les e-mails de la plateforme suivent désormais ce même design</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (relevé km, rendez-vous garage, état des lieux, bienvenue…) : même en-tête sombre, même ligne orange et même pied de page que l'e-mail d'amende — tes conducteurs reçoivent une communication cohérente.</div>
+        <div class="man-item"><b>📁 Télécharger les avis (ZIP)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le bouton <b>« Télécharger les avis »</b> (en haut) récupère les <b>PDF des avis</b> dans un seul fichier ZIP, <b>rangés par conducteur</b>. Même logique que partout : s'il y a des amendes <b>cochées</b>, il prend celles-là ; sinon il prend <b>toutes les amendes filtrées</b> à l'écran. Un récapitulatif te dit combien de PDF seront inclus avant de lancer. Un <b>rapport_export.csv</b> (date, conducteur, motif, montant, n° d'avis, statut) est joint dans le ZIP. (Les avis hébergés sur Google Drive ne peuvent pas être mis dans le ZIP — leurs liens sont listés dans un fichier texte à l'intérieur.)</div>
         <div class="man-item"><b>Relancer</b> — envoie automatiquement, en un clic, une <b>relance dans le fil du 1er e-mail</b> envoyé pour cette amende (même conversation chez le destinataire, objet « Re: … »). Le texte vient du modèle « relance » (modifiable dans Paramètres).</div>
         <div class="man-item"><b>Envoi groupé (sélection multiple)</b> — coche plusieurs amendes (ou « Tout sélectionner ») : la barre propose <b>« Envoyer les demandes de paiement »</b> (1ᵉʳ e-mail à chaque conducteur) et <b>« Relancer les paiements »</b> (relance dans le fil de chacun). Un seul clic envoie tout, avec l'<b>avis en pièce jointe</b> pour chaque amende. Un récapitulatif final liste ce qui est parti et ce qui a été <b>ignoré</b> (amende sans e-mail conducteur ou sans avis PDF — on n'envoie jamais sans pièce jointe). Idéal en fin de mois pour traiter toutes les amendes « à payer » d'un coup.</div>
         <div class="man-item"><b>📎 L'avis en pièce jointe (garanti)</b> — quand un <b>scan de l'avis</b> est présent sur l'amende, il part <b>en pièce jointe PDF</b> du mail. Le destinataire (salarié en voiture de fonction) l'ouvre directement dans sa boîte mail, <b>sans aucun compte</b>. Il n'y a <b>plus de lien</b> dans le message (l'avis n'est plus accessible publiquement). <b>Sécurité anti-oubli</b> : si le PDF ne peut pas être préparé, l'e-mail <b>n'est PAS envoyé</b> et un message d'erreur s'affiche — on n'envoie jamais une amende sans son avis. Si l'amende n'a pas encore de scan, l'app te <b>prévient</b> avant d'envoyer sans pièce jointe.</div>
@@ -1048,8 +1049,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030d"></script>
-<script src="../assets/js/supabase-client.js?v=20261030d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030e"></script>
+<script src="../assets/js/supabase-client.js?v=20261030e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1065,10 +1066,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030d"></script>
+<script src="../assets/js/app.min.js?v=20261030e"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
