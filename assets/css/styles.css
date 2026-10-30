@@ -2516,3 +2516,18 @@ body.fp-dark .fp-scan-zone:hover, body.fp-dark .fp-scan-btn:hover { background:r
 .kpi > div > div { min-width: 0; }
 .kpi .kpi-label, .kpi .kpi-value, .kpi .kpi-delta { overflow-wrap: break-word; word-break: normal; }
 @media (max-width: 380px) { .grid:has(> .kpi) { grid-template-columns: 1fr; } }
+
+/* ===== Barre d'actions défilante sur mobile (source unique) =====
+   Au lieu de passer à la ligne (boutons coupés), les barres d'outils défilent HORIZONTALEMENT
+   au doigt sur mobile. Les boutons gardent leur taille ; le dernier qui dépasse « fait un indice »
+   de défilement. Desktop = comportement normal. Classe à poser sur la barre de boutons. */
+@media (max-width: 768px) {
+  .fp-actionbar { flex-wrap: nowrap !important; justify-content: flex-start !important;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    gap: .5rem; margin-left: -.2rem; margin-right: -.2rem; padding: 2px .2rem 6px;
+    scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
+  .fp-actionbar::-webkit-scrollbar { display: none; }
+  .fp-actionbar > * { flex: 0 0 auto; scroll-snap-align: start; }
+}
