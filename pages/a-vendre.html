@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030l">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030m">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030l"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030m"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030l">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030m">
 <style>
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
   .pipeline-col { background: #F8FAFC; border-radius: .85rem; padding: 1rem; min-height: 200px; }
@@ -226,14 +226,8 @@
           <h3 class="font-bold text-lg" id="achat-modal-title" style="color:var(--fp-text)">Nouveau dossier d'achat</h3>
           <button type="button" id="achat-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
         </div>
-        <!-- 🤖 Lecture IA : dépose un devis / bon de commande / facture d'achat → remplissage auto des champs -->
-        <div class="mb-3">
-          <input type="file" id="ach-scan-file" accept="image/*,application/pdf,.pdf,.heic,.heif" class="hidden">
-          <button type="button" id="ach-scan-btn" class="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-3 text-sm font-semibold transition-colors" style="border-color:var(--fp-accent);color:var(--fp-accent);background:rgba(249,115,22,.06)">
-            <i data-lucide="sparkles" class="w-4 h-4"></i> Scanner un devis / bon de commande (remplissage automatique)
-          </button>
-          <div id="ach-scan-status" class="text-xs mt-1.5" style="display:none"></div>
-        </div>
+        <!-- 🤖 Lecture IA (composant commun FP.scanZone) : dépose un devis / BC / facture d'achat → remplissage auto -->
+        <div class="mb-3" id="ach-scan-mount"></div>
         <div class="grid grid-cols-2 gap-3">
           <div><div class="field-label">Marque</div><input class="field-input w-full" id="ach-marque" placeholder="ex. Renault"></div>
           <div><div class="field-label">Modèle</div><input class="field-input w-full" id="ach-modele" placeholder="ex. Clio"></div>
@@ -263,8 +257,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030l"></script>
-<script src="../assets/js/supabase-client.js?v=20261030l"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030m"></script>
+<script src="../assets/js/supabase-client.js?v=20261030m"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -280,10 +274,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030l"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030l"></script>
+<script src="../assets/js/app.min.js?v=20261030m"></script>
 <script>
   lucide.createIcons();
   FP.loadVehicleOverrides();
@@ -688,7 +682,7 @@
     $('achat-modal-title').textContent = d ? 'Modifier le dossier d\'achat' : 'Nouveau dossier d\'achat';
     Object.entries(ACH_FIELDS).forEach(([k, id]) => { const el = $(id); if (el) el.value = d && d[k] != null ? d[k] : ''; });
     const err = $('achat-modal-err'); if (err) { err.style.display = 'none'; err.hidden = true; }
-    { const st = $('ach-scan-status'); if (st) { st.style.display = 'none'; st.textContent = ''; } const sf = $('ach-scan-file'); if (sf) sf.value = ''; }
+    try { if (_achScan && _achScan.setStatus) _achScan.setStatus(''); } catch (e) {}
     $('achat-modal').style.display = 'flex';
     setTimeout(() => { try { $('ach-marque').focus(); } catch (e) {} }, 50);
     if (window.lucide) try { lucide.createIcons(); } catch (e) {}
@@ -721,42 +715,35 @@
     "RÈGLES : lis la valeur à côté du BON LIBELLÉ, jamais le plus grand nombre de la page (JAMAIS de max aveugle). Cohérence : HT ≤ TTC et HT + TVA ≈ TTC. Un champ illisible = null. Dates au format européen (05/11/2026 = 2026-11-05).",
   ].join("\n");
 
-  async function runAchatScan(file) {
-    const status = $('ach-scan-status');
-    const setStatus = (txt, ok) => { if (!status) return; status.style.display = 'block'; status.textContent = txt; status.style.color = ok === false ? 'var(--fp-danger,#dc2626)' : (ok ? 'var(--fp-ok,#16a34a)' : 'var(--fp-muted,#64748b)'); };
-    if (!(window.FP && FP.scanIA)) { setStatus('Lecture IA indisponible ici — remplis les champs à la main.', false); return; }
-    setStatus('⏳ Lecture du document en cours…');
-    const btn = $('ach-scan-btn'); if (btn) btn.disabled = true;
-    try {
-      const ai = await FP.scanIA(file, 'facture', ACHAT_SCAN_PROMPT, { maxTokens: 700 });
-      if (!ai) { setStatus('Document non lu — remplis les champs à la main.', false); return; }
-      const norm = s => (s == null ? '' : String(s).trim());
-      // Ne remplit QUE les champs encore vides (ne jamais écraser ce que l'utilisateur a déjà saisi).
-      const setIfEmpty = (id, v) => { const el = $(id); if (!el) return false; const vv = (v == null ? '' : String(v)); if (vv === '' ) return false; if (String(el.value).trim() !== '') return false; el.value = vv; return true; };
-      let n = 0;
-      n += setIfEmpty('ach-marque', norm(ai.marque)) ? 1 : 0;
-      n += setIfEmpty('ach-modele', norm(ai.modele)) ? 1 : 0;
-      n += setIfEmpty('ach-version', norm(ai.version)) ? 1 : 0;
-      n += setIfEmpty('ach-motorisation', norm(ai.motorisation)) ? 1 : 0;
-      n += setIfEmpty('ach-fournisseur', norm(ai.fournisseur)) ? 1 : 0;
-      n += setIfEmpty('ach-prixht', ai.prixHt != null ? ai.prixHt : '') ? 1 : 0;
-      n += setIfEmpty('ach-prixttc', ai.prixTtc != null ? ai.prixTtc : '') ? 1 : 0;
-      n += setIfEmpty('ach-acompteprevu', ai.acomptePrevu != null ? ai.acomptePrevu : '') ? 1 : 0;
-      n += setIfEmpty('ach-datecommande', norm(ai.dateCommande)) ? 1 : 0;
-      n += setIfEmpty('ach-datelivprevue', norm(ai.dateLivraisonPrevue)) ? 1 : 0;
-      n += setIfEmpty('ach-immat', ai.immat ? String(ai.immat).toUpperCase().replace(/\s+/g, '') : '') ? 1 : 0;
-      // Contrôle de cohérence HT / TTC (ne bloque pas, signale seulement).
-      const ht = Number(ai.prixHt), ttc = Number(ai.prixTtc);
-      let warn = '';
-      if (ht > 0 && ttc > 0 && ttc < ht) warn = ' ⚠️ Vérifie HT/TTC (TTC inférieur au HT).';
-      if (n === 0) setStatus('Rien n\'a pu être rempli — vérifie le document ou saisis à la main.', false);
-      else { setStatus('✓ ' + n + ' champ(s) rempli(s) automatiquement — vérifie puis Enregistre.' + warn, !warn); if (window.FP && FP.toast) FP.toast('Document lu : ' + n + ' champ(s) rempli(s)'); }
-    } catch (e) {
-      setStatus('Lecture impossible — remplis les champs à la main.', false);
-    } finally { if (btn) btn.disabled = false; }
+  // Déclencheur de scan = COMPOSANT COMMUN FP.scanZone (même look/états que partout ailleurs).
+  // Le contexte ne fournit que le libellé, le prompt et le remplissage de SES champs (setIfEmpty).
+  let _achScan = null;
+  if (window.FP && FP.scanZone) {
+    _achScan = FP.scanZone({
+      mount: '#ach-scan-mount', variant: 'zone',
+      label: 'Scanner un devis / bon de commande (remplissage automatique)',
+      docType: 'facture', prompt: ACHAT_SCAN_PROMPT, maxTokens: 700,
+      onResult: (ai, h) => {
+        const norm = s => (s == null ? '' : String(s).trim());
+        let n = 0;
+        n += h.setIfEmpty('ach-marque', norm(ai.marque)) ? 1 : 0;
+        n += h.setIfEmpty('ach-modele', norm(ai.modele)) ? 1 : 0;
+        n += h.setIfEmpty('ach-version', norm(ai.version)) ? 1 : 0;
+        n += h.setIfEmpty('ach-motorisation', norm(ai.motorisation)) ? 1 : 0;
+        n += h.setIfEmpty('ach-fournisseur', norm(ai.fournisseur)) ? 1 : 0;
+        n += h.setIfEmpty('ach-prixht', ai.prixHt != null ? ai.prixHt : '') ? 1 : 0;
+        n += h.setIfEmpty('ach-prixttc', ai.prixTtc != null ? ai.prixTtc : '') ? 1 : 0;
+        n += h.setIfEmpty('ach-acompteprevu', ai.acomptePrevu != null ? ai.acomptePrevu : '') ? 1 : 0;
+        n += h.setIfEmpty('ach-datecommande', norm(ai.dateCommande)) ? 1 : 0;
+        n += h.setIfEmpty('ach-datelivprevue', norm(ai.dateLivraisonPrevue)) ? 1 : 0;
+        n += h.setIfEmpty('ach-immat', ai.immat ? String(ai.immat).toUpperCase().replace(/\s+/g, '') : '') ? 1 : 0;
+        // Contrôle de cohérence HT / TTC (signale seulement, ne bloque pas).
+        const ht = Number(ai.prixHt), ttc = Number(ai.prixTtc);
+        if (ht > 0 && ttc > 0 && ttc < ht) return { msg: '✓ ' + n + ' champ(s) rempli(s). ⚠️ Vérifie HT/TTC (TTC inférieur au HT).', ok: n > 0 };
+        return n;
+      },
+    });
   }
-  if ($('ach-scan-btn')) $('ach-scan-btn').addEventListener('click', () => { const f = $('ach-scan-file'); if (f) f.click(); });
-  if ($('ach-scan-file')) $('ach-scan-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) runAchatScan(f); e.target.value = ''; });
 
   $('achat-save').addEventListener('click', async () => {
     if (!(window.FP && FP.db && FP.db.insert)) return;
