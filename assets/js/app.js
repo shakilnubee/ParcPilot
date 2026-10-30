@@ -8348,6 +8348,30 @@ FP.injectManualButton = function () {
 };
 try { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', FP.injectManualButton); else FP.injectManualButton(); } catch (e) {}
 
+// ===== ÉCHAP FERME LA FENÊTRE (modale) — comportement COMMUN à toute la plateforme =====
+// Un seul gestionnaire global : sur Échap, on ferme la modale ouverte la plus haute en
+// RÉUTILISANT son propre bouton Fermer/Annuler (donc la remise à zéro propre à la page est
+// respectée — pas de perte de données au-delà de ce que fait déjà « Annuler »/clic sur le fond).
+// Repli générique si aucun bouton de fermeture n'est trouvé. S'applique au motif .modal-backdrop
+// (le plus répandu). Aucune modif page par page → source unique.
+(function () {
+  if (window.__fpEscModal) return; window.__fpEscModal = 1;
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.keyCode !== 27) return;
+    let open;
+    try { open = Array.from(document.querySelectorAll('.modal-backdrop')).filter(function (m) { try { return getComputedStyle(m).display !== 'none'; } catch (_) { return false; } }); } catch (_) { return; }
+    if (!open || !open.length) return;
+    const top = open[open.length - 1];   // la plus haute (dernière dans le DOM)
+    // 1) Bouton de fermeture/annulation DE cette modale (réutilise la logique de la page).
+    let btn = null;
+    try { btn = top.querySelector('[aria-label="Fermer"], [aria-label="Annuler"], [id$="-close"], [id$="-cancel"], .modal-close, [data-modal-close]'); } catch (_) {}
+    if (btn) { e.preventDefault(); try { btn.click(); } catch (_) {} return; }
+    // 2) Repli générique : refermer le conteneur (classe .open, sinon display:none).
+    e.preventDefault();
+    try { if (top.classList.contains('open')) top.classList.remove('open'); else top.style.display = 'none'; } catch (_) {}
+  }, false);
+})();
+
 // ⚠️ SIDEBAR FIGÉE (demande utilisateur) : le glisser-déposer des onglets DIRECTEMENT dans le menu
 // de gauche est DÉSACTIVÉ. L'ordre des onglets se règle désormais UNIQUEMENT, et volontairement, dans
 // Paramètres → « Onglets ». On neutralise la fonction (no-op) pour que la sidebar ne soit plus
