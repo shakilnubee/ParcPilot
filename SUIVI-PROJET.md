@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **30/10/2026** (réservation de véhicules — portail public `reserver.html` + gestion in-app dans Emprunt véhicule. Les migrations `reservations` et `dossiers_achat` ont été **appliquées en production** le 30/10 ~15:57 UTC → les modules Réservation et « Acheter » sont **actifs en production**.)
+> Dernière mise à jour : **30/10/2026** (4 lots de correctifs d'audit fiabilité/sécurité/cohérence — PR #1161 à #1164, en production. Avant : réservation de véhicules — portail public `reserver.html` + gestion in-app ; migrations `reservations` et `dossiers_achat` **appliquées en production** le 30/10 ~15:57 UTC → modules Réservation et « Acheter » **actifs**.)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
@@ -53,6 +53,15 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 ---
 
 ## 5. Journal des réalisations
+
+### 30/10/2026 — Audit fiabilité/sécurité/cohérence : 4 lots de correctifs sûrs ✅ (en production)
+Audit en lecture seule (4 auditeurs parallèles + vérification manuelle dans le vrai code), puis correction des anomalies **vérifiées et sans risque**, en 4 pull requests testées (CI verte) :
+- **Lot 1 — intégrité des données** (PR #1161) : `condCustom` (champs personnalisés conducteur) ajouté à `FP.condKeyMaps` → plus d'orphelins au renommage ni d'héritage par un homonyme recréé ; deux échecs d'écriture jusque-là silencieux (`offres_achat`, synchro des modifs locales de véhicule) rendus **visibles** (`FP.notifyError`, règle ③).
+- **Lot 2 — pipeline des alertes** (PR #1162) : la page Alertes charge désormais les demandes de **réservation** (apparition fiable au 1er affichage) ; la **pastille du menu** s'éteint quand on consulte les demandes d'achat/réservation (la carte reste tant que non traitée) ; la pastille « Activité QR » utilise la **même fenêtre (1 h)** que la carte → plus de pastille fantôme.
+- **Lot 3 — cohérence des coûts** (PR #1163) : l'écran mural calcule le **mois courant en heure locale** (`FP.ymLocal`, comme le dashboard) ; le « Top coûts par véhicule » du rapport PDF regroupe par **plaque normalisée** (`FP.normImmat`) → plus de doublon dû au format de plaque.
+- **Lot 4 — anti-doublon** (PR #1164) : le nouveau point d'ajout « dossier d'achat » passe par le helper central `FP.dupe` (règle prudente : plaque forte, sinon marque+modèle+fournisseur+date de commande, pour ne pas flaguer un achat en lot).
+- **Vérifié puis NON modifié** (fausses pistes ou choix voulus) : cible de l'alerte « relevé km » (→ Sinistres = correct, inbox unifiée), `muteKey` par nombre (réapparition voulue d'une alerte au nouvel événement).
+- **Laissé pour décision/accord explicite** (non touché) : tuile « Facturé ce mois » tous types ; refactor `app_settings` config/données ; RGPD de la fonction `km-collect` ; vérif colonne `rev` en prod ; mode paysage mobile (2 systèmes de nav) ; inventaire des textes ; CT edge function + migration ; activation de l'espace salarié.
 
 ### 30/10/2026 — Réservation de véhicules par lien public (Phases 3A/3B/3C) ✅ (en production)
 Nouvelle fonctionnalité : un **collègue sans compte Parc Pilot** peut demander à réserver un véhicule via un **lien sécurisé** partagé par le gestionnaire, qui accepte ou refuse la demande depuis l'application.
