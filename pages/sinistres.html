@@ -267,6 +267,11 @@
         <div class="kpi-delta">avant remboursement</div>
       </div><div class="kpi-ic danger"><i data-lucide="euro"></i></div></div></div>
       <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
+        <div class="kpi-label" title="Montant déjà remboursé par l'assurance (champ « Remboursé » des dossiers), sur la période.">Remboursé par l'assurance</div>
+        <div class="kpi-value" id="kpi-rembourse" style="color: var(--fp-success, #047857)">—</div>
+        <div class="kpi-delta">reçu / pris en charge</div>
+      </div><div class="kpi-ic"><i data-lucide="shield-check"></i></div></div></div>
+      <div class="kpi"><div class="flex justify-between items-start gap-2"><div>
         <div class="kpi-label" title="Ce que les sinistres ont réellement coûté à la société : réparations − remboursements/prises en charge. C'est LE « coût des sinistres » (identique aux Statistiques).">Reste à charge (coût réel)</div>
         <div class="kpi-value" id="kpi-reste" style="color: var(--fp-danger)">—</div>
         <div class="kpi-delta">réparé − remboursé</div>
@@ -596,8 +601,13 @@
       const isPec = (st === 'pec' || st === 'rembourse');
       return s + (FP.sinistreResteIncident ? FP.sinistreResteIncident(coutReel, doss[g.key], isPec) : Math.max(0, coutReel - (Number((doss[g.key] || {}).rembourse) || 0)));
     }, 0);
+    // #34-C — Remboursé par l'assurance : Σ des montants « Remboursé » saisis dans les dossiers (période).
+    // Sépare clairement « facturé » (Total réparé) / « remboursé » (reçu) / « reste réel » — même source
+    // (champ dv.rembourse) que le calcul du reste à charge ci-dessus → les 3 cartes sont cohérentes.
+    const rembourse = groups.reduce((s, g) => s + (Number((doss[g.key] || {}).rembourse) || 0), 0);
     const resp = groups.filter(g => (doss[g.key] || {}).resp === 'responsable').length;
     if ($('kpi-reste')) $('kpi-reste').textContent = FP.euro(reste);
+    if ($('kpi-rembourse')) $('kpi-rembourse').textContent = FP.euro(rembourse);
     if ($('kpi-resp')) $('kpi-resp').textContent = resp;
   }
 
@@ -905,8 +915,12 @@
       // deux homonymes « Jean DUPONT » ≠ « Jean MARTIN » restent distincts (avant : FP.normPrenom brut les
       // fusionnait sur une seule ligne de risque, sinistres de l'un attribués à l'autre).
       const key = FP.condGroupKey ? FP.condGroupKey(cond) : (FP.normPrenom ? FP.normPrenom(cond) : cond.toLowerCase());
-      const r = byCond[key] || (byCond[key] = { cond, nb: 0, resp: 0, partagee: 0, respKnown: 0, cost: 0 });
+      const r = byCond[key] || (byCond[key] = { cond, nb: 0, resp: 0, partagee: 0, respKnown: 0, cost: 0, supp: 0 });
       r.nb++; r.cost += g.cost || 0;
+      // #34-A — attribution SUPPOSÉE : si le conducteur n'est pas FIGÉ sur le dossier (ancien sinistre),
+      // il est déduit du chauffeur ACTUEL du véhicule → l'attribution peut être fausse. On le compte pour
+      // marquer la ligne « (supposé) » et ne pas la prendre pour un historique confirmé.
+      if (!frozen) r.supp++;
       // Responsabilité (4 états). ⚠️ « inconnue » ≠ « non responsable » : on compte à part respKnown
       // pour ne PAS classer dangereux un conducteur dont la responsabilité n'est pas encore renseignée.
       const rv = ((doss[g.key] || {}).resp || '').toString().toLowerCase();
@@ -929,8 +943,12 @@
           : (r.resp >= 1 || r.partagee >= 1 || r.nb >= 3) ? ['#FEF3C7', '#92400E', 'À surveiller']
           : (r.respKnown === 0) ? ['#E0E7FF', '#3730A3', 'À qualifier']
           : ['#DCFCE7', '#166534', 'OK'];
+        // Marqueur « supposé » : aucun / partiel / total selon la part d'incidents non figés.
+        const suppTag = r.supp >= r.nb
+          ? ' <span class="text-slate-400" style="font-weight:400;font-size:11px" title="Conducteur déduit du chauffeur actuel du véhicule (aucun sinistre figé). À confirmer dans chaque dossier.">(supposé)</span>'
+          : (r.supp > 0 ? ' <span class="text-slate-400" style="font-weight:400;font-size:11px" title="' + r.supp + ' sinistre(s) sur ' + r.nb + ' sans conducteur figé — déduit(s) du chauffeur actuel.">(en partie supposé)</span>' : '');
         return `<tr>
-          <td class="font-semibold">${FP.lienConducteur ? FP.lienConducteur(r.cond) : escapeHtml(r.cond)}</td>
+          <td class="font-semibold">${FP.lienConducteur ? FP.lienConducteur(r.cond) : escapeHtml(r.cond)}${suppTag}</td>
           <td style="text-align:right">${r.nb}</td>
           <td style="text-align:right${r.resp ? ';color:#B91C1C;font-weight:700' : ''}">${r.resp || '—'}</td>
           <td style="text-align:right">${r.cost ? FP.euroPrecis(r.cost) : '—'}</td>
@@ -1672,6 +1690,16 @@
         if (tiersPlaque) _dv.tiersPlaque = tiersPlaque;
         if (tiersAssureur) _dv.tiersAssureur = tiersAssureur;
         if (tiersNom) _dv.tiersNom = tiersNom;
+        // #34-A — GEL DU CONDUCTEUR : on fige QUI conduisait le véhicule au moment de la création du
+        // dossier (même champ que condOf / renderConducteursRisque). Si le chauffeur du véhicule change
+        // plus tard, le dossier garde le bon conducteur (plus de sinistre attribué au mauvais conducteur).
+        if (!(_dv.conducteur || '').trim()) {
+          try {
+            const _veh = FP.vehByImmat ? FP.vehByImmat(immat) : (data.vehicules || []).find(v => FP.normImmat(v.immat) === FP.normImmat(immat));
+            const _ch = (_veh && _veh.chauffeur && _veh.chauffeur !== '—') ? String(_veh.chauffeur).trim() : '';
+            if (_ch) _dv.conducteur = _ch;
+          } catch (_) {}
+        }
         FP.settings.save(s);
         // Créé DEPUIS une déclaration conducteur (QR) → rattacher ses photos au dossier + marquer la déclaration traitée.
         if (sdSource) {
