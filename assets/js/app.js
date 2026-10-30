@@ -15826,12 +15826,18 @@ FP.docsFolder = {
     if (!veh || !veh.id) return;
     const esc = FP.esc || (x => String(x == null ? '' : x));
     const self = this;
+    // Types/checklist PERSONNALISABLES par contexte (ex. dossier d'ACHAT) sans polluer la liste de VENTE.
+    // Par défaut = les listes de vente (rétrocompatible).
+    const TYPES = Array.isArray(opts.types) && opts.types.length ? opts.types : this.TYPES;
+    const CHECKLIST = Array.isArray(opts.checklist) ? opts.checklist : this.CHECKLIST;
+    const SINGLE = (opts.single instanceof Set) ? opts.single : this.SINGLE;
+    const typeLabel = (k) => { const t = TYPES.find(x => x.key === k); return t ? t.label : (k || 'Document'); };
     const title = opts.title || ('📁 Dossier de vente — ' + (veh.immat || ''));
     const old = document.getElementById('fp-docs-ov'); if (old) old.remove();
     const ov = document.createElement('div');
     ov.id = 'fp-docs-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(8,15,30,.55);display:flex;align-items:center;justify-content:center;padding:16px';
-    const optionsHtml = this.TYPES.map(t => '<option value="' + t.key + '">' + esc(t.label) + '</option>').join('');
+    const optionsHtml = TYPES.map(t => '<option value="' + t.key + '">' + esc(t.label) + '</option>').join('');
     ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:540px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
       + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:var(--fp-surface,#fff)">'
         + '<b style="font-size:1.02rem">' + esc(title) + '</b>'
@@ -15864,7 +15870,7 @@ FP.docsFolder = {
     function docRow(d) {
       return '<div style="display:flex;align-items:center;gap:8px;margin-top:5px">'
         + '<span style="font-size:.95rem;flex:none">📄</span>'
-        + '<div style="flex:1;min-width:0;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.label || self._typeLabel(d.type)) + '</div>'
+        + '<div style="flex:1;min-width:0;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.label || typeLabel(d.type)) + '</div>'
         + '<button type="button" class="fp-docs-open" data-url="' + esc(d.url || '') + '" style="background:none;border:1px solid var(--fp-border,#e5e7eb);border-radius:7px;padding:3px 9px;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--fp-primary,#0F1E3D)">Ouvrir</button>'
         + '<button type="button" class="fp-docs-del" data-id="' + esc(d.id) + '" title="Supprimer" style="background:none;border:none;color:#dc2626;font-size:.95rem;cursor:pointer;flex:none">🗑</button>'
       + '</div>';
@@ -15897,10 +15903,10 @@ FP.docsFolder = {
     }
     function renderAll() {
       const box = q('#fp-docs-list'); if (!box) return;
-      const checklistKeys = self.CHECKLIST.map(c => c.key);
-      const done = self.CHECKLIST.filter(c => docs.some(d => d.type === c.key) || self._linkedFactures(veh, c.key).length).length;
-      const suivi = q('#fp-docs-suivi'); if (suivi) suivi.textContent = 'Suivi : ' + done + ' / ' + self.CHECKLIST.length + ' documents clés';
-      let html = self.CHECKLIST.map(lineBlock).join('');
+      const checklistKeys = CHECKLIST.map(c => c.key);
+      const done = CHECKLIST.filter(c => docs.some(d => d.type === c.key) || self._linkedFactures(veh, c.key).length).length;
+      const suivi = q('#fp-docs-suivi'); if (suivi) suivi.textContent = 'Suivi : ' + done + ' / ' + CHECKLIST.length + ' documents clés';
+      let html = CHECKLIST.map(lineBlock).join('');
       const autres = docs.filter(d => checklistKeys.indexOf(d.type) < 0);
       if (autres.length) {
         html += '<div style="margin-top:10px;font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Autres documents</div>'
@@ -15940,13 +15946,13 @@ FP.docsFolder = {
         try {
           const url = await FP.uploadScan(f, folder);
           if (!url) throw new Error('upload vide');
-          if (self.SINGLE.has(type) && !singleCleared) {
+          if (SINGLE.has(type) && !singleCleared) {
             const olds = docs.filter(d => d.type === type);
             for (const o of olds) { try { if (FP.db && FP.db.delete) await FP.db.delete('documents', o.id); else if (FP.persist && FP.persist.delete) FP.persist.delete('documents', o.id); } catch (e2) {} }
             docs = docs.filter(d => d.type !== type); singleCleared = true;
           }
           // Nom : si l'utilisateur a saisi un nom ET qu'il y a plusieurs fichiers, on numérote pour les distinguer.
-          const lbl = baseName ? (files.length > 1 ? (baseName + ' (' + (i + 1) + ')') : baseName) : (f.name ? f.name.replace(/\.[a-z0-9]+$/i, '') : self._typeLabel(type));
+          const lbl = baseName ? (files.length > 1 ? (baseName + ' (' + (i + 1) + ')') : baseName) : (f.name ? f.name.replace(/\.[a-z0-9]+$/i, '') : typeLabel(type));
           const doc = { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + i, vehiculeId: veh.id, type, label: lbl, url, driveId: self._driveId(url) };
           if (FP.persist && FP.persist.available && FP.persist.available()) FP.persist.insert('documents', doc);
           else if (FP.db && FP.db.insert) { const r = await FP.db.insert('documents', doc); if (r && r.error) throw r.error; }

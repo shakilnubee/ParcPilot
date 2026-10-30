@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030i">
 <style>
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
   .pipeline-col { background: #F8FAFC; border-radius: .85rem; padding: 1rem; min-height: 200px; }
@@ -254,8 +254,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030h"></script>
-<script src="../assets/js/supabase-client.js?v=20261030h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030i"></script>
+<script src="../assets/js/supabase-client.js?v=20261030i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -271,10 +271,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030h"></script>
+<script src="../assets/js/app.min.js?v=20261030i"></script>
 <script>
   lucide.createIcons();
   FP.loadVehicleOverrides();
@@ -553,6 +553,30 @@
     { key: 'annule',            label: 'Annulé' },
   ];
   const ACHAT_LABEL = Object.fromEntries(ACHAT_STATUTS.map(s => [s.key, s.label]));
+  // Types de documents PROPRES à un achat (passés à FP.docsFolder.open → n'affectent pas la liste de VENTE).
+  const ACHAT_DOC_TYPES = [
+    { key: 'devis',                 label: 'Devis' },
+    { key: 'bon-commande',          label: 'Bon de commande' },
+    { key: 'contrat-achat',         label: "Contrat d'achat" },
+    { key: 'facture-acompte',       label: "Facture d'acompte" },
+    { key: 'preuve-virement',       label: 'Preuve de virement' },
+    { key: 'confirmation-commande', label: 'Confirmation de commande' },
+    { key: 'facture-achat',         label: 'Facture définitive (achat)' },
+    { key: 'code-cession',          label: 'Certificat de cession' },
+    { key: 'carte-grise',           label: 'Carte grise' },
+    { key: 'attestation-assurance', label: "Attestation d'assurance" },
+    { key: 'doc-livraison',         label: 'Document de livraison / PV' },
+    { key: 'autre',                 label: 'Autre document' },
+  ];
+  const ACHAT_DOC_CHECKLIST = [
+    { key: 'devis',           label: 'Devis' },
+    { key: 'bon-commande',    label: 'Bon de commande' },
+    { key: 'facture-acompte', label: "Facture d'acompte" },
+    { key: 'facture-achat',   label: 'Facture définitive' },
+    { key: 'doc-livraison',   label: 'Document de livraison / PV' },
+    { key: 'carte-grise',     label: 'Carte grise' },
+  ];
+  const ACHAT_DOC_SINGLE = new Set(['carte-grise', 'facture-achat', 'confirmation-commande', 'contrat-achat']);
   const FIN_LABEL = { comptant: 'Comptant', credit: 'Crédit', loa: 'LOA', lld: 'LLD' };
   let _achats = [], _achatLoaded = false, _achatEditId = null, _achatTableMissing = false;
 
@@ -609,6 +633,7 @@
               <select class="status-select ach-statut" data-ach-id="${achEsc(d.id)}" title="Changer l'étape">${opts}</select>
               <div class="av-actions">
                 <button type="button" class="av-btn ach-edit" data-ach-id="${achEsc(d.id)}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Modifier</button>
+                <button type="button" class="av-btn ach-docs" data-ach-id="${achEsc(d.id)}"><i data-lucide="folder" class="w-3.5 h-3.5"></i> Documents</button>
                 <button type="button" class="av-btn ach-archive" data-ach-id="${achEsc(d.id)}"><i data-lucide="archive" class="w-3.5 h-3.5"></i> Archiver</button>
               </div>
             </div>`;
@@ -698,6 +723,18 @@
   $('achat-pipeline').addEventListener('click', async (e) => {
     const ed = e.target.closest('.ach-edit');
     if (ed) { const d = _achats.find(x => x.id === ed.getAttribute('data-ach-id')); if (d) openAchatModal(d); return; }
+    const dc = e.target.closest('.ach-docs');
+    if (dc) {
+      const d = _achats.find(x => x.id === dc.getAttribute('data-ach-id')); if (!d) return;
+      if (!(window.FP && FP.docsFolder)) { alert('Documents indisponibles (connexion requise).'); return; }
+      // Documents rangés sous l'id du DOSSIER d'achat (le véhicule n'existe pas encore). Types propres à l'achat.
+      const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'dossier d\'achat';
+      FP.docsFolder.open({ id: d.id, immat: d.immat || '' }, {
+        title: '📁 Documents — achat ' + titre,
+        types: ACHAT_DOC_TYPES, checklist: ACHAT_DOC_CHECKLIST, single: ACHAT_DOC_SINGLE,
+      });
+      return;
+    }
     const ar = e.target.closest('.ach-archive');
     if (ar) {
       const id = ar.getAttribute('data-ach-id'); const d = _achats.find(x => x.id === id); if (!d) return;
