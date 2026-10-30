@@ -226,6 +226,14 @@
           <h3 class="font-bold text-lg" id="achat-modal-title" style="color:var(--fp-text)">Nouveau dossier d'achat</h3>
           <button type="button" id="achat-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
         </div>
+        <!-- 🤖 Lecture IA : dépose un devis / bon de commande / facture d'achat → remplissage auto des champs -->
+        <div class="mb-3">
+          <input type="file" id="ach-scan-file" accept="image/*,application/pdf,.pdf,.heic,.heif" class="hidden">
+          <button type="button" id="ach-scan-btn" class="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-3 text-sm font-semibold transition-colors" style="border-color:var(--fp-accent);color:var(--fp-accent);background:rgba(249,115,22,.06)">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Scanner un devis / bon de commande (remplissage automatique)
+          </button>
+          <div id="ach-scan-status" class="text-xs mt-1.5" style="display:none"></div>
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div><div class="field-label">Marque</div><input class="field-input w-full" id="ach-marque" placeholder="ex. Renault"></div>
           <div><div class="field-label">Modèle</div><input class="field-input w-full" id="ach-modele" placeholder="ex. Clio"></div>
@@ -680,6 +688,7 @@
     $('achat-modal-title').textContent = d ? 'Modifier le dossier d\'achat' : 'Nouveau dossier d\'achat';
     Object.entries(ACH_FIELDS).forEach(([k, id]) => { const el = $(id); if (el) el.value = d && d[k] != null ? d[k] : ''; });
     const err = $('achat-modal-err'); if (err) { err.style.display = 'none'; err.hidden = true; }
+    { const st = $('ach-scan-status'); if (st) { st.style.display = 'none'; st.textContent = ''; } const sf = $('ach-scan-file'); if (sf) sf.value = ''; }
     $('achat-modal').style.display = 'flex';
     setTimeout(() => { try { $('ach-marque').focus(); } catch (e) {} }, 50);
     if (window.lucide) try { lucide.createIcons(); } catch (e) {}
@@ -689,6 +698,65 @@
   $('achat-close').addEventListener('click', closeAchatModal);
   $('achat-cancel').addEventListener('click', closeAchatModal);
   $('achat-modal').addEventListener('click', (e) => { if (e.target.id === 'achat-modal') closeAchatModal(); });
+
+  // ===== 🤖 Lecture IA d'un document d'achat → remplissage auto (réutilise FP.scanIA, comme partout) =====
+  // Document source = devis / bon de commande / confirmation de commande / facture (proforma) d'achat.
+  // Règles projet : LIRE le libellé (jamais Math.max), contrôle HT/TVA/TTC, ne rien inventer (null si absent).
+  const ACHAT_SCAN_PROMPT = [
+    "Tu lis un document d'ACHAT de véhicule (devis, bon de commande, confirmation de commande, facture proforma ou facture d'achat d'un concessionnaire / fournisseur).",
+    "Renvoie UNIQUEMENT un objet JSON valide, sans texte autour, avec ces clés (mets null si l'info est absente ou illisible — n'invente JAMAIS) :",
+    "docType : toujours 'facture'.",
+    "marque : marque du véhicule (ex. RENAULT, PEUGEOT).",
+    "modele : modèle (ex. CLIO, 208).",
+    "version : finition / version si présente (ex. TCe 90 Techno), sinon null.",
+    "motorisation : énergie (essence, diesel, électrique, hybride…) si indiquée, sinon null.",
+    "fournisseur : nom du concessionnaire / vendeur (en-tête du document).",
+    "immat : plaque si déjà indiquée, format AB-123-CD, sinon null.",
+    "vin : numéro de châssis / VIN (17 caractères, sans les lettres I O Q), sinon null.",
+    "prixHt : prix HT du véhicule en euros (nombre), lu À CÔTÉ du libellé 'HT' / 'Total HT' / 'Montant HT'.",
+    "prixTtc : prix TTC en euros (nombre), lu à côté de 'TTC' / 'Total TTC' / 'Net à payer' / 'Prix de vente'.",
+    "acomptePrevu : montant de l'acompte demandé si indiqué (libellé 'acompte' / 'arrhes'), sinon null.",
+    "dateCommande : date du devis / de la commande, format AAAA-MM-JJ (jour/mois/année européen), sinon null.",
+    "dateLivraisonPrevue : date de livraison prévue si indiquée, format AAAA-MM-JJ, sinon null.",
+    "RÈGLES : lis la valeur à côté du BON LIBELLÉ, jamais le plus grand nombre de la page (JAMAIS de max aveugle). Cohérence : HT ≤ TTC et HT + TVA ≈ TTC. Un champ illisible = null. Dates au format européen (05/11/2026 = 2026-11-05).",
+  ].join("\n");
+
+  async function runAchatScan(file) {
+    const status = $('ach-scan-status');
+    const setStatus = (txt, ok) => { if (!status) return; status.style.display = 'block'; status.textContent = txt; status.style.color = ok === false ? 'var(--fp-danger,#dc2626)' : (ok ? 'var(--fp-ok,#16a34a)' : 'var(--fp-muted,#64748b)'); };
+    if (!(window.FP && FP.scanIA)) { setStatus('Lecture IA indisponible ici — remplis les champs à la main.', false); return; }
+    setStatus('⏳ Lecture du document en cours…');
+    const btn = $('ach-scan-btn'); if (btn) btn.disabled = true;
+    try {
+      const ai = await FP.scanIA(file, 'facture', ACHAT_SCAN_PROMPT, { maxTokens: 700 });
+      if (!ai) { setStatus('Document non lu — remplis les champs à la main.', false); return; }
+      const norm = s => (s == null ? '' : String(s).trim());
+      // Ne remplit QUE les champs encore vides (ne jamais écraser ce que l'utilisateur a déjà saisi).
+      const setIfEmpty = (id, v) => { const el = $(id); if (!el) return false; const vv = (v == null ? '' : String(v)); if (vv === '' ) return false; if (String(el.value).trim() !== '') return false; el.value = vv; return true; };
+      let n = 0;
+      n += setIfEmpty('ach-marque', norm(ai.marque)) ? 1 : 0;
+      n += setIfEmpty('ach-modele', norm(ai.modele)) ? 1 : 0;
+      n += setIfEmpty('ach-version', norm(ai.version)) ? 1 : 0;
+      n += setIfEmpty('ach-motorisation', norm(ai.motorisation)) ? 1 : 0;
+      n += setIfEmpty('ach-fournisseur', norm(ai.fournisseur)) ? 1 : 0;
+      n += setIfEmpty('ach-prixht', ai.prixHt != null ? ai.prixHt : '') ? 1 : 0;
+      n += setIfEmpty('ach-prixttc', ai.prixTtc != null ? ai.prixTtc : '') ? 1 : 0;
+      n += setIfEmpty('ach-acompteprevu', ai.acomptePrevu != null ? ai.acomptePrevu : '') ? 1 : 0;
+      n += setIfEmpty('ach-datecommande', norm(ai.dateCommande)) ? 1 : 0;
+      n += setIfEmpty('ach-datelivprevue', norm(ai.dateLivraisonPrevue)) ? 1 : 0;
+      n += setIfEmpty('ach-immat', ai.immat ? String(ai.immat).toUpperCase().replace(/\s+/g, '') : '') ? 1 : 0;
+      // Contrôle de cohérence HT / TTC (ne bloque pas, signale seulement).
+      const ht = Number(ai.prixHt), ttc = Number(ai.prixTtc);
+      let warn = '';
+      if (ht > 0 && ttc > 0 && ttc < ht) warn = ' ⚠️ Vérifie HT/TTC (TTC inférieur au HT).';
+      if (n === 0) setStatus('Rien n\'a pu être rempli — vérifie le document ou saisis à la main.', false);
+      else { setStatus('✓ ' + n + ' champ(s) rempli(s) automatiquement — vérifie puis Enregistre.' + warn, !warn); if (window.FP && FP.toast) FP.toast('Document lu : ' + n + ' champ(s) rempli(s)'); }
+    } catch (e) {
+      setStatus('Lecture impossible — remplis les champs à la main.', false);
+    } finally { if (btn) btn.disabled = false; }
+  }
+  if ($('ach-scan-btn')) $('ach-scan-btn').addEventListener('click', () => { const f = $('ach-scan-file'); if (f) f.click(); });
+  if ($('ach-scan-file')) $('ach-scan-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) runAchatScan(f); e.target.value = ''; });
 
   $('achat-save').addEventListener('click', async () => {
     if (!(window.FP && FP.db && FP.db.insert)) return;
