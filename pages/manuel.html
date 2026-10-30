@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030b">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -928,6 +928,7 @@
         <div class="man-item">L'onglet <b>Guide/Policy</b> réunit le <b>guide conducteur</b> (prise du véhicule, usage, sinistre, constat, carte mémo, véhicule électrique), le <b>guide administrateur</b> (ajouter véhicule / amende / facture / conducteur) et une partie <b>Policy</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> pour <b>cadrer la gestion de flotte</b> : la <b>car policy</b> (règlement d'utilisation : ayants droit, usage perso, remisage domicile, carburant, amendes, restitution, sanctions…), les <b>contacts &amp; rôles de validation</b> (qui valide un devis / une réparation / une commande, plafonds de dépense, délais), les <b>équipements &amp; accessoires</b> du véhicule (+ liste à rendre à la restitution) et les <b>champs société</b> à avoir sous la main (raison sociale, SIREN, TVA intra, établissements…). Un rappel <b>RGPD</b> : on ne collecte sur les conducteurs que l'utile (catégorie de permis, validité, attestation) — <b>jamais le nombre de points</b>.</div>
 
         <div class="man-zone">Confort — partout sur la plateforme</div>
+        <div class="man-item"><b>⌨️ Raccourcis clavier</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — appuie sur <b>?</b> (hors d'un champ de saisie) pour afficher la liste. L'essentiel : <b>Échap</b> ferme la fenêtre ouverte, <b>Ctrl/⌘ + K</b> ouvre la recherche globale, <b>Ctrl/⌘ + S</b> <b>enregistre la fenêtre ouverte</b> (clique le bouton « Enregistrer » à ta place, au lieu d'ouvrir l'« enregistrer la page » du navigateur), <b>Tab / Maj+Tab</b> circule entre les champs <b>sans sortir</b> de la fenêtre, et <b>← / →</b> passent à la fiche précédente/suivante. À la <b>fermeture</b> d'une fenêtre, le focus <b>revient</b> là où tu étais.</div>
         <div class="man-item"><b>👁️ Bouton « Voir »</b> : partout sur la plateforme (factures, contrôle, permis, cartes grises, documents véhicule…), « Voir » <b>ouvre directement le PDF concerné</b> dans un nouvel onglet — plus d'aperçu intégré intermédiaire. Comportement identique partout.</div>
         <div class="man-item"><b>➕ Bouton « + » flottant</b> (en bas à droite) : ajoute un <b>véhicule / amende / facture / sinistre</b> depuis n'importe quelle page, sans avoir à naviguer d'abord.</div>
         <div class="man-item"><b>▦ / ☰ Vue Tableau ou Cartes</b> — sur la conso <b>Total Fleet</b> et <b>Ulys</b> (Contrôle), l'onglet <b>Fournisseurs</b> (Factures) et le <b>Leasing</b> (Contrats), un petit sélecteur <b>Tableau / Cartes</b> bascule l'affichage : le tableau classique, ou une <b>carte par conducteur / fournisseur / véhicule</b> (plus visuel — total en gros, répartition, indicateurs clés). Ton choix est <b>mémorisé</b> et te suit sur tous tes appareils. Mêmes données, mêmes chiffres — juste la présentation change. 📱 <b>Sur mobile</b>, ces tableaux larges (Leasing, conso Total) passent <b>automatiquement en cartes</b> (plus lisibles sur un téléphone), sans que tu aies rien à régler.</div>
@@ -1046,8 +1047,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030a"></script>
-<script src="../assets/js/supabase-client.js?v=20261030a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030b"></script>
+<script src="../assets/js/supabase-client.js?v=20261030b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1063,10 +1064,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030a"></script>
+<script src="../assets/js/app.min.js?v=20261030b"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
