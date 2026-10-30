@@ -13858,6 +13858,82 @@ FP._parseDateLue = (raw) => {
   m = /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s); if (m) { const d = m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2); return isNaN(new Date(d).getTime()) ? null : d; }
   return null;
 };
+// ================= SCAN IA — COMPOSANT COMMUN (déclencheur + états) =================
+// SOURCE UNIQUE du « bouton de scan IA » de toute la plateforme : construit le déclencheur
+// (zone pointillée pour un formulaire, ou bouton compact pour une barre d'outils), l'input
+// fichier caché, la ligne de statut (⏳ lecture / ✓ succès / ⚠️ erreur), et appelle le moteur
+// UNIQUE FP.scanIA. Le contexte ne fournit QUE : libellé, type de doc, prompt, et un onResult
+// qui remplit SES champs (sans écraser une saisie existante, via le helper setIfEmpty fourni).
+// Styles : classes .fp-scan-zone / .fp-scan-btn / .fp-scan-status (assets/css/styles.css).
+//
+// opts : {
+//   mount:   élément|sélecteur où insérer (sinon on insère après `button`) ;
+//   button:  élément|sélecteur d'un déclencheur DÉJÀ présent (sinon on en crée un) ;
+//   variant: 'zone' (défaut) | 'btn' (compact) ;
+//   label, docType ('facture' par défaut), prompt, maxTokens (700),
+//   accept (types de fichiers), statusEl (sinon créé) ,
+//   onResult(ai, { setIfEmpty, setStatus }) → nombre de champs remplis OU { msg, ok } OU gère lui-même le statut.
+// }
+// Renvoie { trigger, input, status, setStatus, setIfEmpty, scan(file) }.
+FP.scanZone = function (opts) {
+  opts = opts || {};
+  const doc = document;
+  const q = (x) => (typeof x === 'string' ? doc.querySelector(x) : x);
+  const esc = FP.esc || ((s) => String(s == null ? '' : s));
+  const variant = opts.variant === 'btn' ? 'btn' : 'zone';
+  const label = opts.label || 'Scanner un document (remplissage automatique)';
+  // Déclencheur : réutilise un bouton fourni, sinon en crée un aux classes communes.
+  let trigger = opts.button ? q(opts.button) : null;
+  let created = false;
+  if (!trigger) {
+    trigger = doc.createElement('button'); created = true;
+    trigger.type = 'button';
+    trigger.className = (variant === 'btn') ? 'fp-scan-btn' : 'fp-scan-zone';
+    trigger.innerHTML = '<i data-lucide="sparkles"></i> <span>' + esc(label) + '</span>';
+  }
+  const input = doc.createElement('input');
+  input.type = 'file'; input.accept = opts.accept || 'image/*,application/pdf,.pdf,.heic,.heif'; input.className = 'hidden';
+  let status = opts.statusEl ? q(opts.statusEl) : doc.createElement('div');
+  if (!opts.statusEl) { status.className = 'fp-scan-status'; status.style.display = 'none'; }
+  // Insertion dans le DOM.
+  const host = opts.mount ? q(opts.mount) : null;
+  if (host) { if (created) host.appendChild(trigger); host.appendChild(input); if (!opts.statusEl) host.appendChild(status); }
+  else { trigger.insertAdjacentElement('afterend', input); if (!opts.statusEl) input.insertAdjacentElement('afterend', status); }
+  const setStatus = (txt, ok) => {
+    if (!status) return;
+    status.style.display = txt ? 'block' : 'none'; status.textContent = txt || '';
+    status.style.color = ok === false ? 'var(--fp-danger,#dc2626)' : (ok ? 'var(--fp-ok,#16a34a)' : 'var(--fp-muted,#64748b)');
+  };
+  // Ne remplit QUE si le champ cible est vide (jamais écraser une saisie). Renvoie true si rempli.
+  const setIfEmpty = (el, v) => {
+    el = (typeof el === 'string') ? doc.getElementById(el) : el; if (!el) return false;
+    const vv = (v == null ? '' : String(v)); if (vv === '') return false;
+    if (String(el.value).trim() !== '') return false; el.value = vv; return true;
+  };
+  async function scan(file) {
+    if (!file) return;
+    if (!(window.FP && FP.scanIA)) { setStatus('Lecture IA indisponible ici — remplis les champs à la main.', false); return; }
+    setStatus('⏳ Lecture du document en cours…'); trigger.disabled = true;
+    try {
+      const ai = await FP.scanIA(file, opts.docType || 'facture', opts.prompt, { maxTokens: opts.maxTokens || 700 });
+      if (!ai) { setStatus('Document non lu — remplis les champs à la main.', false); return; }
+      let res = null;
+      try { res = opts.onResult ? opts.onResult(ai, { setIfEmpty, setStatus }) : null; } catch (e) { res = null; }
+      if (res && typeof res === 'object' && ('msg' in res)) setStatus(res.msg, res.ok !== false);
+      else if (typeof res === 'number') {
+        if (res > 0) { setStatus('✓ ' + res + ' champ(s) rempli(s) automatiquement — vérifie puis enregistre.', true); if (FP.toast) FP.toast('Document lu : ' + res + ' champ(s) rempli(s)'); }
+        else setStatus('Rien n\'a pu être rempli — vérifie le document ou saisis à la main.', false);
+      }
+      // (si onResult ne renvoie rien, il a géré le statut lui-même)
+    } catch (e) { setStatus('Lecture impossible — remplis les champs à la main.', false); }
+    finally { trigger.disabled = false; }
+  }
+  trigger.addEventListener('click', () => input.click());
+  input.addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) scan(f); e.target.value = ''; });
+  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+  return { trigger, input, status, setStatus, setIfEmpty, scan };
+};
+
 FP.scanEdlKm = async function (file) {
   // ⚠️ POUR L'EDL, 0 km est une VALEUR VALIDE (certains états des lieux sont à 0 — ex. prise en main d'un
   // véhicule neuf). On n'utilise donc PAS FP._parseKm (qui rejette 0, exprès, pour les factures d'achat) :
