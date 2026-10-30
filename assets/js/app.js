@@ -19174,7 +19174,7 @@ FP.mailBrand = function (o) {
     infoBlock = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr><td style="border-top:1px solid rgba(255,255,255,.14);padding-top:14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' + cells.join('') + '</tr></table></td></tr></table>';
   }
   return FP.mailDocument(''
-    + '<div style="font-family:Inter,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
+    + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
     // ── EN-TÊTE SOMBRE, CENTRÉ (marque · titre · plaque héros · destinataire · montant/n° d'avis) ──
     + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:24px 22px 22px;border-radius:16px 16px 0 0;text-align:center">'
     +   '<div>' + brand + '</div>'
@@ -19212,12 +19212,17 @@ FP.mailShell = function (o) {
         ? '<span style="font-weight:900;font-size:18px;color:#ffffff;letter-spacing:.02em">' + esc(o.brand) + '</span>'
         : FP.ppLogoMail());
   return FP.mailDocument(''
+    // Même ossature visuelle que FP.mailBrand (e-mail d'amende = référence #26) : en-tête sombre dégradé,
+    // ligne orange d'accent, corps blanc, pied Parc Pilot. Seul le contenu de l'en-tête diffère (pas de
+    // plaque « héros » / montant pour un e-mail système) — la présentation, elle, est IDENTIQUE partout.
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
-    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:20px 22px;border-radius:16px 16px 0 0">'
+    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:24px 22px 22px;border-radius:16px 16px 0 0">'
     +   '<div>' + brand + '</div>'
     +   (o.title ? '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     + '</div>'
-    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 22px;color:#0F1E3D">'
+    // ── LIGNE ORANGE (accent de marque, identique à l'e-mail d'amende) ──
+    + '<div style="height:4px;background:#F97316;line-height:4px;font-size:0">&nbsp;</div>'
+    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:24px 22px;color:#0F1E3D">'
     +   (o.bodyHtml || '')
     +   (o.buttonHtml ? '<p style="text-align:center;margin:22px 0">' + o.buttonHtml + '</p>' : '')
     + '</div>'
