@@ -16519,11 +16519,22 @@ FP.dupe = {
           && n(e.conducteur || e.emprunteur) === cond
           && this._same(e.dateDebut || e.debut || e.dateEmprunt || e.date, deb)) || null;
       }
+      case 'dossiers_achat': {
+        // Dossier d'ACQUISITION en cours. Plaque = clé forte quand elle existe. Sans plaque (véhicule pas
+        // encore immatriculé), on ne flague un doublon QUE si marque+modèle+fournisseur ET même date de
+        // commande coïncident — sinon un achat en LOT de véhicules identiques serait pris à tort pour un
+        // doublon (règle « ne rien casser » / éviter les faux doublons).
+        const im = n(rec.immat);
+        if (im) return list.find(d => notSelf(d) && n(d.immat) === im) || null;
+        const ma = n(rec.marque), mo = n(rec.modele), four = n(rec.fournisseur), dc = rec.dateCommande || null;
+        if (!(ma && mo && dc)) return null;
+        return list.find(d => notSelf(d) && n(d.marque) === ma && n(d.modele) === mo && n(d.fournisseur) === four && this._same(d.dateCommande, dc)) || null;
+      }
       default: return null;
     }
   },
-  _label(table){ return { factures:'Une facture', amendes:'Une amende', vehicules:'Un véhicule', conducteurs:'Un conducteur', emprunts:'Un emprunt' }[table] || 'Un élément'; },
-  _tag(d){ return d.numeroFacture ? ' n° ' + d.numeroFacture : d.numeroAvis ? ' avis ' + d.numeroAvis : d.immat ? ' ' + d.immat : (d.name || d.prenom) ? ' ' + (d.name || d.prenom) : ''; },
+  _label(table){ return { factures:'Une facture', amendes:'Une amende', vehicules:'Un véhicule', conducteurs:'Un conducteur', emprunts:'Un emprunt', dossiers_achat:'Un dossier d\'achat' }[table] || 'Un élément'; },
+  _tag(d){ return d.numeroFacture ? ' n° ' + d.numeroFacture : d.numeroAvis ? ' avis ' + d.numeroAvis : d.immat ? ' ' + d.immat : (d.marque || d.modele) ? ' ' + [d.marque, d.modele].filter(Boolean).join(' ') : (d.name || d.prenom) ? ' ' + (d.name || d.prenom) : ''; },
   // Garde AVANT insertion : renvoie false si l'utilisateur refuse d'ajouter un doublon.
   // (Version simple OK/Annuler — conservée pour les points d'ajout qui ne gèrent PAS la fusion.)
   async confirmAdd(table, rec, list){

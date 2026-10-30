@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030u">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030v">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030u"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030v"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030u">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030v">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -894,7 +894,7 @@
         <div class="man-item"><b>🔗 Plaque cliquable + QR de l'annonce</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — clique la <b>plaque</b> d'une carte pour ouvrir sa <b>fiche véhicule</b>. Chaque carte affiche aussi le <b>QR de l'annonce de vente</b> (la petite image carrée) : <b>passe la souris dessus</b> → tu peux <b>🔗 ouvrir</b> l'annonce (la page que voit un acheteur) ou <b>📋 copier le lien</b> pour l'envoyer. Un raccourci pratique pour montrer une voiture à vendre sans la chercher.</div>
         <div class="man-zone">Acheter — suivi d'acquisition</div>
         <div class="man-item"><b>🛒 Onglet « Acheter »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en haut de la page « À vendre », deux sous-onglets : <b>À vendre</b> (les ventes, inchangé) et <b>Acheter</b> (le suivi de tes <b>acquisitions</b> de véhicules). C'est le miroir de la vente : tu suis une voiture que tu <b>achètes</b>, du <b>projet d'achat</b> jusqu'à son <b>intégration dans la flotte</b>.</div>
-        <div class="man-item"><b>Créer un dossier d'achat</b> — bouton <b>« Nouveau dossier d'achat »</b> : tu renseignes ce que tu connais (marque, modèle, version, motorisation, fournisseur/concession, financement, prix HT/TTC, acompte prévu, dates de commande et de livraison prévue, immatriculation si connue, notes). <b>Rien n'est obligatoire</b> au début (souvent on ne sait pas tout) — il suffit d'une marque, un modèle <b>ou</b> un fournisseur. Le dossier peut exister <b>avant même que le véhicule arrive</b>.</div>
+        <div class="man-item"><b>Créer un dossier d'achat</b> — bouton <b>« Nouveau dossier d'achat »</b> : tu renseignes ce que tu connais (marque, modèle, version, motorisation, fournisseur/concession, financement, prix HT/TTC, acompte prévu, dates de commande et de livraison prévue, immatriculation si connue, notes). <b>Rien n'est obligatoire</b> au début (souvent on ne sait pas tout) — il suffit d'une marque, un modèle <b>ou</b> un fournisseur. Le dossier peut exister <b>avant même que le véhicule arrive</b>. <b>Anti-doublon</b> : si un dossier identique existe déjà (même immatriculation, ou mêmes marque+modèle+fournisseur et même date de commande), Parc Pilot te prévient avant de créer un second dossier (tu peux quand même confirmer pour un achat en lot de véhicules identiques).</div>
         <div class="man-item"><b>🤖 Remplissage automatique par lecture IA</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en haut de la fenêtre « Nouveau dossier d'achat », le bouton <b>« Scanner un devis / bon de commande »</b> : tu <b>déposes le document</b> (photo ou PDF — devis, bon de commande, confirmation de commande, facture proforma/d'achat) et l'IA <b>remplit toute seule</b> les champs qu'elle reconnaît (marque, modèle, version, motorisation, fournisseur, prix HT/TTC, acompte, dates, immatriculation). Elle <b>ne remplace jamais</b> un champ que tu as déjà saisi, elle lit les <b>vraies valeurs</b> à côté de leurs libellés (jamais « au hasard ») et <b>contrôle la cohérence HT/TTC</b>. Un message indique combien de champs ont été remplis — tu <b>vérifies</b>, tu corriges au besoin, puis <b>Enregistrer</b>. <i>Comme partout sur la plateforme : dès qu'on dépose un document, la lecture IA est proposée.</i></div>
         <div class="man-item"><b>Les étapes (pipeline)</b> — chaque dossier avance en colonnes : <b>Projet d'achat → Devis reçu → Commande validée → Acompte versé → Attente livraison → Livré → Finalisé → Intégré à la flotte</b> (+ <b>Suspendu</b> / <b>Annulé</b> au besoin). Tu changes l'étape directement sur la carte (sauvegarde auto). En haut, 4 compteurs : <b>dossiers en cours</b>, <b>montant commandé</b>, <b>acomptes versés</b>, <b>à intégrer</b>.</div>
         <div class="man-item"><b>⚠️ Pas de double comptage</b> — le <b>coût réel</b> du véhicule reste porté par la <b>facture d'achat</b> (onglet Factures). Le dossier d'achat sert au <b>suivi</b> (étape, documents, acompte) et <b>n'ajoute pas</b> une seconde fois le prix dans le TCO.</div>
@@ -1062,8 +1062,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030u"></script>
-<script src="../assets/js/supabase-client.js?v=20261030u"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030v"></script>
+<script src="../assets/js/supabase-client.js?v=20261030v"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1079,10 +1079,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030u"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030v"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030u"></script>
+<script src="../assets/js/app.min.js?v=20261030v"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
