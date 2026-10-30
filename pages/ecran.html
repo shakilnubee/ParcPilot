@@ -16,11 +16,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030t">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030u">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="../assets/js/lucide.min.js?v=20261030t"></script>
+<script defer src="../assets/js/lucide.min.js?v=20261030u"></script>
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030t">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030u">
 <style>
   :root{ --ink:#e9eefc; --muted:#8aa0c4; }
   *{ box-sizing:border-box; }
@@ -142,8 +142,8 @@
 <div class="ec-grid" id="ec-grid"></div>
 <div class="ec-ticker"><i data-lucide="siren" class="w-6 h-6" style="color:#F59E0B;flex-shrink:0"></i><div id="ec-ticker-txt" class="text-lg font-semibold" style="min-width:0">—</div></div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030t"></script>
-<script src="../assets/js/supabase-client.js?v=20261030t"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030u"></script>
+<script src="../assets/js/supabase-client.js?v=20261030u"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -159,10 +159,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030t"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030u"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030t"></script>
+<script src="../assets/js/app.min.js?v=20261030u"></script>
 <script>
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -172,8 +172,10 @@
   function metrics() {
     const D = window.FP_DATA || {};
     const now = new Date();
-    const ym = now.toISOString().slice(0, 7);
-    const y12 = new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 7);
+    // Mois courant via le helper canonique (date LOCALE) — même mois que le dashboard/stats. toISOString()
+    // est en UTC → autour du changement de mois (nuit, Paris en avance sur UTC) le mois pouvait différer.
+    const ym = (window.FP && FP.ymLocal) ? FP.ymLocal(now) : now.toISOString().slice(0, 7);
+    const y12 = (window.FP && FP.ymLocal) ? FP.ymLocal(new Date(now.getFullYear(), now.getMonth() - 11, 1)) : new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 7);
     const actifs = (D.vehicules || []).filter(v => !(window.FP && FP.estVendu ? FP.estVendu(v) : /vendu/i.test(v.statut || ''))); // parc possédé (hors vendus)
     const km = actifs.reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0)), 0); // km réel — même source que le dashboard/stats
     const facts = D.factures || [];

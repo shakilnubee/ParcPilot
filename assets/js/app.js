@@ -11727,10 +11727,20 @@ FP.rapportDirection = (data) => {
   // 12 mois glissants = coût d'EXPLOITATION (même filtre que coutMois) — sinon gonflé par un achat de véhicule/sinistre.
   const cout12 = facts.filter(f => (f.date || '').slice(0, 7) >= y12 && FP.coutFactureExploit(f)).reduce((s, f) => s + (+f.montantTTC || 0), 0);
 
+  // Top coûts par véhicule : regroupement par plaque NORMALISÉE (FP.normImmat) — sinon « HL-724-CD » et
+  // « HL724CD » (formats mixtes en base) comptaient comme 2 véhicules (règle 0-plaques). Libellé = plaque
+  // de la fiche (canonique) si trouvée, sinon le 1er format lisible rencontré.
   const byVeh = {};
-  facts.filter(f => (f.date || '').slice(0, 7) >= y12 && FP.coutFactureExploit(f)).forEach(f => { const k = f.vehiculeImmat || '—'; byVeh[k] = (byVeh[k] || 0) + (+f.montantTTC || 0); });
-  const topCouts = Object.entries(byVeh).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const topMax = topCouts.length ? topCouts[0][1] : 0;
+  facts.filter(f => (f.date || '').slice(0, 7) >= y12 && FP.coutFactureExploit(f)).forEach(f => {
+    const raw = f.vehiculeImmat || '';
+    const k = raw ? (FP.normImmat ? FP.normImmat(raw) : raw) : '—';
+    if (!byVeh[k]) byVeh[k] = { total: 0, label: raw || '—' };
+    byVeh[k].total += (+f.montantTTC || 0);
+    if (byVeh[k].label === '—' && raw) byVeh[k].label = raw;
+  });
+  Object.keys(byVeh).forEach(k => { try { const v = FP.vehByImmat ? FP.vehByImmat(k) : null; if (v && v.immat) byVeh[k].label = v.immat; } catch (e) {} });
+  const topCouts = Object.entries(byVeh).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+  const topMax = topCouts.length ? topCouts[0][1].total : 0;
 
   const tvsTotal = FP.tvsAnnuelleFlotte(vehs);
   let co2G = 0; actifs.forEach(v => { const carb = (v.carburant || '').toLowerCase(); if (/lectri|hydrog/.test(carb)) return; const c = Number(v.co2); if (Number.isFinite(c) && c > 0) co2G += c * (FP.kmAnnuel ? FP.kmAnnuel(v) : 15000); });
@@ -11760,10 +11770,10 @@ FP.rapportDirection = (data) => {
       <td class="muted">${esc(e.detail || '')}</td>
     </tr>`).join('') : '<tr><td colspan="4" class="muted" style="text-align:center;padding:14px">Aucune échéance dans les 90 jours 🎉</td></tr>';
 
-  const topRows = topCouts.length ? topCouts.map(([k, v]) => `<div class="bar-row">
-      <div class="bar-lbl">${esc(k)}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${topMax ? Math.max(4, Math.round(v / topMax * 100)) : 0}%"></div></div>
-      <div class="bar-val">${eur(v)}</div>
+  const topRows = topCouts.length ? topCouts.map(([k, o]) => `<div class="bar-row">
+      <div class="bar-lbl">${esc(o.label || k)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${topMax ? Math.max(4, Math.round(o.total / topMax * 100)) : 0}%"></div></div>
+      <div class="bar-val">${eur(o.total)}</div>
     </div>`).join('') : '<div class="muted">Aucune facture sur 12 mois.</div>';
 
   const logo = `<svg width="120" height="27" viewBox="0 0 154 36" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="10" x2="24" y2="10" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/><line x1="0" y1="18" x2="28" y2="18" stroke="#F97316" stroke-width="3" stroke-linecap="round"/><line x1="6" y1="26" x2="22" y2="26" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/><text x="34" y="26" font-size="20" font-weight="900" font-style="italic" fill="#fff">Parc</text><text x="86" y="26" font-size="20" font-weight="900" font-style="italic" fill="#F97316">Pilot</text></svg>`;
