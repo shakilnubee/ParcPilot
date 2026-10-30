@@ -19,6 +19,11 @@ verify_jwt = false
 [functions.offre-achat]
 verify_jwt = false
 
+# reservation : demande de RÉSERVATION de véhicule PUBLIQUE (le collègue n'a pas de compte Parc Pilot).
+# Protégée par un TOKEN société secret dans le lien (comme offre-achat) + disponibilité vérifiée serveur.
+[functions.reservation]
+verify_jwt = false
+
 # km-relance : relance AUTOMATIQUE des relevés km, appelée par une tâche planifiée
 # (pg_cron) qui n'a pas de JWT utilisateur. Protégée par l'en-tête x-cron-secret
 # (== KM_RELANCE_SECRET) OU un JWT de CEO pour un test manuel — contrôle fait DANS la
