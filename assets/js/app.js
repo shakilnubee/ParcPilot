@@ -19063,7 +19063,15 @@ FP.share = function (opts) {
         chev.setAttribute('aria-label', 'Plier / déplier');
         chev.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--fp-muted,#94a3b8);padding:4px;line-height:0;margin-left:auto;transition:transform .18s;flex:0 0 auto;align-self:flex-start';
         chev.innerHTML = CHEV;
-        const apply = () => { bodies.forEach(b => { b.style.display = collapsed ? 'none' : ''; }); chev.style.transform = collapsed ? 'rotate(-90deg)' : ''; };
+        // Accessibilité (clavier déjà OK : le chevron EST un <button> → Entrée/Espace + focus natifs).
+        // On ajoute l'état annoncé aux lecteurs d'écran (aria-expanded) + un libellé dynamique.
+        const apply = () => {
+          bodies.forEach(b => { b.style.display = collapsed ? 'none' : ''; });
+          chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+          chev.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+          const lbl = collapsed ? 'Déplier cette carte' : 'Replier cette carte';
+          chev.setAttribute('aria-label', lbl); chev.title = lbl;
+        };
         const toggle = () => { collapsed = !collapsed; try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (e2) {} apply(); };
         // Place le chevron dans l'en-tête, aligné à droite (header rendu flex si besoin).
         try { const cs = getComputedStyle(header); if (cs.display.indexOf('flex') < 0) { header.style.display = 'flex'; header.style.alignItems = 'center'; header.style.gap = header.style.gap || '8px'; } } catch (e) { header.style.display = 'flex'; }
