@@ -2506,3 +2506,13 @@ body.fp-dark [style*="background:#ecfeff" i], body.fp-dark [style*="background:#
 .fp-scan-status { font-size:.75rem; margin-top:.375rem; line-height:1.4; }
 body.fp-dark .fp-scan-zone, body.fp-dark .fp-scan-btn { background:rgba(249,115,22,.14); }
 body.fp-dark .fp-scan-zone:hover, body.fp-dark .fp-scan-btn:hover { background:rgba(249,115,22,.22); }
+
+/* ===== KPI robustes sur mobile — plus de titre « lettre par ligne » =====
+   Cause : le bloc texte du KPI (dans un flex avec l'icône) n'avait pas min-width:0 → il ne
+   pouvait pas rétrécir et le titre se cassait caractère par caractère quand la carte devenait
+   étroite (paysage, sidebar). On autorise le rétrécissement + coupure AUX MOTS, et sur les très
+   petits écrans on passe les KPI sur une seule colonne (lisibilité > densité). */
+.kpi > div { min-width: 0; }
+.kpi > div > div { min-width: 0; }
+.kpi .kpi-label, .kpi .kpi-value, .kpi .kpi-delta { overflow-wrap: break-word; word-break: normal; }
+@media (max-width: 380px) { .grid:has(> .kpi) { grid-template-columns: 1fr; } }
