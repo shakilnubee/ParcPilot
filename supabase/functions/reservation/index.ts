@@ -36,6 +36,15 @@ function clean(v: unknown, max = 200): string { return String(v == null ? "" : v
 function esc(s: string) { return String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] || c)); }
 function ts(x: unknown): number | null { const d = new Date(String(x || "")); const t = d.getTime(); return isNaN(t) ? null : t; }
 function statutNorm(s: unknown): string { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(); }
+function nImmat(s: unknown): string { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+// Combine date 'YYYY-MM-DD' + heure 'HH:MM' → timestamp (ms). endOfDay=true : heure absente → 23:59 (journée entière).
+function tsDH(date: unknown, heure: unknown, endOfDay: boolean): number | null {
+  const ds = String(date || ""); if (!ds) return null;
+  let h = String(heure || ""); if (!/^\d{1,2}:\d{2}/.test(h)) h = endOfDay ? "23:59" : "00:00";
+  if (h.length === 4) h = "0" + h;
+  const d = new Date(ds + "T" + h); const t = d.getTime();
+  return isNaN(t) ? null : t;
+}
 const HORS = ["vendu", "vendue", "cede", "cédé", "cedee", "cédée", "hors service", "hors-service", "hs", "archive", "archivé", "archivée", "restitue", "restitué", "restituee", "restituée"];
 
 // Résout le token société → { societe, settings } (scan app_settings.data.reservationToken).
@@ -69,23 +78,47 @@ function reservableIds(data: Record<string, unknown>, vehs: Array<Record<string,
   return ids;
 }
 
-// Un véhicule est-il libre sur [d0,f0] ? (statut OK + non immobilisé + aucun chevauchement de réservation active)
-function vehiculeLibre(v: Record<string, unknown>, data: Record<string, unknown>, resas: Array<Record<string, unknown>>, vehId: string, d0: number, f0: number): boolean {
+// Un véhicule est-il libre sur [d0,f0] ? Autorité serveur, croise TOUTES les sources d'occupation :
+//   • statut (hors flotte / entretien / sinistre) + immobilisation manuelle ;
+//   • table `reservations` : demandes EN ATTENTE + créneaux BLOQUÉS (les 'confirmee' vivent, elles,
+//     dans settings.reservations → comptées ci-dessous, pas en double) ;
+//   • settings.reservations : réservations CONFIRMÉES (liste de travail d'Emprunt véhicule), par plaque ;
+//   • emprunts EN COURS (non rendus) : véhicule dehors, retour inconnu → indisponible.
+function vehiculeLibre(v: Record<string, unknown>, data: Record<string, unknown>, resas: Array<Record<string, unknown>>, emprunts: Array<Record<string, unknown>>, vehId: string, immat: string, d0: number, f0: number): boolean {
   const st = statutNorm(v.statut);
   if (HORS.includes(st) || st === "entretien" || st === "sinistre") return false;
   try {
     const imm = (data.vehImmobilise && typeof data.vehImmobilise === "object") ? (data.vehImmobilise as Record<string, { since?: string; leveLe?: string }>)[vehId] : null;
     if (imm && imm.since && !imm.leveLe) return false;
   } catch { /* ignore */ }
+  const ni = nImmat(immat || v.immat);
+  // 1) Table `reservations` — seules les demandes en attente et les blocages manuels tiennent le créneau.
   for (const r of resas) {
     if (String(r.vehicule_id || "") !== vehId) continue;
     if (r.deleted_at) continue;
     const s = statutNorm(r.statut);
-    if (s === "refusee" || s === "annulee" || s === "terminee") continue;   // ces statuts ne bloquent pas
+    if (s !== "en_attente" && s !== "bloc") continue;
     const rd = ts(r.debut), rf = ts(r.fin);
     if (rd == null || rf == null) continue;
     if (d0 < rf && f0 > rd) return false;   // chevauchement
   }
+  // 2) Réservations CONFIRMÉES internes (settings.reservations), rapprochées par plaque normalisée.
+  try {
+    const internal = Array.isArray(data.reservations) ? data.reservations as Array<Record<string, unknown>> : [];
+    for (const r of internal) {
+      if (!ni || nImmat(r.vehicule) !== ni) continue;
+      const rd = tsDH(r.debut, r.heureDebut, false), rf = tsDH(r.fin || r.debut, r.heureFin, true);
+      if (rd == null || rf == null) continue;
+      if (d0 < rf && f0 > rd) return false;
+    }
+  } catch { /* ignore */ }
+  // 3) Emprunt EN COURS (non rendu) → véhicule dehors, retour inconnu → indisponible sur tout créneau.
+  try {
+    for (const e of emprunts) {
+      if (!ni || nImmat(e.vehicule) !== ni) continue;
+      if (!e.date_retour) return false;
+    }
+  } catch { /* ignore */ }
   return true;
 }
 
@@ -164,10 +197,14 @@ Deno.serve(async (req) => {
       const vehs = Array.isArray(vehsRaw) ? vehsRaw as Array<Record<string, unknown>> : [];
       const okIds = reservableIds(ctx.data, vehs);
       let resas: Array<Record<string, unknown>> = [];
-      if (d0 != null && f0 != null) { const { data: r } = await db.from("reservations").select("vehicule_id,debut,fin,statut,deleted_at").eq("societe", ctx.societe); resas = Array.isArray(r) ? r as Array<Record<string, unknown>> : []; }
+      let emprunts: Array<Record<string, unknown>> = [];
+      if (d0 != null && f0 != null) {
+        const { data: r } = await db.from("reservations").select("vehicule_id,debut,fin,statut,deleted_at").eq("societe", ctx.societe); resas = Array.isArray(r) ? r as Array<Record<string, unknown>> : [];
+        const { data: em } = await db.from("emprunts").select("vehicule,date_retour").eq("societe", ctx.societe); emprunts = Array.isArray(em) ? em as Array<Record<string, unknown>> : [];
+      }
 
       const list = vehs.filter((v) => okIds.has(String(v.id)))
-        .filter((v) => (d0 != null && f0 != null) ? vehiculeLibre(v, ctx.data, resas, String(v.id), d0, f0) : !HORS.includes(statutNorm(v.statut)))
+        .filter((v) => (d0 != null && f0 != null) ? vehiculeLibre(v, ctx.data, resas, emprunts, String(v.id), String(v.immat || ""), d0, f0) : !HORS.includes(statutNorm(v.statut)))
         .map((v) => ({ id: v.id, immat: v.immat || "", marque: v.marque || "", modele: v.modele || "", categorie: v.categorie || "", carburant: v.carburant || "", photoUrl: v.photo_url || "" }));
       return json({ ok: true, societe: cfg.nomSoc || "", vehicules: list, total: okIds.size });
     }
@@ -195,7 +232,9 @@ Deno.serve(async (req) => {
       if (!veh || !reservableIds(ctx.data, vehs).has(vehId)) return json({ error: "Ce véhicule n'est pas proposé à la réservation." }, 400);
       const { data: r } = await db.from("reservations").select("vehicule_id,debut,fin,statut,deleted_at").eq("societe", ctx.societe);
       const resas = Array.isArray(r) ? r as Array<Record<string, unknown>> : [];
-      if (!vehiculeLibre(veh, ctx.data, resas, vehId, d0, f0)) return json({ error: "Désolé, ce véhicule vient d'être pris sur ce créneau. Choisis un autre créneau ou véhicule." }, 409);
+      const { data: em } = await db.from("emprunts").select("vehicule,date_retour").eq("societe", ctx.societe);
+      const emprunts = Array.isArray(em) ? em as Array<Record<string, unknown>> : [];
+      if (!vehiculeLibre(veh, ctx.data, resas, emprunts, vehId, String(veh.immat || ""), d0, f0)) return json({ error: "Désolé, ce véhicule vient d'être pris sur ce créneau. Choisis un autre créneau ou véhicule." }, 409);
 
       const rec = {
         id: genId("RES"), societe: ctx.societe, vehicule_id: vehId, immat: String(veh.immat || ""),

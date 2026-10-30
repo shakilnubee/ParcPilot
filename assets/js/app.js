@@ -8241,14 +8241,17 @@ FP.refreshDeclCondBadge = async () => {
     // NOUVELLES demandes d'achat (formulaire acheteur rempli) depuis la dernière visite → pastille aussi.
     let offreUnseen = 0;
     try { if (FP.offreAchat && FP.offreAchat.load) { await FP.offreAchat.load(); offreUnseen = FP.offreAchat._unseen || 0; } } catch (e) {}
+    // NOUVELLES demandes de RÉSERVATION (portail public) depuis la dernière visite → pastille aussi.
+    let resaUnseen = 0;
+    try { if (FP.reservations && FP.reservations.load) { await FP.reservations.load(); resaUnseen = FP.reservations._unseen || 0; } } catch (e) {}
     // BADGE « Sinistres » = uniquement les déclarations de type sinistre/problème (pas km/état des lieux).
     // BADGE « Suivi & alertes » = demandes conducteur (km, état des lieux, question) + signatures reçues + scans QR.
-    const notifCount = FP.declCondKmCount + FP.declCondEdlCount + FP.declCondQuestionCount + FP.declCondAutreCount + edlUnseen + scanUnseen + offreUnseen;
+    const notifCount = FP.declCondKmCount + FP.declCondEdlCount + FP.declCondQuestionCount + FP.declCondAutreCount + edlUnseen + scanUnseen + offreUnseen + resaUnseen;
     // Mémorise les valeurs → réappliquées après chaque reconstruction du menu (sinon la pastille
     // « disparaissait » quand la sidebar était rebâtie après le calcul du badge).
     FP._navBadgeVals = {
       'sinistres.html': [FP.declCondSinCount, FP.declCondSinCount + ' déclaration(s) sinistre/problème en attente'],
-      'notifications.html': [notifCount, notifCount + ' nouveauté(s) : demande conducteur, signature, scan QR ou demande d\'achat'],
+      'notifications.html': [notifCount, notifCount + ' nouveauté(s) : demande conducteur, signature, scan QR, demande d\'achat ou de réservation'],
     };
     FP.reapplyNavBadges();
   } catch (e) {}
@@ -10827,6 +10830,20 @@ FP.buildAlertes = (data) => {
         }));
         out.push({ niveau: 'warn', categorie: 'Ventes', message: `${nouv.length} demande${nouv.length > 1 ? 's' : ''} d'achat reçue${nouv.length > 1 ? 's' : ''}`, detail: 'Un acheteur a rempli le formulaire acheteur. Le détail est dans Contrats → Archive — classe la demande une fois traitée.', sort: 210, muteKey: 'offre-achat-recue', vehicules: items });
       }
+    }
+  } catch (e) {}
+
+  // --- Demandes de RÉSERVATION reçues (un collègue a rempli le portail public) → à valider ---
+  // Source = FP.reservations._pending (chargé par FP.reservations.load() sur la page). Chaque ligne
+  // ouvre la boîte de réception dans Emprunt véhicule pour accepter/refuser.
+  try {
+    const pend = (FP.reservations && FP.reservations._pending) || null;
+    if (Array.isArray(pend) && pend.length) {
+      const items = pend.map(s => ({
+        label: `${(s.immat || 'Véhicule')} — demande de ${s.nom || 'quelqu\'un'}${s.debut ? ' (' + (function () { try { return new Date(s.debut).toLocaleDateString('fr-FR'); } catch (e) { return ''; } })() + ')' : ''}`,
+        target: 'emprunts.html?resademande=' + encodeURIComponent(s.id),
+      }));
+      out.push({ niveau: 'warn', categorie: 'Réservations', message: `${pend.length} demande${pend.length > 1 ? 's' : ''} de réservation à valider`, detail: 'Un collègue a demandé à réserver un véhicule via le lien public. Accepte ou refuse la demande dans Emprunt véhicule → Demandes en attente.', sort: 205, muteKey: 'resa-demande-recue', vehicules: items });
     }
   } catch (e) {}
 
@@ -15776,6 +15793,193 @@ FP.offreAchat = {
     const a = (s && s.acheteur) || {};
     if ((s && s.type) === 'societe') return a.raisonSociale || [a.repPrenom, a.repNom].filter(Boolean).join(' ') || 'Société';
     return [a.prenom, a.nom].filter(Boolean).join(' ') || 'Particulier';
+  },
+};
+
+// ================= RÉSERVATION DE VÉHICULES — lien public + boîte de réception =================
+// Un collègue SANS compte Parc Pilot réserve un véhicule via reserver.html?t=<token-société>
+// (Edge Function `reservation`, service_role). Côté app (gestionnaire), ce module : (1) génère et
+// partage le LIEN de la société (token stable rangé dans les réglages), (2) choisit les véhicules
+// PROPOSÉS à la réservation (reservablesCfg), (3) traite les DEMANDES reçues (table `reservations`,
+// statut 'en_attente') → Accepter (⇒ réservation confirmée dans la liste existante d'Emprunt véhicule
+// + e-mail au demandeur) ou Refuser (+ e-mail). Même modèle que FP.offreAchat.
+// ⚠️ UNE seule source par ÉTAT (règle « source unique ») :
+//   • demandes en attente + blocages manuels de créneau = table `reservations` (statut en_attente / bloc) ;
+//   • réservations CONFIRMÉES = settings.reservations (la liste de travail déjà affichée dans Emprunt
+//     véhicule) — une demande acceptée y est recopiée, et la ligne de table passe en 'confirmee' (trace).
+// La DISPONIBILITÉ du portail (Edge Function) croise : settings.reservations + emprunts en cours +
+// demandes en attente/blocs de la table + statut/immobilisation du véhicule (autorité serveur).
+FP.reservations = {
+  BASE: 'https://parc-pilot.fr/reserver.html',
+  _rows: null,       // toutes les lignes (non supprimées) de la société
+  _pending: null,    // demandes à traiter (statut 'en_attente')
+  _unseen: 0,        // nouvelles demandes non vues sur CET appareil (→ pastille)
+  _soc() { try { let s = (FP.settings && FP.settings._soc) ? FP.settings._soc() : ((FP.activeSociete && FP.activeSociete()) || 'PXP'); return (s === '__all__') ? 'PXP' : s; } catch (e) { return 'PXP'; } },
+  _seenKey() { return 'fp_resaseen_' + this._soc(); },
+  _readSeen() { try { const v = JSON.parse(localStorage.getItem(this._seenKey()) || 'null'); return (v && typeof v === 'object') ? v : {}; } catch (e) { return {}; } },
+  _writeSeen(m) { try { localStorage.setItem(this._seenKey(), JSON.stringify(m || {})); } catch (e) {} },
+
+  // ── Lien public (token stable par société, dans les réglages → synchro multi-postes) ──
+  token() { try { return String(FP.settings.get().reservationToken || ''); } catch (e) { return ''; } },
+  link() { const t = this.token(); return t ? (this.BASE + '?t=' + encodeURIComponent(t)) : ''; },
+  async ensureToken() {
+    let t = this.token();
+    if (t) return t;
+    t = FP.secureToken('res-');
+    try { const s = FP.settings.get(); s.reservationToken = t; await FP.settings.save(s); } catch (e) { return ''; }
+    return t;
+  },
+  async ensureLink() { const t = await this.ensureToken(); return t ? (this.BASE + '?t=' + encodeURIComponent(t)) : ''; },
+  // Réinitialise le token → l'ANCIEN lien ne fonctionne plus (en cas de fuite). Renvoie le nouveau lien.
+  async resetToken() {
+    const t = FP.secureToken('res-');
+    try { const s = FP.settings.get(); s.reservationToken = t; await FP.settings.save(s); } catch (e) { return ''; }
+    return this.BASE + '?t=' + encodeURIComponent(t);
+  },
+
+  // ── Véhicules proposés à la réservation (config société) ──
+  getReservablesCfg() {
+    try {
+      const c = FP.settings.get().reservablesCfg;
+      return (c && typeof c === 'object')
+        ? { vehicules: Array.isArray(c.vehicules) ? c.vehicules.map(String) : [], groupes: Array.isArray(c.groupes) ? c.groupes.map(String) : [] }
+        : { vehicules: [], groupes: [] };
+    } catch (e) { return { vehicules: [], groupes: [] }; }
+  },
+  async setReservablesCfg(cfg) {
+    try {
+      const s = FP.settings.get();
+      s.reservablesCfg = { vehicules: ((cfg && cfg.vehicules) || []).map(String), groupes: ((cfg && cfg.groupes) || []).map(String) };
+      await FP.settings.save(s);
+      return true;
+    } catch (e) { return false; }
+  },
+  // Un véhicule (objet) est-il proposé à la réservation ? (par id OU par groupe) — même logique que l'Edge Function.
+  isReservable(veh) {
+    if (!veh) return false;
+    const cfg = this.getReservablesCfg();
+    if (cfg.vehicules.includes(String(veh.id))) return true;
+    const vg = Array.isArray(veh.groupes) ? veh.groupes.map(String) : [];
+    return cfg.groupes.some(g => vg.includes(g));
+  },
+
+  // ── Demandes reçues (table `reservations`) ──
+  async load() {
+    try {
+      if (!(FP.db && FP.db.select)) { this._rows = []; this._pending = []; this._unseen = 0; return this._pending; }
+      const r = await FP.db.select('reservations');
+      const rows = (r && r.data) ? r.data : [];
+      this._rows = rows.filter(x => x && !x.deletedAt);
+      this._pending = this._rows.filter(x => (x.statut || '') === 'en_attente')
+        .map(x => ({
+          id: x.id, vehiculeId: String(x.vehiculeId || ''), immat: x.immat || '',
+          nom: x.demandeurNom || '', email: x.demandeurEmail || '', tel: x.demandeurTel || '',
+          motif: x.motif || '', debut: x.debut || '', fin: x.fin || '', source: x.source || 'public',
+          when: Date.parse(x.createdAt || 0) || 0,
+        }))
+        .sort((a, b) => String(a.debut).localeCompare(String(b.debut)) || b.when - a.when);
+      const seen = this._readSeen();
+      this._unseen = this._pending.filter(s => !seen[s.id]).length;
+      return this._pending;
+    } catch (e) { this._rows = []; this._pending = []; this._unseen = 0; return this._pending; }
+  },
+  markSeen() { try { const seen = this._readSeen(); (this._pending || []).forEach(s => { seen[s.id] = 1; }); this._writeSeen(seen); this._unseen = 0; } catch (e) {} },
+
+  // ISO (date+heure) → { date:'YYYY-MM-DD', heure:'HH:MM' } pour la liste settings.reservations existante.
+  _splitIso(iso) {
+    const d = new Date(String(iso || '')); if (isNaN(d.getTime())) return { date: '', heure: '' };
+    const p = n => String(n).padStart(2, '0');
+    return { date: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), heure: p(d.getHours()) + ':' + p(d.getMinutes()) };
+  },
+  _row(id) { return (this._rows || []).find(x => x && x.id === id) || null; },
+  // Libellé véhicule court pour l'e-mail (marque modèle, sinon plaque).
+  _vehLbl(row) {
+    try { const v = FP.vehByImmat && row.immat ? FP.vehByImmat(row.immat) : null; if (v) return [v.marque, v.modele].filter(Boolean).join(' ') || (v.immat || ''); } catch (e) {}
+    return row.immat || 'le véhicule';
+  },
+  // E-mail branché société au demandeur (décision). best-effort (ne bloque pas la décision).
+  async _mailDemandeur(row, accepte, motifRefus) {
+    try {
+      if (!(FP.sendEmail && row && row.demandeurEmail)) return;
+      let nomSoc = '', logo = '';
+      try { const s = FP.settings.get(); nomSoc = (s.societe && s.societe.nom) || ''; logo = (s.profil && s.profil.logoUrl) || ''; } catch (e) {}
+      const esc = FP.esc || (x => String(x == null ? '' : x));
+      const vehLbl = this._vehLbl(row);
+      const per = this._period(row);
+      const prenom = String(row.demandeurNom || '').trim().split(/\s+/)[0] || '';
+      let title, body, subject;
+      if (accepte) {
+        subject = 'Réservation confirmée — ' + vehLbl;
+        title = 'Réservation confirmée';
+        body = '<p style="margin:0 0 12px;line-height:1.55">Bonjour ' + esc(prenom) + ',</p>'
+          + '<p style="margin:0 0 12px;line-height:1.55">Votre réservation est <b>confirmée</b> :</p>'
+          + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">&#128663; <b>' + esc(vehLbl) + '</b><br>&#128197; ' + esc(per) + '</div>'
+          + '<p style="margin:0;line-height:1.55">Pensez à récupérer le véhicule à la date prévue. Bonne route&#160;!</p>';
+      } else {
+        subject = 'Réservation non retenue — ' + vehLbl;
+        title = 'Réservation non retenue';
+        body = '<p style="margin:0 0 12px;line-height:1.55">Bonjour ' + esc(prenom) + ',</p>'
+          + '<p style="margin:0 0 12px;line-height:1.55">Votre demande de réservation n\'a pas pu être retenue :</p>'
+          + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">&#128663; <b>' + esc(vehLbl) + '</b><br>&#128197; ' + esc(per) + '</div>'
+          + (motifRefus ? '<p style="margin:0 0 12px;line-height:1.55">' + esc(motifRefus) + '</p>' : '')
+          + '<p style="margin:0;line-height:1.55">N\'hésitez pas à refaire une demande sur un autre créneau.</p>';
+      }
+      const html = FP.mailShell ? FP.mailShell({ brand: nomSoc, logoUrl: logo, title, bodyHtml: body }) : ('<p>Bonjour ' + esc(prenom) + '</p>' + body);
+      let replyTo = ''; try { replyTo = (FP.settings.get().profil || {}).mailExpediteur || ''; } catch (e) {}
+      await FP.sendEmail({ to: row.demandeurEmail, subject, html, text: subject + ' — ' + vehLbl + ' (' + per + ')', replyTo });
+    } catch (e) { /* best-effort */ }
+  },
+  _period(row) {
+    try { const a = new Date(row.debut), b = new Date(row.fin); if (isNaN(a) || isNaN(b)) return ''; return a.toLocaleString('fr-FR') + ' → ' + b.toLocaleString('fr-FR'); } catch (e) { return ''; }
+  },
+
+  // ── Décisions (gestionnaire) ──
+  // Accepter : la ligne passe 'confirmee' (trace de la demande publique) ET est recopiée dans
+  // settings.reservations (liste de travail existante) → une SEULE source pour les réservations
+  // confirmées. E-mail de confirmation au demandeur.
+  async accept(id) {
+    const row = this._row(id); if (!row) return { error: 'introuvable' };
+    if (!(FP.db && FP.db.update)) return { error: 'indisponible' };
+    const res = await FP.db.update('reservations', id, { statut: 'confirmee', verifie: true });
+    if (res && res.error) return { error: res.error };
+    // Recopie dans settings.reservations (format existant d'Emprunt véhicule), anti-doublon par resaId.
+    try {
+      const s = FP.settings.get();
+      const arr = Array.isArray(s.reservations) ? s.reservations.slice() : [];
+      if (!arr.some(r => r && r.resaId === id)) {
+        const d = this._splitIso(row.debut), f = this._splitIso(row.fin);
+        arr.push({
+          id: 'R' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+          resaId: id,  // back-ref vers la demande publique (évite les doublons)
+          vehicule: row.immat || '', personne: row.demandeurNom || '',
+          debut: d.date, heureDebut: d.heure, fin: f.date, heureFin: f.heure,
+          note: row.motif ? ('Demande en ligne — ' + row.motif) : 'Demande en ligne',
+        });
+        s.reservations = arr; await FP.settings.save(s);
+      }
+    } catch (e) { /* la ligne table est déjà confirmée ; on n'échoue pas la décision */ }
+    await this._mailDemandeur(row, true);
+    await this.load();
+    return { error: null };
+  },
+  // Refuser : la ligne passe 'refusee' (ne bloque plus la dispo) + e-mail au demandeur.
+  async refuse(id, motifRefus) {
+    const row = this._row(id); if (!row) return { error: 'introuvable' };
+    if (!(FP.db && FP.db.update)) return { error: 'indisponible' };
+    const res = await FP.db.update('reservations', id, { statut: 'refusee' });
+    if (res && res.error) return { error: res.error };
+    await this._mailDemandeur(row, false, motifRefus);
+    await this.load();
+    return { error: null };
+  },
+  // Annuler une demande déjà acceptée (retire aussi la copie de settings.reservations).
+  async cancel(id) {
+    if (!(FP.db && FP.db.update)) return { error: 'indisponible' };
+    const res = await FP.db.update('reservations', id, { statut: 'annulee' });
+    if (res && res.error) return { error: res.error };
+    try { const s = FP.settings.get(); if (Array.isArray(s.reservations)) { const n = s.reservations.filter(r => !(r && r.resaId === id)); if (n.length !== s.reservations.length) { s.reservations = n; await FP.settings.save(s); } } } catch (e) {}
+    await this.load();
+    return { error: null };
   },
 };
 
