@@ -7653,17 +7653,37 @@ FP.prenomAffiche = function (nameOrKey) {
   if (!nameOrKey) return '';
   const s = String(nameOrKey).trim();
   if (!s || s === '—') return s;
-  try {
-    const c = (FP.conducteurs && FP.conducteurs.find) ? FP.conducteurs.find(s) : null;
-    if (c && c.prenom && String(c.prenom).trim()) return String(c.prenom).trim();
-  } catch (e) {}
   // Étiquettes qui ne sont PAS des personnes (Siège, Dépôt PXP, Navette…) → garder le libellé ENTIER
   // (sinon « Dépôt PXP » deviendrait « Dépôt »). On ne coupe au 1er mot QUE pour un vrai nom de personne.
   try {
     const low = s.toLowerCase();
     if ((FP.NON_CHAUFFEURS || []).some(x => { const xl = String(x).toLowerCase(); return low === xl || low.startsWith(xl + ' '); })) return s;
   } catch (e) {}
-  return s.split(/\s+/)[0] || '';
+  // Point de départ : le champ `prenom` de la fiche (le plus juste, gère « Marie Claire », « Jean-Pierre »),
+  // sinon la chaîne telle quelle.
+  let base = s, nom = '';
+  try {
+    const c = (FP.conducteurs && FP.conducteurs.find) ? FP.conducteurs.find(s) : null;
+    if (c) {
+      if (c.prenom && String(c.prenom).trim()) base = String(c.prenom).trim();
+      if (c.nom) nom = String(c.nom).trim();
+    }
+  } catch (e) {}
+  // ⚠️ CORRECTIF (demande explicite : « prénom seul partout ») — beaucoup de fiches ont le NOM saisi DANS le
+  // champ prénom (« Jocelyn ROCHET », « Shakil NUBEE ») → le prénom affiché traînait le nom. On retire :
+  //  1) le `nom` de la fiche s'il est présent à la fin du prénom ;
+  //  2) à défaut, les mots de PATRONYME en MAJUSCULES à la fin (convention « Prénom NOM »).
+  // On PRÉSERVE les prénoms composés normalement capitalisés (« Marie Claire », « Anne-Sophie »).
+  if (nom && base.toLowerCase().endsWith(' ' + nom.toLowerCase())) base = base.slice(0, base.length - nom.length).trim();
+  const parts = base.split(/\s+/);
+  while (parts.length > 1) {
+    const last = parts[parts.length - 1];
+    const letters = last.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    // mot ENTIÈREMENT en majuscules (≥2 lettres, aucune minuscule) = nom de famille → on le retire
+    if (letters.length >= 2 && /[A-ZÀ-Ÿ]/.test(last) && !/[a-zà-ÿ]/.test(last)) parts.pop();
+    else break;
+  }
+  return parts.join(' ') || base.split(/\s+/)[0] || base;
 };
 // ⚠️ HELPER CANONIQUE — nom COMPLET normalisé (prénom + nom, accents/casse/espaces neutralisés).
 // Sert à distinguer deux homonymes de prénom (« Jean Dupont » ≠ « Jean Martin ») SANS casser le
