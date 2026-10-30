@@ -5937,7 +5937,8 @@ FP.qrScans = {
   async last(vehId) { const l = await this.recent(vehId, 1); return l.length ? l[0].at : null; },
   // ---- Alerte « QR scanné » (page Suivi & alertes) ----
   _recent: null,   // scans de la flotte sur les dernières 24 h (pour l'alerte, persistante)
-  _unseen: 0,      // scans NON VUS depuis la dernière ouverture de « Suivi & alertes » (→ pastille menu)
+  _unseen: 0,      // scans NON VUS < FENETRE_MS (→ pastille menu) — MÊME fenêtre que l'alerte (source unique)
+  FENETRE_MS: 60 * 60 * 1000,   // ⏱️ fenêtre COURTE (1 h, demande utilisateur) commune à la pastille ET à l'alerte
   _seenKey() { let soc = 'PXP'; try { soc = (FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch (e) {} return 'fp_qrscan_seen_' + soc; },
   _readSeen() { try { return localStorage.getItem(this._seenKey()) || ''; } catch (e) { return ''; } },
   _writeSeen(iso) { try { localStorage.setItem(this._seenKey(), iso || ''); } catch (e) {} },
@@ -5961,7 +5962,9 @@ FP.qrScans = {
       this._recent = _rows.map(r => ({ vehiculeId: r.vehicule_id, plaque: r.plaque || '', at: r.scanned_at, mode: r.mode || 'portail' }));
       const seen = this._readSeen();
       if (!seen) { this._writeSeen(new Date().toISOString()); this._unseen = 0; }   // init sans spammer l'historique
-      else this._unseen = this._recent.filter(s => s.at && s.at > seen).length;
+      // Pastille = scans NON VUS *dans la fenêtre de l'alerte* (1 h) → la pastille ne s'allume jamais sans
+      // qu'une carte d'alerte correspondante existe sur la page Alertes (sinon pastille « fantôme » sur 24 h).
+      else { const cut = new Date(Date.now() - this.FENETRE_MS).toISOString(); this._unseen = this._recent.filter(s => s.at && s.at > seen && s.at >= cut).length; }
       return this._recent;
     } catch (e) { this._recent = []; this._unseen = 0; return this._recent; }
   },
@@ -10895,7 +10898,7 @@ FP.buildAlertes = (data) => {
       // ⏱️ Fenêtre COURTE (demande utilisateur) : on ne garde QUE les scans de MOINS D'1 HEURE — sinon
       // l'alerte traînait une longue liste de scans sur 24 h, pénible. L'historique complet daté reste
       // disponible sur la fiche de chaque véhicule (rien n'est perdu).
-      const _cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const _cutoff = new Date(Date.now() - ((FP.qrScans && FP.qrScans.FENETRE_MS) || 60 * 60 * 1000)).toISOString();
       const _fresh = (_seenIso ? scans.filter(s => s && s.at && s.at > _seenIso) : scans.slice())
         .filter(s => s && s.at && s.at >= _cutoff);
       const byVeh = new Map(); _fresh.forEach(s => { if (s && s.vehiculeId && !byVeh.has(s.vehiculeId)) byVeh.set(s.vehiculeId, s); });
