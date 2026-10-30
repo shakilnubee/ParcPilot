@@ -477,6 +477,18 @@
           <option value="2025">2025</option>
         </select>
 
+        <!-- Filtre de PÉRIODE (règle 0sexies) : mois rapide OU intervalle Du→Au. L'analyse et l'export
+             suivent la période affichée (ils lisent filtered()). -->
+        <select id="filter-mois" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Filtrer par mois">
+          <option value="all">Tous les mois</option>
+          <option value="01">Janvier</option><option value="02">Février</option><option value="03">Mars</option>
+          <option value="04">Avril</option><option value="05">Mai</option><option value="06">Juin</option>
+          <option value="07">Juillet</option><option value="08">Août</option><option value="09">Septembre</option>
+          <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+        </select>
+        <input id="ent-from" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Du (date de début)">
+        <input id="ent-to" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Au (date de fin)">
+
         <select id="ent-sort-key" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Trier">
           <option value="date">Tri : Date</option>
           <option value="montantTTC">Tri : Montant TTC</option>
@@ -600,7 +612,7 @@
   // Sourcés depuis factures avec type entretien ou réparation
   let interventions = (data.factures || []).filter(f => FP.estEntretien(f));
   let entBulk = null; // barre de sélection multiple (instanciée plus bas)
-  const state = { search: '', type: 'all', vehicule: 'all', annee: 'all', sortKey: 'date', sortDir: 'desc' };
+  const state = { search: '', type: 'all', vehicule: 'all', annee: 'all', mois: 'all', from: '', to: '', sortKey: 'date', sortDir: 'desc' };
   // Tri des interventions (par colonne choisie dans le menu « Tri »)
   function sortRowsEnt(arr) {
     const dir = state.sortDir === 'asc' ? 1 : -1;
@@ -642,6 +654,11 @@
       if (state.type !== 'all' && i.type !== state.type) return false;
       if (state.vehicule !== 'all' && i.vehiculeImmat !== state.vehicule) return false;
       if (state.annee !== 'all' && (i.date || '').slice(0,4) !== state.annee) return false;
+      // Période (règle 0sexies) : mois rapide (sur l'année/toutes années) ET/OU intervalle Du→Au.
+      if (state.mois !== 'all' && (i.date || '').slice(5,7) !== state.mois) return false;
+      const d = (i.date || '').slice(0,10);
+      if (state.from && (!d || d < state.from)) return false;
+      if (state.to && (!d || d > state.to)) return false;
       if (q && !(FP.norm(`${i.vehiculeImmat} ${i.description} ${i.fournisseur}`).includes(q))) return false;
       return true;
     });
@@ -1018,8 +1035,12 @@
     c.classList.add('active'); state.type = c.dataset.value;
     entExpanded = false; renderKPIs(); renderTable(); renderCharts();
   }));
-  ['filter-vehicule','filter-annee'].forEach(id => $(id).addEventListener('change', e => {
+  ['filter-vehicule','filter-annee','filter-mois'].forEach(id => $(id) && $(id).addEventListener('change', e => {
     state[id.replace('filter-','')] = e.target.value;
+    entExpanded = false; renderKPIs(); renderTable(); renderCharts();
+  }));
+  ['ent-from','ent-to'].forEach(id => $(id) && $(id).addEventListener('change', e => {
+    state[id === 'ent-from' ? 'from' : 'to'] = e.target.value;
     entExpanded = false; renderKPIs(); renderTable(); renderCharts();
   }));
   // Filtre véhicule CHERCHABLE (taper plaque / marque / modèle) — règle projet.
@@ -1027,11 +1048,15 @@
   // Bouton « Réinitialiser » de la barre de filtres.
   function resetEntFilters() {
     state.search = ''; state.type = 'all'; state.vehicule = 'all'; state.annee = 'all';
+    state.mois = 'all'; state.from = ''; state.to = '';
     state.sortKey = 'date'; state.sortDir = 'desc';
     if ($('search')) $('search').value = '';
     if ($('ent-sort-key')) $('ent-sort-key').value = 'date';
     if (typeof syncEntSortDir === 'function') syncEntSortDir();
     if ($('filter-annee')) $('filter-annee').value = 'all';
+    if ($('filter-mois')) $('filter-mois').value = 'all';
+    if ($('ent-from')) $('ent-from').value = '';
+    if ($('ent-to')) $('ent-to').value = '';
     if ($('filter-vehicule')) { $('filter-vehicule').value = 'all'; $('filter-vehicule').dispatchEvent(new Event('change', { bubbles: true })); }
     document.querySelectorAll('#filters-type .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.value === 'all'));
     entExpanded = false; renderKPIs(); renderTable(); renderCharts();
