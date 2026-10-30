@@ -3726,7 +3726,7 @@ FP.condKeyMaps = function () {
   // (migrateCondKey) et est héritée par un homonyme recréé après suppression (purgeCondKey). Ajouts 2026-10 :
   // condArrivee (date d'arrivée), condLangues (langue e-mails), pointsManuel (points de permis saisis) —
   // elles étaient déjà dans COLLECTION_KEYS mais PAS migrées/purgées → perte de données vécue.
-  const keys = ['condConges', 'condSortie', 'condArrivee', 'condLangues', 'pointsManuel', 'condDocs', 'permisMasque', 'condCarteTotal', 'condBadgeUlys'];
+  const keys = ['condConges', 'condSortie', 'condArrivee', 'condLangues', 'pointsManuel', 'condDocs', 'permisMasque', 'condCarteTotal', 'condBadgeUlys', 'condCustom'];
   try { FP.prestataires().forEach(p => { if (p && p.numKey && keys.indexOf(p.numKey) < 0) keys.push(p.numKey); }); } catch (e) {}
   // + tout « condNum_* » ENCORE présent en réglages (prestataire supprimé depuis) : même regex que isCollKey,
   //   sinon ses n° de carte/badge deviennent orphelins au renommage / hérités par un homonyme recréé.
@@ -15819,7 +15819,10 @@ FP.offreAchat = {
       const patch = {};
       if ((existing.prix || null) !== (prix || null)) patch.prix = prix;
       if (soc && (existing.societe || '') !== soc) patch.societe = soc;
-      if (Object.keys(patch).length) { try { await FP.db.update('offres_achat', existing.id, patch); } catch (e) {} }
+      if (Object.keys(patch).length) {
+        try { const up = await FP.db.update('offres_achat', existing.id, patch); if (up && up.error) throw up.error; }
+        catch (e) { if (FP.notifyError) FP.notifyError('Prix du lien d\'achat non mis à jour — réessaie (le lien reste valable).'); }
+      }
     } else {
       token = FP.secureToken('off-');
       try {
@@ -17195,15 +17198,18 @@ FP.autoSyncOverrides = async () => {
   if (!(FP.db && FP.supabase)) return;
   let all = {};
   try { all = FP.getVehicleOverrides() || {}; } catch (e) { return; }
+  let rejets = 0; // écritures REFUSÉES par le serveur (≠ hors-ligne) : à signaler, sinon perte silencieuse (règle ③)
   for (const id of Object.keys(all)) {
     const fields = all[id] || {};
     for (const [k, val] of Object.entries(fields)) {
       try {
         const res = await FP.db.update('vehicules', id, { [k]: val });
         if (!(res && res.error)) FP.removeVehicleOverride(id, k); // synchronisé → la base fait foi
-      } catch (e) { /* colonne absente ou hors-ligne : on garde en local */ }
+        else if (!/column|colonne|does not exist|schema cache|PGRST204/i.test(String(res.error.message || res.error))) rejets++; // vrai refus serveur (pas colonne absente)
+      } catch (e) { /* hors-ligne : on garde en local, réessai au prochain fp:data-ready */ }
     }
   }
+  if (rejets > 0 && FP.notifyError) FP.notifyError('Des modifications locales de véhicule n\'ont pas pu être enregistrées sur le serveur — réessaie ou préviens le support.');
 };
 document.addEventListener('fp:data-ready', (e) => {
   if (e.detail && e.detail.source === 'supabase') FP.autoSyncOverrides();
