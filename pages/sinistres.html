@@ -311,7 +311,7 @@
     <!-- Conducteurs à risque (par nombre de sinistres + responsabilité) -->
     <div class="card p-6 mb-6">
       <h3 class="font-bold text-slate-900 flex items-center gap-2 mb-1"><i data-lucide="user-round-x" class="w-4 h-4" style="color:var(--fp-danger)"></i> Conducteurs à risque
-        <span class="text-xs font-normal text-slate-400">— classés par sinistres responsables puis nombre d'accidents</span></h3>
+        <span class="text-xs font-normal text-slate-400">— niveau basé sur la responsabilité (pas le seul nombre d'accidents)</span></h3>
       <p class="text-xs text-slate-400 mb-3">Le conducteur d'un sinistre = le chauffeur actuel du véhicule concerné. Renseigne la « Responsabilité » dans le dossier assurance de chaque incident pour affiner.</p>
       <div id="sin-risque"></div>
       <datalist id="sin-cond-list"></datalist>
@@ -905,9 +905,14 @@
       // deux homonymes « Jean DUPONT » ≠ « Jean MARTIN » restent distincts (avant : FP.normPrenom brut les
       // fusionnait sur une seule ligne de risque, sinistres de l'un attribués à l'autre).
       const key = FP.condGroupKey ? FP.condGroupKey(cond) : (FP.normPrenom ? FP.normPrenom(cond) : cond.toLowerCase());
-      const r = byCond[key] || (byCond[key] = { cond, nb: 0, resp: 0, cost: 0 });
+      const r = byCond[key] || (byCond[key] = { cond, nb: 0, resp: 0, partagee: 0, respKnown: 0, cost: 0 });
       r.nb++; r.cost += g.cost || 0;
-      if ((doss[g.key] || {}).resp === 'responsable') r.resp++;
+      // Responsabilité (4 états). ⚠️ « inconnue » ≠ « non responsable » : on compte à part respKnown
+      // pour ne PAS classer dangereux un conducteur dont la responsabilité n'est pas encore renseignée.
+      const rv = ((doss[g.key] || {}).resp || '').toString().toLowerCase();
+      if (rv === 'responsable') r.resp++;
+      else if (rv === 'partagee') r.partagee++;
+      if (rv === 'responsable' || rv === 'non-responsable' || rv === 'partagee') r.respKnown++;
     });
     const rows = Object.keys(byCond).map(k => ({ ...byCond[k] }))
       .sort((a, b) => b.resp - a.resp || b.nb - a.nb || b.cost - a.cost);
@@ -915,8 +920,14 @@
     const railHint = rows.length > 2 ? `<div class="sin-rail-hint">← glisse pour comparer les ${rows.length} conducteurs →</div>` : '';
     box.innerHTML = railHint + '<div class="scrollable"><table class="fp-table"><thead><tr><th>Conducteur</th><th style="text-align:right">Sinistres</th><th style="text-align:right">Responsable</th><th style="text-align:right" title="Total réparé (avant remboursement)">Total réparé</th><th>Niveau</th></tr></thead><tbody>'
       + rows.map(r => {
-        const lvl = (r.resp >= 2 || r.nb >= 3) ? ['#FEE2E2', '#B91C1C', '⚠️ Risque élevé']
-          : (r.resp >= 1 || r.nb >= 2) ? ['#FEF3C7', '#92400E', 'À surveiller']
+        // Niveau fondé sur la RESPONSABILITÉ (pas le seul nombre d'accidents) :
+        //  • Risque élevé = 2+ sinistres RESPONSABLES ;
+        //  • À surveiller = 1 responsable, OU 1 partagée, OU beaucoup d'accidents (≥3) même non responsables ;
+        //  • À qualifier = accidents mais AUCUNE responsabilité renseignée (inconnu ≠ non responsable) ;
+        //  • OK = responsabilités connues et pas de tort établi.
+        const lvl = (r.resp >= 2) ? ['#FEE2E2', '#B91C1C', '⚠️ Risque élevé']
+          : (r.resp >= 1 || r.partagee >= 1 || r.nb >= 3) ? ['#FEF3C7', '#92400E', 'À surveiller']
+          : (r.respKnown === 0) ? ['#E0E7FF', '#3730A3', 'À qualifier']
           : ['#DCFCE7', '#166534', 'OK'];
         return `<tr>
           <td class="font-semibold">${FP.lienConducteur ? FP.lienConducteur(r.cond) : escapeHtml(r.cond)}</td>
