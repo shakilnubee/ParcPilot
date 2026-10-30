@@ -448,6 +448,32 @@ FP.immobilise = {
     } catch (e) { return Promise.resolve(); }
   },
 };
+// ⚠️ HELPER CANONIQUE — DISPONIBILITÉ d'un véhicule sur un créneau (réservations, emprunts).
+// Vérifie côté CLIENT (aperçu UI) : véhicule hors flotte / immobilisé / en entretien ou sinistre, puis
+// CHEVAUCHEMENT avec des créneaux occupés fournis par l'appelant (réservations confirmées + emprunts en
+// cours), via la règle d'overlap debut < autre.fin ET fin > autre.debut. ⚠️ C'est un aperçu : la
+// confirmation anti-concurrence reste vérifiée CÔTÉ SERVEUR (edge function) pour la réservation publique.
+//   veh    : objet véhicule (ou immat → résolu via FP.vehByImmat)
+//   debut/fin : bornes du créneau (Date | ISO | 'YYYY-MM-DD' | timestamptz) — comparées en millisecondes
+//   opts.busy : [{debut, fin}] créneaux déjà pris pour CE véhicule (mêmes formats)
+// → { ok:boolean, raison:string }
+FP.vehDispo = function (veh, debut, fin, opts) {
+  opts = opts || {};
+  const v = (veh && typeof veh === 'object') ? veh : (FP.vehByImmat ? FP.vehByImmat(veh) : null);
+  if (!v) return { ok: false, raison: 'Véhicule introuvable' };
+  if (FP.horsFlotte && FP.horsFlotte(v)) return { ok: false, raison: 'Véhicule hors flotte (vendu / restitué…)' };
+  const st = ((v.statut || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim());
+  if (st === 'entretien') return { ok: false, raison: 'Véhicule en entretien' };
+  if (st === 'sinistre') return { ok: false, raison: 'Véhicule immobilisé (sinistre)' };
+  try { if (FP.immobilise && v.id && FP.immobilise.is(v.id)) return { ok: false, raison: 'Véhicule immobilisé' }; } catch (e) {}
+  const ms = (x) => { if (x == null || x === '') return null; const d = (x instanceof Date) ? x : new Date(x); const t = d.getTime(); return isNaN(t) ? null : t; };
+  const d0 = ms(debut), f0 = ms(fin);
+  if (d0 != null && f0 != null) {
+    const busy = Array.isArray(opts.busy) ? opts.busy : [];
+    for (const b of busy) { const bd = ms(b.debut), bf = ms(b.fin != null ? b.fin : b.debut); if (bd == null) continue; if (d0 < (bf == null ? bd : bf) && f0 > bd) return { ok: false, raison: 'Déjà réservé / emprunté sur ce créneau' }; }
+  }
+  return { ok: true, raison: '' };
+};
 // ⚠️ HELPER CANONIQUE — montant RÉELLEMENT DÛ d'une amende : le majoré si elle est majorée,
 // sinon le montant initial. À UTILISER PARTOUT (sommes, podiums, KPI, alertes, exports) pour
 // que tous les écrans affichent le même montant (règle « une seule source de vérité », CLAUDE.md).
