@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Réserver un véhicule — Parc Pilot</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  :root{ --nav:#0F1E3D; --accent:#F97316; --accent2:#FB923C; --bg:#eef2f7; --card:#fff; --line:#e5e7eb; --muted:#64748b; --text:#0f1e3d; --ok:#16a34a; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+  .wrap{max-width:640px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-left)) 40px}
+  header{background:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;border-radius:0 0 18px 18px;padding:22px 20px 18px;margin:0 -16px 18px}
+  .logo{font-weight:900;font-style:italic;font-size:19px}.logo .o{color:var(--accent)}
+  h1{font-size:1.35rem;margin:12px 0 4px;font-weight:800}
+  .sub{color:#cbd6e6;font-size:.9rem;margin:0}
+  .accent-line{height:4px;background:var(--accent);margin:0 -16px 18px;border-radius:2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px;margin-bottom:14px}
+  .step-t{font-weight:800;font-size:1.02rem;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .step-n{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;flex:none}
+  label{display:block;font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:10px 0 4px}
+  input,textarea{width:100%;padding:.65rem .8rem;border:1px solid var(--line);border-radius:.6rem;font-size:.95rem;font-family:inherit;color:var(--text);background:#fff}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:460px){.grid2{grid-template-columns:1fr}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.8rem 1rem;border:none;border-radius:.7rem;cursor:pointer;font-weight:800;font-size:.98rem;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#150a02;box-shadow:0 12px 30px -12px rgba(249,115,22,.7);transition:transform .12s,filter .2s}
+  .btn:hover{transform:translateY(-1px)} .btn:disabled{filter:saturate(.6) brightness(.95);cursor:wait;transform:none}
+  .btn-ghost{background:#fff;color:var(--nav);border:1px solid var(--line);box-shadow:none}
+  .veh{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;cursor:pointer;transition:border-color .12s,background .12s}
+  .veh:hover,.veh.sel{border-color:var(--accent);background:#FFF7ED}
+  .veh .ph{width:54px;height:40px;border-radius:7px;object-fit:cover;background:#f1f5f9;flex:none}
+  .veh .ph-ph{width:54px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex:none}
+  .veh b{font-size:.95rem}.veh .pl{font-family:monospace;font-size:.8rem;color:var(--muted)}
+  .veh .chk{margin-left:auto;color:var(--accent);font-weight:900;opacity:0}.veh.sel .chk{opacity:1}
+  .muted{color:var(--muted);font-size:.86rem}
+  .err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:.6rem;padding:.7rem .9rem;font-size:.88rem;margin:10px 0;display:none}
+  .ok-box{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:.7rem;padding:1rem;font-weight:600;text-align:center}
+  .hidden{display:none}
+  .recap{background:#f8fafc;border-radius:10px;padding:10px 13px;font-size:.88rem;color:#334155;margin-bottom:10px}
+  footer{text-align:center;color:var(--muted);font-size:.74rem;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Parc<span class="o">Pilot</span></div>
+    <h1 id="soc-nom">Réserver un véhicule</h1>
+    <p class="sub" id="sub">Choisissez vos dates, puis un véhicule disponible.</p>
+  </header>
+  <div class="accent-line"></div>
+
+  <div id="err" class="err"></div>
+
+  <!-- Étape 1 : dates -->
+  <div class="card" id="step-dates">
+    <div class="step-t"><span class="step-n">1</span> Vos dates</div>
+    <div class="grid2">
+      <div><label>Date de départ</label><input type="date" id="d-debut"></div>
+      <div><label>Heure de départ</label><input type="time" id="h-debut" value="09:00"></div>
+      <div><label>Date de retour</label><input type="date" id="d-fin"></div>
+      <div><label>Heure de retour</label><input type="time" id="h-fin" value="18:00"></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn" id="btn-voir">Voir les véhicules disponibles</button></div>
+  </div>
+
+  <!-- Étape 2 : véhicules disponibles -->
+  <div class="card hidden" id="step-vehs">
+    <div class="step-t"><span class="step-n">2</span> Véhicules disponibles</div>
+    <div id="veh-list"></div>
+  </div>
+
+  <!-- Étape 3 : coordonnées -->
+  <div class="card hidden" id="step-form">
+    <div class="step-t"><span class="step-n">3</span> Votre demande</div>
+    <div class="recap" id="recap"></div>
+    <label>Nom et prénom *</label><input id="f-nom" placeholder="Prénom Nom" autocomplete="name">
+    <label>E-mail professionnel *</label><input id="f-email" type="email" placeholder="vous@societe.fr" autocomplete="email">
+    <label>Téléphone</label><input id="f-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="tel">
+    <label>Motif de la réservation (facultatif)</label><textarea id="f-motif" rows="2" placeholder="Déplacement client, livraison…"></textarea>
+    <div style="margin-top:14px"><button class="btn" id="btn-send">Envoyer ma demande</button></div>
+    <p class="muted" style="margin-top:8px">Votre demande sera envoyée au gestionnaire pour validation. Vous recevrez un e-mail de confirmation.</p>
+  </div>
+
+  <!-- Confirmation -->
+  <div class="card hidden" id="step-done"><div class="ok-box">✓ Demande envoyée ! Le gestionnaire va la valider. Vous recevrez un e-mail de confirmation à l'adresse indiquée.</div></div>
+
+  <footer>Réservation sécurisée · via Parc Pilot</footer>
+</div>
+
+<script>
+(function () {
+  var FN = 'https://tzjuptlzoywjeigmyfuj.supabase.co/functions/v1/reservation';
+  var APIKEY = 'sb_publishable_KC3TZ1zda-ja-0wkyjHUlg_aKohD6tq';
+  var $ = function (id) { return document.getElementById(id); };
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var sel = null;          // véhicule sélectionné
+  var winDebut = '', winFin = '';  // créneau ISO
+  function headers() { return { 'Content-Type': 'application/json', 'apikey': APIKEY, 'Authorization': 'Bearer ' + APIKEY }; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function showErr(m){ var e=$('err'); e.textContent=m||'Une erreur est survenue.'; e.style.display=''; try{e.scrollIntoView({behavior:'smooth',block:'center'});}catch(x){} }
+  function hideErr(){ $('err').style.display='none'; }
+  function iso(dateId, timeId){ var d=$(dateId).value, t=$(timeId).value||'00:00'; if(!d) return ''; var dt=new Date(d+'T'+t); return isNaN(dt.getTime())?'':dt.toISOString(); }
+
+  if (!token) { showErr('Lien incomplet — demandez un nouveau lien au gestionnaire.'); $('step-dates').classList.add('hidden'); return; }
+
+  // Date par défaut : aujourd'hui → demain
+  (function(){ var t=new Date(), tm=new Date(Date.now()+86400000); $('d-debut').value=t.toISOString().slice(0,10); $('d-fin').value=tm.toISOString().slice(0,10); })();
+
+  // Nom de la société (GET sans dates).
+  fetch(FN + '?t=' + encodeURIComponent(token), { headers: headers(), cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d && d.societe) { $('soc-nom').textContent = 'Réserver un véhicule — ' + d.societe; }
+      if (d && d.error) showErr(d.error); })
+    .catch(function(){});
+
+  $('btn-voir').addEventListener('click', function () {
+    hideErr();
+    winDebut = iso('d-debut','h-debut'); winFin = iso('d-fin','h-fin');
+    if (!winDebut || !winFin) { showErr('Choisissez les dates et heures de départ et de retour.'); return; }
+    if (new Date(winFin) <= new Date(winDebut)) { showErr('Le retour doit être après le départ.'); return; }
+    var b = $('btn-voir'); b.disabled = true; b.textContent = 'Recherche…';
+    fetch(FN + '?t=' + encodeURIComponent(token) + '&debut=' + encodeURIComponent(winDebut) + '&fin=' + encodeURIComponent(winFin), { headers: headers(), cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        b.disabled = false; b.textContent = 'Voir les véhicules disponibles';
+        if (!d || d.error) { showErr((d && d.error) || 'Erreur.'); return; }
+        sel = null; $('step-form').classList.add('hidden'); $('step-done').classList.add('hidden');
+        var list = (d.vehicules || []);
+        var box = $('veh-list');
+        if (!list.length) {
+          box.innerHTML = '<p class="muted">Aucun véhicule disponible sur ce créneau' + (d.total ? '' : ' (aucun véhicule n\'est proposé à la réservation pour le moment)') + '. Essayez d\'autres dates.</p>';
+        } else {
+          box.innerHTML = list.map(function(v){
+            var titre = [v.marque, v.modele].filter(Boolean).join(' ') || 'Véhicule';
+            var ph = v.photoUrl ? '<img class="ph" src="'+esc(v.photoUrl)+'" alt="">' : '<div class="ph-ph">🚗</div>';
+            var meta = [v.categorie, v.carburant].filter(Boolean).join(' · ');
+            return '<div class="veh" data-id="'+esc(v.id)+'">'+ph+'<div style="min-width:0"><b>'+esc(titre)+'</b><div class="pl">'+esc(v.immat||'')+(meta?' · '+esc(meta):'')+'</div></div><span class="chk">✓</span></div>';
+          }).join('');
+          Array.prototype.forEach.call(box.querySelectorAll('.veh'), function(el){
+            el.addEventListener('click', function(){
+              Array.prototype.forEach.call(box.querySelectorAll('.veh'), function(x){ x.classList.remove('sel'); });
+              el.classList.add('sel');
+              sel = list.filter(function(v){ return String(v.id)===el.getAttribute('data-id'); })[0] || null;
+              if (sel) {
+                var titre = [sel.marque, sel.modele].filter(Boolean).join(' ') || 'Véhicule';
+                $('recap').innerHTML = '🚗 <b>'+esc(titre)+'</b> · '+esc(sel.immat||'')+'<br>📅 '+esc(new Date(winDebut).toLocaleString('fr-FR'))+' → '+esc(new Date(winFin).toLocaleString('fr-FR'));
+                $('step-form').classList.remove('hidden');
+                try { $('step-form').scrollIntoView({behavior:'smooth',block:'start'}); } catch(x){}
+              }
+            });
+          });
+        }
+        $('step-vehs').classList.remove('hidden');
+        try { $('step-vehs').scrollIntoView({behavior:'smooth',block:'start'}); } catch(x){}
+      })
+      .catch(function(){ b.disabled=false; b.textContent='Voir les véhicules disponibles'; showErr('Impossible de charger les véhicules. Vérifiez votre connexion.'); });
+  });
+
+  $('btn-send').addEventListener('click', function () {
+    hideErr();
+    if (!sel) { showErr('Choisissez un véhicule.'); return; }
+    var nom = ($('f-nom').value||'').trim(), email = ($('f-email').value||'').trim(), tel = ($('f-tel').value||'').trim(), motif = ($('f-motif').value||'').trim();
+    if (!nom) { showErr('Indiquez votre nom et prénom.'); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr('Indiquez un e-mail professionnel valide.'); return; }
+    var b = $('btn-send'); b.disabled = true; b.textContent = 'Envoi…';
+    fetch(FN, { method:'POST', headers: headers(), body: JSON.stringify({ action:'submit', t: token, vehiculeId: sel.id, debut: winDebut, fin: winFin, nom: nom, email: email, tel: tel, motif: motif }) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        b.disabled = false; b.textContent = 'Envoyer ma demande';
+        if (!d || d.error) { showErr((d && d.error) || 'Échec de l\'envoi.'); return; }
+        $('step-dates').classList.add('hidden'); $('step-vehs').classList.add('hidden'); $('step-form').classList.add('hidden');
+        $('step-done').classList.remove('hidden');
+        try { $('step-done').scrollIntoView({behavior:'smooth',block:'center'}); } catch(x){}
+      })
+      .catch(function(){ b.disabled=false; b.textContent='Envoyer ma demande'; showErr('Impossible d\'envoyer. Vérifiez votre connexion.'); });
+  });
+})();
+</script>
+</body>
+</html>
