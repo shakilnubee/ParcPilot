@@ -6909,6 +6909,7 @@ FP.shortcutsHelp = {
     const rows = [
       ['Échap', 'Fermer / revenir en arrière'],
       ['Ctrl/⌘ + K', 'Recherche globale'],
+      ['Ctrl/⌘ + S', 'Enregistrer la fenêtre ouverte'],
       ['Tab / Maj + Tab', 'Élément interactif suivant / précédent'],
       ['Entrée', 'Ouvrir / valider l’élément actif'],
       ['?', 'Afficher cette aide'],
@@ -12401,6 +12402,71 @@ FP.ulysRenderPanel = function (el) {
     if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
   }, true);
+})();
+
+// ── Clavier lot 2 — Ctrl/⌘ + S enregistre la fenêtre ouverte (un seul mécanisme global) ──
+// Quand une modale / un tiroir / un dialogue est ouvert et contient un bouton « Enregistrer »
+// (id en …save / …-ok, data-save, ou texte « Enregistrer/Sauvegarder »), Ctrl+S le clique au
+// lieu d'ouvrir le « Enregistrer la page » du navigateur. Si rien n'est ouvert → on laisse le
+// navigateur faire (pas de détournement surprise). Source unique : aucune modif par page.
+(function () {
+  const vis = (el) => { if (!el) return false; const st = getComputedStyle(el); if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity || '1') === 0) return false; return el.getClientRects().length > 0; };
+  const LAYER_SEL = '.modal-backdrop, .drawer-backdrop, .fp-dlg-backdrop, .drawer, .fiche-ov, .modal, [role="dialog"], #pp-backdrop, #prospect-backdrop';
+  const isSave = (b) => {
+    const id = (b.id || '').toLowerCase();
+    if (/save/.test(id) || /[-_]ok$/.test(id)) return true;
+    if (b.hasAttribute('data-save')) return true;
+    const t = (b.textContent || '').toLowerCase();
+    return /enregistr|sauvegard/.test(t);
+  };
+  document.addEventListener('keydown', function (e) {
+    const k = (e.key || '').toLowerCase();
+    if (k !== 's' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    const layers = Array.from(document.querySelectorAll(LAYER_SEL)).filter(vis);
+    if (!layers.length) return;                       // rien d'ouvert → navigateur
+    let target = null;
+    for (let i = layers.length - 1; i >= 0 && !target; i--) {
+      const btns = Array.from(layers[i].querySelectorAll('button, [role="button"]')).filter(b => vis(b) && !b.disabled && isSave(b));
+      if (btns.length) target = btns[btns.length - 1]; // le dernier = le bouton primaire en bas de la fenêtre
+    }
+    if (!target) return;
+    e.preventDefault();
+    try { target.click(); } catch (_) {}
+  }, true);
+})();
+
+// ── Clavier lot 2 — retour du focus à la fermeture d'une fenêtre ──
+// On mémorise l'élément qui avait le focus AVANT l'ouverture d'une modale/tiroir, et on le
+// restaure quand plus aucune fenêtre n'est ouverte → la tabulation reprend là où on en était
+// (accessibilité clavier). Observateur borné : on ne réévalue QUE si une couche modale a changé
+// de classe/style (pas à chaque rendu de tableau).
+(function () {
+  const FOCUS_LAYER_SEL = '.modal-backdrop, .drawer-backdrop, .fp-dlg-backdrop, .drawer.open, .fiche-ov.open, .modal.open, #pp-backdrop, #prospect-backdrop, [role="dialog"]';
+  const vis = (el) => { if (!el) return false; const st = getComputedStyle(el); if (st.display === 'none' || st.visibility === 'hidden') return false; return el.getClientRects().length > 0; };
+  const anyOpen = () => Array.from(document.querySelectorAll(FOCUS_LAYER_SEL)).some(vis);
+  let returnEl = null, wasOpen = false;
+  const check = () => {
+    const now = anyOpen();
+    if (now && !wasOpen) {
+      const ae = document.activeElement;
+      returnEl = (ae && ae !== document.body && ae.focus) ? ae : null;
+    } else if (!now && wasOpen) {
+      const t = returnEl; returnEl = null;
+      if (t && document.contains(t)) { try { t.focus(); } catch (_) {} }
+    }
+    wasOpen = now;
+  };
+  try {
+    const mo = new MutationObserver((muts) => {
+      // borne le coût : on n'agit que si une couche modale (ou son fond) a changé d'attribut
+      for (const m of muts) {
+        const el = m.target;
+        if (el && el.nodeType === 1 && el.matches && el.matches(FOCUS_LAYER_SEL + ', .modal, .drawer, .fiche-ov')) { check(); return; }
+      }
+    });
+    const start = () => { try { mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'], subtree: true }); } catch (_) {} };
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  } catch (_) {}
 })();
 
 // ── Échap ferme le tiroir/la fenêtre ouverte — partout, un seul mécanisme ──

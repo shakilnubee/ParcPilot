@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261030b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261030a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261030b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261030a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261030b">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -608,12 +608,14 @@
         <div class="man-item"><b>Total sinistres</b> — nombre d'incidents.</div>
         <div class="man-item"><b>Coût total</b> — somme des coûts des incidents (les lignes « devis » ne comptent pas ; s'il n'y a que des devis, on prend le plus élevé).</div>
         <div class="man-item"><b>Reste à charge</b> — la part que <b>ton entreprise paie vraiment</b>, une fois l'assurance déduite. Exemple : un sinistre coûte 2 000 €, l'assurance rembourse 1 500 € → il te reste <b>500 €</b> à ta charge. Le calcul : <b>coût du sinistre − montant remboursé par l'assurance</b> (jamais en dessous de 0 : si l'assurance rembourse tout, le reste à charge est 0). Le montant remboursé se saisit dans le <b>« Dossier assurance »</b> de chaque incident (le petit bloc dépliable à côté de la ligne).</div>
+        <div class="man-item"><b>Remboursé par l'assurance</b> — total déjà <b>remboursé / pris en charge</b> par l'assurance sur la période (somme du champ « Remboursé » saisi dans chaque dossier assurance). Les trois montants vont ensemble : <b>Total réparé</b> (ce qui a été facturé) − <b>Remboursé</b> (ce que l'assurance a rendu) = <b>Reste à charge</b> (ce que la société paie vraiment).</div>
         <div class="man-item"><b>Véhicules concernés</b> — nombre de plaques touchées. <b>Cliquable</b> : clique la carte pour ouvrir la liste des véhicules concernés (avec le nombre d'incidents de chacun), chaque véhicule mène à sa fiche.</div>
         <div class="man-item"><b>Sinistres responsables</b> — incidents où la responsabilité « responsable » (conducteur en tort) a été renseignée. Astuce : dans le <b>« Dossier assurance »</b> de l'incident, le bouton <b>« 🔍 Lire le constat (IA) »</b> lit le <b>constat amiable</b> que tu déposes et te <b>propose</b> la responsabilité (une facture de réparation, elle, ne dit jamais qui est en tort). Tu <b>confirmes</b> d'un clic → le compteur se met à jour. L'IA met « inconnu » si le document ne permet pas de trancher (jamais de devinette).</div>
         <div class="man-item"><b>Cette année / Sur la période</b> — nombre d'incidents de l'année, ou de la période si une période est fixée.</div>
 
         <div class="man-zone">La fiche d'un incident</div>
         <div class="man-item">Plaque, date, réparateur, montant (modifiable), description. <b>Statut de remboursement</b> : En attente ⏳ / Prise en charge 🛡️ / Remboursé ✓ / Refusé ✗. <b>Dossier assurance</b> (dépliable) : conducteur au moment du sinistre, franchise, montant remboursé, responsabilité → l'app calcule le reste à charge. Un tableau « Conducteurs à risque » classe les chauffeurs.</div>
+        <div class="man-item"><b>Conducteur « figé »</b> — à la <b>création</b> d'un dossier sinistre, l'app <b>enregistre automatiquement</b> le chauffeur actuel du véhicule comme « conducteur au moment du sinistre ». Ainsi, même si le véhicule change de chauffeur plus tard, le dossier garde la bonne personne. Pour les <b>anciens</b> sinistres où personne n'était figé, le tableau « Conducteurs à risque » affiche <b>« (supposé) »</b> à côté du nom : cela veut dire que le conducteur est <b>déduit du chauffeur actuel</b> du véhicule (donc à vérifier). Pour lever le doute, ouvre le « Dossier assurance » de l'incident et renseigne le conducteur.</div>
 
         <div class="man-zone">Les pièces jointes (les « 3 » que vous voyez)</div>
         <div class="man-item">Il y a <b>trois canaux</b> de documents pour un sinistre, tous rangés au même endroit (dossier <code>sinistres/PLAQUE</code>, type « sinistre-doc ») :</div>
@@ -926,6 +928,7 @@
         <div class="man-item">L'onglet <b>Guide/Policy</b> réunit le <b>guide conducteur</b> (prise du véhicule, usage, sinistre, constat, carte mémo, véhicule électrique), le <b>guide administrateur</b> (ajouter véhicule / amende / facture / conducteur) et une partie <b>Policy</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> pour <b>cadrer la gestion de flotte</b> : la <b>car policy</b> (règlement d'utilisation : ayants droit, usage perso, remisage domicile, carburant, amendes, restitution, sanctions…), les <b>contacts &amp; rôles de validation</b> (qui valide un devis / une réparation / une commande, plafonds de dépense, délais), les <b>équipements &amp; accessoires</b> du véhicule (+ liste à rendre à la restitution) et les <b>champs société</b> à avoir sous la main (raison sociale, SIREN, TVA intra, établissements…). Un rappel <b>RGPD</b> : on ne collecte sur les conducteurs que l'utile (catégorie de permis, validité, attestation) — <b>jamais le nombre de points</b>.</div>
 
         <div class="man-zone">Confort — partout sur la plateforme</div>
+        <div class="man-item"><b>⌨️ Raccourcis clavier</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — appuie sur <b>?</b> (hors d'un champ de saisie) pour afficher la liste. L'essentiel : <b>Échap</b> ferme la fenêtre ouverte, <b>Ctrl/⌘ + K</b> ouvre la recherche globale, <b>Ctrl/⌘ + S</b> <b>enregistre la fenêtre ouverte</b> (clique le bouton « Enregistrer » à ta place, au lieu d'ouvrir l'« enregistrer la page » du navigateur), <b>Tab / Maj+Tab</b> circule entre les champs <b>sans sortir</b> de la fenêtre, et <b>← / →</b> passent à la fiche précédente/suivante. À la <b>fermeture</b> d'une fenêtre, le focus <b>revient</b> là où tu étais.</div>
         <div class="man-item"><b>👁️ Bouton « Voir »</b> : partout sur la plateforme (factures, contrôle, permis, cartes grises, documents véhicule…), « Voir » <b>ouvre directement le PDF concerné</b> dans un nouvel onglet — plus d'aperçu intégré intermédiaire. Comportement identique partout.</div>
         <div class="man-item"><b>➕ Bouton « + » flottant</b> (en bas à droite) : ajoute un <b>véhicule / amende / facture / sinistre</b> depuis n'importe quelle page, sans avoir à naviguer d'abord.</div>
         <div class="man-item"><b>▦ / ☰ Vue Tableau ou Cartes</b> — sur la conso <b>Total Fleet</b> et <b>Ulys</b> (Contrôle), l'onglet <b>Fournisseurs</b> (Factures) et le <b>Leasing</b> (Contrats), un petit sélecteur <b>Tableau / Cartes</b> bascule l'affichage : le tableau classique, ou une <b>carte par conducteur / fournisseur / véhicule</b> (plus visuel — total en gros, répartition, indicateurs clés). Ton choix est <b>mémorisé</b> et te suit sur tous tes appareils. Mêmes données, mêmes chiffres — juste la présentation change. 📱 <b>Sur mobile</b>, ces tableaux larges (Leasing, conso Total) passent <b>automatiquement en cartes</b> (plus lisibles sur un téléphone), sans que tu aies rien à régler.</div>
@@ -1044,8 +1047,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261030a"></script>
-<script src="../assets/js/supabase-client.js?v=20261030a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261030b"></script>
+<script src="../assets/js/supabase-client.js?v=20261030b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1061,10 +1064,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261030b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261030a"></script>
+<script src="../assets/js/app.min.js?v=20261030b"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
