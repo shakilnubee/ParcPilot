@@ -2920,7 +2920,7 @@
     else if (ls.urls.length) logoHtml = `<img class="veh-brand-img" src="${ls.urls[0]}" data-fallback="${escapeHtml(JSON.stringify(ls.urls.slice(1)))}" alt="${escapeHtml(v.marque || '')}" loading="lazy">`;
     else logoHtml = VEH_CAR_SVG;
     const banner = `<div class="veh-photo noimg" style="background:linear-gradient(135deg,${col},${c2})"><span class="veh-st">${st}</span>${logoHtml}</div>`;
-    const ch = (v.chauffeur && v.chauffeur !== '—' && String(v.chauffeur).trim()) ? escapeHtml(v.chauffeur) : 'Sans conducteur';
+    const ch = (v.chauffeur && v.chauffeur !== '—' && String(v.chauffeur).trim()) ? escapeHtml(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur) : 'Sans conducteur';
     const _kmA = (FP.kmActuel ? FP.kmActuel(v) : v.km); const km = (_kmA != null && _kmA !== '') ? FP.num(_kmA) : '—';
     const marque = escapeHtml((v.marque || '').trim()) || 'Véhicule';
     const modele = escapeHtml((v.modele || '').trim());
@@ -4616,7 +4616,7 @@
     _procCat = cat; _procVeh = v; _procEdit = false;
     const lbl = FP.checklist.catLabel(cat);
     if ($('proc-title')) $('proc-title').innerHTML = `<i data-lucide="${_procIcon[cat] || 'clipboard-list'}" class="w-5 h-5" style="color:var(--fp-accent)"></i> ${FP.esc(lbl)}`;
-    if ($('proc-sub')) $('proc-sub').innerHTML = `<b>${FP.esc(v.immat || '')}</b>` + (v.chauffeur && v.chauffeur !== '—' ? ` · 👤 ${FP.esc(v.chauffeur)}` : '') + ' — coche au fur et à mesure.';
+    if ($('proc-sub')) $('proc-sub').innerHTML = `<b>${FP.esc(v.immat || '')}</b>` + (v.chauffeur && v.chauffeur !== '—' ? ` · 👤 ${FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur)}` : '') + ' — coche au fur et à mesure.';
     renderProcBody();
     renderFinalize(cat, v);   // panneau « Finaliser » (reprise / cession) — infos à enregistrer + bouton d'application
     $('proc-backdrop').classList.add('open');
@@ -7044,7 +7044,7 @@
       return '<label class="flex items-center gap-2 py-1.5 px-2 rounded ' + (email ? 'hover:bg-slate-50 cursor-pointer' : 'opacity-50') + '" title="' + (email ? FP.esc(email) : 'Pas d\'e-mail enregistré pour ce conducteur') + '">'
         + '<input type="checkbox" class="msgveh-cb w-4 h-4 accent-orange-500" data-id="' + FP.esc(id) + '"' + (email ? '' : ' disabled') + (checked ? ' checked' : '') + '>'
         + '<span class="font-medium text-sm flex-shrink-0">' + FP.esc(v.immat || '—') + '</span>'
-        + '<span class="text-xs text-slate-500 truncate">· ' + FP.esc(v.chauffeur) + (email ? '' : ' — <span style="color:#dc2626">pas d\'e-mail</span>') + '</span>'
+        + '<span class="text-xs text-slate-500 truncate">· ' + FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur) + (email ? '' : ' — <span style="color:#dc2626">pas d\'e-mail</span>') + '</span>'
         + '</label>';
     }).join('');
     msgVehSyncCount();
