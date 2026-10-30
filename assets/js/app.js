@@ -19416,9 +19416,28 @@ FP.share = function (opts) {
           chev.setAttribute('aria-label', lbl); chev.title = lbl;
         };
         const toggle = () => { collapsed = !collapsed; try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (e2) {} apply(); };
-        // Place le chevron dans l'en-tête, aligné à droite (header rendu flex si besoin).
-        try { const cs = getComputedStyle(header); if (cs.display.indexOf('flex') < 0) { header.style.display = 'flex'; header.style.alignItems = 'center'; header.style.gap = header.style.gap || '8px'; } } catch (e) { header.style.display = 'flex'; }
-        header.appendChild(chev);
+        // En-tête « riche » = un conteneur qui porte le TITRE **et** un autre bloc (ex. une description
+        // <p> : le `.set-head` des Paramètres). Le forcer en flex collerait titre + description CÔTE À CÔTE
+        // et les écraserait sur mobile. Dans ce cas on NE touche PAS à sa mise en page (titre au-dessus,
+        // description dessous) et on pose le chevron en ABSOLU dans le coin haut-droit de la carte.
+        let richHeader = false;
+        try {
+          if (heading && heading !== header) {
+            richHeader = Array.prototype.some.call(header.children, function (c) {
+              return c !== heading && c.nodeType === 1 && c.textContent && c.textContent.trim() && getComputedStyle(c).display.indexOf('inline') !== 0;
+            });
+          }
+        } catch (e) {}
+        if (richHeader) {
+          try { if (getComputedStyle(card).position === 'static') card.style.position = 'relative'; } catch (e) { card.style.position = 'relative'; }
+          chev.style.cssText = 'position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;color:var(--fp-muted,#94a3b8);padding:4px;line-height:0;transition:transform .18s;z-index:2';
+          header.style.paddingRight = '34px';
+          card.appendChild(chev);
+        } else {
+          // En-tête simple (titre seul, ou titre + boutons en ligne) : flex + chevron aligné à droite.
+          try { const cs = getComputedStyle(header); if (cs.display.indexOf('flex') < 0) { header.style.display = 'flex'; header.style.alignItems = 'center'; header.style.gap = header.style.gap || '8px'; } } catch (e) { header.style.display = 'flex'; }
+          header.appendChild(chev);
+        }
         chev.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggle(); });
         // ⚡ Cliquer EN HAUT de la carte (l'en-tête) plie/déplie aussi — plus moderne, geste naturel. On
         // ignore les clics sur un contrôle interactif (bouton, lien, champ, titre en cours d'édition, poignée
