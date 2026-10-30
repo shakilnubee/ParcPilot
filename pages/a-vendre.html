@@ -239,6 +239,7 @@
           <div><div class="field-label">Prix HT (€)</div><input class="field-input w-full" id="ach-prixht" type="number" min="0" step="0.01" placeholder="ex. 18000"></div>
           <div><div class="field-label">Prix TTC (€)</div><input class="field-input w-full" id="ach-prixttc" type="number" min="0" step="0.01" placeholder="ex. 21600"></div>
           <div><div class="field-label">Acompte prévu (€)</div><input class="field-input w-full" id="ach-acompteprevu" type="number" min="0" step="0.01" placeholder="opt."></div>
+          <div><div class="field-label">Acompte payé (€)</div><input class="field-input w-full" id="ach-acomptepaye" type="number" min="0" step="0.01" placeholder="opt."></div>
           <div><div class="field-label">Date de commande</div><input class="field-input w-full" id="ach-datecommande" type="date"></div>
           <div><div class="field-label">Livraison prévue</div><input class="field-input w-full" id="ach-datelivprevue" type="date"></div>
           <div><div class="field-label">Immatriculation (si connue)</div><input class="field-input w-full" id="ach-immat" placeholder="opt."></div>
@@ -621,6 +622,12 @@
           const prix = d.prixTtc ? FP.euroPrecis(d.prixTtc) : (d.prixHt ? FP.euroPrecis(d.prixHt) + ' HT' : '');
           const fin = d.modeFinancement ? `<span class="ach-fin">${achEsc(FIN_LABEL[d.modeFinancement] || d.modeFinancement)}</span>` : '';
           const liv = d.dateLivraisonPrevue ? `<div class="text-xs text-slate-500 mt-1">Livraison prévue : ${achEsc(FP.date(d.dateLivraisonPrevue))}</div>` : '';
+          const acP = Number(d.acomptePaye) || 0, prixT = Number(d.prixTtc) || Number(d.prixHt) || 0;
+          const finLine = (acP || (prixT && d.acomptePrevu != null)) ? `<div class="text-xs text-slate-500 mt-1">Acompte payé : <b>${achEsc(FP.euro(acP))}</b>${prixT ? ' · reste <b>' + achEsc(FP.euro(Math.max(0, prixT - acP))) + '</b>' : ''}</div>` : '';
+          const canFleet = ['livre', 'finalise'].includes(achStatutOf(d)) && !d.vehiculeId;
+          const fleetBtn = canFleet
+            ? `<button type="button" class="av-btn primary ach-tofleet" data-ach-id="${achEsc(d.id)}"><i data-lucide="car" class="w-3.5 h-3.5"></i> Ajouter à la flotte</button>`
+            : (d.vehiculeId ? `<a class="av-btn" href="vehicules.html?veh=${encodeURIComponent(d.vehiculeId)}"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Voir le véhicule</a>` : '');
           const opts = ACHAT_STATUTS.map(s => `<option value="${s.key}" ${achStatutOf(d) === s.key ? 'selected' : ''}>${achEsc(s.label)}</option>`).join('');
           return `
             <div class="veh-card" data-ach="${achEsc(d.id)}">
@@ -629,9 +636,10 @@
                   ${sub ? `<div class="text-xs text-slate-500 truncate">${achEsc(sub)}</div>` : ''}</div>
                 ${prix ? `<span class="price">${achEsc(prix)}</span>` : ''}
               </div>
-              ${fin}${liv}
+              ${fin}${liv}${finLine}
               <select class="status-select ach-statut" data-ach-id="${achEsc(d.id)}" title="Changer l'étape">${opts}</select>
               <div class="av-actions">
+                ${fleetBtn}
                 <button type="button" class="av-btn ach-edit" data-ach-id="${achEsc(d.id)}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Modifier</button>
                 <button type="button" class="av-btn ach-docs" data-ach-id="${achEsc(d.id)}"><i data-lucide="folder" class="w-3.5 h-3.5"></i> Documents</button>
                 <button type="button" class="av-btn ach-archive" data-ach-id="${achEsc(d.id)}"><i data-lucide="archive" class="w-3.5 h-3.5"></i> Archiver</button>
@@ -666,7 +674,7 @@
   try { const h = (location.hash || '').replace('#', ''); const q = new URLSearchParams(location.search); if (h === 'achat' || q.get('tab') === 'achat') showTab('achat'); } catch (e) {}
 
   // ---- Modale création / modification ----
-  const ACH_FIELDS = { marque: 'ach-marque', modele: 'ach-modele', version: 'ach-version', motorisation: 'ach-motorisation', fournisseur: 'ach-fournisseur', modeFinancement: 'ach-financement', prixHt: 'ach-prixht', prixTtc: 'ach-prixttc', acomptePrevu: 'ach-acompteprevu', dateCommande: 'ach-datecommande', dateLivraisonPrevue: 'ach-datelivprevue', immat: 'ach-immat', notes: 'ach-notes' };
+  const ACH_FIELDS = { marque: 'ach-marque', modele: 'ach-modele', version: 'ach-version', motorisation: 'ach-motorisation', fournisseur: 'ach-fournisseur', modeFinancement: 'ach-financement', prixHt: 'ach-prixht', prixTtc: 'ach-prixttc', acomptePrevu: 'ach-acompteprevu', acomptePaye: 'ach-acomptepaye', dateCommande: 'ach-datecommande', dateLivraisonPrevue: 'ach-datelivprevue', immat: 'ach-immat', notes: 'ach-notes' };
   function openAchatModal(d) {
     _achatEditId = d ? d.id : null;
     $('achat-modal-title').textContent = d ? 'Modifier le dossier d\'achat' : 'Nouveau dossier d\'achat';
@@ -689,7 +697,7 @@
     const rec = {
       marque: val('ach-marque'), modele: val('ach-modele'), version: val('ach-version'), motorisation: val('ach-motorisation'),
       fournisseur: val('ach-fournisseur'), modeFinancement: val('ach-financement'),
-      prixHt: num('ach-prixht'), prixTtc: num('ach-prixttc'), acomptePrevu: num('ach-acompteprevu'),
+      prixHt: num('ach-prixht'), prixTtc: num('ach-prixttc'), acomptePrevu: num('ach-acompteprevu'), acomptePaye: num('ach-acomptepaye'),
       dateCommande: val('ach-datecommande') || null, dateLivraisonPrevue: val('ach-datelivprevue') || null,
       immat: val('ach-immat'), notes: val('ach-notes'),
     };
@@ -723,6 +731,37 @@
   $('achat-pipeline').addEventListener('click', async (e) => {
     const ed = e.target.closest('.ach-edit');
     if (ed) { const d = _achats.find(x => x.id === ed.getAttribute('data-ach-id')); if (d) openAchatModal(d); return; }
+    const tf = e.target.closest('.ach-tofleet');
+    if (tf) {
+      const d = _achats.find(x => x.id === tf.getAttribute('data-ach-id')); if (!d) return;
+      if (!(window.FP && FP.db && FP.db.insert)) { alert('Indisponible (connexion requise).'); return; }
+      const immat = (d.immat || '').trim();
+      // Anti-doublon : si un véhicule avec cette plaque existe déjà → proposer de L'ASSOCIER (pas de doublon).
+      if (immat && FP.vehByImmat) {
+        const ex = FP.vehByImmat(immat);
+        if (ex) {
+          const ok = FP.confirm ? await FP.confirm('Un véhicule ' + immat + ' existe déjà dans la flotte.\nL\'associer à ce dossier d\'achat (au lieu d\'en créer un nouveau) ?') : confirm('Associer au véhicule ' + immat + ' existant ?');
+          if (!ok) return;
+          try { const r = await FP.db.update('dossiers_achat', d.id, { vehiculeId: ex.id, statut: 'integre' }); if (r && r.error) throw r.error; d.vehiculeId = ex.id; d.statut = 'integre'; renderAchat(); if (FP.toast) FP.toast('Dossier associé au véhicule ' + immat + '.'); }
+          catch (err) { if (FP.notifyError) FP.notifyError('Échec — réessaie.'); }
+          return;
+        }
+      }
+      const ok = FP.confirm ? await FP.confirm('Créer le véhicule dans la flotte à partir de ce dossier d\'achat ?\n(Tu pourras compléter sa fiche ensuite.)') : confirm('Créer le véhicule dans la flotte ?');
+      if (!ok) return;
+      const id = 'V-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const newV = { id: id, immat: immat, marque: d.marque || '', modele: d.modele || '', version: d.version || '', carburant: d.motorisation || '', vin: d.vin || '', valeurAchat: (d.prixTtc != null ? d.prixTtc : d.prixHt) || null, statut: 'actif', km: 0, groupes: ['non-classe'] };
+      try {
+        const res = await FP.db.insert('vehicules', newV); if (res && res.error) throw res.error;
+        (data.vehicules = data.vehicules || []).push(newV);
+        try { FP.refreshDataCache && FP.refreshDataCache(); } catch (e2) {}
+        const r2 = await FP.db.update('dossiers_achat', d.id, { vehiculeId: id, statut: 'integre' }); if (r2 && r2.error) throw r2.error;
+        d.vehiculeId = id; d.statut = 'integre';
+        renderAchat(); renderKPIs(); renderPipeline();
+        if (FP.toast) FP.toast('Véhicule ajouté à la flotte ✓ — complète sa fiche quand tu veux.');
+      } catch (err) { if (FP.notifyError) FP.notifyError('Échec de la création — réessaie.'); else alert('Échec de la création.'); }
+      return;
+    }
     const dc = e.target.closest('.ach-docs');
     if (dc) {
       const d = _achats.find(x => x.id === dc.getAttribute('data-ach-id')); if (!d) return;
