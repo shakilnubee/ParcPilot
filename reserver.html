@@ -30,7 +30,7 @@
   .veh{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;cursor:pointer;transition:border-color .12s,background .12s}
   .veh:hover,.veh.sel{border-color:var(--accent);background:#FFF7ED}
   .veh .ph{width:54px;height:40px;border-radius:7px;object-fit:cover;background:#f1f5f9;flex:none}
-  .veh .ph-ph{width:54px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex:none}
+  .veh .ph-ph{width:54px;height:40px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex:none;font-size:22px;line-height:1;overflow:hidden}
   .veh b{font-size:.95rem}.veh .pl{font-family:monospace;font-size:.8rem;color:var(--muted)}
   .veh .chk{margin-left:auto;color:var(--accent);font-weight:900;opacity:0}.veh.sel .chk{opacity:1}
   .muted{color:var(--muted);font-size:.86rem}
@@ -66,7 +66,7 @@
 
   <!-- Étape 2 : véhicules disponibles -->
   <div class="card hidden" id="step-vehs">
-    <div class="step-t"><span class="step-n">2</span> Véhicules disponibles</div>
+    <div class="step-t"><span class="step-n">2</span> Véhicules disponibles<span id="veh-count" style="color:var(--muted);font-weight:700;font-size:.9rem"></span></div>
     <div id="veh-list"></div>
   </div>
 
@@ -128,6 +128,7 @@
         sel = null; $('step-form').classList.add('hidden'); $('step-done').classList.add('hidden');
         var list = (d.vehicules || []);
         var box = $('veh-list');
+        try { $('veh-count').textContent = list.length ? ' (' + list.length + ')' : ''; } catch(x){}
         if (!list.length) {
           box.innerHTML = '<p class="muted">Aucun véhicule disponible sur ce créneau' + (d.total ? '' : ' (aucun véhicule n\'est proposé à la réservation pour le moment)') + '. Essayez d\'autres dates.</p>';
         } else {
