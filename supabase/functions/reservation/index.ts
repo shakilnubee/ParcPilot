@@ -223,7 +223,11 @@ Deno.serve(async (req) => {
       const nom = clean(body.nom, 120), email = clean(body.email, 160), tel = clean(body.tel, 40), motif = clean(body.motif, 400);
       if (!vehId || d0 == null || f0 == null) return json({ error: "Créneau ou véhicule manquant." }, 400);
       if (f0 <= d0) return json({ error: "La fin doit être après le début." }, 400);
-      if (!nom || !email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Nom et e-mail professionnel valides requis." }, 400);
+      // E-mail FACULTATIF (comme le téléphone) : on exige le nom + AU MOINS un moyen de contact
+      // (e-mail valide OU téléphone) pour que le gestionnaire puisse répondre (WhatsApp/SMS/e-mail).
+      if (!nom) return json({ error: "Nom et prénom requis." }, 400);
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "E-mail invalide." }, 400);
+      if (!email && !tel) return json({ error: "Indiquez un e-mail ou un téléphone pour qu'on puisse vous répondre." }, 400);
 
       // Véhicule de CETTE société, réservable, et LIBRE (autorité serveur, anti-concurrence).
       const { data: vehsRaw } = await db.from("vehicules").select("id,immat,marque,modele,groupes,statut").eq("societe", ctx.societe);
@@ -254,12 +258,12 @@ Deno.serve(async (req) => {
       if (cfg.to.length) {
         const corps = '<p style="margin:0 0 12px;line-height:1.55"><b>' + esc(nom) + '</b> demande à réserver :</p>'
           + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">🚗 <b>' + esc(vehLbl) + '</b> · ' + esc(String(veh.immat || "")) + '<br>📅 ' + esc(per) + (motif ? '<br>📝 ' + esc(motif) : '') + '</div>'
-          + '<p style="margin:0 0 4px;font-size:13px">Contact : ' + esc(email) + (tel ? ' · ' + esc(tel) : '') + '</p>'
+          + '<p style="margin:0 0 4px;font-size:13px">Contact : ' + esc([email, tel].filter(Boolean).join(" · ") || "—") + '</p>'
           + '<p style="margin:14px 0 0;font-size:12px;color:#64748b">À valider dans <b>Parc Pilot → Emprunt véhicule → Réservations</b>.</p>';
         await sendEmail(key, cfg.from, cfg.to, "Demande de réservation — " + vehLbl, mailWrap("🚗 Demande de réservation", corps), nom + " demande à réserver " + vehLbl + " (" + per + "). À valider dans Parc Pilot.", cfg.replyTo || email);
       }
-      // Confirme la réception au demandeur (à son e-mail pro → trace d'identité).
-      if (key) {
+      // Confirme la réception au demandeur — UNIQUEMENT s'il a laissé un e-mail (désormais facultatif).
+      if (key && email) {
         const corpsD = '<p style="margin:0 0 12px;line-height:1.55">Bonjour ' + esc(nom.split(" ")[0] || "") + ',</p>'
           + '<p style="margin:0 0 12px;line-height:1.55">Ta demande de réservation a bien été reçue :</p>'
           + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">🚗 <b>' + esc(vehLbl) + '</b><br>📅 ' + esc(per) + '</div>'

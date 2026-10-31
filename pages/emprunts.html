@@ -1109,6 +1109,7 @@
         <td>${isoToFr(p.fin)}</td>
         <td class="text-xs text-slate-500">${escapeHtml(p.motif || '—')}</td>
         <td class="text-right whitespace-nowrap">
+          ${(p.tel || p.email) ? `<button class="btn btn-outline !py-1 !px-2.5 text-xs" data-demande-reply="${escapeHtml(p.id)}" title="Répondre par SMS, WhatsApp ou e-mail"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Répondre</button>` : ''}
           <button class="btn btn-dark !py-1 !px-2.5 text-xs" data-demande-ok="${escapeHtml(p.id)}"><i data-lucide="check" class="w-3.5 h-3.5"></i> Accepter</button>
           <button class="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-600" data-demande-no="${escapeHtml(p.id)}" title="Refuser"><i data-lucide="x" class="w-4 h-4"></i></button>
         </td>
@@ -1207,9 +1208,29 @@
   if ($('rsv-vehs')) $('rsv-vehs').addEventListener('change', e => { const c = e.target.closest('.rsv-v'); if (!c) return; const id = c.getAttribute('data-id'); if (c.checked) _rsvSel.v.add(id); else _rsvSel.v.delete(id); });
   if ($('modal-reservables')) $('modal-reservables').addEventListener('click', e => { if (e.target === $('modal-reservables')) closeRsv(); });
   if ($('tbody-demandes')) $('tbody-demandes').addEventListener('click', e => {
+    const rep = e.target.closest('[data-demande-reply]'); if (rep) { replyDemande(rep.dataset.demandeReply); return; }
     const ok = e.target.closest('[data-demande-ok]'); if (ok) { acceptDemande(ok.dataset.demandeOk); return; }
     const no = e.target.closest('[data-demande-no]'); if (no) { refuseDemande(no.dataset.demandeNo); return; }
   });
+  // Répondre au demandeur (SMS / WhatsApp / e-mail) — canal unique FP.msg (règle « 3 canaux »).
+  function replyDemande(id) {
+    const R = window.FP && FP.reservations; const pend = (R && R._pending) || [];
+    const p = pend.find(x => x && String(x.id) === String(id)); if (!p) return;
+    if (!FP.msg || !FP.msg.open) { if (FP.notifyError) FP.notifyError('Messagerie indisponible.'); return; }
+    let nomSoc = '', logo = '';
+    try { const s = FP.settings.get(); nomSoc = (s.societe && s.societe.nom) || ''; logo = (s.profil && (s.profil.logoDataUrl || s.profil.logoUrl)) || ''; } catch (e) {}
+    const prenom = String(p.nom || '').trim().split(/\s+/)[0] || '';
+    const veh = vehLabel(p.immat);
+    const per = isoToFr(p.debut) + ' → ' + isoToFr(p.fin);
+    const txt = 'Bonjour ' + prenom + ',\n\nConcernant votre demande de réservation de ' + veh + ' (' + per + ') :\n\n';
+    FP.msg.open({
+      phone: p.tel || '', email: p.email || '', nom: p.nom || '',
+      title: 'Répondre à ' + (p.nom || 'la demande'),
+      emailSubject: 'Votre demande de réservation — ' + veh,
+      emailNomSoc: nomSoc, emailLogo: logo,
+      text: txt,
+    });
+  }
 
   // Charge les demandes (table) puis affiche la boîte + la config. best-effort (table absente = inerte).
   async function loadDemandes() {
