@@ -27,6 +27,9 @@
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.8rem 1rem;border:none;border-radius:.7rem;cursor:pointer;font-weight:800;font-size:.98rem;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#150a02;box-shadow:0 12px 30px -12px rgba(249,115,22,.7);transition:transform .12s,filter .2s}
   .btn:hover{transform:translateY(-1px)} .btn:disabled{filter:saturate(.6) brightness(.95);cursor:wait;transform:none}
   .btn-ghost{background:#fff;color:var(--nav);border:1px solid var(--line);box-shadow:none}
+  .lnk-back{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--accent);font-weight:700;font-size:.9rem;cursor:pointer;padding:2px 0;margin:0 0 10px}
+  .lnk-back:active{opacity:.7}
+  .hint{color:var(--muted);font-size:.8rem;margin:2px 0 0}
   .veh{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:9px;cursor:pointer;transition:border-color .12s,background .12s}
   .veh:hover,.veh.sel{border-color:var(--accent);background:#FFF7ED}
   .veh .ph{width:54px;height:40px;border-radius:7px;object-fit:cover;background:#f1f5f9;flex:none}
@@ -66,24 +69,27 @@
 
   <!-- Étape 2 : véhicules disponibles -->
   <div class="card hidden" id="step-vehs">
+    <button type="button" class="lnk-back" data-reserve-back="dates">‹ Retour aux dates</button>
     <div class="step-t"><span class="step-n">2</span> Véhicules disponibles<span id="veh-count" style="color:var(--muted);font-weight:700;font-size:.9rem"></span></div>
     <div id="veh-list"></div>
   </div>
 
   <!-- Étape 3 : coordonnées -->
   <div class="card hidden" id="step-form">
+    <button type="button" class="lnk-back" data-reserve-back="vehs">‹ Retour aux véhicules</button>
     <div class="step-t"><span class="step-n">3</span> Votre demande</div>
     <div class="recap" id="recap"></div>
     <label>Nom et prénom *</label><input id="f-nom" placeholder="Prénom Nom" autocomplete="name">
-    <label>E-mail professionnel *</label><input id="f-email" type="email" placeholder="vous@societe.fr" autocomplete="email">
+    <label>E-mail professionnel</label><input id="f-email" type="email" placeholder="vous@societe.fr" autocomplete="email">
     <label>Téléphone</label><input id="f-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="tel">
+    <p class="hint">Indiquez au moins un moyen de vous joindre : e-mail <b>ou</b> téléphone.</p>
     <label>Motif de la réservation (facultatif)</label><textarea id="f-motif" rows="2" placeholder="Déplacement client, livraison…"></textarea>
     <div style="margin-top:14px"><button class="btn" id="btn-send">Envoyer ma demande</button></div>
-    <p class="muted" style="margin-top:8px">Votre demande sera envoyée au gestionnaire pour validation. Vous recevrez un e-mail de confirmation.</p>
+    <p class="muted" style="margin-top:8px">Votre demande sera envoyée au gestionnaire pour validation. Si vous avez indiqué un e-mail, vous recevrez une confirmation.</p>
   </div>
 
   <!-- Confirmation -->
-  <div class="card hidden" id="step-done"><div class="ok-box">✓ Demande envoyée ! Le gestionnaire va la valider. Vous recevrez un e-mail de confirmation à l'adresse indiquée.</div></div>
+  <div class="card hidden" id="step-done"><div class="ok-box">✓ Demande envoyée ! Le gestionnaire va la valider et vous recontacter.</div></div>
 
   <footer>Réservation sécurisée · via Parc Pilot</footer>
 </div>
@@ -163,7 +169,8 @@
     if (!sel) { showErr('Choisissez un véhicule.'); return; }
     var nom = ($('f-nom').value||'').trim(), email = ($('f-email').value||'').trim(), tel = ($('f-tel').value||'').trim(), motif = ($('f-motif').value||'').trim();
     if (!nom) { showErr('Indiquez votre nom et prénom.'); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr('Indiquez un e-mail professionnel valide.'); return; }
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr('E-mail invalide — corrigez-le ou laissez-le vide.'); return; }
+    if (!email && !tel) { showErr('Indiquez un e-mail OU un téléphone, pour qu\'on puisse vous répondre.'); return; }
     var b = $('btn-send'); b.disabled = true; b.textContent = 'Envoi…';
     fetch(FN, { method:'POST', headers: headers(), body: JSON.stringify({ action:'submit', t: token, vehiculeId: sel.id, debut: winDebut, fin: winFin, nom: nom, email: email, tel: tel, motif: motif }) })
       .then(function(r){ return r.json(); })
@@ -175,6 +182,21 @@
         try { $('step-done').scrollIntoView({behavior:'smooth',block:'center'}); } catch(x){}
       })
       .catch(function(){ b.disabled=false; b.textContent='Envoyer ma demande'; showErr('Impossible d\'envoyer. Vérifiez votre connexion.'); });
+  });
+
+  // Boutons « ‹ Retour » : revenir à l'étape précédente (dates ou liste des véhicules).
+  document.addEventListener('click', function (e) {
+    var bk = e.target.closest && e.target.closest('[data-reserve-back]');
+    if (!bk) return;
+    hideErr();
+    var to = bk.getAttribute('data-reserve-back');
+    if (to === 'dates') {
+      $('step-vehs').classList.add('hidden'); $('step-form').classList.add('hidden'); $('step-done').classList.add('hidden');
+      try { $('step-dates').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (x) {}
+    } else if (to === 'vehs') {
+      $('step-form').classList.add('hidden'); $('step-done').classList.add('hidden');
+      try { $('step-vehs').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (x) {}
+    }
   });
 })();
 </script>

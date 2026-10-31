@@ -410,8 +410,15 @@ async function portalConfig(db: ReturnType<typeof createClient>, societe: string
   }
   const assureur = (picked && String(picked.nom || "").trim()) || defAssureur;
   const police = (picked && String(picked.police || "").trim()) || defPolice;
+  // Réservation de véhicule depuis le QR : on expose le token de réservation (lien public partageable,
+  // déjà conçu pour être diffusé) UNIQUEMENT si la société a (a) un token ET (b) au moins un véhicule/
+  // groupe proposé à la réservation → sinon la rubrique « Réserver un véhicule » resterait vide.
+  const resaToken = String(s.reservationToken || "").trim();
+  const resaCfg = (s.reservablesCfg && typeof s.reservablesCfg === "object") ? s.reservablesCfg as Record<string, unknown> : {};
+  const resaHasVeh = (Array.isArray(resaCfg.vehicules) && resaCfg.vehicules.length > 0) || (Array.isArray(resaCfg.groupes) && resaCfg.groupes.length > 0);
+  const reservationToken = (resaToken && resaHasVeh) ? resaToken : "";
   return {
-    assureur, police,
+    assureur, police, reservationToken,
     assistanceNumero: (picked && String(picked.assistance || "").trim()) || gAssist,
     assistanceNotice: (picked && String(picked.notice || "").trim()) || gNotice,
     constatUrl: String(p.constatUrl || "").trim(),
