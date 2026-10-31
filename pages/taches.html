@@ -593,7 +593,7 @@
       if (state.filtre === 'faites' && !done) return false;
       if (state.filtre === 'prioritaires') { if (done || t.priorite !== 'haute') return false; } // tâches prioritaires non terminées
       // En retard : non faite + échéance dépassée. À venir : non faite + échéance aujourd'hui ou après.
-      if (state.filtre === 'retard') { if (done || !t.echeance) return false; const e = echeanceInfo(t); if (!e || !e.retard) return false; }
+      if (state.filtre === 'retard') { if (done || taskStatut(t) === 'attente' || !t.echeance) return false; const e = echeanceInfo(t); if (!e || !e.retard) return false; } // « En attente » exclu de « en retard »
       if (state.filtre === 'avenir') { if (done || !t.echeance) return false; const j = FP.joursRestants(t.echeance); if (j != null && j < 0) return false; }
       return true;
     });
@@ -648,7 +648,7 @@
   function render() {
     const all = getTaches();
     const notDone = all.filter(t => !isDone(t));
-    const late = notDone.filter(t => { const e = echeanceInfo(t); return e && e.retard; });
+    const late = notDone.filter(t => { if (taskStatut(t) === 'attente') return false; const e = echeanceInfo(t); return e && e.retard; }); // « En attente » = parqué volontairement → pas « en retard »
     $('kpi-todo').textContent = notDone.length;
     $('kpi-late').textContent = late.length;
     $('kpi-done').textContent = all.filter(isDone).length;

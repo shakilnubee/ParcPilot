@@ -73,6 +73,9 @@ const parisHour = (d: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZon
 
 // Tâche « faite » ? (miroir de taskStatut côté client : statut 'done' OU drapeau fait.)
 const estFaite = (t: any) => (t && (t.statut === "done" || (t.statut == null && !!t.fait)));
+// Tâche « en attente » (colonne En attente du Kanban) = volontairement mise EN PAUSE par l'utilisateur
+// → ni « en retard » ni relancée (sinon elle renotifie chaque matin alors qu'elle est parquée exprès).
+const estEnAttente = (t: any) => (t && t.statut === "attente");
 
 // Échappement HTML pour l'e-mail de rappel (titres/lieux/conducteurs saisis).
 const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }) as Record<string, string>)[c]);
@@ -240,7 +243,7 @@ Deno.serve(async (req) => {
     const leadH = Math.max(0, Number.isFinite(Number(notif.tacheRappelHeures)) ? Number(notif.tacheRappelHeures) : 3);
     const digestHour = Math.min(23, Math.max(0, Number.isFinite(Number(notif.tacheDigestHeure)) ? Number(notif.tacheDigestHeure) : 8));
 
-    const actives = [...tasks.values()].filter((t: any) => t && !estFaite(t) && t.echeance);
+    const actives = [...tasks.values()].filter((t: any) => t && !estFaite(t) && !estEnAttente(t) && t.echeance);
 
     // ── (1) RÉSUMÉ DU JOUR (une notif/jour, à partir de l'heure réglée) ──
     if (hourNow >= digestHour) {
