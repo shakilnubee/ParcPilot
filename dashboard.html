@@ -776,7 +776,7 @@
       return v;
     };
     const html = shown.map(t => {
-      const e = ech(t); const over = e && e < todayI;
+      const e = ech(t); const over = e && e < todayI && t.statut !== 'attente'; // « En attente » = parqué → pas marqué « en retard » (cohérent avec la page Tâches + la notif)
       const date = e ? (over ? '⚠️ ' + FP.dateNum(e) : FP.dateNum(e)) : '';
       const v = vehOf(t);
       const vlabel = v ? [v.immat, ((v.marque || '') + ' ' + (v.modele || '')).trim()].filter(Boolean).join(' · ') : '';
