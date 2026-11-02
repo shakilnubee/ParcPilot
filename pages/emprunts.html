@@ -187,13 +187,14 @@
       </button>
       <div class="px-4 pb-4 hidden" id="resa-config-body">
         <p class="text-sm text-slate-500 mb-3">Chaque demande arrive dans « Demandes en attente » (à accepter ou refuser).</p>
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <input id="resa-link" class="field-input flex-1" style="min-width:220px" readonly placeholder="Clique sur « Générer le lien »" />
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <input id="resa-link" class="field-input flex-1" style="min-width:220px" readonly placeholder="Clique sur « Créer mon lien »" />
           <button type="button" class="btn btn-dark !py-2 !px-3 text-sm" id="resa-link-copy"><i data-lucide="copy" class="w-4 h-4"></i> Copier</button>
           <a id="resa-link-open" class="btn btn-outline !py-2 !px-3 text-sm hidden" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-4 h-4"></i> Ouvrir</a>
-          <button type="button" class="btn btn-outline !py-2 !px-3 text-sm" id="resa-link-gen"><i data-lucide="sparkles" class="w-4 h-4"></i> Générer le lien</button>
-          <button type="button" class="btn btn-outline !py-2 !px-3 text-sm hidden" id="resa-link-reset" title="Désactive l'ancien lien et en crée un nouveau"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Réinitialiser</button>
+          <button type="button" class="btn btn-dark !py-2 !px-3 text-sm" id="resa-link-gen"><i data-lucide="sparkles" class="w-4 h-4"></i> Créer mon lien</button>
+          <button type="button" class="text-xs text-slate-400 hover:text-red-600 underline !py-2 !px-1 hidden" id="resa-link-reset" title="À n'utiliser qu'en cas de fuite : l'ancien lien cessera de fonctionner pour tout le monde"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline-block align-text-bottom"></i> Réinitialiser (fuite)</button>
         </div>
+        <p id="resa-link-note" class="text-xs mb-3 hidden" style="color:#0E7A4E"><i data-lucide="lock" class="w-3.5 h-3.5 inline-block align-text-bottom"></i> <b>Lien permanent</b> — c'est ton lien définitif, tu peux le publier tel quel (affiche, site, QR, e-mail). Il <b>ne change jamais</b>, sauf si tu cliques « Réinitialiser ».</p>
         <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div class="text-sm text-slate-600"><b id="resa-veh-count">0</b> véhicule(s) proposé(s) à la réservation en ligne. <span class="text-slate-400">Par défaut aucun : tu choisis ceux visibles par les collègues.</span></div>
           <button type="button" class="btn btn-outline !py-2 !px-3 text-sm flex-shrink-0" id="resa-veh-config"><i data-lucide="car" class="w-4 h-4"></i> Choisir les véhicules</button>
@@ -1141,10 +1142,11 @@
     if (!resaConfigAllowed()) { card.classList.add('hidden'); return; }
     const R = FP.reservations; card.classList.remove('hidden');
     const link = R.link();
-    const inp = $('resa-link'), open = $('resa-link-open'), gen = $('resa-link-gen'), reset = $('resa-link-reset');
+    const inp = $('resa-link'), open = $('resa-link-open'), gen = $('resa-link-gen'), reset = $('resa-link-reset'), note = $('resa-link-note');
     if (inp) inp.value = link || '';
-    if (link) { if (open) { open.href = link; open.classList.remove('hidden'); } if (gen) gen.classList.add('hidden'); if (reset) reset.classList.remove('hidden'); }
-    else { if (open) open.classList.add('hidden'); if (gen) gen.classList.remove('hidden'); if (reset) reset.classList.add('hidden'); }
+    if (link) { if (open) { open.href = link; open.classList.remove('hidden'); } if (gen) gen.classList.add('hidden'); if (reset) reset.classList.remove('hidden'); if (note) note.classList.remove('hidden'); }
+    else { if (open) open.classList.add('hidden'); if (gen) gen.classList.remove('hidden'); if (reset) reset.classList.add('hidden'); if (note) note.classList.add('hidden'); }
+    try { if (window.lucide) lucide.createIcons(); } catch (e) {}
     try { const all = (data.vehicules || []).filter(v => !(window.FP && FP.horsFlotte && FP.horsFlotte(v))); const n = all.filter(v => R.isReservable(v)).length; if ($('resa-veh-count')) $('resa-veh-count').textContent = n; } catch (e) {}
   }
   if ($('resa-config-head')) $('resa-config-head').addEventListener('click', () => {
