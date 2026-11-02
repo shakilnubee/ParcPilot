@@ -757,6 +757,12 @@
       immat: val('ach-immat'), notes: val('ach-notes'),
     };
     if (!rec.marque && !rec.modele && !rec.fournisseur) { const err = $('achat-modal-err'); if (err) { err.hidden = false; err.style.display = 'block'; err.textContent = 'Renseigne au moins la marque, le modèle ou le fournisseur.'; } return; }
+    // Société de rattachement (colonne NOT NULL de dossiers_achat) — MÊME source que le filtre d'affichage
+    // et la policy RLS : FP.activeSociete(). stampSociete() de FP.db n'étiquette PAS quand on est sur « PXP »
+    // → il faut l'ajouter explicitement ici (sinon insert sans société → viole la contrainte NOT NULL).
+    let _soc = ''; try { _soc = (FP.activeSociete && FP.activeSociete()) || ''; } catch (e) {}
+    if (_soc === '__all__') { const err = $('achat-modal-err'); if (err) { err.hidden = false; err.style.display = 'block'; err.textContent = 'Sélectionne d\'abord une société précise (menu société en haut) — impossible d\'enregistrer en vue « Toutes sociétés ».'; } return; }
+    if (!_soc) { const err = $('achat-modal-err'); if (err) { err.hidden = false; err.style.display = 'block'; err.textContent = 'Société introuvable — reconnecte-toi puis réessaie.'; } return; }
     // Anti-doublon centralisé (règle : tout nouveau point d'ajout passe par FP.dupe). Uniquement à la CRÉATION.
     if (!_achatEditId && FP.dupe && FP.dupe.confirmAdd) { const okDup = await FP.dupe.confirmAdd('dossiers_achat', rec, _achats); if (!okDup) return; }
     const btn = $('achat-save'); btn.disabled = true;
@@ -766,7 +772,7 @@
         const d = _achats.find(x => x.id === _achatEditId); if (d) Object.assign(d, rec);
       } else {
         const id = 'ACH-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        const row = Object.assign({ id: id, statut: 'projet' }, rec);
+        const row = Object.assign({ id: id, statut: 'projet', societe: _soc }, rec);
         const res = await FP.db.insert('dossiers_achat', row); if (res && res.error) throw res.error;
         _achats.push(row);
       }
