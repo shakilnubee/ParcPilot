@@ -44,6 +44,9 @@ jobs:
             fn=$(basename "$dir")
             if [ -f "$dir/index.ts" ]; then
               echo "→ Déploiement de $fn"
-              supabase functions deploy "$fn" --project-ref tzjuptlzoywjeigmyfuj
+              # ⚠️ --yes OBLIGATOIRE : depuis une mise à jour du CLI Supabase, `functions deploy`
+              # demande une confirmation interactive ; sans --yes, en CI (pas de terminal) il échoue
+              # « Confirmation required … Re-run with --yes » dès la 1re fonction → AUCUNE n'est déployée.
+              supabase functions deploy "$fn" --project-ref tzjuptlzoywjeigmyfuj --yes
             fi
           done
