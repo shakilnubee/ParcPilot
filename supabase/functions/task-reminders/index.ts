@@ -71,11 +71,20 @@ function parisMs(ymd: string, hm: string): number | null {
 const parisYMD = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 const parisHour = (d: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }).format(d).replace(/\D/g, "")) || 0;
 
-// Tâche « faite » ? (miroir de taskStatut côté client : statut 'done' OU drapeau fait.)
-const estFaite = (t: any) => (t && (t.statut === "done" || (t.statut == null && !!t.fait)));
+// Tâche « faite » ? Miroir LARGE de la détection côté client (page Tâches) : fait===true OU
+// statut 'fait'/'done'. (Avant : seulement 'done' + repli fait quand statut null → une tâche marquée
+// statut:'fait' était comptée « en retard » alors que l'UI la considérait terminée.)
+const estFaite = (t: any) => (t && (t.fait === true || t.statut === "fait" || t.statut === "done"));
 // Tâche « en attente » (colonne En attente du Kanban) = volontairement mise EN PAUSE par l'utilisateur
 // → ni « en retard » ni relancée (sinon elle renotifie chaque matin alors qu'elle est parquée exprès).
 const estEnAttente = (t: any) => (t && t.statut === "attente");
+// Tâche AUTOMATIQUE (CT / révision générée depuis la fiche véhicule). On l'EXCLUT du résumé « Tâches du
+// jour » : (1) elle a déjà ses propres rappels (e-mail CT la veille via km-relance + colonne CT des
+// Alertes), et (2) une tâche auto DEVENUE OBSOLÈTE (CT changé, véhicule vendu…) n'est purgée que côté
+// client à l'ouverture de la page Tâches → sans ça l'edge la comptait « en retard » alors que la page
+// n'affichait AUCUNE tâche (bug « notif tâches alors que je n'ai aucune tâche »). Le résumé ne compte
+// donc que les tâches MANUELLES, comme ce que l'utilisateur gère réellement sur la page Tâches.
+const estAuto = (t: any) => (t && t.auto === true);
 
 // Échappement HTML pour l'e-mail de rappel (titres/lieux/conducteurs saisis).
 const esc = (s: unknown) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }) as Record<string, string>)[c]);
@@ -243,7 +252,7 @@ Deno.serve(async (req) => {
     const leadH = Math.max(0, Number.isFinite(Number(notif.tacheRappelHeures)) ? Number(notif.tacheRappelHeures) : 3);
     const digestHour = Math.min(23, Math.max(0, Number.isFinite(Number(notif.tacheDigestHeure)) ? Number(notif.tacheDigestHeure) : 8));
 
-    const actives = [...tasks.values()].filter((t: any) => t && !estFaite(t) && !estEnAttente(t) && t.echeance);
+    const actives = [...tasks.values()].filter((t: any) => t && !estFaite(t) && !estEnAttente(t) && !estAuto(t) && t.echeance);
 
     // ── (1) RÉSUMÉ DU JOUR (une notif/jour, à partir de l'heure réglée) ──
     if (hourNow >= digestHour) {
