@@ -7375,6 +7375,8 @@
     el.innerHTML = msg;
   }
   const cgWorking = (txt) => cgStatus(`<span class="inline-flex items-center gap-2"><span class="cg-spin"></span> ${txt}</span>`, 'working');
+  // Bouton « Réessayer la lecture » : relit le MÊME fichier déjà sélectionné (_cgFile) sans le re-déposer.
+  const CG_RETRY_BTN = '<div style="margin-top:8px"><button type="button" id="cg-reread" class="btn btn-dark text-xs" style="justify-content:center">↻ Réessayer la lecture</button></div>';
 
   // Convertit la 1ère page d'un PDF en canvas pour l'OCR
   async function pdfToCanvas(file){
@@ -7532,7 +7534,7 @@
       if (filled.length) {
         cgStatus(`<b>✓ ${filled.length} champ(s) pré-rempli(s)</b> : ${filled.join(', ')}.<br>Vérifiez les valeurs puis complétez le reste (km, chauffeur, groupes…).`, 'ok');
       } else {
-        cgStatus("Lecture terminée, mais aucun champ n'a pu être détecté automatiquement. Saisissez les infos à la main — astuce : une photo nette, bien cadrée et droite donne de meilleurs résultats.", 'error');
+        cgStatus("Lecture terminée, mais aucun champ n'a pu être détecté automatiquement. Saisissez les infos à la main — astuce : une photo nette, bien cadrée et droite donne de meilleurs résultats." + CG_RETRY_BTN, 'error');
       }
       // ⚠️ Alerte si une info dont le site a besoin n'a PAS été lue sur la carte grise.
       try {
@@ -7541,7 +7543,7 @@
       } catch (e) {}
     } catch (err) {
       console.error(err);
-      cgStatus("Impossible de lire le document. Vérifiez votre connexion internet et réessayez, ou saisissez les informations manuellement.", 'error');
+      cgStatus("Impossible de lire le document. Vérifiez votre connexion internet et réessayez, ou saisissez les informations manuellement." + (_cgFile ? CG_RETRY_BTN : ''), 'error');
     }
   }
 
@@ -7970,6 +7972,10 @@
   if (window.FP && FP.conducteurPicker && $('f-chauffeur')) FP.conducteurPicker($('f-chauffeur'));
 
   $('cg-trigger').addEventListener('click', () => $('f-cg-file').click());
+  // ↻ Réessayer la lecture de la carte grise sur le fichier déjà sélectionné (sans re-déposer).
+  $('cg-status').addEventListener('click', (e) => {
+    if (e.target.closest('#cg-reread') && _cgFile) handleCarteGrise(_cgFile);
+  });
   $('f-cg-file').addEventListener('change', (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = ''; // permet de re-sélectionner les mêmes fichiers

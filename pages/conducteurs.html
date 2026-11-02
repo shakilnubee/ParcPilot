@@ -2438,6 +2438,13 @@
       return;
     }
 
+    // ↻ « Réessayer la lecture » d'un document perso dont l'IA n'a rien lu (sans re-déposer).
+    const cdRr = e.target.closest('#conddoc-reread-now');
+    if (cdRr) { condDocReessayerLecture(); return; }
+    // ↻ « Réessayer le dépôt » d'un document perso après un échec d'envoi.
+    const cdReup = e.target.closest('#conddoc-reupload');
+    if (cdReup) { $('conddoc-file').click(); return; }
+
     // Relire un scan déjà enregistré (haute qualité + binarisation pour effacer la rosette)
     const rr = e.target.closest('#permis-reread');
     if (rr) { rereadPermis(rr.dataset.url, rr.dataset.key); return; }
@@ -2899,6 +2906,7 @@
   // Réception du fichier permis téléversé → Supabase Storage, puis enregistrement du lien
   let _permisUploadKey = null;
   let _condDocMeta = null; // métadonnées du document perso en cours de téléversement
+  let _condDocRetry = null; // { file, docId, key } → « Réessayer la lecture » d'un doc perso SANS re-déposer
 
   // Réception d'un document perso (carte d'identité…) → Storage, puis ajout dans condDocs
   $('drawer-body').addEventListener('change', async (e) => {
@@ -2928,6 +2936,7 @@
       const dExp   = meta.date   || (ia && (ia.idExpiration || ia.permisExpiration)) || null;
       const doc = { id: 'DC' + Date.now().toString(36), type: meta.type, label: meta.label || (t ? t.label : 'Document'), url, date: dExp, numero, createdAt: new Date().toISOString() };
       condDocsSave(meta.key, [...condDocsGet(meta.key), doc]);
+      _condDocRetry = { file, docId: doc.id, key: meta.key }; // pour « Réessayer la lecture » sans re-déposer
       const lus = [];
       if (ia) {
         const cur = condRow(meta.key) || {};
@@ -2946,13 +2955,52 @@
       const st2 = $('conddoc-status');
       if (st2) {
         if (lus.length) { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#ECFDF5;color:#047857;'); st2.innerHTML = `✓ Document enregistré · lu automatiquement : <b>${[...new Set(lus)].join(', ')}</b>. Vérifie et corrige si besoin.`; }
-        else { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#FEF3C7;color:#92400E;'); st2.innerHTML = "✓ Document enregistré. Aucune info lisible automatiquement — complète à la main si besoin."; }
+        else { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#FEF3C7;color:#92400E;padding:8px;'); st2.innerHTML = `✓ <b>Document bien enregistré</b> (pas besoin de le re-déposer), mais aucune info n'a pu être lue cette fois. <button type="button" id="conddoc-reread-now" class="btn btn-dark text-xs" style="margin:6px 0 2px;justify-content:center"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> ↻ Réessayer la lecture</button><div style="margin-top:4px">Ou complète à la main si besoin.</div>`; try { lucide.createIcons(); } catch (e) {} }
       }
     } catch (err) {
       console.error('[conddoc upload]', err);
-      show("Échec de l'envoi : " + (err.message || err), 'background:#FEF2F2;color:#B91C1C;');
+      _condDocMeta = meta; // restaure le contexte pour un re-dépôt propre
+      show(`Échec de l'envoi : ${escapeHtml(String(err.message || err))}. <button type="button" id="conddoc-reupload" class="btn btn-dark text-xs" style="margin-top:6px;justify-content:center"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ↻ Réessayer le dépôt</button>`, 'background:#FEF2F2;color:#B91C1C;padding:8px;');
+      try { lucide.createIcons(); } catch (e) {}
     }
   });
+
+  // Relecture d'un document perso DÉJÀ enregistré (après une lecture IA vide) — relit le MÊME
+  // fichier gardé en mémoire, sans re-déposer ni dupliquer le document.
+  async function condDocReessayerLecture() {
+    const r = _condDocRetry; if (!r || !r.file) return;
+    const setS = (msg, color) => { const st = $('conddoc-status'); if (st) { st.classList.remove('hidden'); st.setAttribute('style', color); st.innerHTML = msg; } };
+    try {
+      setS('🔍 Nouvelle lecture du document par IA…', 'background:#F1F5F9;color:#475569;');
+      const ia = await scanCondDocIA(r.file);
+      if (!ia) { setS('Toujours rien de lisible automatiquement (qualité de la photo). Complète à la main si besoin.', 'background:#FEF3C7;color:#92400E;'); return; }
+      const cur = condRow(r.key) || {};
+      const ch = {}; const lus = [];
+      if (ia.dateNaissance && !cur.dateNaissance && naissancePlausible(ia.dateNaissance)) { ch.dateNaissance = ia.dateNaissance; lus.push('date de naissance'); }
+      if (ia.permisNumero && !cur.permisNumero) { ch.permisNumero = ia.permisNumero; lus.push('n° de permis'); }
+      if (ia.permisType && !cur.permisType) { ch.permisType = ia.permisType; lus.push('type de permis'); }
+      if (ia.permisObtention && !cur.permisObtention) { ch.permisObtention = ia.permisObtention; lus.push("date d'obtention"); }
+      if (ia.permisExpiration && !cur.permisExpiration) { ch.permisExpiration = ia.permisExpiration; lus.push("date d'expiration"); }
+      // Complète le document EXISTANT (n° + expiration) sans le dupliquer.
+      const num = (ia.idNumero || ia.permisNumero) || null;
+      const dExp = (ia.idExpiration || ia.permisExpiration) || null;
+      const docs = condDocsGet(r.key).map(d => {
+        if (d.id !== r.docId) return d;
+        const nd = { ...d };
+        if (num && !nd.numero) { nd.numero = num; lus.push('n° du document'); }
+        if (dExp && !nd.date) { nd.date = dExp; }
+        return nd;
+      });
+      condDocsSave(r.key, docs);
+      if (Object.keys(ch).length) { ch.name = cur.name || (drivers.find(x => x.key === r.key) || {}).name || r.key; upsertCond(r.key, ch); drivers = buildDrivers(); }
+      openDrawer(currentDriverKey);
+      const st2 = $('conddoc-status');
+      if (st2) {
+        if (lus.length) { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#ECFDF5;color:#047857;'); st2.innerHTML = `✓ Relu : <b>${[...new Set(lus)].join(', ')}</b>. Vérifie / corrige si besoin.`; }
+        else { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#FEF3C7;color:#92400E;padding:8px;'); st2.innerHTML = `Toujours rien de lisible automatiquement. <button type="button" id="conddoc-reread-now" class="btn btn-dark text-xs" style="margin:6px 0 2px;justify-content:center"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> ↻ Réessayer</button><div style="margin-top:4px">Ou complète à la main.</div>`; try { lucide.createIcons(); } catch (e) {} }
+      }
+    } catch (e) { console.warn('[conddoc reread]', e); setS('Relecture impossible. Complète à la main si besoin.', 'background:#FEF2F2;color:#B91C1C;'); }
+  }
 
   // ---------- Lecture automatique du permis (OCR navigateur) ----------
   const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
