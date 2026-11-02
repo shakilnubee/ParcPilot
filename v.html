@@ -100,7 +100,9 @@
   .steps li:last-child { border-bottom:none; }
   .steps li::before { content:counter(s); position:absolute; left:0; top:.4rem; width:1.5rem; height:1.5rem; border-radius:50%; background:#FEECEC; color:#EF4444; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center; }
   label.f { display:block; font-size:.82rem; font-weight:700; color:var(--muted); margin:.7rem 0 .3rem; }
-  input.fi, textarea.fi, select.fi { width:100%; font-size:1rem; padding:.7rem .8rem; border:1.5px solid var(--line); border-radius:.7rem; color:var(--ink); outline:none; background:#fff; }
+  input.fi, textarea.fi, select.fi { width:100%; max-width:100%; min-width:0; font-size:1rem; padding:.7rem .8rem; border:1.5px solid var(--line); border-radius:.7rem; color:var(--ink); outline:none; background:#fff; }
+  /* iOS Safari : reset du dimensionnement natif des champs date/heure (sinon ils gardent leur largeur intrinsèque et débordent). Ciblé date/time → ne touche pas la flèche des <select>. */
+  input.fi[type="date"], input.fi[type="time"] { -webkit-appearance:none; appearance:none; }
   input.fi:focus, textarea.fi:focus, select.fi:focus { border-color:var(--accent); box-shadow:0 0 0 4px rgba(249,115,22,.12); }
   .seg { display:flex; gap:.5rem; }
   .seg button { flex:1; padding:.6rem; border:1.5px solid var(--line); border-radius:.7rem; background:#fff; font-weight:800; cursor:pointer; color:var(--muted); }
