@@ -7242,7 +7242,7 @@
     const km = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0);
     const exploitTotal = FP.dedupeFactures((data.factures || []).filter(f => sameVeh(f) && FP.coutFactureExploit(f))).reduce((s, f) => s + (Number(f.montantTTC) || 0), 0);
     const ANNEE = String(new Date().getFullYear());
-    const entretienAnnee = (data.factures || []).filter(f => sameVeh(f) && (f.date || '').startsWith(ANNEE) && FP.estEntretien(f)).reduce((s, f) => s + (Number(f.montantTTC) || 0), 0);
+    const entretienAnnee = FP.dedupeFactures((data.factures || []).filter(f => sameVeh(f) && (f.date || '').startsWith(ANNEE) && FP.estEntretien(f))).reduce((s, f) => s + (Number(f.montantTTC) || 0), 0);
     const lease = FP.leasingInfo ? FP.leasingInfo(v) : null;
     const dec = FP.decoteVehicule ? FP.decoteVehicule(v) : null;
     return {
