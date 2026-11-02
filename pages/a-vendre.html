@@ -63,6 +63,9 @@
   /* Carte d'un dossier d'achat (réutilise .veh-card). Puce de financement. */
   .ach-fin { display: inline-block; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: .08rem .45rem; border-radius: 9999px; background: #E0E7FF; color: #3730A3; }
   body.fp-dark .ach-fin { background: rgba(99,102,241,.18); color: #c7d2fe; }
+  /* Carte de dossier d'achat cliquable → fiche détail (le clic hors boutons ouvre le détail). */
+  .veh-card[data-ach] { cursor: pointer; transition: box-shadow .12s, border-color .12s, transform .08s; }
+  .veh-card[data-ach]:hover { border-color: var(--fp-accent); box-shadow: 0 4px 14px rgba(15,30,61,.1); }
   .ach-info { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: .6rem; padding: .7rem .9rem; font-size: .82rem; margin-bottom: 1rem; }
   body.fp-dark .ach-info { background: rgba(217,119,6,.15); color: #fde68a; border-color: rgba(217,119,6,.4); }
 </style>
@@ -216,6 +219,7 @@
         </div><div class="kpi-ic ok"><i data-lucide="car"></i></div></div></div>
       </div>
       <div class="pipeline" id="achat-pipeline"></div>
+      <div id="achat-archived" class="mt-5"></div>
       <p class="text-xs text-slate-500 mt-6">💡 Le coût réel du véhicule est porté par la <b>facture d'achat</b> (onglet Factures) — ce dossier sert au <b>suivi</b> de l'acquisition (statut, documents, acompte), sans double-compter.</p>
     </section>
 
@@ -252,6 +256,17 @@
           <button type="button" class="btn btn-outline flex-1 justify-center" id="achat-cancel">Annuler</button>
           <button type="button" class="btn btn-dark flex-1 justify-center" id="achat-save"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modale : FICHE DÉTAIL d'un dossier d'achat (lecture, avec actions) -->
+    <div id="achat-detail" class="modal-backdrop" style="display:none;position:fixed;inset:0;z-index:91;background:rgba(15,30,61,.5);align-items:center;justify-content:center;padding:1rem">
+      <div class="modal" style="background:var(--fp-surface,#fff);border-radius:1rem;max-width:580px;width:100%;max-height:90vh;overflow:auto;padding:1.3rem 1.4rem">
+        <div class="flex items-center justify-between mb-3 gap-2">
+          <h3 class="font-bold text-lg min-w-0 truncate" id="achat-detail-title" style="color:var(--fp-text)">Dossier d'achat</h3>
+          <button type="button" id="achat-detail-close" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        </div>
+        <div id="achat-detail-body"></div>
       </div>
     </div>
   </main>
@@ -581,20 +596,24 @@
   ];
   const ACHAT_DOC_SINGLE = new Set(['carte-grise', 'facture-achat', 'confirmation-commande', 'contrat-achat']);
   const FIN_LABEL = { comptant: 'Comptant', credit: 'Crédit', loa: 'LOA', lld: 'LLD' };
-  let _achats = [], _achatLoaded = false, _achatEditId = null, _achatTableMissing = false;
+  let _achats = [], _achatsArchived = [], _achatLoaded = false, _achatEditId = null, _achatTableMissing = false, _achatArchOpen = false;
 
   const achEsc = (s) => (FP.esc ? FP.esc(s) : String(s == null ? '' : s));
   const achStatutOf = (d) => { const k = String(d.statut || 'projet'); return ACHAT_LABEL[k] ? k : 'projet'; };
   const achEnCours = (d) => !['integre', 'annule'].includes(achStatutOf(d));
+  // Retrouve un dossier qu'il soit actif OU archivé (restauration / suppression définitive).
+  const achFind = (id) => _achats.find(x => x.id === id) || _achatsArchived.find(x => x.id === id) || null;
 
   async function loadAchats() {
     if (!(window.FP && FP.db && FP.db.select)) return;
     try {
       const res = await FP.db.select('dossiers_achat');
       if (res && res.error) { _achatTableMissing = true; }
-      _achats = ((res && res.data) || []).filter(d => d && !d.deletedAt);
+      const all = ((res && res.data) || []).filter(Boolean);
+      _achats = all.filter(d => !d.deletedAt);
+      _achatsArchived = all.filter(d => d.deletedAt);
       _achatLoaded = true;
-    } catch (e) { _achatTableMissing = true; _achats = []; _achatLoaded = true; }
+    } catch (e) { _achatTableMissing = true; _achats = []; _achatsArchived = []; _achatLoaded = true; }
     renderAchat();
   }
 
@@ -632,7 +651,7 @@
             : (d.vehiculeId ? `<a class="av-btn" href="vehicules.html?veh=${encodeURIComponent(d.vehiculeId)}"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Voir le véhicule</a>` : '');
           const opts = ACHAT_STATUTS.map(s => `<option value="${s.key}" ${achStatutOf(d) === s.key ? 'selected' : ''}>${achEsc(s.label)}</option>`).join('');
           return `
-            <div class="veh-card" data-ach="${achEsc(d.id)}">
+            <div class="veh-card" data-ach="${achEsc(d.id)}" title="Clique pour voir le détail du dossier">
               <div class="flex justify-between items-start gap-2 mb-1">
                 <div class="min-w-0"><div class="font-bold text-sm truncate" style="color:var(--fp-text)">${achEsc(titre)}</div>
                   ${sub ? `<div class="text-xs text-slate-500 truncate">${achEsc(sub)}</div>` : ''}</div>
@@ -660,7 +679,77 @@
     }
     renderAchatKPIs();
     renderAchatPipeline();
+    renderAchatArchived();
   }
+
+  // ---- Volet « dossiers archivés » (repliable, avec restauration / suppression définitive) ----
+  function renderAchatArchived() {
+    const box = $('achat-archived'); if (!box) return;
+    const n = _achatsArchived.length;
+    if (!n) { box.innerHTML = ''; return; }
+    const head = `<button type="button" id="ach-arch-toggle" class="btn btn-outline text-sm" style="justify-content:center"><i data-lucide="archive" class="w-4 h-4"></i> ${n} dossier${n > 1 ? 's' : ''} archivé${n > 1 ? 's' : ''} — ${_achatArchOpen ? 'masquer' : 'gérer'}</button>`;
+    let list = '';
+    if (_achatArchOpen) {
+      list = `<div class="mt-3 grid gap-2">` + _achatsArchived.map(d => {
+        const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'Véhicule à définir';
+        const sub = [d.version, d.fournisseur].filter(Boolean).join(' · ');
+        const prix = d.prixTtc ? FP.euroPrecis(d.prixTtc) : (d.prixHt ? FP.euroPrecis(d.prixHt) + ' HT' : '');
+        return `<div class="flex items-center justify-between gap-2 p-2 rounded-lg" style="border:1px solid var(--fp-border,#e5e7eb);background:var(--fp-surface,#fff)">
+          <div class="min-w-0"><div class="font-semibold text-sm truncate" style="color:var(--fp-text)">${achEsc(titre)}</div>${sub ? `<div class="text-xs text-slate-500 truncate">${achEsc(sub)}</div>` : ''}</div>
+          <div class="flex items-center gap-2 flex-none">
+            ${prix ? `<span class="text-xs text-slate-500">${achEsc(prix)}</span>` : ''}
+            <button type="button" class="av-btn ach-restore" data-ach-id="${achEsc(d.id)}" title="Remettre ce dossier dans le suivi"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Restaurer</button>
+            <button type="button" class="av-btn ach-delete" data-ach-id="${achEsc(d.id)}" title="Effacer définitivement (irréversible)" style="color:#b91c1c"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>
+          </div>
+        </div>`;
+      }).join('') + `</div>`;
+    }
+    box.innerHTML = `<div style="border-top:1px dashed var(--fp-border,#e5e7eb);padding-top:14px">${head}${list}</div>`;
+    if (window.lucide) try { lucide.createIcons(); } catch (e) {}
+  }
+
+  // ---- Fiche DÉTAIL (lecture) d'un dossier d'achat, avec toutes les actions ----
+  function openAchatDetail(d) {
+    if (!d) return;
+    const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'Véhicule à définir';
+    $('achat-detail-title').textContent = titre;
+    const row = (label, val) => (val == null || val === '') ? '' : `<div class="flex justify-between gap-3 py-1.5" style="border-bottom:1px solid var(--fp-border,#f1f5f9)"><span class="text-slate-500 text-sm">${achEsc(label)}</span><span class="font-medium text-sm text-right" style="color:var(--fp-text)">${achEsc(val)}</span></div>`;
+    const money = (v) => (v == null || v === '') ? '' : FP.euroPrecis(v);
+    const acP = Number(d.acomptePaye) || 0, prixT = Number(d.prixTtc) || Number(d.prixHt) || 0;
+    const reste = (prixT && acP) ? FP.euro(Math.max(0, prixT - acP)) : '';
+    const infos = [
+      row('Étape', ACHAT_LABEL[achStatutOf(d)]),
+      row('Version', d.version),
+      row('Motorisation', d.motorisation),
+      row('Fournisseur', d.fournisseur),
+      row('Financement', d.modeFinancement ? (FIN_LABEL[d.modeFinancement] || d.modeFinancement) : ''),
+      row('Prix HT', money(d.prixHt)),
+      row('Prix TTC', money(d.prixTtc)),
+      row('Acompte prévu', money(d.acomptePrevu)),
+      row('Acompte payé', money(d.acomptePaye)),
+      row('Reste à payer', reste),
+      row('Date de commande', d.dateCommande ? FP.date(d.dateCommande) : ''),
+      row('Livraison prévue', d.dateLivraisonPrevue ? FP.date(d.dateLivraisonPrevue) : ''),
+      row('Immatriculation', d.immat),
+    ].join('') || '<p class="text-sm text-slate-400">Aucune information saisie pour l\'instant.</p>';
+    const notes = d.notes ? `<div class="mt-3"><div class="text-slate-500 text-xs mb-1">Notes</div><div class="text-sm" style="white-space:pre-wrap;color:var(--fp-text)">${achEsc(d.notes)}</div></div>` : '';
+    const canFleet = ['livre', 'finalise'].includes(achStatutOf(d)) && !d.vehiculeId;
+    const fleetBtn = canFleet
+      ? `<button type="button" class="btn btn-primary text-sm justify-center ach-tofleet" data-ach-id="${achEsc(d.id)}"><i data-lucide="car" class="w-4 h-4"></i> Ajouter à la flotte</button>`
+      : (d.vehiculeId ? `<a class="btn btn-outline text-sm justify-center" href="vehicules.html?veh=${encodeURIComponent(d.vehiculeId)}"><i data-lucide="external-link" class="w-4 h-4"></i> Voir le véhicule</a>` : '');
+    $('achat-detail-body').innerHTML = `
+      ${infos}${notes}
+      <div class="flex flex-wrap gap-2 pt-4">
+        ${fleetBtn}
+        <button type="button" class="btn btn-dark text-sm justify-center ach-edit" data-ach-id="${achEsc(d.id)}"><i data-lucide="pencil" class="w-4 h-4"></i> Modifier</button>
+        <button type="button" class="btn btn-outline text-sm justify-center ach-docs" data-ach-id="${achEsc(d.id)}"><i data-lucide="folder" class="w-4 h-4"></i> Documents</button>
+        <button type="button" class="btn btn-outline text-sm justify-center ach-archive" data-ach-id="${achEsc(d.id)}" title="Ranger ce dossier (réversible)"><i data-lucide="archive" class="w-4 h-4"></i> Archiver</button>
+        <button type="button" class="btn btn-outline text-sm justify-center ach-delete" data-ach-id="${achEsc(d.id)}" title="Effacer définitivement (irréversible)" style="color:#b91c1c"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</button>
+      </div>`;
+    $('achat-detail').style.display = 'flex';
+    if (window.lucide) try { lucide.createIcons(); } catch (e) {}
+  }
+  function closeAchatDetail() { $('achat-detail').style.display = 'none'; }
 
   // ---- Bascule des sous-onglets ----
   function showTab(which) {
@@ -791,12 +880,38 @@
     try { const res = await FP.db.update('dossiers_achat', id, { statut: d.statut }); if (res && res.error) throw res.error; renderAchat(); }
     catch (err) { d.statut = prev; if (FP.notifyError) FP.notifyError('Échec — réessaie.'); renderAchat(); }
   });
-  $('achat-pipeline').addEventListener('click', async (e) => {
+  async function onAchatClick(e) {
+    // ↩ Restaurer un dossier archivé (le remet dans le suivi).
+    const rs = e.target.closest('.ach-restore');
+    if (rs) {
+      const id = rs.getAttribute('data-ach-id'); const d = achFind(id); if (!d) return;
+      try { const res = await FP.db.update('dossiers_achat', id, { deletedAt: null }); if (res && res.error) throw res.error; d.deletedAt = null; _achatsArchived = _achatsArchived.filter(x => x.id !== id); _achats.push(d); renderAchat(); if (FP.toast) FP.toast('Dossier restauré.'); }
+      catch (err) { if (FP.notifyError) FP.notifyError('Échec de la restauration — réessaie.'); }
+      return;
+    }
+    // 🗑️ Supprimer DÉFINITIVEMENT (irréversible) — distinct de « Archiver ».
+    const dl = e.target.closest('.ach-delete');
+    if (dl) {
+      const id = dl.getAttribute('data-ach-id'); const d = achFind(id); if (!d) return;
+      const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'ce dossier';
+      const ok = FP.confirm ? await FP.confirm('Supprimer DÉFINITIVEMENT le dossier « ' + titre + ' » ?\n\nC\'est IRRÉVERSIBLE (contrairement à « Archiver » qui le range et permet de le restaurer). Les documents liés ne sont pas supprimés.') : confirm('Supprimer définitivement ce dossier ?');
+      if (!ok) return;
+      try { const res = await FP.db.delete('dossiers_achat', id); if (res && res.error) throw res.error; _achats = _achats.filter(x => x.id !== id); _achatsArchived = _achatsArchived.filter(x => x.id !== id); closeAchatDetail(); renderAchat(); if (FP.toast) FP.toast('Dossier supprimé définitivement.'); }
+      catch (err) { if (FP.notifyError) FP.notifyError('Échec de la suppression — réessaie.'); }
+      return;
+    }
+    // Clic sur la CARTE (hors boutons / menu) → fiche détail en lecture.
+    const card = e.target.closest('[data-ach]');
+    if (card && !e.target.closest('button, select, a, input, textarea')) {
+      const d = achFind(card.getAttribute('data-ach')); if (d) openAchatDetail(d);
+      return;
+    }
     const ed = e.target.closest('.ach-edit');
-    if (ed) { const d = _achats.find(x => x.id === ed.getAttribute('data-ach-id')); if (d) openAchatModal(d); return; }
+    if (ed) { closeAchatDetail(); const d = achFind(ed.getAttribute('data-ach-id')); if (d) openAchatModal(d); return; }
     const tf = e.target.closest('.ach-tofleet');
     if (tf) {
-      const d = _achats.find(x => x.id === tf.getAttribute('data-ach-id')); if (!d) return;
+      closeAchatDetail();
+      const d = achFind(tf.getAttribute('data-ach-id')); if (!d) return;
       if (!(window.FP && FP.db && FP.db.insert)) { alert('Indisponible (connexion requise).'); return; }
       const immat = (d.immat || '').trim();
       // Anti-doublon : si un véhicule avec cette plaque existe déjà → proposer de L'ASSOCIER (pas de doublon).
@@ -827,8 +942,9 @@
     }
     const dc = e.target.closest('.ach-docs');
     if (dc) {
-      const d = _achats.find(x => x.id === dc.getAttribute('data-ach-id')); if (!d) return;
+      const d = achFind(dc.getAttribute('data-ach-id')); if (!d) return;
       if (!(window.FP && FP.docsFolder)) { alert('Documents indisponibles (connexion requise).'); return; }
+      closeAchatDetail();
       // Documents rangés sous l'id du DOSSIER d'achat (le véhicule n'existe pas encore). Types propres à l'achat.
       const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'dossier d\'achat';
       FP.docsFolder.open({ id: d.id, immat: d.immat || '' }, {
@@ -839,13 +955,25 @@
     }
     const ar = e.target.closest('.ach-archive');
     if (ar) {
-      const id = ar.getAttribute('data-ach-id'); const d = _achats.find(x => x.id === id); if (!d) return;
-      const ok = FP.confirm ? await FP.confirm('Archiver ce dossier d\'achat ?') : confirm('Archiver ce dossier d\'achat ?');
+      const id = ar.getAttribute('data-ach-id'); const d = achFind(id); if (!d) return;
+      const ok = FP.confirm ? await FP.confirm('Archiver ce dossier d\'achat ?\n(Il est rangé dans « dossiers archivés » et reste restaurable — rien n\'est supprimé.)') : confirm('Archiver ce dossier d\'achat ?');
       if (!ok) return;
-      try { const res = await FP.db.update('dossiers_achat', id, { deletedAt: new Date().toISOString() }); if (res && res.error) throw res.error; _achats = _achats.filter(x => x.id !== id); renderAchat(); if (FP.toast) FP.toast('Dossier archivé.'); }
+      try { const res = await FP.db.update('dossiers_achat', id, { deletedAt: new Date().toISOString() }); if (res && res.error) throw res.error; d.deletedAt = new Date().toISOString(); _achats = _achats.filter(x => x.id !== id); if (!_achatsArchived.some(x => x.id === id)) _achatsArchived.push(d); closeAchatDetail(); renderAchat(); if (FP.toast) FP.toast('Dossier archivé (restaurable).'); }
       catch (err) { if (FP.notifyError) FP.notifyError('Échec de l\'archivage — réessaie.'); }
+      return;
     }
-  });
+    // Ouvrir / fermer le volet des dossiers archivés.
+    const at = e.target.closest('#ach-arch-toggle');
+    if (at) { _achatArchOpen = !_achatArchOpen; renderAchatArchived(); return; }
+  }
+  // Même logique pour le pipeline, la fiche détail et le volet archivés (clavier + souris identiques).
+  $('achat-pipeline').addEventListener('click', onAchatClick);
+  $('achat-detail').addEventListener('click', onAchatClick);
+  $('achat-archived').addEventListener('click', onAchatClick);
+  $('achat-detail-close').addEventListener('click', closeAchatDetail);
+  $('achat-detail').addEventListener('click', (e) => { if (e.target.id === 'achat-detail') closeAchatDetail(); });
+  // Échap ferme la fiche détail (cohérent avec les autres modales).
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('achat-detail') && $('achat-detail').style.display === 'flex') closeAchatDetail(); });
 </script>
 </body>
 </html>
