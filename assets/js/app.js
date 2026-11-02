@@ -2895,6 +2895,52 @@ FP.filterResetButton = function (bar, opts) {
   } catch (e) { return null; }
 };
 
+// ⚠️ RÈGLE PROJET — « ENTRÉE = VALIDER » UNIVERSEL (le clavier fait pareil que la souris).
+// Consigne utilisateur : partout, appuyer sur Entrée dans un champ doit déclencher le bouton
+// d'action principal de son contexte (Enregistrer / Valider / Ajouter / Rechercher…), exactement
+// comme un clic. Installé UNE fois, globalement (app.js chargé sur toutes les pages).
+// Sûr PAR CONSTRUCTION (évite de valider le mauvais formulaire) :
+//  1) ne fait rien si l'événement est déjà traité (e.defaultPrevented) → les champs qui gèrent
+//     DÉJÀ Entrée priment (sélecteur recherchable FP.searchSelect, calendrier FP.datePicker,
+//     édition inline, combobox, ajout d'emprunt/tâche…) : ils appellent preventDefault avant nous ;
+//  2) les <form> avec un bouton submit gardent leur comportement natif (on ne double pas) ;
+//  3) on cherche le bouton dans le PLUS PETIT conteneur autour du champ (modale/panneau/carte),
+//     jamais sur toute la page ;
+//  4) on ne clique qu'un bouton d'ACTION évident (texte = verbe, ou style primaire) et on
+//     S'ABSTIENT si c'est ambigu → jamais un clic surprise. Un champ peut refuser via data-no-enter.
+(function installEnterValide() {
+  if (window.__fpEnterValide) return; window.__fpEnterValide = true;
+  const VERB = /(enregistr|valid|confirm|ajout|envoy|appliqu|cr[ée]er|recherch|sauvegard|termin|mettre à jour|soumett|calcul|rechercher)/i;
+  const NEG = /(annul|fermer|retour|supprim|archiv|r[ée]initialis|effacer)/i;
+  const SKIP_TYPES = { submit: 1, button: 1, reset: 1, checkbox: 1, radio: 1, range: 1, file: 1, color: 1, image: 1 };
+  const vis = (el) => !!(el && !el.disabled && (el.offsetWidth || el.offsetHeight || (el.getClientRects && el.getClientRects().length)));
+  function pickBtn(scope) {
+    const btns = Array.from(scope.querySelectorAll('button, input[type="submit"]')).filter(b => vis(b) && !b.closest('[data-no-enter]'));
+    if (!btns.length) return null;
+    const txt = (b) => (b.textContent || b.value || '').trim().toLowerCase();
+    const marked = btns.find(b => b.hasAttribute('data-enter-default'));
+    if (marked) return marked;
+    const verbs = btns.filter(b => VERB.test(txt(b)) && !NEG.test(txt(b)));
+    if (verbs.length) return verbs.find(b => b.matches('[type="submit"], .btn-dark, .btn-primary, .primary, .rk-btn')) || verbs[0];
+    const prim = btns.filter(b => b.matches('[type="submit"], .btn-dark, .btn-primary'));
+    return prim.length === 1 ? prim[0] : null; // ambigu → rien (sécurité)
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.defaultPrevented || e.isComposing || e.keyCode === 229) return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT') return;                 // uniquement les champs d'une ligne (jamais <textarea>)
+    const type = (t.getAttribute('type') || 'text').toLowerCase();
+    if (SKIP_TYPES[type] || t.isContentEditable || t.readOnly || t.closest('[data-no-enter]')) return;
+    const form = t.form;
+    if (form && Array.from(form.elements).some(el => (el.type || '') === 'submit')) return; // submit natif → on laisse faire
+    const scope = t.closest('[data-enter-scope], .modal, [role="dialog"], form, .rk-edit, .fp-panel, .modal-card, .fp-modal, .card');
+    if (!scope) return;
+    const btn = pickBtn(scope);
+    if (btn && vis(btn)) { e.preventDefault(); btn.click(); }
+  });
+})();
+
 // ⚠️ RÈGLE PROJET — sélection multi-lignes réutilisable (« bulk actions »).
 // FP.bulkSelect({ mount, tbody, getFilteredIds, onDelete, onRender, noun, nounPlural }) pose une
 // case « Tout sélectionner » (toujours visible) + une barre flottante « N sélectionné(s) · Supprimer
