@@ -128,6 +128,31 @@ for (const h of htmlFiles()) {
   });
 }
 
+// 7) RÉFÉRENTIEL — IDENTITÉ : un champ « nom complet » / « nom et prénom » est INTERDIT.
+//    Une personne = DEUX champs « Prénom » puis « Nom » (CLAUDE.md § Checklist obligatoire). On cible les
+//    LIBELLÉS/placeholders explicitement COMBINÉS (« nom et prénom », « nom complet », « full name »…) ; on
+//    N'inclut PAS le simple placeholder « Prénom Nom » (utilisé légitimement comme indice de recherche par les
+//    sélecteurs de conducteur FP.conducteurPicker). Exception justifiée → « pp-allow:nom-unique » SUR la ligne.
+const FULLNAME_RE = /(nom\s*(?:et|&amp;|&)\s*pr[eé]nom|pr[eé]nom\s*(?:et|&amp;|&)\s*nom|nom\s+complet|full\s*-?\s*name|fullname|display\s*-?\s*name)/i;
+for (const h of htmlFiles()) {
+  const rel = h.replace(ROOT + '/', '');
+  readFileSync(h, 'utf8').split('\n').forEach((ln, i) => {
+    if (!/(placeholder\s*=|<label\b|field-label)/i.test(ln)) return;   // uniquement un libellé/placeholder de champ
+    if (/pp-allow:\s*nom-unique/i.test(ln)) return;                     // exception documentée
+    if (FULLNAME_RE.test(ln)) errors.push(`Identité : champ « nom complet / nom et prénom » détecté dans ${rel}:${i + 1} — utilise DEUX champs « Prénom » puis « Nom » (jamais un seul). Exception justifiée ? ajoute « pp-allow:nom-unique » sur la ligne (avec commentaire).`);
+  });
+}
+
+// 8) RÉFÉRENTIEL — « Voir tout / Voir plus » ne doit PAS être un <details> natif (rend moche ; vrai toggle
+//    repliable attendu, CLAUDE.md § 0bis). Exception → « pp-allow:details » sur la ligne.
+const DETAILS_VOIR = /<summary\b[^>]*>[^<]*voir\s*(?:tout|plus|moins|\d)/i;
+for (const h of htmlFiles()) {
+  const rel = h.replace(ROOT + '/', '');
+  readFileSync(h, 'utf8').split('\n').forEach((ln, i) => {
+    if (DETAILS_VOIR.test(ln) && !/pp-allow:\s*details/i.test(ln)) errors.push(`« Voir tout » en <details> natif dans ${rel}:${i + 1} — utilise un vrai toggle repliable (3 lignes + bouton « Voir tout (N) » / « Voir moins »), pas <details>.`);
+  });
+}
+
 // 6) GARDE-FOU ANTI-PERTE (NON bloquant, warning seulement) : vérifie que le correctif de FOND du moteur
 //    de fusion (« une suppression de clé synchronisée est vraiment appliquée », pas de husk {} qui
 //    ressuscite l'entrée) est toujours présent dans mergeMap. S'il disparaissait, toute la famille de bugs
@@ -148,4 +173,4 @@ if (errors.length) {
   console.error('\nCorrige avant de déployer.');
   process.exit(1);
 }
-console.log('✅ check-bugs : RAS (syntaxe JS, cache ?v=, liens internes, RGPD data.js).');
+console.log('✅ check-bugs : RAS (syntaxe JS, cache ?v=, liens internes, RGPD data.js, identité 2 champs, Voir-tout).');
