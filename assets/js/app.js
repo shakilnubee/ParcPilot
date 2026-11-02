@@ -19454,11 +19454,13 @@ FP.share = function (opts) {
         };
         r.snap = function (dir) { r.vel = 0; var idx = Math.round(-r.rot / r.angle) + (dir || 0); r.targetSnap = -idx * r.angle; };
         r.computeRadius(); r.draw();
-        stage.addEventListener('pointerdown', function (e) { r.dragging = true; r.lastX = e.clientX; r.moved = 0; r.vel = 0; r.targetSnap = null; stage.classList.add('fpg-grab'); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
-        stage.addEventListener('pointermove', function (e) { if (!r.dragging) return; var dx = e.clientX - r.lastX; r.lastX = e.clientX; r.moved += Math.abs(dx); if (N > 1) { var d = dx * 0.3; r.rot += d; r.vel = d; } });
+        stage.addEventListener('pointerdown', function (e) { r.dragging = true; r.lastX = e.clientX; r.startX = e.clientX; r.moved = 0; r.dragged = false; r.vel = 0; r.targetSnap = null; stage.classList.add('fpg-grab'); try { stage.setPointerCapture(e.pointerId); } catch (_) {} });
+        stage.addEventListener('pointermove', function (e) { if (!r.dragging) return; var dx = e.clientX - r.lastX; r.lastX = e.clientX; r.moved += Math.abs(dx); if (Math.abs(e.clientX - r.startX) > 10) r.dragged = true; if (N > 1) { var d = dx * 0.3; r.rot += d; r.vel = d; } });
         var up = function () { if (!r.dragging) return; r.dragging = false; stage.classList.remove('fpg-grab'); if (Math.abs(r.vel) < 0.4) r.snap(0); };
         stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
-        stage.addEventListener('click', function (e) { if (r.moved > 6) { e.stopPropagation(); e.preventDefault(); } }, true);
+        // On ne bloque le clic (= ouverture de la fiche) QUE si c'était un vrai GLISSÉ (déplacement NET > 10px) :
+        // un simple TAP, même avec un peu de tremblement du doigt, ouvre bien la fiche (bug « galerie ne s'ouvre pas »).
+        stage.addEventListener('click', function (e) { if (r.dragged) { e.stopPropagation(); e.preventDefault(); } }, true);
         // Clavier : l'anneau survolé (ou focalisé au Tab) devient la cible des flèches ← → (cf. onKey plus bas).
         stage.tabIndex = 0;
         stage.setAttribute('aria-label', 'Galerie — flèches gauche/droite pour faire défiler');
