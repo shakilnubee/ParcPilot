@@ -33,11 +33,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261102e">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261102f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261102e"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261102f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261102e">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261102f">
 <style>
   /* ===== Effets cockpit (ambiance, derrière le contenu) ===== */
   .fx-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden}
@@ -578,7 +578,8 @@
     <div id="pp-ok" class="pp-ok pp-hide">✓ Merci ! Votre demande est bien envoyée. On vous recontacte très vite.</div>
     <div id="pp-err" class="pp-err pp-hide"></div>
     <form id="pp-form">
-      <div class="pp-field"><label for="pp-nom">Nom &amp; prénom *</label><input type="text" id="pp-nom" required placeholder="Prénom Nom" autocomplete="name" /></div>
+      <div class="pp-field"><label for="pp-prenom">Prénom *</label><input type="text" id="pp-prenom" required placeholder="Ex. : Jean" autocomplete="given-name" /></div>
+      <div class="pp-field"><label for="pp-nom">Nom *</label><input type="text" id="pp-nom" required placeholder="Ex. : Dupont" autocomplete="family-name" /></div>
       <div class="pp-field"><label for="pp-email">E-mail *</label><input type="email" id="pp-email" required placeholder="vous@email.com" autocomplete="email" /></div>
       <div class="pp-field"><label for="pp-tel">Téléphone</label><input type="tel" id="pp-tel" placeholder="06 12 34 56 78" autocomplete="tel" /></div>
       <div class="pp-field"><label for="pp-societe">Société</label><input type="text" id="pp-societe" placeholder="Nom de votre société" autocomplete="organization" /></div>
@@ -588,7 +589,7 @@
   </div>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261102e"></script>
+<script src="assets/js/vendor/supabase.js?v=20261102f"></script>
 <script>
 /* Modale prospect : ouverture depuis les boutons .js-prospect + insertion anonyme dans la table prospects */
 (function(){
@@ -618,14 +619,16 @@
     e.preventDefault();
     var sendBtn = document.getElementById('pp-send');
     okEl.classList.add('pp-hide'); errEl.classList.add('pp-hide');
+    var ppPrenom = document.getElementById('pp-prenom').value.trim(), ppNom = document.getElementById('pp-nom').value.trim();
     var rec = {
-      nom: document.getElementById('pp-nom').value.trim(),
+      // Saisie séparée Prénom/Nom ; stockage combiné « Prénom Nom » (compatibilité prospects.nom, pas de nouvelle colonne).
+      nom: [ppPrenom, ppNom].filter(Boolean).join(' '),
       email: document.getElementById('pp-email').value.trim(),
       tel: document.getElementById('pp-tel').value.trim() || null,
       societe: document.getElementById('pp-societe').value.trim() || null,
       message: document.getElementById('pp-message').value.trim() || null,
     };
-    if (!rec.nom || !rec.email) { errEl.textContent = 'Nom et e-mail sont obligatoires.'; errEl.classList.remove('pp-hide'); return; }
+    if (!ppPrenom || !rec.email) { errEl.textContent = 'Prénom et e-mail sont obligatoires.'; errEl.classList.remove('pp-hide'); return; }
     if (!client) { errEl.textContent = 'Envoi indisponible — écrivez à jis.nubee@gmail.com.'; errEl.classList.remove('pp-hide'); return; }
     sendBtn.disabled = true; sendBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Envoi…'; if (window.lucide) lucide.createIcons();
     var res = await client.from('prospects').insert(rec);
@@ -642,7 +645,7 @@
 })();
 </script>
 
-<script src="assets/js/app.min.js?v=20261102e"></script>
+<script src="assets/js/app.min.js?v=20261102f"></script>
 <script>
   lucide.createIcons();
 

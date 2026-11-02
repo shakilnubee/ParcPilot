@@ -25,11 +25,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261102e">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261102f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261102e"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261102f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261102e">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261102f">
 <style>
   :root{
     --void:#05070D; --navy:#0F1E3D; --orange:#F97316; --amber:#FB923C; --cyan:#38BDF8;
@@ -255,7 +255,8 @@
       <div id="prospect-ok" class="ok-box hidden">✓ Merci ! Ta demande est bien envoyée. On te recontacte très vite.</div>
       <div id="prospect-err" class="error-box hidden"></div>
       <form id="prospect-form">
-        <div class="field"><label for="p-nom">Nom & prénom *</label><div class="inwrap"><input type="text" id="p-nom" required placeholder="Prénom Nom" autocomplete="name" style="padding-left:.9rem" /></div></div>
+        <div class="field"><label for="p-prenom">Prénom *</label><div class="inwrap"><input type="text" id="p-prenom" required placeholder="Ex. : Jean" autocomplete="given-name" style="padding-left:.9rem" /></div></div>
+        <div class="field"><label for="p-nom">Nom *</label><div class="inwrap"><input type="text" id="p-nom" required placeholder="Ex. : Dupont" autocomplete="family-name" style="padding-left:.9rem" /></div></div>
         <div class="field"><label for="p-email">E-mail *</label><div class="inwrap"><input type="email" id="p-email" required placeholder="ton@email.com" autocomplete="email" style="padding-left:.9rem" /></div></div>
         <div class="field"><label for="p-tel">Téléphone</label><div class="inwrap"><input type="tel" id="p-tel" placeholder="06 12 34 56 78" autocomplete="tel" style="padding-left:.9rem" /></div></div>
         <div class="field"><label for="p-societe">Société</label><div class="inwrap"><input type="text" id="p-societe" placeholder="Nom de ta société" autocomplete="organization" style="padding-left:.9rem" /></div></div>
@@ -348,7 +349,7 @@
   </script>
 
   <!-- ===== Logique de connexion (inchangée) ===== -->
-  <script src="assets/js/vendor/supabase.js?v=20261102e"></script>
+  <script src="assets/js/vendor/supabase.js?v=20261102f"></script>
   <!-- Fenêtres modales « à la sauce Parc Pilot » (remplacent alert/confirm/prompt natifs) -->
   <script>
   (function(){
@@ -503,7 +504,7 @@
 
     // ---- Formulaire "intéressé" (prospect) : insertion anonyme dans la table prospects ----
     const pBackdrop = document.getElementById('prospect-backdrop');
-    const openProspect = (e) => { if (e) e.preventDefault(); pBackdrop.classList.add('on'); pBackdrop.setAttribute('aria-hidden','false'); lucide.createIcons(); const f=document.getElementById('p-nom'); if(f) setTimeout(function(){ f.focus(); },60); };
+    const openProspect = (e) => { if (e) e.preventDefault(); pBackdrop.classList.add('on'); pBackdrop.setAttribute('aria-hidden','false'); lucide.createIcons(); const f=document.getElementById('p-prenom'); if(f) setTimeout(function(){ f.focus(); },60); };
     const closeProspect = () => { pBackdrop.classList.remove('on'); pBackdrop.setAttribute('aria-hidden','true'); };
     document.getElementById('show-prospect').addEventListener('click', openProspect);
     document.getElementById('prospect-close').addEventListener('click', closeProspect);
@@ -513,14 +514,16 @@
       e.preventDefault();
       const okEl = document.getElementById('prospect-ok'), errEl = document.getElementById('prospect-err'), sendBtn = document.getElementById('p-send');
       okEl.classList.add('hidden'); errEl.classList.add('hidden');
+      const pPrenom = document.getElementById('p-prenom').value.trim(), pNom = document.getElementById('p-nom').value.trim();
       const rec = {
-        nom: document.getElementById('p-nom').value.trim(),
+        // Saisie séparée Prénom/Nom ; stockage combiné « Prénom Nom » (compatibilité prospects.nom, pas de nouvelle colonne).
+        nom: [pPrenom, pNom].filter(Boolean).join(' '),
         email: document.getElementById('p-email').value.trim(),
         tel: document.getElementById('p-tel').value.trim() || null,
         societe: document.getElementById('p-societe').value.trim() || null,
         message: document.getElementById('p-message').value.trim() || null,
       };
-      if (!rec.nom || !rec.email) { errEl.textContent = 'Nom et e-mail sont obligatoires.'; errEl.classList.remove('hidden'); return; }
+      if (!pPrenom || !rec.email) { errEl.textContent = 'Prénom et e-mail sont obligatoires.'; errEl.classList.remove('hidden'); return; }
       sendBtn.disabled = true; sendBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Envoi…'; lucide.createIcons();
       const { error } = await client.from('prospects').insert(rec);
       sendBtn.disabled = false; sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Envoyer ma demande'; lucide.createIcons();
