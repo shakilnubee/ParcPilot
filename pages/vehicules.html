@@ -723,6 +723,13 @@
           <option>Utilitaire</option>
         </select>
 
+        <!-- Multi-entités : filtres entité / loueur / mode de détention / pays. Chacun est MASQUÉ
+             automatiquement s'il n'y a qu'une seule valeur (barre épurée pour les flottes simples). -->
+        <select id="filter-entite" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par entité de rattachement"><option value="all">Toutes entités</option></select>
+        <select id="filter-loueur" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par loueur"><option value="all">Tous loueurs</option></select>
+        <select id="filter-detention" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par mode de détention"><option value="all">Tous modes de détention</option></select>
+        <select id="filter-pays" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par pays d'immatriculation"><option value="all">Tous pays</option></select>
+
         <!-- Outils de la flotte regroupés dans un menu pour désencombrer la barre (mêmes actions, mêmes id → mêmes handlers). -->
         <div class="relative ml-auto" id="veh-tools">
           <button id="veh-tools-btn" type="button" class="btn btn-outline text-sm" title="Outils : relevé km, accès conducteurs, cartes grises, fiche PDF, QR"><i data-lucide="wrench" class="w-4 h-4"></i> Outils <i data-lucide="chevron-down" class="w-4 h-4"></i></button>
@@ -1231,6 +1238,10 @@
     statut: 'all',
     categorie: 'all',
     groupe: 'all',
+    entite: 'all',       // multi-entités : entité de rattachement
+    loueur: 'all',       // loueur (FP.loueurOf)
+    detention: 'all',    // mode de détention (v.modeDetention)
+    pays: 'all',         // pays d'immatriculation
     editingId: null,
     selectedIds: new Set(),
     sortKey: null,   // null | 'prochainCT' | 'km'
@@ -2430,7 +2441,10 @@
     { key: 'statut',                label: 'Statut',            defaultWidth: 110, render: v => FP.statutBadge(v.statut) },
     { key: 'dateMiseEnCirculation', label: '1ère immat.',       defaultWidth: 120, render: v => v.dateMiseEnCirculation ? FP.dateNum(v.dateMiseEnCirculation) : '—' },
     { key: 'assurance',             label: 'Assurance',         defaultWidth: 220, render: v => escapeHtml(v.assurance) || '—' },
-    { key: 'proprietaire',          label: 'Propriétaire',      defaultWidth: 170, render: v => escapeHtml(v.proprietaire) || '—' },
+    { key: 'proprietaire',          label: 'Propriétaire juridique', defaultWidth: 170, render: v => escapeHtml(v.proprietaire) || '—' },
+    { key: 'entiteRattachement',    label: 'Entité de rattachement', defaultWidth: 170, render: v => escapeHtml(v.entiteRattachement) || '—' },
+    { key: 'modeDetention',         label: 'Mode de détention', defaultWidth: 150, render: v => { if (v.modeDetention) return escapeHtml(v.modeDetention); try { if (window.FP && FP.loueurOf && FP.loueurOf(v)) return '<span class="text-slate-400">Leasing (LLD) · à confirmer</span>'; } catch (e) {} return '—'; } },
+    { key: 'paysImmat',             label: "Pays d'immat.",     defaultWidth: 120, render: v => escapeHtml(v.paysImmat) || '—' },
     { key: 'valeurAchat',           label: 'Valeur achat',      defaultWidth: 120, cellCls: 'text-right', render: v => v.valeurAchat ? FP.euro(v.valeurAchat) : '—' },
     { key: 'vin',                   label: 'VIN',               defaultWidth: 180, cellCls: 'font-mono text-xs', render: v => escapeHtml(v.vin) || '—' },
     { key: 'critAir',               label: "Crit'Air",          defaultWidth: 90,  render: v => (!v.critAir || v.critAir === '-' || v.critAir === '0') ? '<span class="text-slate-300">—</span>' : escapeHtml(v.critAir) },
@@ -2785,6 +2799,11 @@
       else if (state.statut === 'vendu') { if (!FP.estVendu(v)) return false; }
       else if (v.statut !== state.statut) return false;
       if (state.categorie !== 'all' && v.categorie !== state.categorie) return false;
+      // Multi-entités
+      if (state.entite !== 'all' && (v.entiteRattachement || '') !== state.entite) return false;
+      if (state.detention !== 'all' && (v.modeDetention || '') !== state.detention) return false;
+      if (state.pays !== 'all' && (v.paysImmat || '') !== state.pays) return false;
+      if (state.loueur !== 'all') { let lo = ''; try { lo = (FP.loueurOf ? (FP.loueurOf(v) || '') : ''); } catch (e) {} if (lo !== state.loueur) return false; }
       if (q && !(FP.norm(`${v.immat} ${v.marque} ${v.modele} ${v.chauffeur}`).includes(q))) return false;
       return true;
     });
@@ -3796,7 +3815,16 @@
             return `<div class="flex justify-between items-center gap-2"><span class="text-slate-600">Assurance</span><span class="flex items-center gap-2 justify-end" style="min-width:0"><span class="font-medium text-right" data-df="assurance" data-dt="text" style="overflow:hidden;text-overflow:ellipsis">${val}</span>${voir}</span></div>`;
           })()}
           ${(function(){ try { const num = (window.FP && FP.assistanceOf) ? FP.assistanceOf(v) : ''; return num ? `<div class="flex justify-between items-center"><span class="text-slate-600">Assistance 24/7</span><a class="font-medium text-right" href="tel:${escapeHtml(String(num).replace(/\s/g,''))}" style="color:var(--fp-accent)">${escapeHtml(String(num).replace(/\s/g,''))}</a></div>` : ''; } catch(e){ return ''; } })()}
-          <div class="flex justify-between items-center"><span class="text-slate-600">Propriétaire</span><span class="font-medium" data-df="proprietaire" data-dt="text">${escapeHtml(v.proprietaire) || '—'}</span></div>
+          <div class="flex justify-between items-center"><span class="text-slate-600">Propriétaire juridique <span class="text-slate-400 text-xs" title="Titulaire de la carte grise (repère C.1) — qui possède juridiquement le véhicule (société, loueur…)">(C.1)</span></span><span class="font-medium text-right" data-df="proprietaire" data-dt="text">${v.proprietaire ? escapeHtml(v.proprietaire) : '<span class="text-slate-400">—</span>'}</span></div>
+          <div class="flex justify-between items-center"><span class="text-slate-600">Entité de rattachement <span class="text-slate-400 text-xs" title="À quelle entité/établissement ce véhicule est rattaché en interne (indépendant du propriétaire juridique)">?</span></span><span class="font-medium text-right" data-df="entiteRattachement" data-dt="text">${v.entiteRattachement ? escapeHtml(v.entiteRattachement) : '<span class="text-slate-400">—</span>'}</span></div>
+          ${(function(){
+            const cur = v.modeDetention ? escapeHtml(v.modeDetention) : '';
+            let hint = '';
+            try { if (!cur && window.FP && FP.loueurOf && FP.loueurOf(v)) hint = 'Leasing (LLD)'; } catch (e) {}
+            const disp = cur || (hint ? `<span class="text-slate-400" title="Déduit du contrat de leasing — clique pour confirmer">${escapeHtml(hint)} · à confirmer</span>` : '<span class="text-slate-400">—</span>');
+            return `<div class="flex justify-between items-center"><span class="text-slate-600">Mode de détention</span><span class="font-medium text-right" data-df="modeDetention" data-dt="select">${disp}</span></div>`;
+          })()}
+          <div class="flex justify-between items-center"><span class="text-slate-600">Pays d'immatriculation</span><span class="font-medium text-right" data-df="paysImmat" data-dt="select">${v.paysImmat ? escapeHtml(v.paysImmat) : '<span class="text-slate-400">—</span>'}</span></div>
           <div class="flex justify-between items-center"><span class="text-slate-600">Crit'Air</span>${editableCheckboxTxt('critAir', v.critAir, 'Oui', 'Non')}</div>
           <div class="flex justify-between items-center"><span class="text-slate-600">Sanef (télépéage)</span>${editableCheckbox('sanef', v.sanef)}</div>
           ${(() => { const _edlSigne = getVehDocs(v.id).some(d => (d.type || '') === 'etat-des-lieux' && !edlIsPhoto(d)); return `<div class="flex justify-between items-center"><span class="text-slate-600">État des lieux fait${_edlSigne ? ' <span style="color:#16a34a;font-weight:700;font-size:11px" title="Un état des lieux SIGNÉ est au dossier">· signé</span>' : ''}</span>${editableCheckbox('etatDesLieux', v.etatDesLieux, _edlSigne)}</div>`; })()}
@@ -4292,6 +4320,9 @@
       carburant: v.carburant || null,
       assurance: v.assurance || null,
       proprietaire: v.proprietaire || null,
+      entiteRattachement: v.entiteRattachement || null,
+      paysImmat: v.paysImmat || null,
+      modeDetention: v.modeDetention || null,
       critAir: v.critAir || null,
       dateDernierCT: dateOrNull(v.dateDernierCT),
       antiPollution: dateOrNull(v.antiPollution),
@@ -4917,7 +4948,10 @@
       { key: 'dateMiseEnCirculation', label: 'Mise en circulation' },
       { key: 'vin',       label: 'VIN' },
       { key: 'carburant', label: 'Carburant' },
-      { key: 'proprietaire', label: 'Propriétaire' },
+      { key: 'proprietaire', label: 'Propriétaire juridique' },
+      { key: 'entiteRattachement', label: 'Entité de rattachement' },
+      { key: 'modeDetention', label: 'Mode de détention' },
+      { key: 'paysImmat', label: "Pays d'immatriculation" },
       { key: 'valeurAchat', label: "Valeur d'achat", format: FP.csv.numFormat, parse: FP.csv.numParse },
       { key: 'co2',       label: 'CO2 (g/km)', format: FP.csv.numFormat, parse: FP.csv.numParse },
       { key: 'puissanceFiscale', label: 'Puissance fiscale', format: FP.csv.numFormat, parse: FP.csv.numParse },
@@ -4994,13 +5028,46 @@
   populateCategories();
   document.addEventListener('fp:data-ready', populateCategories);
   $('filter-categorie').addEventListener('change', (e) => { state.categorie = e.target.value; renderTable(); });
+
+  // ===== Multi-entités : filtres entité / loueur / mode / pays (peuplés dynamiquement) =====
+  // Chaque select est MASQUÉ s'il n'y a pas au moins 2 valeurs distinctes → barre épurée pour les
+  // flottes mono-entité (comportement actuel inchangé pour PXP tant qu'aucune entité n'est saisie).
+  function _fillFilter(selId, stateKey, allLabel, values) {
+    const sel = $(selId); if (!sel) return;
+    const uniq = [...new Set(values.map(x => (x || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+    if (uniq.length < 2) { // rien à filtrer → on masque et on neutralise l'état
+      sel.style.display = 'none';
+      if (state[stateKey] !== 'all') { state[stateKey] = 'all'; }
+      sel.innerHTML = `<option value="all">${allLabel}</option>`;
+      return;
+    }
+    const cur = state[stateKey] && uniq.includes(state[stateKey]) ? state[stateKey] : 'all';
+    sel.innerHTML = `<option value="all">${allLabel}</option>` + uniq.map(x => `<option value="${FP.esc ? FP.esc(x) : x}"${x === cur ? ' selected' : ''}>${FP.esc ? FP.esc(x) : x}</option>`).join('');
+    sel.value = cur; state[stateKey] = cur; sel.style.display = '';
+  }
+  function populateEntiteFilters() {
+    const vs = data.vehicules || [];
+    _fillFilter('filter-entite', 'entite', 'Toutes entités', vs.map(v => v.entiteRattachement));
+    _fillFilter('filter-detention', 'detention', 'Tous modes de détention', vs.map(v => v.modeDetention));
+    _fillFilter('filter-pays', 'pays', "Tous pays", vs.map(v => v.paysImmat));
+    let loueurs = []; try { loueurs = vs.map(v => { try { return FP.loueurOf ? (FP.loueurOf(v) || '') : ''; } catch (e) { return ''; } }); } catch (e) {}
+    _fillFilter('filter-loueur', 'loueur', 'Tous loueurs', loueurs);
+  }
+  populateEntiteFilters();
+  document.addEventListener('fp:data-ready', populateEntiteFilters);
+  $('filter-entite').addEventListener('change', (e) => { state.entite = e.target.value; renderTable(); });
+  $('filter-loueur').addEventListener('change', (e) => { state.loueur = e.target.value; renderTable(); });
+  $('filter-detention').addEventListener('change', (e) => { state.detention = e.target.value; renderTable(); });
+  $('filter-pays').addEventListener('change', (e) => { state.pays = e.target.value; renderTable(); });
   // Bouton « Réinitialiser » de la barre de filtres (recherche + statut + catégorie).
   function resetVehFilters() {
     state.search = ''; state.statut = 'all'; state.categorie = 'all';
     state.groupe = 'all';                    // revient à l'onglet « Tous »
+    state.entite = 'all'; state.loueur = 'all'; state.detention = 'all'; state.pays = 'all';
     state.sortKey = null; state.sortDir = 'asc'; // et annule le tri par colonne
     if ($('search')) $('search').value = '';
     if ($('filter-categorie')) $('filter-categorie').value = 'all';
+    ['filter-entite', 'filter-loueur', 'filter-detention', 'filter-pays'].forEach(id => { const s = $(id); if (s) s.value = 'all'; });
     document.querySelectorAll('#filters-statut .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.value === 'all'));
     renderTabBar(); renderTable();
   }
@@ -5098,13 +5165,17 @@
   const EDITABLE = {
     immat: 'text', modele: 'text', categorie: 'text', km: 'number', chauffeur: 'text',
     prochainCT: 'date', statut: 'select', dateMiseEnCirculation: 'date', assurance: 'text',
-    proprietaire: 'text', valeurAchat: 'number', vin: 'text', critAir: 'text',
+    proprietaire: 'text', entiteRattachement: 'text', paysImmat: 'select', modeDetention: 'select',
+    valeurAchat: 'number', vin: 'text', critAir: 'text',
     dateDernierCT: 'date', derniereRevision: 'date', antiPollution: 'date',
     co2: 'number', puissanceFiscale: 'number', kmDernierReleve: 'number',
     dimensionPneus: 'text', version: 'text', dateChangementPneus: 'date', autonomie: 'text',
     sanef: 'bool', cleSiege: 'bool', cleSalarie: 'bool', cgOrigSiege: 'bool', cgOrigSalarie: 'bool', etatDesLieux: 'bool',
   };
   const STATUT_OPTIONS = ['actif', 'entretien', 'à vendre', 'vendu', 'hors service', 'sinistre'];
+  // Multi-entités : mode de détention (comment le véhicule est possédé) et pays d'immatriculation.
+  const MODE_DETENTION_OPTIONS = ['', 'Achat', 'Leasing (LLD)', 'LOA', 'Crédit-bail', 'Location courte durée', 'Mise à disposition', 'Autre'];
+  const PAYS_IMMAT_OPTIONS = ['', 'France', 'Italie', 'Allemagne', 'Pays-Bas', 'Belgique', 'Espagne', 'Luxembourg', 'Portugal', 'Autre'];
 
   function commitVehField(v, field) {
     // Date de MAJ du km AUSSI sur édition rapide (clic sur le km), comme à l'enregistrement du formulaire.
@@ -5193,6 +5264,19 @@
       const sel = td.querySelector('.cell-edit'); sel.focus();
       let dB = false;
       const commitSel = (save) => { if (dB) return; dB = true; if (save) { FP.history.commit(); v[field] = sel.value || null; commitVehField(v, field); } else { renderTable(); if (drawerVehId && $('drawer').classList.contains('open')) openDrawer(drawerVehId); } };
+      sel.addEventListener('change', () => commitSel(true));
+      sel.addEventListener('blur', () => commitSel(true));
+      sel.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); commitSel(false); } });
+      return;
+    }
+    // Mode de détention / Pays d'immatriculation : listes fermées (jamais de saisie libre).
+    if (field === 'modeDetention' || field === 'paysImmat') {
+      const opts = (field === 'modeDetention' ? MODE_DETENTION_OPTIONS : PAYS_IMMAT_OPTIONS)
+        .map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o || '—'}</option>`).join('');
+      td.innerHTML = `<select class="cell-edit" style="width:100%;border:1px solid var(--fp-accent);border-radius:6px;padding:.25rem">${opts}</select>`;
+      const sel = td.querySelector('.cell-edit'); sel.focus();
+      let dM = false;
+      const commitSel = (save) => { if (dM) return; dM = true; if (save) { FP.history.commit(); v[field] = sel.value || null; commitVehField(v, field); } else { renderTable(); if (drawerVehId && $('drawer').classList.contains('open')) openDrawer(drawerVehId); } };
       sel.addEventListener('change', () => commitSel(true));
       sel.addEventListener('blur', () => commitSel(true));
       sel.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); commitSel(false); } });
@@ -5299,7 +5383,10 @@
     { id:'couleur',         label:'Couleur',         def:false, align:'left',  get:v=>v.couleur||'—' },
     { id:'boite',           label:'Boîte',           def:false, align:'left',  get:v=>v.boite||'—' },
     { id:'vin',             label:'VIN',             def:false, align:'left',  mono:true, get:v=>v.vin||'—' },
-    { id:'proprietaire',    label:'Propriétaire',    def:false, align:'left',  get:v=>v.proprietaire||'—' },
+    { id:'proprietaire',    label:'Propriétaire juridique', def:false, align:'left',  get:v=>v.proprietaire||'—' },
+    { id:'entiteRattachement', label:'Entité de rattachement', def:false, align:'left', get:v=>v.entiteRattachement||'—' },
+    { id:'modeDetention',   label:'Mode de détention', def:false, align:'left', get:v=>v.modeDetention||'—' },
+    { id:'paysImmat',       label:"Pays d'immat.",   def:false, align:'left',  get:v=>v.paysImmat||'—' },
     { id:'valeurAchat',     label:'Valeur d\'achat', def:false, align:'right', get:v=>v.valeurAchat?FP.euro(v.valeurAchat):'—' },
     { id:'prixVente',       label:'Prix de vente',   def:false, align:'right', get:v=>v.prixVente?FP.euro(v.prixVente):'—' },
   ];
@@ -5628,7 +5715,10 @@
       { label: 'Boîte',           value: v => v.boite || '' },
       { label: "Valeur d'achat",  value: v => { const n = Number(v.valeurAchat); return isNaN(n) ? null : n; }, number: true, noTotal: true },
       { label: 'Prix de vente',   value: v => { const n = Number(v.prixVente); return isNaN(n) ? null : n; }, number: true, noTotal: true },
-      { label: 'Propriétaire',    value: v => v.proprietaire || '' },
+      { label: 'Propriétaire juridique', value: v => v.proprietaire || '' },
+      { label: 'Entité de rattachement', value: v => v.entiteRattachement || '' },
+      { label: 'Mode de détention', value: v => v.modeDetention || '' },
+      { label: "Pays d'immat.",   value: v => v.paysImmat || '' },
       { label: 'Groupes',         value: v => (FP.vehGroupes(v) || []).map(k => FP.groupeLabel(k)).join(', ') },
     ],
     getRows: () => filtered(),
@@ -6488,7 +6578,10 @@
       ['Kilométrage', (v.km != null || v.kmDernierReleve != null) ? clean(FP.num(FP.kmActuel(v))) + ' km' : '—'],
       ['Carburant', clean(v.carburant || '—')],
       ['1re immat.', v.dateMiseEnCirculation ? FP.dateNum(v.dateMiseEnCirculation) : '—'],
-      ['Propriétaire', clean(v.proprietaire || '—')],
+      ['Propriétaire juridique', clean(v.proprietaire || '—')],
+      ['Entité de rattachement', clean(v.entiteRattachement || '—')],
+      ['Mode de détention', clean(v.modeDetention || ((FP.loueurOf && FP.loueurOf(v)) ? 'Leasing (LLD)' : '') || '—')],
+      ["Pays d'immat.", clean(v.paysImmat || '—')],
       ['Assurance', clean(v.assurance || (FP.assureurLabelVeh && FP.assureurLabelVeh(v)) || (FP.assuranceLabel && FP.assuranceLabel()) || '—')],
       ["Valeur d'achat", v.valeurAchat ? clean(FP.euro(v.valeurAchat)) : '—'],
     ];
