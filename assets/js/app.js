@@ -13932,14 +13932,23 @@ FP.scanZone = function (opts) {
   input.type = 'file'; input.accept = opts.accept || 'image/*,application/pdf,.pdf,.heic,.heif'; input.className = 'hidden';
   let status = opts.statusEl ? q(opts.statusEl) : doc.createElement('div');
   if (!opts.statusEl) { status.className = 'fp-scan-status'; status.style.display = 'none'; }
+  try { status.setAttribute('aria-live', 'polite'); } catch (e) {}   // annonce accessible de l'état
+  let _lastFile = null;   // dernier fichier déposé → « Réessayer » sans re-sélectionner
+  let _seq = 0;           // garde anti-réponse périmée (un scan plus récent annule l'ancien)
   // Insertion dans le DOM.
   const host = opts.mount ? q(opts.mount) : null;
   if (host) { if (created) host.appendChild(trigger); host.appendChild(input); if (!opts.statusEl) host.appendChild(status); }
   else { trigger.insertAdjacentElement('afterend', input); if (!opts.statusEl) input.insertAdjacentElement('afterend', status); }
-  const setStatus = (txt, ok) => {
+  const setStatus = (txt, ok, withRetry) => {
     if (!status) return;
-    status.style.display = txt ? 'block' : 'none'; status.textContent = txt || '';
+    if (!txt) { status.style.display = 'none'; status.innerHTML = ''; return; }
+    status.style.display = 'block';
     status.style.color = ok === false ? 'var(--fp-danger,#dc2626)' : (ok ? 'var(--fp-ok,#16a34a)' : 'var(--fp-muted,#64748b)');
+    // Bouton « Réessayer » (réutilise le dernier fichier, sans re-sélection) proposé sur échec.
+    status.innerHTML = '<span>' + esc(txt) + '</span>' + ((withRetry && _lastFile)
+      ? ' <button type="button" class="fp-scan-retry" style="margin-left:6px;font:inherit;font-weight:700;color:var(--fp-accent,#F97316);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">↻ Réessayer</button>' : '');
+    const rb = status.querySelector('.fp-scan-retry');
+    if (rb) rb.addEventListener('click', () => { if (_lastFile) scan(_lastFile); });
   };
   // Ne remplit QUE si le champ cible est vide (jamais écraser une saisie). Renvoie true si rempli.
   const setIfEmpty = (el, v) => {
@@ -13949,21 +13958,24 @@ FP.scanZone = function (opts) {
   };
   async function scan(file) {
     if (!file) return;
-    if (!(window.FP && FP.scanIA)) { setStatus('Lecture IA indisponible ici — remplis les champs à la main.', false); return; }
+    _lastFile = file;                              // mémorisé → « Réessayer » sans re-sélectionner
+    if (!(window.FP && FP.scanIA)) { setStatus('Le service de lecture est temporairement indisponible. Réessaie.', false, true); return; }
+    const myseq = ++_seq;                          // numéro de CE scan
     setStatus('⏳ Lecture du document en cours…'); trigger.disabled = true;
     try {
       const ai = await FP.scanIA(file, opts.docType || 'facture', opts.prompt, { maxTokens: opts.maxTokens || 700 });
-      if (!ai) { setStatus('Document non lu — remplis les champs à la main.', false); return; }
+      if (myseq !== _seq) return;                  // un scan plus récent a pris le relais → on ignore CETTE réponse
+      if (!ai) { setStatus('Impossible d\'analyser ce document. Réessaie.', false, true); return; }
       let res = null;
       try { res = opts.onResult ? opts.onResult(ai, { setIfEmpty, setStatus }) : null; } catch (e) { res = null; }
-      if (res && typeof res === 'object' && ('msg' in res)) setStatus(res.msg, res.ok !== false);
+      if (res && typeof res === 'object' && ('msg' in res)) setStatus(res.msg, res.ok !== false, res.ok === false);
       else if (typeof res === 'number') {
         if (res > 0) { setStatus('✓ ' + res + ' champ(s) rempli(s) automatiquement — vérifie puis enregistre.', true); if (FP.toast) FP.toast('Document lu : ' + res + ' champ(s) rempli(s)'); }
-        else setStatus('Rien n\'a pu être rempli — vérifie le document ou saisis à la main.', false);
+        else setStatus('Lecture terminée — aucune information identifiée. Vérifie le document ou saisis à la main.', false, true);
       }
       // (si onResult ne renvoie rien, il a géré le statut lui-même)
-    } catch (e) { setStatus('Lecture impossible — remplis les champs à la main.', false); }
-    finally { trigger.disabled = false; }
+    } catch (e) { if (myseq === _seq) setStatus('Impossible d\'analyser ce document. Réessaie.', false, true); }
+    finally { if (myseq === _seq) trigger.disabled = false; }
   }
   trigger.addEventListener('click', () => input.click());
   input.addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) scan(f); e.target.value = ''; });
