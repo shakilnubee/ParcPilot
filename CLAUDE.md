@@ -48,6 +48,51 @@
 7. **Dans le doute, demander** plutôt que supposer — surtout pour tout ce qui touche la production.
 8. **Tenir `SUIVI-PROJET.md` à jour** à chaque étape notable (même PR que le changement).
 
+## ✅ CHECKLIST OBLIGATOIRE — TOUTE NOUVELLE FONCTIONNALITÉ (réflexe AVANT de coder)
+
+> Consigne explicite et permanente de l'utilisateur (2026-11-02) : **toute** nouvelle fonctionnalité, correction
+> ou refonte **hérite automatiquement** des règles, composants et conventions déjà validés — **sans qu'il ait à
+> les redemander**. Cette section est un **aiguilleur** vers les règles détaillées plus bas (elle ne les remplace
+> pas). En cas de **conflit** entre une demande et une règle : **le signaler et demander**, ne pas contourner.
+
+**AVANT de coder, répondre à ces 10 questions** : (1) un **composant** similaire existe-t-il déjà ? (2) un **helper `FP.*`**
+réutilisable ? (3) quelles **règles permanentes** s'appliquent ? (4) quels **modules** partagent ces données ? (5) quels
+**risques Supabase** (schéma/RLS/Storage → accord requis) ? (6) quels **tests de non-régression** ? (7) le **mobile**
+(desktop/tablette/iPhone/Android, portrait/paysage, clair/sombre, zéro overflow) est-il prévu ? (8) l'**isolation
+multi-sociétés** est-elle respectée ? (9) les **automatisations** existantes sont-elles préservées ? (10) le **manuel**
+(`pages/manuel.html`) devra-t-il être mis à jour ?
+
+**UN BESOIN → UN COMPOSANT/HELPER (ne jamais recréer une variante)** :
+
+| Besoin | À RÉUTILISER (jamais de 2ᵉ version) |
+|---|---|
+| **Identité d'une personne** | **2 champs séparés `Prénom` puis `Nom`** — jamais un champ unique « Nom et prénom ». Conducteur : `FP.newConducteurModal` / `FP.conducteurPicker`. Affichage : `FP.conducteurs.displayName`. Autofill `given-name`/`family-name`. |
+| **Scan / lecture de document** | `FP.scanIA` (moteur unique) ou le composant `FP.scanZone` — jamais un 2ᵉ moteur. Lire les libellés, contrôler `HT+TVA=TTC`, montant **minoré** pour les amendes, ne rien inventer. |
+| **Anti-doublons** | `FP.dupe` à chaque nouvel ajout |
+| **E-mail** | `FP.mailBrand` + `FP.buildMail` + `FP.sendEmail` (modèle brandé par société, reply-to, copies). Jamais une mise en forme indépendante. |
+| **Prévenir un conducteur** | `FP.msg.open` = **SMS + WhatsApp + E-mail** (3 canaux) |
+| **Sélecteur véhicule/conducteur** | `FP.searchSelect` (recherche clavier) + `FP.conducteurPicker` |
+| **Barre de filtres** | bouton `FP.filterResetButton` + période mois **et** Du/Au quand daté |
+| **Galerie photos** | `FP.galerie3d` / lightbox existante |
+| **Documents d'une fiche** | `FP.docsFolder` |
+| **Échappement HTML (XSS)** | `FP.esc` sur toute donnée saisie/scannée/Supabase |
+| **Clavier** | Entrée = valide (helper global `FP.enterValide` déjà installé) · Échap ferme · Tab · focus visible |
+| **Persistance** | Supabase = source de vérité (via `FP.db`/`FP.persist`) ; `localStorage` = cache d'affichage **seulement** ; toute map keyée → `COLLECTION_KEYS` |
+| **Plaque / prénom / vendu / montant dû / coût mois** | `FP.normImmat`·`immatEq`·`vehByImmat` / `FP.prenomDeCle`·`normPrenom` / `FP.estVendu` / `FP.montantDu` / `FP.coutMois`·`dedupeFactures`·`coutFactureExploit` |
+
+**Mobile (interdits)** : textes chevauchés, champ qui dépasse la carte, bouton coupé, élément sous la barre du bas,
+scroll horizontal involontaire. Trop de boutons sur mobile → barre horizontale défilable déjà validée. Respecter les
+safe-areas. **Listes extensibles** : vrai toggle « Voir tout / Voir moins » (jamais `<details>` natif, jamais un sens unique).
+
+**Contrôles AUTOMATIQUES** (`node scripts/check-bugs.mjs .`, bloque le déploiement) : syntaxe JS + scripts inline,
+empreinte `.min.js`, cohérence `?v=`, liens cassés, RGPD `data.js`, anti-contrôle-piégé, **champ « nom complet »
+interdit (identité = 2 champs)**, **`<details>` « Voir tout » interdit**. **Exception justifiée** : ajouter
+`pp-allow:nom-unique` (ou `pp-allow:details`) **sur la ligne** concernée, avec un commentaire expliquant pourquoi
+(ex. champ libre « conducteur **ou** société » d'un constat de sinistre ; « Représentant » d'un contrat/devis).
+
+**Terminer** : `check-bugs` vert · `.min.js` régénéré + `?v=` bumpé si `app.js`/`fleet-views.js`/`css`/`data.js` ont
+changé · **manuel à jour** · branche + **pull request** (jamais de push direct sur `main`).
+
 ## 🏛️ CONTRAT DE DÉVELOPPEMENT — PROMPT MAÎTRE (gravé en dur, s'applique à CHAQUE demande)
 
 > ⚠️ **Consigne explicite et permanente de l'utilisateur** : ce contrat vaut pour **toute** demande sur
