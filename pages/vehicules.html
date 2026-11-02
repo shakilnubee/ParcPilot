@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261102a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261102b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261102a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261102b">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1203,8 +1203,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261102a"></script>
-<script src="../assets/js/supabase-client.js?v=20261102a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261102b"></script>
+<script src="../assets/js/supabase-client.js?v=20261102b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1220,13 +1220,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261102a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261102a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261102b"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261102b"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261102a"></script><script>
+<script src="../assets/js/app.min.js?v=20261102b"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -4534,6 +4534,7 @@
       if (Number.isFinite(_cgExtra.co2)              && !(cur && cur.co2 != null))              payload.co2 = _cgExtra.co2;
       if (Number.isFinite(_cgExtra.puissanceFiscale) && !(cur && cur.puissanceFiscale != null)) payload.puissanceFiscale = _cgExtra.puissanceFiscale;
       if (_cgExtra.carburant && !(cur && cur.carburant))                                        payload.carburant = _cgExtra.carburant;
+      if (_cgExtra.proprietaire && !(cur && cur.proprietaire) && !(payload.proprietaire))        payload.proprietaire = _cgExtra.proprietaire;
     }
     // ⚠️ Véhicule VENDU / sorti du parc → retiré AUTOMATIQUEMENT de tous les groupes (il ne doit plus
     // apparaître ni compter dans les onglets de groupes). On vide la liste (aucune case cochée dans la
@@ -5482,7 +5483,7 @@
           const blob = await resp.blob();
           const file = new File([blob], 'cg.' + ((blob.type || '').includes('pdf') ? 'pdf' : 'jpg'), { type: blob.type || 'application/octet-stream' });
           let p = {};
-          try { const ai = FP.scanIA ? await FP.scanIA(file, 'carte-grise', FP.CG_SCAN_PROMPT) : null; if (ai) p = { marque: ai.marque || '', modele: ai.modele || '', dateMiseEnCirculation: ai.dateMiseEnCirculation || '', prochainCT: ai.prochainCT || '', vin: ai.vin ? String(ai.vin).toUpperCase().replace(/[^A-Z0-9]/g, '') : '', co2: num(ai.co2), puissanceFiscale: num(ai.puissanceFiscale), carburant: ai.carburant || '', masse: num(ai.masse), categorie: ai.categorie || '' }; } catch (e) {}
+          try { const ai = FP.scanIA ? await FP.scanIA(file, 'carte-grise', FP.CG_SCAN_PROMPT) : null; if (ai) p = { marque: ai.marque || '', modele: ai.modele || '', dateMiseEnCirculation: ai.dateMiseEnCirculation || '', prochainCT: ai.prochainCT || '', vin: ai.vin ? String(ai.vin).toUpperCase().replace(/[^A-Z0-9]/g, '') : '', co2: num(ai.co2), puissanceFiscale: num(ai.puissanceFiscale), carburant: ai.carburant || '', masse: num(ai.masse), categorie: ai.categorie || '', proprietaire: ai.proprietaire || '' }; } catch (e) {}
           try { const txt = await FP.ocr.fileToText(file); const loc = parseCarteGrise(txt) || {}; for (const k in loc) { if ((p[k] == null || p[k] === '') && loc[k] != null && loc[k] !== '') p[k] = loc[k]; } } catch (e) {}
           if (p.carburant && FP.normCarburant) p.carburant = FP.normCarburant(p.carburant);
           results[i] = { v, p };
@@ -5500,7 +5501,7 @@
       try {
         const upd = {};
         const setIf = (k, val) => { if (val != null && val !== '' && (v[k] == null || v[k] === '')) { v[k] = val; upd[k] = val; } };
-        ['marque', 'modele', 'dateMiseEnCirculation', 'prochainCT', 'vin', 'carburant', 'categorie'].forEach(k => setIf(k, p[k]));
+        ['marque', 'modele', 'dateMiseEnCirculation', 'prochainCT', 'vin', 'carburant', 'categorie', 'proprietaire'].forEach(k => setIf(k, p[k]));
         if (Number.isFinite(p.co2) && (v.co2 == null || v.co2 === '')) { v.co2 = p.co2; upd.co2 = p.co2; }
         if (Number.isFinite(p.puissanceFiscale) && (v.puissanceFiscale == null || v.puissanceFiscale === '')) { v.puissanceFiscale = p.puissanceFiscale; upd.puissanceFiscale = p.puissanceFiscale; }
         const keys = Object.keys(upd);
@@ -7590,6 +7591,7 @@
             carburant: ai.carburant || '',
             masse: numOrU(ai.masse),
             categorie: ai.categorie || '',
+            proprietaire: ai.proprietaire || '',
           };
         }
       } catch (e) { console.warn('[carte grise IA]', e); }
@@ -7622,6 +7624,9 @@
       if (Number.isFinite(parsed.puissanceFiscale)) { _cgExtra.puissanceFiscale = parsed.puissanceFiscale; filled.push(`puissance fiscale (${parsed.puissanceFiscale} CV)`); }
       if (parsed.carburant)                         { _cgExtra.carburant = parsed.carburant;               filled.push(`carburant (${parsed.carburant})`); }
       if (Number.isFinite(parsed.masse))            { _cgExtra.masse = parsed.masse;                       filled.push(`masse (${parsed.masse} kg)`); }
+      // Titulaire C.1 → propriétaire juridique (pas de champ dans le formulaire « Nouveau véhicule » :
+      // on le conserve pour l'écrire à l'enregistrement, sans écraser une saisie).
+      if (parsed.proprietaire)                      { _cgExtra.proprietaire = parsed.proprietaire;         filled.push(`propriétaire juridique (${parsed.proprietaire})`); }
       if (!Object.keys(_cgExtra).length) _cgExtra = null;
 
       if (filled.length) {
@@ -7763,6 +7768,7 @@
             carburant: ai.carburant || '',
             masse: numOrU(ai.masse),
             categorie: ai.categorie || '',
+            proprietaire: ai.proprietaire || '',
           };
         } catch (e) { console.warn('[batch IA]', e); }
         // 2) REPLI : OCR local (couche texte PDF + Tesseract) — complète les champs manquants seulement.
@@ -7824,6 +7830,7 @@
           dateMiseEnCirculation: p.dateMiseEnCirculation, prochainCT: p.prochainCT,
           carburant: (FP.normCarburant ? FP.normCarburant(p.carburant) : p.carburant),
           categorie: (p.categorie && String(p.categorie).trim()) || '',
+          proprietaire: (p.proprietaire && String(p.proprietaire).trim()) || '',
         };
         Object.keys(fill).forEach(k => { const nv = fill[k]; if (nv != null && nv !== '' && isEmptyV(existing[k])) existing[k] = nv; });
         if (Number.isFinite(p.masse)) { const s = FP.settings.get(); s.vehMasse = s.vehMasse || {}; if (isEmptyV(s.vehMasse[existing.id])) { s.vehMasse[existing.id] = p.masse; FP.settings.save(s); } }
@@ -7850,6 +7857,7 @@
         carburant: (FP.normCarburant ? FP.normCarburant(p.carburant) : p.carburant) || null,
         co2: num(p.co2),
         puissanceFiscale: num(p.puissanceFiscale),
+        proprietaire: (p.proprietaire && String(p.proprietaire).trim()) || null,
         groupes: ['non-classe'],
       };
       // Modèle identique à un véhicule déjà renseigné → on reprend les specs communes
