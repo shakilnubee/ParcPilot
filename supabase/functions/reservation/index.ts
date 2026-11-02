@@ -47,6 +47,35 @@ function tsDH(date: unknown, heure: unknown, endOfDay: boolean): number | null {
 }
 const HORS = ["vendu", "vendue", "cede", "cédé", "cedee", "cédée", "hors service", "hors-service", "hs", "archive", "archivé", "archivée", "restitue", "restitué", "restituee", "restituée"];
 
+// --- Photos véhicule pour le PORTAIL PUBLIC : URLs SIGNÉES côté serveur (bucket privé « scans »),
+//     IMAGES uniquement, durée limitée. On n'expose JAMAIS les PDF (constats signés) ni d'autres documents,
+//     et uniquement les photos des véhicules réservables de CETTE société (le handler filtre déjà). ---
+const RE_IMG = /\.(jpe?g|png|webp|gif|heic|heif|avif)(\?|$)/i;
+function storageRef(u: string): { bucket: string; path: string } | null {
+  const m = String(u || "").match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/([^?]+)/);
+  if (m) return { bucket: decodeURIComponent(m[1]), path: decodeURIComponent(m[2]) };
+  return null;
+}
+// Signe un lot d'URLs de stockage (groupées par bucket). Les URLs hors stockage (Drive/http) passent telles quelles.
+async function signPhotos(db: ReturnType<typeof createClient>, urls: string[], ttl = 3600): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const byBucket: Record<string, Array<{ u: string; path: string }>> = {};
+  for (const u of urls) {
+    if (!u) continue;
+    const r = storageRef(u);
+    if (r) { (byBucket[r.bucket] = byBucket[r.bucket] || []).push({ u, path: r.path }); }
+    else if (/^https?:\/\//.test(u)) out.set(u, u); // Drive / URL déjà publique
+  }
+  for (const bucket of Object.keys(byBucket)) {
+    const arr = byBucket[bucket];
+    try {
+      const { data } = await db.storage.from(bucket).createSignedUrls(arr.map((x) => x.path), ttl);
+      (data || []).forEach((d: { signedUrl?: string } | null, i: number) => { if (d && d.signedUrl) out.set(arr[i].u, d.signedUrl); });
+    } catch { /* bucket inaccessible → on omet ces photos */ }
+  }
+  return out;
+}
+
 // Résout le token société → { societe, settings } (scan app_settings.data.reservationToken).
 async function resoudreToken(db: ReturnType<typeof createClient>, token: string): Promise<{ societe: string; data: Record<string, unknown> } | null> {
   if (!token) return null;
@@ -193,7 +222,7 @@ Deno.serve(async (req) => {
       const cfg = await societeConfig(db, ctx.societe, ctx.data);
       const d0 = ts(url.searchParams.get("debut")), f0 = ts(url.searchParams.get("fin"));
 
-      const { data: vehsRaw } = await db.from("vehicules").select("id,immat,marque,modele,categorie,carburant,photo_url,groupes,statut").eq("societe", ctx.societe);
+      const { data: vehsRaw } = await db.from("vehicules").select("id,immat,marque,modele,categorie,carburant,boite,photo_url,groupes,statut").eq("societe", ctx.societe);
       const vehs = Array.isArray(vehsRaw) ? vehsRaw as Array<Record<string, unknown>> : [];
       const okIds = reservableIds(ctx.data, vehs);
       let resas: Array<Record<string, unknown>> = [];
@@ -203,9 +232,41 @@ Deno.serve(async (req) => {
         const { data: em } = await db.from("emprunts").select("vehicule,date_retour").eq("societe", ctx.societe); emprunts = Array.isArray(em) ? em as Array<Record<string, unknown>> : [];
       }
 
-      const list = vehs.filter((v) => okIds.has(String(v.id)))
-        .filter((v) => (d0 != null && f0 != null) ? vehiculeLibre(v, ctx.data, resas, emprunts, String(v.id), String(v.immat || ""), d0, f0) : !HORS.includes(statutNorm(v.statut)))
-        .map((v) => ({ id: v.id, immat: v.immat || "", marque: v.marque || "", modele: v.modele || "", categorie: v.categorie || "", carburant: v.carburant || "", photoUrl: v.photo_url || "" }));
+      const avail = vehs.filter((v) => okIds.has(String(v.id)))
+        .filter((v) => (d0 != null && f0 != null) ? vehiculeLibre(v, ctx.data, resas, emprunts, String(v.id), String(v.immat || ""), d0, f0) : !HORS.includes(statutNorm(v.statut)));
+
+      // Photos : photo principale + photos d'ÉTAT DES LIEUX (images), des véhicules disponibles → signées.
+      const availIds = avail.map((v) => String(v.id));
+      const photosByVeh: Record<string, string[]> = {};
+      if (availIds.length) {
+        try {
+          const { data: docs } = await db.from("documents").select("vehicule_id,type,url").in("vehicule_id", availIds);
+          (Array.isArray(docs) ? docs : []).forEach((d: Record<string, unknown>) => {
+            const u = String(d.url || "");
+            if (statutNorm(d.type) === "etat-des-lieux" && RE_IMG.test(u)) {
+              const id = String(d.vehicule_id);
+              (photosByVeh[id] = photosByVeh[id] || []).push(u);
+            }
+          });
+        } catch { /* ignore */ }
+      }
+      const CAP = 12; // on borne le nombre de photos par véhicule (réponse légère)
+      const toSign: string[] = [];
+      avail.forEach((v) => {
+        const id = String(v.id);
+        const main = String(v.photo_url || "");
+        const arr: string[] = [];
+        if (main && (RE_IMG.test(main) || /^https?:\/\//.test(main))) arr.push(main); // photo principale en 1er
+        (photosByVeh[id] || []).forEach((u) => { if (arr.indexOf(u) < 0) arr.push(u); });
+        photosByVeh[id] = arr.slice(0, CAP);
+        photosByVeh[id].forEach((u) => { if (toSign.indexOf(u) < 0) toSign.push(u); });
+      });
+      const signed = await signPhotos(db, toSign, 3600);
+
+      const list = avail.map((v) => {
+        const photos = (photosByVeh[String(v.id)] || []).map((u) => signed.get(u) || "").filter(Boolean);
+        return { id: v.id, immat: v.immat || "", marque: v.marque || "", modele: v.modele || "", categorie: v.categorie || "", carburant: v.carburant || "", boite: v.boite || "", photoUrl: photos[0] || "", photos };
+      });
       return json({ ok: true, societe: cfg.nomSoc || "", vehicules: list, total: okIds.size });
     }
 
