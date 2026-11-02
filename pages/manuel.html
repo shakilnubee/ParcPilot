@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261102c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261102d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261102c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261102d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -911,7 +911,12 @@
         <div class="man-item"><b>Les étapes (pipeline)</b> — chaque dossier avance en colonnes : <b>Projet d'achat → Devis reçu → Commande validée → Acompte versé → Attente livraison → Livré → Finalisé → Intégré à la flotte</b> (+ <b>Suspendu</b> / <b>Annulé</b> au besoin). Tu changes l'étape directement sur la carte (sauvegarde auto). En haut, 4 compteurs : <b>dossiers en cours</b>, <b>montant commandé</b>, <b>acomptes versés</b>, <b>à intégrer</b>.</div>
         <div class="man-item"><b>👆 Clique une carte → fiche détail</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — clique n'importe où sur une carte de dossier (hors boutons) pour ouvrir sa <b>fiche détail</b> en lecture : toutes les infos d'un coup (prix HT/TTC, acompte, reste à payer, dates, financement…) et, en bas, tous les boutons d'action — <b>Modifier · Documents · Archiver · Supprimer</b> (et « Ajouter à la flotte » / « Voir le véhicule » le cas échéant). Ferme avec la croix, le clic dehors ou <b>Échap</b>.</div>
         <div class="man-item"><b>⚠️ Pas de double comptage</b> — le <b>coût réel</b> du véhicule reste porté par la <b>facture d'achat</b> (onglet Factures). Le dossier d'achat sert au <b>suivi</b> (étape, documents, acompte) et <b>n'ajoute pas</b> une seconde fois le prix dans le TCO.</div>
-        <div class="man-item"><b>📁 Documents du dossier</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — bouton <b>« Documents »</b> sur chaque dossier d'achat : une checklist à cocher en joignant le PDF (<b>devis, bon de commande, contrat, facture d'acompte, preuve de virement, confirmation de commande, facture définitive, certificat de cession, carte grise, attestation d'assurance, document de livraison</b>, + autres). Même rangement que les dossiers de vente (Google-Drive-like), stockage partagé — rien en double.</div>
+        <div class="man-item"><b>📁 Documents du dossier (6 catégories)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — bouton <b>« Documents »</b> sur chaque dossier d'achat : une liste simple à cocher en joignant le PDF —
+          <b>1. Bon de commande / Devis</b> (un BC fait office de devis), <b>2. Facture d'acompte</b> (facultative, plusieurs possibles), <b>3. Facture définitive</b> (une ou plusieurs), <b>4. Document de livraison / PV</b>, <b>5. Preuve de virement</b> (plusieurs possibles), <b>6. Contrat d'achat</b>. La <b>carte grise</b> n'est plus ici : elle s'ajoute <b>sur la fiche véhicule</b> à sa création. Tu peux toujours <b>« Ajouter un autre document »</b>.
+          <br>• <b>Suivi honnête</b> : le compteur « X / Y documents attendus » ne compte QUE les documents attendus — l'<b>acompte</b> et la <b>preuve de virement</b> sont marqués <i>facultatif</i> et ne comptent pas comme manquants. Chaque ligne montre son état (aucun / ✓ ajouté / badge du nombre si plusieurs).
+          <br>• <b>Lecture IA</b> : en déposant un document, l'IA vérifie discrètement son type et te <b>prévient</b> (sans bloquer) s'il semble d'une autre nature (ex. une carte grise déposée sous « Facture »).
+          <br>• <b>Correctif important</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> : un <b>nouveau</b> dossier d'achat (sans plaque) n'affiche <b>plus</b> par erreur des factures d'autres véhicules. Chaque dossier est <b>indépendant</b>.
+          <br>• <b>À l'intégration dans la flotte</b>, les documents du dossier <b>suivent le véhicule</b> et se retrouvent dans sa fiche (aucune copie en double).</div>
         <div class="man-item"><b>💶 Acompte &amp; solde</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans le dossier tu renseignes l'<b>acompte prévu</b> et l'<b>acompte payé</b> ; la carte affiche alors l'acompte versé et le <b>reste à payer</b> (prix − acompte). Le compteur « Acomptes versés » en haut additionne tout.</div>
         <div class="man-item"><b>🗂️ Archiver vs 🗑️ Supprimer (deux choses différentes)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — <b>Archiver</b> = <b>ranger</b> le dossier (il sort du suivi mais <b>reste restaurable</b>, rien n'est perdu). Les dossiers archivés apparaissent sous le pipeline dans le volet <b>« N dossier(s) archivé(s) — gérer »</b> (repliable) : chacun a un bouton <b>« ↩ Restaurer »</b> (le remet dans le suivi) et <b>« 🗑 Supprimer »</b>. <b>Supprimer</b> = <b>effacer définitivement</b> (irréversible, avec confirmation claire) — à réserver à une <b>erreur de saisie</b>. Les documents liés, eux, ne sont pas supprimés.</div>
         <div class="man-item"><b>🚗 Ajouter à la flotte</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dès qu'un dossier passe en <b>Livré</b> (ou Finalisé), un bouton <b>« Ajouter à la flotte »</b> apparaît : il <b>crée le véhicule</b> dans l'onglet Véhicules, <b>pré-rempli</b> avec les infos du dossier (marque, modèle, version, motorisation, plaque, valeur d'achat), relie le dossier au véhicule (étape « Intégré »), et tu complètes sa fiche ensuite. <b>Anti-doublon</b> : si un véhicule avec la même plaque existe déjà, l'app propose de <b>l'associer</b> au lieu d'en créer un nouveau. Un bouton <b>« Voir le véhicule »</b> remplace alors le bouton une fois intégré.</div>
@@ -1077,8 +1082,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261102c"></script>
-<script src="../assets/js/supabase-client.js?v=20261102c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261102d"></script>
+<script src="../assets/js/supabase-client.js?v=20261102d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1094,10 +1099,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261102c"></script>
+<script src="../assets/js/app.min.js?v=20261102d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
