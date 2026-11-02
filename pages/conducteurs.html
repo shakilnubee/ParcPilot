@@ -2442,6 +2442,15 @@
     const rr = e.target.closest('#permis-reread');
     if (rr) { rereadPermis(rr.dataset.url, rr.dataset.key); return; }
 
+    // ↻ « Réessayer la lecture » juste après un téléversement dont l'IA n'a rien lu :
+    // on relit le scan DÉJÀ enregistré (pas besoin de re-déposer le fichier).
+    const rrNow = e.target.closest('#permis-reread-now');
+    if (rrNow) { rereadPermis(rrNow.dataset.url, rrNow.dataset.key); return; }
+
+    // ↻ « Réessayer le dépôt » après un échec d'envoi : ré-ouvre le sélecteur de fichier.
+    const reUp = e.target.closest('#permis-reupload');
+    if (reUp) { _permisUploadKey = reUp.dataset.key; $('permis-file').click(); return; }
+
     // ↺ Réafficher un permis intégré précédemment masqué
     const unhidePermis = e.target.closest('[data-permis-unhide]');
     if (unhidePermis) {
@@ -3223,7 +3232,7 @@
       const st2 = $('permis-upload-status');
       if (st2) {
         if (lus.length) { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#ECFDF5;color:#047857;'); st2.innerHTML = `✓ Scan enregistré · lu automatiquement : <b>${lus.join(', ')}</b>. Vérifie et corrige si besoin (double-clic).`; }
-        else { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#FEF3C7;color:#92400E;'); st2.innerHTML = '✓ Scan enregistré, mais aucune info lisible automatiquement. Saisis les champs à la main (double-clic).'; }
+        else { st2.classList.remove('hidden'); st2.setAttribute('style', 'background:#FEF3C7;color:#92400E;padding:8px;'); st2.innerHTML = `✓ <b>Scan bien enregistré</b> (pas besoin de le re-déposer), mais aucune info n'a pu être lue cette fois. <button type="button" id="permis-reread-now" data-url="${escapeHtml(url)}" data-key="${escapeHtml(k)}" class="btn btn-dark text-xs" style="margin:6px 0 2px;justify-content:center"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> ↻ Réessayer la lecture</button><div style="margin-top:4px">Ou saisis les champs à la main (double-clic).</div>`; try { lucide.createIcons(); } catch (e) {} }
       }
       // ⚠️ Alerte si une info dont le site a besoin manque sur le permis.
       try {
@@ -3232,7 +3241,8 @@
       } catch (e) {}
     } catch (err) {
       console.error('[permis upload]', err);
-      show("Échec de l'envoi : " + (err.message || err), 'background:#FEF2F2;color:#B91C1C;');
+      show(`Échec de l'envoi : ${escapeHtml(String(err.message || err))}. <button type="button" id="permis-reupload" data-key="${escapeHtml(k)}" class="btn btn-dark text-xs" style="margin-top:6px;justify-content:center"><i data-lucide="upload" class="w-3.5 h-3.5"></i> ↻ Réessayer le dépôt</button>`, 'background:#FEF2F2;color:#B91C1C;padding:8px;');
+      try { lucide.createIcons(); } catch (e) {}
     }
   });
 
