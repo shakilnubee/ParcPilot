@@ -16202,6 +16202,22 @@ FP.docsFolder = {
     try { const r = await FP.db.select('documents'); const rows = (r && r.data) ? r.data : []; return rows.filter(d => d && String(d.vehiculeId || '') === String(vehId)); }
     catch (e) { return []; }
   },
+  // Rattache les documents d'un dossier d'achat au VÉHICULE créé à l'intégration flotte : on réaffecte
+  // simplement vehiculeId (PAS de copie physique → le même fichier reste, visible depuis la fiche véhicule).
+  // Non destructif : on ne supprime rien, on ne fait que déplacer le lien. Renvoie le nombre déplacé.
+  async reassign(oldVehId, newVehId) {
+    if (!oldVehId || !newVehId || String(oldVehId) === String(newVehId)) return 0;
+    let n = 0;
+    try {
+      const list = await this._list(oldVehId);
+      for (const d of list) {
+        try { const r = await FP.db.update('documents', d.id, { vehiculeId: newVehId }); if (!(r && r.error)) n++; }
+        catch (e) {}
+      }
+      if (n) this._changed(newVehId);
+    } catch (e) {}
+    return n;
+  },
   _driveId(url) { const m = String(url || '').match(/\/d\/([A-Za-z0-9_-]{20,})/) || String(url || '').match(/[?&]id=([A-Za-z0-9_-]{20,})/); return m ? m[1] : null; },
   // URL ouvrable d'une FACTURE : délègue au helper canonique FP._factUrl (source unique).
   _factUrl(f) { return FP._factUrl(f); },
@@ -16211,8 +16227,14 @@ FP.docsFolder = {
   _linkedFactures(veh, key) {
     try {
       const types = this._FACT_LINK[key]; if (!types) return [];
+      // ⚠️ CORRECTIF CRITIQUE (dossiers d'achat) : un dossier SANS plaque (nouvel achat non livré)
+      // ne doit RIEN rattacher automatiquement. Avant, FP.normImmat('') === '' matchait TOUTE facture
+      // d'achat sans plaque → elles remontaient dans CHAQUE nouveau dossier (bug MG ZS). On ne relie
+      // que si le véhicule a une VRAIE plaque (le rattachement facture↔véhicule se fait par plaque).
+      const plaque = (veh && veh.immat != null) ? String(veh.immat).trim() : '';
+      const k = plaque ? (FP.normImmat ? FP.normImmat(plaque) : plaque.toUpperCase()) : '';
+      if (!k) return [];
       const list = (window.FP_DATA && Array.isArray(FP_DATA.factures)) ? FP_DATA.factures : [];
-      const k = FP.normImmat ? FP.normImmat(veh.immat) : String(veh.immat || '').toUpperCase();
       return list.filter(f => f && types.indexOf(String(f.type || '').toLowerCase()) >= 0
           && (FP.normImmat ? FP.normImmat(f.vehiculeImmat) : String(f.vehiculeImmat || '').toUpperCase()) === k
           && this._factUrl(f))
@@ -16243,13 +16265,19 @@ FP.docsFolder = {
     const TYPES = Array.isArray(opts.types) && opts.types.length ? opts.types : this.TYPES;
     const CHECKLIST = Array.isArray(opts.checklist) ? opts.checklist : this.CHECKLIST;
     const SINGLE = (opts.single instanceof Set) ? opts.single : this.SINGLE;
+    // Liste du menu « Ajouter un autre document » (peut différer de TYPES, qui sert AUSSI à libeller les
+    // documents historiques de catégories retirées de l'UI — ex. ancienne « Carte grise »/« Devis »).
+    const ADD_TYPES = Array.isArray(opts.addTypes) && opts.addTypes.length ? opts.addTypes : TYPES;
+    // Catégories FACULTATIVES : présentes dans la checklist mais NON comptées comme « manquantes »
+    // (ex. facture d'acompte, preuve de virement). Le compteur ne porte que sur les documents ATTENDUS.
+    const OPTIONAL = (opts.optional instanceof Set) ? opts.optional : new Set();
     const typeLabel = (k) => { const t = TYPES.find(x => x.key === k); return t ? t.label : (k || 'Document'); };
     const title = opts.title || ('📁 Dossier de vente — ' + (veh.immat || ''));
     const old = document.getElementById('fp-docs-ov'); if (old) old.remove();
     const ov = document.createElement('div');
     ov.id = 'fp-docs-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(8,15,30,.55);display:flex;align-items:center;justify-content:center;padding:16px';
-    const optionsHtml = TYPES.map(t => '<option value="' + t.key + '">' + esc(t.label) + '</option>').join('');
+    const optionsHtml = ADD_TYPES.map(t => '<option value="' + t.key + '">' + esc(t.label) + '</option>').join('');
     ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:540px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
       + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:var(--fp-surface,#fff)">'
         + '<b style="font-size:1.02rem">' + esc(title) + '</b>'
@@ -16299,14 +16327,21 @@ FP.docsFolder = {
     function lineBlock(item) {
       const mine = docs.filter(d => d.type === item.key);
       const linked = self._linkedFactures(veh, item.key);   // ex. facture d'achat déjà dans Factures → reliée auto
-      const ok = mine.length > 0 || linked.length > 0;
+      const count = mine.length + linked.length;
+      const ok = count > 0;
+      const opt = OPTIONAL.has(item.key);
       const dot = ok
         ? '<span style="flex:none;width:20px;height:20px;border-radius:9999px;background:#16a34a;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem">✓</span>'
-        : '<span style="flex:none;width:20px;height:20px;border-radius:9999px;border:2px solid var(--fp-border,#cbd5e1);display:inline-block"></span>';
+        : (opt
+          ? '<span title="Facultatif" style="flex:none;width:20px;height:20px;border-radius:9999px;border:2px dashed var(--fp-border,#cbd5e1);display:inline-block"></span>'
+          : '<span style="flex:none;width:20px;height:20px;border-radius:9999px;border:2px solid var(--fp-border,#cbd5e1);display:inline-block"></span>');
+      // État clair : plusieurs documents → badge compteur ; facultatif → petite étiquette grise.
+      const badge = count > 1 ? ' <span style="flex:none;font-size:.68rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.12);border-radius:9999px;padding:1px 7px">' + count + '</span>' : '';
+      const optTag = opt ? ' <span style="flex:none;font-size:.66rem;font-weight:700;color:var(--fp-muted,#94a3b8);text-transform:uppercase;letter-spacing:.03em">facultatif</span>' : '';
       return '<div style="border:1px solid var(--fp-border,#e5e7eb);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:' + (ok ? 'rgba(22,163,74,.06)' : 'var(--fp-bg,#f8fafc)') + '">'
         + '<div style="display:flex;align-items:center;gap:9px">'
           + dot
-          + '<div style="flex:1;min-width:0;font-weight:700;font-size:.9rem">' + esc(item.label) + '</div>'
+          + '<div style="flex:1;min-width:0;font-weight:700;font-size:.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">' + esc(item.label) + '</span>' + badge + optTag + '</div>'
           + '<button type="button" class="fp-docs-addline" data-type="' + esc(item.key) + '" style="flex:none;background:none;border:1px solid var(--fp-border,#e5e7eb);border-radius:8px;padding:4px 10px;font-size:.74rem;font-weight:700;cursor:pointer;color:var(--fp-primary,#0F1E3D)">📎 ' + (ok ? 'Ajouter' : 'Joindre') + '</button>'
         + '</div>'
         + mine.map(docRow).join('')
@@ -16316,8 +16351,10 @@ FP.docsFolder = {
     function renderAll() {
       const box = q('#fp-docs-list'); if (!box) return;
       const checklistKeys = CHECKLIST.map(c => c.key);
-      const done = CHECKLIST.filter(c => docs.some(d => d.type === c.key) || self._linkedFactures(veh, c.key).length).length;
-      const suivi = q('#fp-docs-suivi'); if (suivi) suivi.textContent = 'Suivi : ' + done + ' / ' + CHECKLIST.length + ' documents clés';
+      // Compteur = uniquement les documents ATTENDUS (on exclut les facultatifs → plus de « 1/6 » trompeur).
+      const attendus = CHECKLIST.filter(c => !OPTIONAL.has(c.key));
+      const done = attendus.filter(c => docs.some(d => d.type === c.key) || self._linkedFactures(veh, c.key).length).length;
+      const suivi = q('#fp-docs-suivi'); if (suivi) suivi.textContent = 'Suivi : ' + done + ' / ' + attendus.length + ' document' + (attendus.length > 1 ? 's' : '') + ' attendu' + (attendus.length > 1 ? 's' : '');
       let html = CHECKLIST.map(lineBlock).join('');
       const autres = docs.filter(d => checklistKeys.indexOf(d.type) < 0);
       if (autres.length) {
@@ -16375,6 +16412,26 @@ FP.docsFolder = {
       const nm = q('#fp-docs-name'); if (nm) nm.value = '';
       if (ok && FP.toast) FP.toast('✓ ' + ok + ' document' + (ok > 1 ? 's' : '') + ' ajouté' + (ok > 1 ? 's' : ''));
       if (ko) { if (FP.notifyError) FP.notifyError(ko + ' document(s) en échec — réessaie.'); else alert(ko + ' document(s) en échec.'); }
+      // P4 — Lecture IA best-effort (opt-in opts.scanDetect) : prévient SANS bloquer si le document
+      // semble d'une AUTRE FAMILLE que la catégorie choisie (ex. carte grise déposée sous « Facture »).
+      // On ne distingue PAS les sous-types de facture (acompte/définitive) → zéro fausse alerte.
+      if (opts.scanDetect && ok && files[0] && window.FP && FP.scanIA && type !== 'autre') {
+        (async () => {
+          try {
+            const ai = await FP.scanIA(files[0]);
+            const dt = String((ai && (ai.docType || ai.type_document || ai.type)) || '').toLowerCase();
+            if (!dt) return;
+            const fam = (s) => /carte.?gris|certificat d.?immat/.test(s) ? 'une carte grise' : (/permis/.test(s) ? 'un permis' : (/attestation.*assur|carte verte/.test(s) ? "une attestation d'assurance" : (/facture|devis|bon de commande|proforma|avoir/.test(s) ? 'une facture / un devis' : (/contrat/.test(s) ? 'un contrat' : ''))));
+            const wantFam = /facture|acompte|bon-commande|achat|virement/.test(type) ? 'facture' : (/contrat/.test(type) ? 'contrat' : (/carte-grise/.test(type) ? 'cg' : (/livraison/.test(type) ? 'livraison' : '')));
+            const got = fam(dt);
+            const gotKind = /carte gris/.test(got) ? 'cg' : (/facture|devis/.test(got) ? 'facture' : (/contrat/.test(got) ? 'contrat' : (/permis|assur/.test(got) ? 'autre' : '')));
+            // On n'alerte que sur un décalage NET et fiable (famille lue ≠ famille attendue).
+            if (got && gotKind && wantFam && wantFam !== 'livraison' && gotKind !== wantFam && FP.toast) {
+              FP.toast('⚠️ Ce document ressemble à ' + got + ' — vérifie la catégorie choisie.');
+            }
+          } catch (e) {}
+        })();
+      }
     });
     // Ajout libre (type choisi + nom facultatif).
     const addBtn = q('#fp-docs-add');

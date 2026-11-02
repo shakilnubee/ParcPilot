@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261102d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261102c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261102d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261102c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261102d">
 <style>
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
   .pipeline-col { background: #F8FAFC; border-radius: .85rem; padding: 1rem; min-height: 200px; }
@@ -272,8 +272,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261102c"></script>
-<script src="../assets/js/supabase-client.js?v=20261102c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261102d"></script>
+<script src="../assets/js/supabase-client.js?v=20261102d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -289,10 +289,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261102d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261102c"></script>
+<script src="../assets/js/app.min.js?v=20261102d"></script>
 <script>
   lucide.createIcons();
   FP.loadVehicleOverrides();
@@ -572,29 +572,47 @@
   ];
   const ACHAT_LABEL = Object.fromEntries(ACHAT_STATUTS.map(s => [s.key, s.label]));
   // Types de documents PROPRES à un achat (passés à FP.docsFolder.open → n'affectent pas la liste de VENTE).
+  // 6 catégories (consigne utilisateur). Clés STABLES : 'facture-achat' = « Facture définitive »
+  // (garde le rattachement auto des factures d'achat ET les documents historiques de cette clé) ;
+  // 'bon-commande' sert aussi de devis. Les anciennes catégories (Devis séparé, Carte grise…) sont
+  // retirées de l'UI mais GARDÉES ici pour libeller proprement les documents historiques (jamais supprimés).
   const ACHAT_DOC_TYPES = [
-    { key: 'devis',                 label: 'Devis' },
-    { key: 'bon-commande',          label: 'Bon de commande' },
-    { key: 'contrat-achat',         label: "Contrat d'achat" },
-    { key: 'facture-acompte',       label: "Facture d'acompte" },
-    { key: 'preuve-virement',       label: 'Preuve de virement' },
-    { key: 'confirmation-commande', label: 'Confirmation de commande' },
-    { key: 'facture-achat',         label: 'Facture définitive (achat)' },
-    { key: 'code-cession',          label: 'Certificat de cession' },
-    { key: 'carte-grise',           label: 'Carte grise' },
-    { key: 'attestation-assurance', label: "Attestation d'assurance" },
-    { key: 'doc-livraison',         label: 'Document de livraison / PV' },
-    { key: 'autre',                 label: 'Autre document' },
-  ];
-  const ACHAT_DOC_CHECKLIST = [
-    { key: 'devis',           label: 'Devis' },
-    { key: 'bon-commande',    label: 'Bon de commande' },
+    { key: 'bon-commande',    label: 'Bon de commande / Devis' },
     { key: 'facture-acompte', label: "Facture d'acompte" },
     { key: 'facture-achat',   label: 'Facture définitive' },
     { key: 'doc-livraison',   label: 'Document de livraison / PV' },
-    { key: 'carte-grise',     label: 'Carte grise' },
+    { key: 'preuve-virement', label: 'Preuve de virement' },
+    { key: 'contrat-achat',   label: "Contrat d'achat" },
+    { key: 'autre',           label: 'Autre document' },
+    // Libellés HISTORIQUES (hors UI, pour l'affichage des anciens documents dans « Autres documents »)
+    { key: 'devis',                 label: 'Devis (ancien)' },
+    { key: 'carte-grise',           label: 'Carte grise (désormais sur la fiche véhicule)' },
+    { key: 'confirmation-commande', label: 'Confirmation de commande' },
+    { key: 'code-cession',          label: 'Certificat de cession' },
+    { key: 'attestation-assurance', label: "Attestation d'assurance" },
   ];
-  const ACHAT_DOC_SINGLE = new Set(['carte-grise', 'facture-achat', 'confirmation-commande', 'contrat-achat']);
+  // Menu « Ajouter un autre document » : uniquement les 6 catégories + Autre (pas de Devis séparé / Carte grise).
+  const ACHAT_DOC_ADD = [
+    { key: 'bon-commande',    label: 'Bon de commande / Devis' },
+    { key: 'facture-acompte', label: "Facture d'acompte" },
+    { key: 'facture-achat',   label: 'Facture définitive' },
+    { key: 'doc-livraison',   label: 'Document de livraison / PV' },
+    { key: 'preuve-virement', label: 'Preuve de virement' },
+    { key: 'contrat-achat',   label: "Contrat d'achat" },
+    { key: 'autre',           label: 'Autre document' },
+  ];
+  const ACHAT_DOC_CHECKLIST = [
+    { key: 'bon-commande',    label: 'Bon de commande / Devis' },
+    { key: 'facture-acompte', label: "Facture d'acompte" },
+    { key: 'facture-achat',   label: 'Facture définitive' },
+    { key: 'doc-livraison',   label: 'Document de livraison / PV' },
+    { key: 'preuve-virement', label: 'Preuve de virement' },
+    { key: 'contrat-achat',   label: "Contrat d'achat" },
+  ];
+  // Facultatifs : non comptés comme « manquants » dans le suivi (un acompte/virement n'existe pas toujours).
+  const ACHAT_DOC_OPTIONAL = new Set(['facture-acompte', 'preuve-virement']);
+  // Aucune catégorie « une seule » : une ou plusieurs factures définitives, plusieurs virements/acomptes possibles.
+  const ACHAT_DOC_SINGLE = new Set();
   const FIN_LABEL = { comptant: 'Comptant', credit: 'Crédit', loa: 'LOA', lld: 'LLD' };
   let _achats = [], _achatsArchived = [], _achatLoaded = false, _achatEditId = null, _achatTableMissing = false, _achatArchOpen = false;
 
@@ -920,7 +938,7 @@
         if (ex) {
           const ok = FP.confirm ? await FP.confirm('Un véhicule ' + immat + ' existe déjà dans la flotte.\nL\'associer à ce dossier d\'achat (au lieu d\'en créer un nouveau) ?') : confirm('Associer au véhicule ' + immat + ' existant ?');
           if (!ok) return;
-          try { const r = await FP.db.update('dossiers_achat', d.id, { vehiculeId: ex.id, statut: 'integre' }); if (r && r.error) throw r.error; d.vehiculeId = ex.id; d.statut = 'integre'; renderAchat(); if (FP.toast) FP.toast('Dossier associé au véhicule ' + immat + '.'); }
+          try { const r = await FP.db.update('dossiers_achat', d.id, { vehiculeId: ex.id, statut: 'integre' }); if (r && r.error) throw r.error; d.vehiculeId = ex.id; d.statut = 'integre'; try { if (FP.docsFolder && FP.docsFolder.reassign) await FP.docsFolder.reassign(d.id, ex.id); } catch (e2) {} renderAchat(); if (FP.toast) FP.toast('Dossier associé au véhicule ' + immat + '.'); }
           catch (err) { if (FP.notifyError) FP.notifyError('Échec — réessaie.'); }
           return;
         }
@@ -935,6 +953,7 @@
         try { FP.refreshDataCache && FP.refreshDataCache(); } catch (e2) {}
         const r2 = await FP.db.update('dossiers_achat', d.id, { vehiculeId: id, statut: 'integre' }); if (r2 && r2.error) throw r2.error;
         d.vehiculeId = id; d.statut = 'integre';
+        try { if (FP.docsFolder && FP.docsFolder.reassign) await FP.docsFolder.reassign(d.id, id); } catch (e2) {} // documents du dossier → fiche véhicule
         renderAchat(); renderKPIs(); renderPipeline();
         if (FP.toast) FP.toast('Véhicule ajouté à la flotte ✓ — complète sa fiche quand tu veux.');
       } catch (err) { if (FP.notifyError) FP.notifyError('Échec de la création — réessaie.'); else alert('Échec de la création.'); }
@@ -949,7 +968,8 @@
       const titre = [d.marque, d.modele].filter(Boolean).join(' ') || 'dossier d\'achat';
       FP.docsFolder.open({ id: d.id, immat: d.immat || '' }, {
         title: '📁 Documents — achat ' + titre,
-        types: ACHAT_DOC_TYPES, checklist: ACHAT_DOC_CHECKLIST, single: ACHAT_DOC_SINGLE,
+        types: ACHAT_DOC_TYPES, addTypes: ACHAT_DOC_ADD, checklist: ACHAT_DOC_CHECKLIST,
+        single: ACHAT_DOC_SINGLE, optional: ACHAT_DOC_OPTIONAL, scanDetect: true,
       });
       return;
     }
