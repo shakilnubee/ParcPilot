@@ -46,6 +46,17 @@
   .hidden{display:none}
   .recap{background:#f8fafc;border-radius:10px;padding:10px 13px;font-size:.88rem;color:#334155;margin-bottom:10px}
   footer{text-align:center;color:var(--muted);font-size:.74rem;margin-top:18px}
+  /* Vignette cliquable + badge nombre de photos */
+  .ph-wrap{position:relative;flex:none;cursor:zoom-in;line-height:0}
+  .ph-badge{position:absolute;right:-5px;bottom:-5px;background:var(--nav);color:#fff;font-size:.6rem;font-weight:800;border-radius:9999px;padding:1px 6px;line-height:1.45;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  /* Lightbox galerie photos (fond sombre, OK en thème clair comme sombre) */
+  #lb{position:fixed;inset:0;z-index:999;background:rgba(8,15,30,.93);display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+  #lb.open{display:flex}
+  #lb img{max-width:100%;max-height:78vh;border-radius:12px;object-fit:contain;box-shadow:0 20px 60px -10px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  #lb .lb-x{position:absolute;top:max(10px,env(safe-area-inset-top));right:14px;background:rgba(255,255,255,.16);color:#fff;border:none;width:42px;height:42px;border-radius:50%;font-size:24px;line-height:1;cursor:pointer}
+  #lb .lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.16);color:#fff;border:none;width:46px;height:46px;border-radius:50%;font-size:28px;line-height:1;cursor:pointer;align-items:center;justify-content:center;display:none}
+  #lb .lb-prev{left:10px}#lb .lb-next{right:10px}
+  #lb .lb-count{color:#cbd6e6;font-size:.85rem;margin-top:12px;font-weight:700}
 </style>
 </head>
 <body>
@@ -98,6 +109,15 @@
   <footer>Réservation sécurisée · via Parc Pilot</footer>
 </div>
 
+<!-- Lightbox galerie photos véhicule -->
+<div id="lb" role="dialog" aria-modal="true" aria-label="Photos du véhicule">
+  <button class="lb-x" id="lb-x" type="button" aria-label="Fermer">×</button>
+  <button class="lb-nav lb-prev" id="lb-prev" type="button" aria-label="Photo précédente">‹</button>
+  <img id="lb-img" src="" alt="Photo du véhicule">
+  <button class="lb-nav lb-next" id="lb-next" type="button" aria-label="Photo suivante">›</button>
+  <div class="lb-count" id="lb-count"></div>
+</div>
+
 <script>
 (function () {
   var FN = 'https://tzjuptlzoywjeigmyfuj.supabase.co/functions/v1/reservation';
@@ -111,6 +131,20 @@
   function showErr(m){ var e=$('err'); e.textContent=m||'Une erreur est survenue.'; e.style.display=''; try{e.scrollIntoView({behavior:'smooth',block:'center'});}catch(x){} }
   function hideErr(){ $('err').style.display='none'; }
   function iso(dateId, timeId){ var d=$(dateId).value, t=$(timeId).value||'00:00'; if(!d) return ''; var dt=new Date(d+'T'+t); return isNaN(dt.getTime())?'':dt.toISOString(); }
+  // Boîte de vitesses lisible (Automatique / Manuelle / Non renseignée) — ne devine jamais depuis le modèle.
+  function boiteLabel(b){ var s=String(b==null?'':b).toLowerCase(); if(s.indexOf('auto')>=0) return 'Automatique'; if(s.indexOf('man')>=0) return 'Manuelle'; return 'Non renseignée'; }
+  // ---- Lightbox galerie photos (vanilla, autonome : ce portail ne charge pas app.js) ----
+  var _lb = { photos: [], i: 0 };
+  function lbRender(){ var im=$('lb-img'); im.src=_lb.photos[_lb.i]||''; var multi=_lb.photos.length>1; $('lb-prev').style.display=multi?'flex':'none'; $('lb-next').style.display=multi?'flex':'none'; $('lb-count').textContent=multi?((_lb.i+1)+' / '+_lb.photos.length):''; }
+  function openGallery(photos){ _lb.photos=(photos||[]).filter(Boolean); if(!_lb.photos.length) return; _lb.i=0; lbRender(); $('lb').classList.add('open'); }
+  function lbMove(d){ if(!_lb.photos.length) return; _lb.i=(_lb.i+d+_lb.photos.length)%_lb.photos.length; lbRender(); }
+  function lbClose(){ $('lb').classList.remove('open'); $('lb-img').src=''; }
+  $('lb-x').addEventListener('click', lbClose);
+  $('lb-prev').addEventListener('click', function(e){ e.stopPropagation(); lbMove(-1); });
+  $('lb-next').addEventListener('click', function(e){ e.stopPropagation(); lbMove(1); });
+  $('lb').addEventListener('click', function(e){ if(e.target===$('lb')) lbClose(); });
+  document.addEventListener('keydown', function(e){ if(!$('lb').classList.contains('open')) return; if(e.key==='Escape') lbClose(); else if(e.key==='ArrowLeft') lbMove(-1); else if(e.key==='ArrowRight') lbMove(1); });
+  (function(){ var x0=null; var el=$('lb'); el.addEventListener('touchstart', function(e){ x0=e.touches[0].clientX; }, {passive:true}); el.addEventListener('touchend', function(e){ if(x0==null) return; var dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>40) lbMove(dx<0?1:-1); x0=null; }, {passive:true}); })();
 
   if (!token) { showErr('Lien incomplet — demandez un nouveau lien au gestionnaire.'); $('step-dates').classList.add('hidden'); return; }
 
@@ -144,10 +178,24 @@
         } else {
           box.innerHTML = list.map(function(v){
             var titre = [v.marque, v.modele].filter(Boolean).join(' ') || 'Véhicule';
-            var ph = v.photoUrl ? '<img class="ph" src="'+esc(v.photoUrl)+'" alt="">' : '<div class="ph-ph">🚗</div>';
-            var meta = [v.categorie, v.carburant].filter(Boolean).join(' · ');
+            var photos = (v.photos && v.photos.length) ? v.photos : (v.photoUrl ? [v.photoUrl] : []);
+            var thumb = photos[0] || '';
+            var ph = thumb
+              ? '<div class="ph-wrap" data-gal="'+esc(v.id)+'" title="Voir les photos"><img class="ph" src="'+esc(thumb)+'" alt="Photo" loading="lazy">'+(photos.length>1?'<span class="ph-badge">'+photos.length+' 📷</span>':'')+'</div>'
+              : '<div class="ph-ph">🚗</div>';
+            var meta = [v.categorie, v.carburant, boiteLabel(v.boite)].filter(Boolean).join(' · ');
             return '<div class="veh" data-id="'+esc(v.id)+'">'+ph+'<div style="min-width:0"><b>'+esc(titre)+'</b><div class="pl">'+esc(v.immat||'')+(meta?' · '+esc(meta):'')+'</div></div><span class="chk">✓</span></div>';
           }).join('');
+          // Clic sur la VIGNETTE → galerie (n'enclenche PAS la sélection du véhicule).
+          Array.prototype.forEach.call(box.querySelectorAll('.ph-wrap'), function(el){
+            el.addEventListener('click', function(ev){
+              ev.stopPropagation();
+              var id = el.getAttribute('data-gal');
+              var v = list.filter(function(x){ return String(x.id)===id; })[0];
+              var photos = v && v.photos && v.photos.length ? v.photos : (v && v.photoUrl ? [v.photoUrl] : []);
+              if (photos.length) openGallery(photos);
+            });
+          });
           Array.prototype.forEach.call(box.querySelectorAll('.veh'), function(el){
             el.addEventListener('click', function(){
               Array.prototype.forEach.call(box.querySelectorAll('.veh'), function(x){ x.classList.remove('sel'); });
