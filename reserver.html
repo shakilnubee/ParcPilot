@@ -94,7 +94,10 @@
     <button type="button" class="lnk-back" data-reserve-back="vehs">‹ Retour aux véhicules</button>
     <div class="step-t"><span class="step-n">3</span> Votre demande</div>
     <div class="recap" id="recap"></div>
-    <label>Nom et prénom *</label><input id="f-nom" placeholder="Prénom Nom" autocomplete="name">
+    <div class="grid2">
+      <div><label>Prénom *</label><input id="f-prenom" placeholder="Ex. : Jean" autocomplete="given-name"></div>
+      <div><label>Nom *</label><input id="f-nom" placeholder="Ex. : Dupont" autocomplete="family-name"></div>
+    </div>
     <label>E-mail professionnel</label><input id="f-email" type="email" placeholder="vous@societe.fr" autocomplete="email">
     <label>Téléphone</label><input id="f-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="tel">
     <p class="hint">Indiquez au moins un moyen de vous joindre : e-mail <b>ou</b> téléphone.</p>
@@ -219,8 +222,11 @@
   $('btn-send').addEventListener('click', function () {
     hideErr();
     if (!sel) { showErr('Choisissez un véhicule.'); return; }
-    var nom = ($('f-nom').value||'').trim(), email = ($('f-email').value||'').trim(), tel = ($('f-tel').value||'').trim(), motif = ($('f-motif').value||'').trim();
-    if (!nom) { showErr('Indiquez votre nom et prénom.'); return; }
+    var prenom = ($('f-prenom').value||'').trim(), nomFam = ($('f-nom').value||'').trim();
+    // Saisie séparée Prénom/Nom ; on stocke/transmet le nom combiné « Prénom Nom » (compatibilité, pas de nouvelle colonne).
+    var nom = [prenom, nomFam].filter(Boolean).join(' ');
+    var email = ($('f-email').value||'').trim(), tel = ($('f-tel').value||'').trim(), motif = ($('f-motif').value||'').trim();
+    if (!prenom) { showErr('Indiquez votre prénom.'); return; }
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr('E-mail invalide — corrigez-le ou laissez-le vide.'); return; }
     if (!email && !tel) { showErr('Indiquez un e-mail OU un téléphone, pour qu\'on puisse vous répondre.'); return; }
     var b = $('btn-send'); b.disabled = true; b.textContent = 'Envoi…';
