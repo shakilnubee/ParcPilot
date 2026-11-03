@@ -271,24 +271,43 @@ async function amendesPodium(db: ReturnType<typeof createClient>, societe: strin
 }
 
 // Conducteur ACTUEL du véhicule : le champ `chauffeur` du véhicule, sinon l'affectation EN COURS
-// (settings.affectations[vehId] = [{conducteur, debut, fin}]) — sinon un véhicule affecté via
-// l'historique mais sans champ chauffeur n'affichait pas de nom sur le portail.
+// lue dans la TABLE SOURCE `vehicle_assignments` (F18 ; repli sur l'ancienne copie
+// settings.affectations[vehId] = [{conducteur, debut, fin}] pour ne pas régresser) — sinon un
+// véhicule affecté via l'historique mais sans champ chauffeur n'affichait pas de nom sur le portail.
+function _pickAffectation(rows: Record<string, unknown>[]): string {
+  const withNom = (rows || []).filter((a) => a && a.conducteur);
+  if (!withNom.length) return "";
+  const encours = withNom.filter((a) => !a.fin);
+  const pick = (encours.length ? encours : withNom)
+    .sort((a, b) => String(b.debut || "").localeCompare(String(a.debut || "")) || (Number(b.ordre || 0) - Number(a.ordre || 0)))[0];
+  return pick ? String(pick.conducteur || "").trim() : "";
+}
 async function chauffeurActuel(db: ReturnType<typeof createClient>, vehiculeId: string | null, societe: string, vehChauffeur: string) {
   const direct = String(vehChauffeur || "").trim();
   if (direct && direct !== "—") return direct;
   if (!vehiculeId) return "";
+  const soc = societe || "PXP";
+  // ⚠️ F18 — SOURCE DE VÉRITÉ = table `vehicle_assignments` (et non plus la copie dans app_settings).
+  // L'affectation « en cours » = `fin` vide (sinon la plus récente). Repli SÛR anti-régression ci-dessous.
   try {
-    const { data } = await db.from("app_settings").select("data").eq("id", societe || "PXP").maybeSingle();
+    const { data: rows } = await db.from("vehicle_assignments")
+      .select("conducteur,debut,fin,ordre")
+      .eq("societe", soc).eq("veh_id", vehiculeId).is("deleted_at", null);
+    if (Array.isArray(rows) && rows.length) {
+      const nom = _pickAffectation(rows as Record<string, unknown>[]);
+      if (nom) return nom;
+    }
+  } catch { /* repli ci-dessous */ }
+  // Repli (transition) : ancienne copie `settings.affectations[vehId]` — ne JAMAIS échouer, ne jamais
+  // régresser (si la table n'est pas encore peuplée pour ce véhicule, l'ancien comportement s'applique).
+  try {
+    const { data } = await db.from("app_settings").select("data").eq("id", soc).maybeSingle();
     const s = (data && data.data && typeof data.data === "object") ? data.data as Record<string, unknown> : {};
     const affAll = (s.affectations && typeof s.affectations === "object") ? s.affectations as Record<string, unknown> : {};
     const aff = affAll[vehiculeId];
-    if (!Array.isArray(aff) || !aff.length) return "";
-    const withNom = (aff as Record<string, unknown>[]).filter((a) => a && a.conducteur);
-    const encours = withNom.filter((a) => !a.fin);
-    const pick = (encours.length ? encours : withNom)
-      .sort((a, b) => String(b.debut || "").localeCompare(String(a.debut || "")))[0];
-    return pick ? String(pick.conducteur || "").trim() : "";
-  } catch { return ""; }
+    if (Array.isArray(aff) && aff.length) return _pickAffectation(aff as Record<string, unknown>[]);
+  } catch { /* ignore */ }
+  return "";
 }
 
 // Langue d'un conducteur (par son nom + société) via la carte app_settings.condLangues. 'fr' par défaut.
