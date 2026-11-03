@@ -16389,10 +16389,21 @@ FP.docsFolder = {
       // Catégorie « une seule par véhicule » : on remplace l'ancien UNE fois (pas à chaque fichier) — on
       // garde donc le DERNIER fichier déposé pour ces types (carte grise, etc.).
       let singleCleared = false;
-      let ok = 0, ko = 0;
+      let ok = 0, ko = 0, skipped = 0;
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         try {
+          // Nom (libellé) calculé AVANT l'upload : si l'utilisateur a saisi un nom ET qu'il y a plusieurs
+          // fichiers, on numérote pour les distinguer. Calculé ici pour servir au contrôle anti-doublon
+          // (on vérifie AVANT d'uploader → pas de fichier orphelin dans le stockage si c'est un doublon).
+          const lbl = baseName ? (files.length > 1 ? (baseName + ' (' + (i + 1) + ')') : baseName) : (f.name ? f.name.replace(/\.[a-z0-9]+$/i, '') : typeLabel(type));
+          // Anti-doublon centralisé (FP.dupe) — point d'ajout MANUEL d'un document. Pas pour les types
+          // « une seule par véhicule » (SINGLE : carte grise, etc.) qui remplacent déjà l'ancien.
+          // Confirme avant d'ajouter si un document identique existe déjà (même véhicule + type + libellé).
+          if (!SINGLE.has(type) && FP.dupe && FP.dupe.find('documents', { vehiculeId: veh.id, type, label: lbl }, docs)) {
+            const okDup = await FP.dupe.confirmAdd('documents', { vehiculeId: veh.id, type, label: lbl }, docs);
+            if (!okDup) { skipped++; continue; }
+          }
           const url = await FP.uploadScan(f, folder);
           if (!url) throw new Error('upload vide');
           if (SINGLE.has(type) && !singleCleared) {
@@ -16400,8 +16411,6 @@ FP.docsFolder = {
             for (const o of olds) { try { if (FP.db && FP.db.delete) await FP.db.delete('documents', o.id); else if (FP.persist && FP.persist.delete) FP.persist.delete('documents', o.id); } catch (e2) {} }
             docs = docs.filter(d => d.type !== type); singleCleared = true;
           }
-          // Nom : si l'utilisateur a saisi un nom ET qu'il y a plusieurs fichiers, on numérote pour les distinguer.
-          const lbl = baseName ? (files.length > 1 ? (baseName + ' (' + (i + 1) + ')') : baseName) : (f.name ? f.name.replace(/\.[a-z0-9]+$/i, '') : typeLabel(type));
           const doc = { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) + i, vehiculeId: veh.id, type, label: lbl, url, driveId: self._driveId(url) };
           if (FP.persist && FP.persist.available && FP.persist.available()) FP.persist.insert('documents', doc);
           else if (FP.db && FP.db.insert) { const r = await FP.db.insert('documents', doc); if (r && r.error) throw r.error; }
@@ -16411,6 +16420,7 @@ FP.docsFolder = {
       renderAll(); self._changed(veh.id);
       const nm = q('#fp-docs-name'); if (nm) nm.value = '';
       if (ok && FP.toast) FP.toast('✓ ' + ok + ' document' + (ok > 1 ? 's' : '') + ' ajouté' + (ok > 1 ? 's' : ''));
+      if (skipped && FP.toast) FP.toast(skipped + ' doublon' + (skipped > 1 ? 's' : '') + ' ignoré' + (skipped > 1 ? 's' : ''));
       if (ko) { if (FP.notifyError) FP.notifyError(ko + ' document(s) en échec — réessaie.'); else alert(ko + ' document(s) en échec.'); }
       // P4 — Lecture IA best-effort (opt-in opts.scanDetect) : prévient SANS bloquer si le document
       // semble d'une AUTRE FAMILLE que la catégorie choisie (ex. carte grise déposée sous « Facture »).
@@ -16646,11 +16656,31 @@ FP.dupe = {
         if (!(ma && mo && dc)) return null;
         return list.find(d => notSelf(d) && n(d.marque) === ma && n(d.modele) === mo && n(d.fournisseur) === four && this._same(d.dateCommande, dc)) || null;
       }
+      case 'documents': {
+        // Document d'une fiche (table `documents`). Doublon = MÊME fiche (véhicule) + MÊME type +
+        // soit le MÊME fichier Drive (driveId/fileId = id stable → doublon sûr), soit le MÊME libellé
+        // (re-dépôt du même fichier : un upload reçoit une URL neuve, donc on compare le libellé, pas l'URL).
+        // ⚠️ Volontairement NON appliqué aux dépôts AUTOMATIQUES / multi-photos (EDL, photos de sinistre) :
+        // chaque photo a un libellé/URL distinct → jamais flaguée ; seul le point d'ajout MANUEL (FP.docsFolder)
+        // appelle ce garde. Conçu pour ne PAS gêner des documents légitimement multiples (libellés différents).
+        const veh = n(rec.vehiculeId || rec.vehicule || rec.immat);
+        const typ = n(rec.type);
+        if (!veh || !typ) return null;
+        const drv = n(rec.driveId || rec.fileId);
+        const lbl = n(rec.label || rec.name);
+        return list.find(o => {
+          if (!notSelf(o)) return false;
+          if (n(o.vehiculeId || o.vehicule || o.immat) !== veh) return false;
+          if (n(o.type) !== typ) return false;
+          if (drv) return n(o.driveId || o.fileId) === drv;              // même fichier Drive = doublon sûr
+          return lbl && lbl.length >= 2 && n(o.label || o.name) === lbl;  // même libellé = fichier re-déposé
+        }) || null;
+      }
       default: return null;
     }
   },
-  _label(table){ return { factures:'Une facture', amendes:'Une amende', vehicules:'Un véhicule', conducteurs:'Un conducteur', emprunts:'Un emprunt', dossiers_achat:'Un dossier d\'achat' }[table] || 'Un élément'; },
-  _tag(d){ return d.numeroFacture ? ' n° ' + d.numeroFacture : d.numeroAvis ? ' avis ' + d.numeroAvis : d.immat ? ' ' + d.immat : (d.marque || d.modele) ? ' ' + [d.marque, d.modele].filter(Boolean).join(' ') : (d.name || d.prenom) ? ' ' + (d.name || d.prenom) : ''; },
+  _label(table){ return { factures:'Une facture', amendes:'Une amende', vehicules:'Un véhicule', conducteurs:'Un conducteur', emprunts:'Un emprunt', dossiers_achat:'Un dossier d\'achat', documents:'Un document' }[table] || 'Un élément'; },
+  _tag(d){ return d.numeroFacture ? ' n° ' + d.numeroFacture : d.numeroAvis ? ' avis ' + d.numeroAvis : d.immat ? ' ' + d.immat : (d.marque || d.modele) ? ' ' + [d.marque, d.modele].filter(Boolean).join(' ') : (d.name || d.prenom) ? ' ' + (d.name || d.prenom) : (d.label || d.name) ? ' « ' + (d.label || d.name) + ' »' : ''; },
   // Garde AVANT insertion : renvoie false si l'utilisateur refuse d'ajouter un doublon.
   // (Version simple OK/Annuler — conservée pour les points d'ajout qui ne gèrent PAS la fusion.)
   async confirmAdd(table, rec, list){

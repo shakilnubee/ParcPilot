@@ -54,6 +54,13 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 03/11/2026 — Audit F26 : anti-doublon au dépôt de documents ✅ (en production après fusion)
+La table `documents` n'avait **pas** de garde anti-doublon centralisée (`FP.dupe`) → on pouvait déposer deux fois le même document (d'où l'outil de purge manuel existant). Corrigé :
+- **Cas `documents` ajouté à `FP.dupe`** (source unique anti-doublon de la plateforme) : doublon = **même véhicule + même type** + soit le **même fichier Drive** (`driveId`/`fileId`, id stable), soit le **même libellé** (un upload reçoit une URL neuve → on compare le libellé, pas l'URL).
+- **Garde `confirmAdd` branchée au point d'ajout MANUEL** (`FP.docsFolder`, **avant** l'upload → pas de fichier orphelin dans le stockage). C'est un **confirm** (« Doublon possible — l'ajouter quand même ? »), pas un blocage.
+- **Volontairement exclu** : dépôts automatiques/multi-photos (états des lieux, photos de sinistre — chacune a un libellé/URL distinct, jamais flaguée) et types « une seule par véhicule » (carte grise… qui remplacent déjà l'ancien).
+- `app.js` + `.min.js` régénérés, `?v=` bumpé partout (`20261103a`), manuel à jour, `check-bugs` vert. PR #1200.
+
 ### 03/11/2026 — Audit F6 : verrou serveur de la config société (gestionnaire) ✅ (en production)
 Un compte **gestionnaire** pouvait, via l'API, modifier la config de **sa** société (e-mails d'amende, nom, groupes, seuils d'alerte, champs perso, documents obligatoires, automatisations) — c'était bloqué **seulement à l'écran**. Jamais une AUTRE société (l'isolation tenait). Fermé **côté base** :
 - **Approche choisie avec l'utilisateur** : un **verrou serveur qui reflète le cadenas de l'écran**, **sans** refondre le cœur des réglages (`FP.settings`) → on évite le risque « deux tiroirs » (perte de réglages) de la séparation en 2 lignes.
