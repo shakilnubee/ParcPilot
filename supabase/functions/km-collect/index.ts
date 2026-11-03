@@ -723,16 +723,30 @@ Deno.serve(async (req) => {
         const type = String(body.type || "sinistre").trim() === "probleme" ? "probleme" : "sinistre";
         const description = String(body.description || "").trim();
         if (!description) return json({ error: "Décris brièvement ce qui s'est passé." }, 400);
+        // ⚠️ IDEMPOTENCE (F14) : jeton d'envoi STABLE fourni par le client → un renvoi (connexion mobile
+        // instable, double-tap) ne crée JAMAIS de doublon. Absent (ancien client) → comportement d'avant
+        // (id serveur aléatoire). On n'empêche JAMAIS une vraie déclaration : en cas de doute, repli normal.
+        const _ct = String(body.clientToken || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48);
+        const declId = _ct ? ("dc-" + _ct) : genId("dc");
+        if (_ct) {
+          // Déjà enregistré sous ce jeton ? → on renvoie « ok » SANS ré-uploader, ré-insérer ni re-notifier.
+          const { data: exist } = await db.from("declarations_conducteur").select("id").eq("id", declId).maybeSingle();
+          if (exist) return json({ ok: true, type, duplicate: true });
+        }
         const _up = await uploadPhotosDetail(db, body.photos, dossierSociete(qr.societe) + "/declarations/" + (qr.plaque || "veh"));
         const photos = _up.urls;
         const rec = {
-          id: genId("dc"), vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",
+          id: declId, vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",
           type, date_incident: String(body.dateIncident || "").slice(0, 120), lieu: String(body.lieu || "").slice(0, 240),
           description: description.slice(0, 4000), tiers: String(body.tiers || "").slice(0, 600),
           blesses: String(body.blesses || "").slice(0, 240), photos, statut: "nouveau",
         };
         const ins = await db.from("declarations_conducteur").insert(rec);
-        if (ins.error) return json({ error: "Échec de l'enregistrement. Réessaie." }, 500);
+        if (ins.error) {
+          // Course entre deux envois quasi simultanés du MÊME jeton → conflit de clé primaire = déjà enregistré.
+          if (_ct && String((ins.error as { code?: string }).code || "") === "23505") return json({ ok: true, type, duplicate: true });
+          return json({ error: "Échec de l'enregistrement. Réessaie." }, 500);
+        }
         await sendPush(db, qr.societe || "PXP", {
           title: type === "probleme" ? "⚠️ Problème signalé" : "🚨 Sinistre déclaré",
           body: `${qr.plaque || "Véhicule"} — un conducteur vient de faire une déclaration.`,
@@ -887,15 +901,25 @@ Deno.serve(async (req) => {
         if (err) return json({ error: err }, 404);
         const question = String(body.description || "").trim();
         if (!question) return json({ error: "Écris ta question." }, 400);
+        // Idempotence (F14) — même mécanisme que la déclaration (jeton client stable).
+        const _ctq = String(body.clientToken || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48);
+        const quesId = _ctq ? ("dc-" + _ctq) : genId("dc");
+        if (_ctq) {
+          const { data: exist } = await db.from("declarations_conducteur").select("id").eq("id", quesId).maybeSingle();
+          if (exist) return json({ ok: true, type: "question", duplicate: true });
+        }
         const _up = await uploadPhotosDetail(db, body.photos, dossierSociete(qr.societe) + "/questions/" + (qr.plaque || "veh"));
         const photos = _up.urls;
         const ins = await db.from("declarations_conducteur").insert({
-          id: genId("dc"), vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",
+          id: quesId, vehicule_id: qr.vehicule_id, plaque: qr.plaque || "", societe: qr.societe || "PXP",
           type: "question",
           date_incident: new Date().toISOString().slice(0, 10),
           description: question.slice(0, 4000), photos, statut: "nouveau",
         });
-        if (ins.error) return json({ error: "Échec de l'envoi. Réessaie." }, 500);
+        if (ins.error) {
+          if (_ctq && String((ins.error as { code?: string }).code || "") === "23505") return json({ ok: true, type: "question", duplicate: true });
+          return json({ error: "Échec de l'envoi. Réessaie." }, 500);
+        }
         await sendPush(db, qr.societe || "PXP", {
           title: "❓ Question d'un conducteur",
           body: `${qr.plaque || "Véhicule"} — ${question.slice(0, 90)}`,
