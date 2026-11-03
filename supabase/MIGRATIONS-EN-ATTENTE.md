@@ -92,7 +92,10 @@ sérieusement les notes de frais / Sanef.**
 
 ---
 
-## 4) `gestionnaire-config-guard.sql` — verrou serveur de la config (audit F6) ⭐ À TESTER GESTIONNAIRE
+## 4) `gestionnaire-config-guard.sql` — verrou serveur de la config (audit F6) ✅ APPLIQUÉ EN PROD (03/11)
+
+> ✅ **03/11/2026 — APPLIQUÉ EN PRODUCTION** (Shakil, accord explicite ; voir `migrations/JOURNAL.md`).
+> Verrou `trg_guard_app_settings_config` actif. Faille d'autorisation intra-société fermée (F6 clos).
 
 **Le problème.** Un compte **gestionnaire** peut, via l'API, écrire la ligne `app_settings` de **sa**
 société (la policy RLS ne distingue pas son rôle). La config réservée à l'admin (e-mails d'amende,
@@ -124,7 +127,7 @@ config = bloqués ; admin = tout passe ; idempotent) **et** sur le STAGING (migr
 | `app_settings-concurrence.sql` | Aucun (additif) | ✅ **FAIT (03/11)** — CAS `rev` actif en prod | — (terminé) | — |
 | `conducteurs-id-stable.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Faible |
 | `factures-notes-de-frais-columns.sql` | Aucun (additif) | **Oui** (métadonnées notes de frais/Sanef) | Dès le lancement | **Recommandée** |
-| `gestionnaire-config-guard.sql` (F6) | Aucun (fail-open) | Ferme la faille config gestionnaire | Dès le lancement | **Haute** (après test gestionnaire) |
+| `gestionnaire-config-guard.sql` (F6) | Aucun (fail-open) | ✅ **FAIT (03/11)** — faille config gestionnaire fermée | — (terminé) | — |
 
 Dis-moi si tu veux qu'on enchaîne une **phase 2** (je la ferai par petites étapes,
 testables, sans casser l'existant).
