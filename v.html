@@ -2402,18 +2402,22 @@
     $('sin-err').style.display = 'none';
     if (!desc) { $('sin-err').textContent = t('err_desc'); $('sin-err').style.display = 'block'; return; }
     $('sin-send').disabled = true; $('sin-send').textContent = t('sending');
+    // ⚠️ Jeton d'envoi STABLE (anti-doublon F14) : généré UNE fois, RÉUTILISÉ si on renvoie après une
+    // erreur/coupure réseau, et remis à zéro SEULEMENT au succès → un renvoi ne crée jamais 2 déclarations.
+    var _st = $('sin-send'); if (!_st.dataset.tok) { _st.dataset.tok = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
     // Date + heure séparées → recombinées en un libellé lisible (« 12/08/2026 à 14:30 »).
     var dInc = [$('f-date').value ? frDate($('f-date').value) : '', $('f-heure').value ? ('à ' + $('f-heure').value) : ''].filter(Boolean).join(' ');
     // La catégorie choisie au triage est reprise en tête de description → le gestionnaire voit tout de
     // suite la nature (« Pneu — … »). L'envoi lui-même est identique à avant (action 'declaration' + type).
     var fullDesc = (sinCat ? (t('cat_' + sinCat.cat) + ' — ') : '') + desc;
     postJSON({
-      action: 'declaration', q: token, type: sinType,
+      action: 'declaration', q: token, type: sinType, clientToken: _st.dataset.tok,
       dateIncident: dInc, lieu: $('f-lieu').value, description: fullDesc,
       tiers: $('f-tiers').value, blesses: $('f-bless').value, photos: sinPhotos
     }, function (ok, d) {
       $('sin-send').disabled = false; $('sin-send').textContent = t('btn_send_decl');
       if (!ok) { $('sin-err').textContent = d.error || t('err_sendfail'); $('sin-err').style.display = 'block'; return; }
+      try { delete _st.dataset.tok; } catch (e) { _st.dataset.tok = ''; }
       $('sin-form-wrap').classList.add('hide'); $('sin-done').classList.remove('hide');
       if (typeof d.dropped === 'number' && d.dropped > 0) { try { alert(t('photos_partial').replace('{n}', d.saved).replace('{total}', d.sent)); } catch (e) {} }
     });
@@ -2431,9 +2435,11 @@
     $('que-err').style.display = 'none';
     if (!q) { $('que-err').textContent = t('err_question'); $('que-err').style.display = 'block'; return; }
     $('que-send').disabled = true; $('que-send').textContent = t('sending');
-    postJSON({ action: 'question', q: token, description: q, photos: quePhotos }, function (ok, d) {
+    var _qt = $('que-send'); if (!_qt.dataset.tok) { _qt.dataset.tok = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+    postJSON({ action: 'question', q: token, description: q, photos: quePhotos, clientToken: _qt.dataset.tok }, function (ok, d) {
       $('que-send').disabled = false; $('que-send').textContent = t('btn_send_que');
       if (!ok) { $('que-err').textContent = d.error || t('err_sendfail'); $('que-err').style.display = 'block'; return; }
+      try { delete _qt.dataset.tok; } catch (e) { _qt.dataset.tok = ''; }
       $('que-form-wrap').classList.add('hide'); $('que-done').classList.remove('hide');
       if (typeof d.dropped === 'number' && d.dropped > 0) { try { alert(t('photos_partial').replace('{n}', d.saved).replace('{total}', d.sent)); } catch (e) {} }
     });
