@@ -92,12 +92,39 @@ sérieusement les notes de frais / Sanef.**
 
 ---
 
+## 4) `gestionnaire-config-guard.sql` — verrou serveur de la config (audit F6) ⭐ À TESTER GESTIONNAIRE
+
+**Le problème.** Un compte **gestionnaire** peut, via l'API, écrire la ligne `app_settings` de **sa**
+société (la policy RLS ne distingue pas son rôle). La config réservée à l'admin (e-mails d'amende,
+nom société, groupes, seuils d'alerte, champs perso, documents obligatoires, automatisations) n'est
+protégée **qu'à l'écran**. Un gestionnaire averti pourrait l'altérer par un appel forgé (jamais une
+AUTRE société — l'isolation tient).
+
+**Ce que fait le script.** Ajoute un **déclencheur** `trg_guard_app_settings_config` qui, **pour un
+gestionnaire uniquement**, REFUSE une écriture si elle **change réellement** une clé de config
+(`societe`, `groupes`, `notif`, `pleinSeuilAnormal`, `customFields`, `docRequis`, `automations`, et
+`profil` **sauf** `logoUrl`). Tout le reste passe (données de travail, affichage, cache logo e-mail,
+clés inconnues) → **fail-open**, aucune opération du gestionnaire cassée. CEO/Admin : non concernés.
+
+**Pourquoi c'est sûr.** Le client écrit toujours par **fusion delta** : une clé de config non changée
+reste identique au serveur → jamais bloquée. Seul un vrai changement de config par un gestionnaire est
+refusé. **Testé sur un vrai PostgreSQL 16** (données de travail/affichage/logo = passent ; 6 types de
+config = bloqués ; admin = tout passe ; idempotent) **et** sur le STAGING (migration-staging.yml).
+
+> ⚠️ **Avant la PROD** : rejouer le **test avec un compte GESTIONNAIRE réel sur le staging** (opérations
+> de travail + envoi d'e-mail brandé = OK ; modif de config via l'app = masquée, via API = refusée).
+> Puis appliquer en prod avec accord + sauvegarde, et noter dans `JOURNAL.md`. Rollback dans le fichier.
+> Migration versionnée : `supabase/migrations/20261103140000_gestionnaire_config_guard.sql`.
+
+---
+
 ### En résumé
 | Script | Danger | Effet immédiat | Vraie valeur | Priorité |
 |--------|--------|----------------|--------------|----------|
 | `app_settings-concurrence.sql` | Aucun (additif) | ✅ **FAIT (03/11)** — CAS `rev` actif en prod | — (terminé) | — |
 | `conducteurs-id-stable.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Faible |
 | `factures-notes-de-frais-columns.sql` | Aucun (additif) | **Oui** (métadonnées notes de frais/Sanef) | Dès le lancement | **Recommandée** |
+| `gestionnaire-config-guard.sql` (F6) | Aucun (fail-open) | Ferme la faille config gestionnaire | Dès le lancement | **Haute** (après test gestionnaire) |
 
 Dis-moi si tu veux qu'on enchaîne une **phase 2** (je la ferai par petites étapes,
 testables, sans casser l'existant).
