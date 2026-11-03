@@ -22,20 +22,20 @@ premier. Aujourd'hui = risque faible (tu es le plus souvent seul à configurer).
 + un déclencheur qui les met à jour tout seul. **Effet immédiat : aucun** — c'est le
 socle.
 
-**Phase 2 (côté code, à faire ensuite, coordonné).** À l'enregistrement, l'appli lira
-le numéro de révision `rev`, écrira « seulement si personne n'a écrit entre-temps » ;
-sinon elle relit, refusionne et réessaie. Résultat : **plus aucune perte** de config à
-deux. C'est une modif du **cœur de l'enregistrement des réglages** → à faire quand tu
-peux tester juste après (je ne l'ai pas faite en autonomie pour ne rien casser).
+**Phase 2 (côté code).** À l'enregistrement, l'appli lit le numéro de révision `rev`,
+écrit « seulement si personne n'a écrit entre-temps » ; sinon elle relit, refusionne et
+réessaie. Résultat : **plus aucune perte** de config à deux.
 
 **Reco :** utile surtout le jour où **plusieurs admins** configurent en même temps.
-Peux lancer la phase 1 dès maintenant (inoffensif), la phase 2 quand tu veux qu'on la
-fasse ensemble.
 
-> ✅ **03/11/2026 (audit F1, Étape 0)** : la phase 1 existe aussi en **migration versionnée**
-> `supabase/migrations/20261103130000_app_settings_concurrence_rev.sql` (même SQL, idempotent),
-> **testée automatiquement sur le STAGING**. **PRODUCTION = manuelle** (SQL Editor → coller → Run).
-> La **phase 2 (verrou CAS côté code)** sera faite **après** l'application en prod, par étapes testées.
+> ✅✅ **03/11/2026 — TERMINÉ (audit F1).** Les DEUX phases sont en place :
+> - **Phase 1 (socle)** : migration versionnée `supabase/migrations/20261103130000_app_settings_concurrence_rev.sql`
+>   (colonnes `rev`+`updated_at` + trigger `trg_app_settings_touch`), **testée sur STAGING** (PR #1196)
+>   puis **appliquée en PRODUCTION** le 03/11.
+> - **Phase 2 (verrou CAS côté code)** : **déjà présente** dans `FP.settings._pushSettings`
+>   (`assets/js/app.js`, boucle `select('data, rev')` → `update … .eq('rev', rev)` → relire/refusionner/retenter),
+>   **feature-detecting** (repli par fusion sûre si `rev` absent). Elle était **dormante** faute de colonne `rev`
+>   en prod ; **depuis l'application de la phase 1, le CAS est actif tout seul**. Rien de plus à déployer.
 
 ---
 
@@ -95,7 +95,7 @@ sérieusement les notes de frais / Sanef.**
 ### En résumé
 | Script | Danger | Effet immédiat | Vraie valeur | Priorité |
 |--------|--------|----------------|--------------|----------|
-| `app_settings-concurrence.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Moyenne (si multi-admin) |
+| `app_settings-concurrence.sql` | Aucun (additif) | ✅ **FAIT (03/11)** — CAS `rev` actif en prod | — (terminé) | — |
 | `conducteurs-id-stable.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Faible |
 | `factures-notes-de-frais-columns.sql` | Aucun (additif) | **Oui** (métadonnées notes de frais/Sanef) | Dès le lancement | **Recommandée** |
 
