@@ -72,7 +72,8 @@ Grandes familles (détail plus bas) : **persistance/synchro** (`FP.persist`, `FP
 ## 5. Cache & synchronisation `[DOC: CLAUDE.md — section perf/anti-perte]`
 
 - **Supabase = source de vérité**. `localStorage` = **cache d'affichage** uniquement.
-- **Cache local complet** par société : clé versionnée `fp_data_cache_v3_<societe>` (véhicules + amendes + factures), + `fp_cond_cache_<societe>`, `fp_emprunts_<societe>`. Relu par `seedFromCache` **avant** le rendu → 1er affichage immédiat, puis rafraîchissement sur l'événement `fp:data-ready` (uniquement si les données ont changé — signature légère). `[DOC]`
+- **Cache local complet** par société : clé versionnée **`fp_data_cache_v4_<societe>`** (véhicules + amendes + factures + conducteurs), + `fp_cond_cache_<societe>`, `fp_emprunts_<societe>`, `fp_docs_cache`, `fp_ctrl_*`. Relu par `seedFromCache` **avant** le rendu → 1er affichage immédiat, puis rafraîchissement sur l'événement `fp:data-ready` (uniquement si les données/réglages ont changé — signature légère `_fpDataSig`). `[VÉRIFIÉ: app.js:26, supabase-client.js:428,493]`
+  > ⚠️ **Écart avec `CLAUDE.md`** : la doc mentionne `fp_data_cache_v3` ; le code utilise bien **`v4`**. (Fait vérifié, à corriger un jour dans CLAUDE.md — hors périmètre de cette mission lecture seule.)
 - **`data.js`** = instantané hors-ligne anonymisé (RGPD), filtré par société par l'IIFE `filterStaticCacheBySociete`. `[DOC]`
 - **Écritures durables** : `FP.persist` enfile l'écriture **avant** l'appel réseau (file optimiste), retente, et signale les échecs (pastille `#fp-sync-badge`, `FP.notifyError`) → **pas d'échec silencieux**. `[DOC]`
 - **Réglages** : `FP.settings` écrit dans `app_settings` sur la **même ligne** que la lecture (`_effectiveId`) ; toute map keyée doit figurer dans **`COLLECTION_KEYS`** pour ne pas être écrasée en bloc. `[DOC]`
@@ -86,8 +87,30 @@ Grandes familles (détail plus bas) : **persistance/synchro** (`FP.persist`, `FP
 - **Cache-busting** : `?v=AAAAMMJJx` sur `app.js`/`supabase-client.js`/`data.js` dans toutes les pages (+ `sw.js`, `version.json`) — à bumper à chaque changement de ces fichiers. Build courant `20261102f`. `[VÉRIFIÉ: version.json]`
 - **CI (`.github/workflows`)** : `ci.yml` (check-bugs + calculs + Playwright), `securite.yml` (accès anonyme, quotidien), `isolation.yml` (isolation sociétés, staging), `migration-staging.yml` (applique+teste les migrations de la PR sur le staging), `deploy-edge-functions.yml` (déploie `supabase/functions/**` à la fusion), `sauvegarde.yml` (sauvegarde chiffrée nocturne + restauration d'essai). `[VÉRIFIÉ: ls + 05]`
 
-## 7. Catalogue des helpers `FP.*`
+## 7. Catalogue des helpers `FP.*` `[VÉRIFIÉ: assets/js/app.js, supabase-client.js, fleet-views.js]`
 
-> _Section complétée à partir de l'exploration du code (`assets/js/app.js`, `supabase-client.js`, `fleet-views.js`)._ Voir aussi `08_CALCULS_REGLES_METIER.md` pour les helpers de calcul.
+**Ordre de chargement** : SDK Supabase → `supabase-client.js` (pose `window.FP` + `FP.supabase/db/auth/dbReady`) → `app.js` (définit `const FP={...}` puis `Object.assign(FP, window.FP)`, `app.js:2423`) → `fleet-views.js`, `bareme.js`, `fleet-docs.js`. `scanner2.js` seulement sur `pages/scanner.html`.
 
-_(À compléter — voir le détail recoupé dans 03/04/06/08.)_
+**Noyau / formatage** : `FP.euro`/`euroPrecis` (215/219), `FP.date`/`dateNum` (224/231), `FP.num` (239), `FP.joursRestants` (338, source unique), `FP.esc` (7216, anti-XSS source unique), `FP.norm`/`normLoose`/`searchMatch` (7203+), `FP.donutHTML`/`sparklineHTML`/`countUp` (305/321/262), `FP.initiales`/`avatarHTML` (12809/12814).
+
+**Persistance & synchro** (détail §5 + `04`) : `FP.persist` (13250, file durable optimiste : insert/upsert/update/delete/rpc/flush/applyTo), `FP.settings` (6381, app_settings par société, `_effectiveId`, `_pushSettings` fusion delta, `COLLECTION_KEYS` 6700), `FP._fusion` (6304, testé), `FP.projections` (3519 : `elementsReglages`→`settings_items`, `congesTable`→`driver_absences`, `affectationsTable`→`vehicle_assignments`, `contratsLLDTable`→`lease_contracts`, `forfaitsLeasingTable`→`lease_overrides`), `FP.db` (supabase-client:325, mapping snake↔camel), `FP.trash` (13137), `FP.restaurerReglages` (9563).
+
+**Rôles** (détail `09`) : `FP.profile` (2538), `FP.role` (2539), `FP.isCEO`/`isGestionnaire`/`isChauffeur` (2554-2556), `FP.isAdmin` (2558, =ceo||admin), `FP.isSuperAdmin` (2587), `FP.canManageSociete` (2589), `FP.canManageUsers` (2593), `FP.chauffeurImmats` (2561), `FP.activeSociete`/`setActiveSociete` (4795/4796), `FP.getSocietes`/`addSociete`/`removeSociete` (4822+).
+
+**Calculs métier** (détail `08`) : coûts (`coutMois` 1772, `dedupeFactures` 1752, `coutFactureExploit` 628, `coutExploitAnnee` 2155), amendes (`montantDu` 486, `estAPayer` 1983), véhicule (`estVendu` 419, `kmActuel` 2183, `echeanceStatut` 2248), leasing (`leasingContrat` 9236, `leasingInfo` 9295), fiscalité (`tvsDetail` 401, `aenDetail` 1407), assurance (`primeVeh` 1244, `assuranceAnnuelle` 1259), plaques (`normImmat` 1214, `immatEq` 1232, `vehByImmat` 1236), conducteurs (`normPrenom` 7721, `prenomDeCle` 3838, `condKeyDeConso` 3876, `conducteurNomUnifie` 3910, `migrateCondKey` 3782), carburant/péage (`txCat` 8541, `consoPendantConge` 4118, `estUlys`/`estTotalFleet` 1204/1205).
+
+**IA / scan** (détail `06`) : `FP.scanIA` (13832), `FP.SCAN_PROMPT` (13633), `FP.CG_SCAN_PROMPT` (13684), `FP.scanZone` (13962), `FP.constatPrompt` (13772), `FP.ocr` (14813), `FP.uploadScan` (14320), `FP.storageDossierSociete` (13597).
+
+**Anti-doublons** : `FP.dupe` (16584 : `confirmAdd`/`find`).
+
+**E-mail** : `FP.sendEmail` (supabase-client:52), `FP.buildMail`/`registerMail` (19914/19908), `FP.mailBrand`/`mailShell`/`mailDocument` (19756/19820/19635), `FP.mailModeleAmende`/`renderMailAmende` (19863/19876), `FP.fillTags` (5017).
+
+**Messagerie 3 canaux** : `FP.msg.open` (19038, SMS+WhatsApp+E-mail, source unique « prévenir un conducteur »), `FP.conducteurContact` (18979), `FP.share` (19277).
+
+**PDF / exports** : `FP.ensureJsPDF` (5498, chargement paresseux), `FP.fiche`/`openPreview` (18597/18647), `FP.makeExportMenu` (18261), `FP.csv` (18009), `FP.xlsx`/`ensureXLSX` (18086/658), `FP.facturesZip` (1785), `FP.injectDataIO` (18692).
+
+**Conducteurs / UI** : `FP.conducteurs` (3027, CRUD/create/find/displayName), `FP.newConducteurModal` (4696), `FP.conducteurPicker` (4742), `FP.searchSelect` (2624), `FP.filterResetButton` (2849), `FP.bulkSelect` (2953), `FP.galerie3d`, `FP.docsFolder` (16173), `FP.dialog`/`confirm`/`toast`/`notifyError` (12030/12144/11991/11981), `FP.lightbox`/`openScan`/`openPdf` (14482/14471/14533), `FP.history` (17360, undo/redo), `FP.makeColumnEditor` (17493), `FP.qr` (677).
+
+**Alertes / échéances / rapports** : `FP.buildAlertes` (10670), `FP.buildEcheances` (11647), `FP.santeVehicule`/`santeConducteur` (10198/10238), `FP.recommandations` (10385), `FP.rapportDirection`/`rapportRSE` (11750/11908), `FP.automations` (7542), `FP.docsRequis` (7419), `FP.customFields` (7304).
+
+> ⚠️ On édite **toujours** les sources (`app.js`/`fleet-views.js`), jamais les `.min.js` (empreinte vérifiée par `check-bugs`). Lignes approximatives (état 03/11/2026).
