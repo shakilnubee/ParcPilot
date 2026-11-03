@@ -77,6 +77,14 @@ réapparaîtront « Autre » / vides au rechargement). Après le script : **tout
 et synchronisé** sur tous tes appareils. → **À lancer une fois avant d'utiliser
 sérieusement les notes de frais / Sanef.**
 
+> ✅ **Depuis le 03/11/2026 (audit)** : ce script existe aussi en **migration versionnée**
+> `supabase/migrations/20261103120000_factures_notes_de_frais_colonnes.sql` (contenu
+> identique, idempotent). Elle est **testée automatiquement sur le STAGING** à chaque PR
+> (workflow `migration-staging.yml`). **La PRODUCTION reste manuelle** : quand tu veux,
+> Supabase → SQL Editor → coller le fichier → Run (une fois), puis noter dans
+> `supabase/migrations/JOURNAL.md`. (Tu peux aussi lancer l'ancien script racine, c'est
+> le même SQL.)
+
 ---
 
 ### En résumé
