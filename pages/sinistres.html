@@ -1233,26 +1233,26 @@
     if (sinPdf) {
       const s = sinistres.find(x => x.id === sinPdf.dataset.sinPdf); if (!s) return;
       // Le dossier assurance (lieu, tiers, conducteur figé) est indexé par la CLÉ DE GROUPE, pas par s.id.
-      const dv = (FP.settings.get().sinistreAssurance || {})[groupKeyOf(s.id)] || {};
+      const gkey = groupKeyOf(s.id);
+      const g = (typeof buildGroups === 'function') ? buildGroups(sinistres).find(x => String(x.key) === String(gkey)) : null;
+      const dv = (FP.settings.get().sinistreAssurance || {})[gkey] || {};
       const tiers = [dv.tiersPlaque, dv.tiersAssureur, dv.tiersNom].filter(Boolean).join(' · ');
       let desc = String(s.description || '').replace(/\s*·\s*Lieu\s*:[^·]*/i, '').replace(/\s*·\s*Tiers\s*:[^·]*/i, '').trim();
-      const allDocs = (typeof sinDocs !== 'undefined' ? sinDocs : []).filter(x => normPl(x.vehiculeId) === normPl(s.vehiculeImmat));
+      // ⚠️ PIÈCES JOINTES SCOPÉES À CET INCIDENT (correctif : plus de fuite EDL / autre sinistre).
+      // On ne prend QUE les documents RANGÉS dans ce sinistre : docSub(id) === 'sin:'+clé de groupe OU
+      // 'sin:'+id d'une de ses lignes. Les photos d'état des lieux (EDL) vivent dans declarations_conducteur
+      // (jamais dans sinDocs) → elles ne peuvent plus entrer ici. Repli SÛR anti-perte : si le véhicule n'a
+      // qu'UN SEUL incident, on inclut aussi ses documents non rangés (aucune ambiguïté possible, et sinDocs
+      // ne contient JAMAIS d'EDL). On NE tire PLUS les photos par plaque depuis DeclCond (c'était la fuite).
+      const incKeys = new Set(['sin:' + gkey]); if (g && g.lines) g.lines.forEach(l => incKeys.add('sin:' + l.id));
+      const onlyIncident = ((typeof buildGroups === 'function' ? buildGroups(sinistres) : []).filter(x => x && x.rep && FP.immatEq(x.rep.vehiculeImmat, s.vehiculeImmat)).length) <= 1;
+      const allDocs = (typeof sinDocs !== 'undefined' ? sinDocs : []).filter(x => normPl(x.vehiculeId) === normPl(s.vehiculeImmat) && (incKeys.has(docSub(x.id)) || (onlyIncident && !docSub(x.id))));
       // Pièces jointes du dossier {url, label, isConstat}. Le rapport classe ensuite images (vignettes)
       // et PDF (page pleine). Le CONSTAT = repéré par constatUrl (bouton « Lire le constat ») ou par un
       // libellé contenant « constat » → rendu en premier, en page pleine.
       const attMap = new Map();
       allDocs.forEach(x => { if (x.url) attMap.set(x.url, { url: x.url, label: x.label || '', isConstat: /constat/i.test(x.label || '') }); });
       if (dv.constatUrl) { const ex = attMap.get(dv.constatUrl); if (ex) ex.isConstat = true; else attMap.set(dv.constatUrl, { url: dv.constatUrl, label: 'Constat amiable', isConstat: true }); }
-      // ⚠️ Inclure AUSSI les photos envoyées par le conducteur depuis le QR (table declarations_conducteur) :
-      // selon le parcours de création, elles ne sont pas toujours recopiées dans les documents du dossier.
-      // On les ajoute ici (dédoublonnées par URL via attMap) → le rapport montre TOUJOURS toutes les photos
-      // du conducteur. Source : DeclCond.rows (toutes les déclarations de la société, même traitées).
-      try {
-        (DeclCond.rows || []).filter(dcl => dcl && dcl.plaque && (FP.immatEq ? FP.immatEq(dcl.plaque, s.vehiculeImmat) : (FP.normImmat(dcl.plaque) === FP.normImmat(s.vehiculeImmat)))).forEach(dcl => {
-          let ph = []; try { ph = Array.isArray(dcl.photos) ? dcl.photos : JSON.parse(dcl.photos || '[]'); } catch (_) { ph = []; }
-          ph.forEach(u => { if (u && !attMap.has(u)) attMap.set(u, { url: u, label: 'Photo conducteur' }); });
-        });
-      } catch (_) {}
       const attachments = [...attMap.values()];
       DeclCond.exportPdf({ id: s.id, type: 'sinistre', plaque: s.vehiculeImmat || '', created_at: s.date || '', date_incident: s.date ? FP.date(s.date) : '', lieu: dv.lieu || '', description: desc, tiers: tiers, conducteur: dv.conducteur || '', blesses: '', attachments: attachments }, sinPdf);
       return;
@@ -1820,6 +1820,20 @@
   function saveSubs(pl, arr){ try { const s = FP.settings.get(); s.sinistreSous = s.sinistreSous || {}; s.sinistreSous[normPl(pl)] = (arr || []).slice(); FP.settings.save(s); } catch (e) {} }
   function docSub(id){ try { return ((FP.settings.get().sinistreDocSub) || {})[id] || null; } catch (e) { return null; } }
   function setDocSub(id, sub){ try { const s = FP.settings.get(); s.sinistreDocSub = s.sinistreDocSub || {}; if (sub) s.sinistreDocSub[id] = sub; else delete s.sinistreDocSub[id]; FP.settings.save(s); } catch (e) {} }
+  // ⚠️ AFFICHAGE SEULEMENT — ne modifie JAMAIS la déclaration stockée en base.
+  // Le portail conducteur (v.html) colle en tête du récit le libellé de la catégorie choisie
+  // (« Autre souci — … », « Pneu crevé / abîmé — … »). On le retire à l'affichage/dans le PDF, mais
+  // UNIQUEMENT si le texte commence EXACTEMENT par un libellé de catégorie connu (toutes langues) suivi
+  // de « — » → jamais un texte réellement saisi par le conducteur. (Catégorie conservée telle quelle en base.)
+  const DECL_CAT_PREFIXES = ['Accident','Bris de glace','Panne / ne démarre plus','Pneu crevé / abîmé','Voyant allumé','Problème de clés','Autre souci','Broken glass',"Breakdown / won't start",'Flat / damaged tyre','Warning light on','Key problem','Other issue','Accidente','Cristal roto','Avería / no arranca','Neumático pinchado / dañado','Testigo encendido','Problema de llaves','Otro problema','Incidente','Vetro rotto','Guasto / non parte','Pneumatico forato / danneggiato','Spia accesa','Problema di chiavi','Altro problema','Unfall','Glasbruch','Panne / springt nicht an','Reifen platt / beschädigt','Warnleuchte an','Schlüsselproblem','Anderes Problem','事故','玻璃破损','抛锚／无法启动','轮胎漏气／损坏','仪表警示灯亮','钥匙问题','其他问题'];
+  function stripDeclCatPrefix(txt){
+    let s = String(txt == null ? '' : txt);
+    for (const lbl of DECL_CAT_PREFIXES){
+      const pfx = lbl + ' — ';
+      if (s.slice(0, pfx.length) === pfx) return s.slice(pfx.length).replace(/^\s+/, '');
+    }
+    return s;
+  }
   function addSub(pl, name){ name = (name || '').trim(); if (!name) return false; const arr = getSubs(pl); if (arr.some(s => s.toLowerCase() === name.toLowerCase())) { alert('Ce sous-dossier existe déjà.'); return false; } arr.push(name); saveSubs(pl, arr); return true; }
   function renameSub(pl, oldName, newName){
     newName = (newName || '').trim(); if (!newName || newName === oldName) return;
@@ -2489,7 +2503,7 @@
         const wParc = doc.getTextWidth('Parc');
         doc.setTextColor.apply(doc, ORANGE); doc.text('Pilot', M + 12 + wParc, 17.6);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-        doc.text(isSin ? 'RAPPORT DE SINISTRE' : "RAPPORT D'INCIDENT", pw - M, 13.5, { align: 'right' });
+        doc.text(isSin ? 'DÉCLARATION DE SINISTRE' : "RAPPORT D'INCIDENT", pw - M, 13.5, { align: 'right' });
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(165, 175, 195);
         doc.text('Réf. ' + ref, pw - M, 19.8, { align: 'right' });
         doc.text('Édité le ' + FP.date(today), pw - M, 24.3, { align: 'right' });
@@ -2578,8 +2592,10 @@
           y += cardH + 5;
         };
 
-        // --- Société déclarante ---
-        cardSection('Société déclarante', [
+        // --- Identification du dossier (réf + société déclarante) ---
+        cardSection('Identification du dossier', [
+          ['Référence', ref, true],
+          ["Date d'édition", FP.date(today), true],
           ['Société', socNom, true],
           ['SIRET', soc.siret],
           ['Adresse', soc.adresse],
@@ -2592,24 +2608,31 @@
           ['Marque & modèle', veh ? [veh.marque, veh.modele].filter(Boolean).join(' ') : ''],
           ['N° de série (VIN)', veh && veh.vin],
           ['Conducteur', conducteur],
-          ['Assureur', assNom ? (assNom + (assPolice ? ' — police ' + assPolice : '')) : ''],
         ]);
 
-        // --- Détails du sinistre / incident ---
+        // --- Assurance (rubrique dédiée, comme la maquette validée) — masquée si inconnue ---
+        cardSection('Assurance', [
+          ['Assureur', assNom],
+          ['N° de police', assPolice],
+        ]);
+
+        // --- Déclaration du conducteur ---
+        // ⚠️ Pas de ligne « Nature » : évite la qualification contradictoire (« Panne/problème » issue du
+        // choix de catégorie du conducteur, cf. v.html) — le TITRE du document porte déjà la nature.
         // Lieu : rue et ville séparés (le constat envoie « rue, ville »).
         const lieuRows = [];
         if (d.lieu && String(d.lieu).indexOf(',') >= 0) {
           const _lp = String(d.lieu).split(','); lieuRows.push(['Rue', _lp.slice(0, -1).join(',').trim()]); lieuRows.push(['Ville', _lp.slice(-1)[0].trim()]);
         } else { lieuRows.push(['Lieu', d.lieu]); }
-        cardSection(isSin ? 'Détails du sinistre' : "Détails de l'incident", [
-          ['Nature', isSin ? 'Sinistre / accident' : 'Panne / problème', true],
+        cardSection('Déclaration du conducteur', [
           ["Date de l'incident", d.date_incident],
           ['Déclaration reçue le', d.created_at ? FP.date(String(d.created_at).slice(0, 10)) : ''],
           ...lieuRows,
           ['Tiers impliqué', d.tiers],
           ['Blessés', d.blesses],
         ]);
-        cardBlock('Circonstances déclarées', d.description);
+        // Récit : préfixe de catégorie retiré À L'AFFICHAGE (déclaration en base inchangée).
+        cardBlock('Circonstances déclarées', stripDeclCatPrefix(d.description));
         y += 3;
 
         // --- Réponse envoyée au conducteur (celle qu'il voit aussi dans son espace « Mes signalements ») ---
@@ -2644,6 +2667,15 @@
           let cn0 = []; try { cn0 = Array.isArray(d.constats) ? d.constats : (d.constat ? [d.constat] : []); } catch (e) { cn0 = []; }
           cn0.forEach(u => { if (u) atts.push({ url: u, isConstat: true }); });
         }
+        // --- Pièces justificatives (récapitulatif) — rubrique de la maquette validée ---
+        if (atts.length) {
+          const nConstat = atts.filter(a => a.isConstat).length;
+          cardSection('Pièces justificatives', [
+            ['Photos / documents joints', String(atts.length), true],
+            ['Constat amiable', nConstat ? 'Joint' : 'Non joint', true],
+          ]);
+          y += 1;
+        }
         // 1) Récupération + classement (une seule requête réseau par pièce).
         const imgs = [], pdfs = [];
         for (const a of atts) {
@@ -2654,18 +2686,47 @@
           if (isPdf) { pdfs.push({ blob, url: a.url, label: a.label || '', isConstat: !!a.isConstat }); }
           else { let du = null; try { du = await blobToDataUrl(blob); } catch (e) {} if (du && /^data:image\//i.test(du)) imgs.push(du); }
         }
-        // 2) Photos (images uniquement) → vignettes groupées, dans le flux.
-        if (imgs.length) {
-          section('Pièces jointes — photos (' + imgs.length + ')');
-          for (const dataUrl of imgs) {
-            let props; try { props = doc.getImageProperties(dataUrl); } catch (e) { continue; }
-            const maxW = pw - 2 * M, maxH = 110;
-            let w = maxW, h = w * props.height / props.width; if (h > maxH) { h = maxH; w = h * props.width / props.height; }
-            if (y + h > ph - 18) { doc.addPage(); y = M + 6; }
-            const fmt = /^data:image\/png/i.test(dataUrl) ? 'PNG' : 'JPEG';
-            try { doc.addImage(dataUrl, fmt, M, y, w, h); } catch (e) { continue; }
-            y += h + 6;
+        // 2) Photos (images) → mise en page ADAPTATIVE, proportions préservées, sans page presque vide.
+        //    1 photo  : grande et centrée (nouvelle page si la place manque → jamais une vignette en bas).
+        //    2+ photos : grille 2 colonnes à hauteur de rangée homogène, chaque image « contain » dans sa
+        //    cellule (jamais déformée), saut de page propre entre les rangées, photos numérotées.
+        if (imgs.length === 1) {
+          let props = null; try { props = doc.getImageProperties(imgs[0]); } catch (e) {}
+          if (props) {
+            const availW = pw - 2 * M;
+            if (y + 14 + 90 > ph - 16) { doc.addPage(); y = M + 6; } // garde la photo grande (≥ 90 mm)
+            section('Pièce jointe — photo');
+            const availH = ph - 16 - y;
+            let w = availW, h = w * props.height / props.width;
+            const capH = Math.min(availH, 200);
+            if (h > capH) { h = capH; w = h * props.width / props.height; }
+            if (w > availW) { w = availW; h = w * props.height / props.width; }
+            const x = M + (availW - w) / 2;
+            const fmt = /^data:image\/png/i.test(imgs[0]) ? 'PNG' : 'JPEG';
+            try { doc.addImage(imgs[0], fmt, x, y, w, h); } catch (e) {}
+            y += h + 4;
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor.apply(doc, LBLC);
+            doc.text('Photo n°1 — transmise par le conducteur.', M, y); y += 6;
           }
+        } else if (imgs.length > 1) {
+          const availW = pw - 2 * M, gap = 5, cols = 2, cellW = (availW - gap * (cols - 1)) / cols, cellH = 68;
+          if (y + 14 + cellH > ph - 16) { doc.addPage(); y = M + 6; }
+          section('Pièces jointes — photos (' + imgs.length + ')');
+          let col = 0, rowTop = y;
+          for (let i = 0; i < imgs.length; i++) {
+            let props; try { props = doc.getImageProperties(imgs[i]); } catch (e) { continue; }
+            if (col === 0 && rowTop + cellH > ph - 16) { doc.addPage(); rowTop = M + 6; }
+            const cx = M + col * (cellW + gap);
+            let w = cellW, h = w * props.height / props.width;
+            if (h > cellH) { h = cellH; w = h * props.width / props.height; }
+            const ox = cx + (cellW - w) / 2, oy = rowTop + (cellH - h) / 2;
+            const fmt = /^data:image\/png/i.test(imgs[i]) ? 'PNG' : 'JPEG';
+            try { doc.addImage(imgs[i], fmt, ox, oy, w, h); } catch (e) {}
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, LBLC);
+            doc.text('n°' + (i + 1), cx + 1, rowTop + 3.5);
+            col++; if (col >= cols) { col = 0; rowTop += cellH + gap; }
+          }
+          y = (col === 0 ? rowTop : rowTop + cellH + gap);
         }
         // 3) Documents PDF → PAGE PLEINE (constat en priorité, puis tout autre PDF du dossier).
         pdfs.sort((a, b) => (b.isConstat ? 1 : 0) - (a.isConstat ? 1 : 0));

@@ -1,7 +1,7 @@
 # Parc Pilot — Suivi du projet de fiabilisation
 
 > Document de suivi partageable. **Tenu à jour à chaque étape** (voir « Comment ce document est tenu à jour » en bas).
-> Dernière mise à jour : **30/10/2026** (4 lots de correctifs d'audit fiabilité/sécurité/cohérence — PR #1161 à #1164, en production. Avant : réservation de véhicules — portail public `reserver.html` + gestion in-app ; migrations `reservations` et `dossiers_achat` **appliquées en production** le 30/10 ~15:57 UTC → modules Réservation et « Acheter » **actifs**.)
+> Dernière mise à jour : **03/11/2026** (Rapports PDF de sinistres refondus au format « Déclaration de sinistre » validé avec l'utilisateur : rubriques en cartes, **retrait à l'affichage** du préfixe de catégorie « Autre souci — » collé par le portail conducteur — base intacte —, **suppression de la ligne « Nature » contradictoire**, **mise en page photos adaptative** (1 grande / 2–4 grille / 5+ paginé, sans déformer), et **pièces jointes scopées au seul incident** (fin de la fuite des photos d'EDL / d'un autre sinistre du même véhicule). Modif HTML pure — `pages/sinistres.html` + manuel ; pas de migration Supabase. Avant : 4 lots de correctifs d'audit fiabilité/sécurité/cohérence — PR #1161 à #1164 ; réservation de véhicules + module « Acheter » actifs.)
 >
 > ⚠️ Ce dépôt est **public** : ce document ne contient aucun secret ni donnée personnelle. Les failles **pas encore corrigées en production** n'y sont décrites qu'en termes généraux.
 
