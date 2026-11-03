@@ -32,6 +32,11 @@ peux tester juste après (je ne l'ai pas faite en autonomie pour ne rien casser)
 Peux lancer la phase 1 dès maintenant (inoffensif), la phase 2 quand tu veux qu'on la
 fasse ensemble.
 
+> ✅ **03/11/2026 (audit F1, Étape 0)** : la phase 1 existe aussi en **migration versionnée**
+> `supabase/migrations/20261103130000_app_settings_concurrence_rev.sql` (même SQL, idempotent),
+> **testée automatiquement sur le STAGING**. **PRODUCTION = manuelle** (SQL Editor → coller → Run).
+> La **phase 2 (verrou CAS côté code)** sera faite **après** l'application en prod, par étapes testées.
+
 ---
 
 ## 2) `conducteurs-id-stable.sql` — un identifiant qui ne bouge jamais
