@@ -3,6 +3,11 @@
 --  (sans bloquer ses DONNÉES DE TRAVAIL). Remplace proprement le durcissement de 2026-07-30
 --  qui, lui, bloquait TOUTE écriture app_settings et cassait la prod.
 --  À exécuter dans Supabase → SQL Editor → coller → Run.
+--
+--  ⚠️ SOURCE DE VÉRITÉ = la migration versionnée
+--     `supabase/migrations/20261103140000_gestionnaire_config_guard.sql` (audit F6),
+--     testée automatiquement sur le STAGING. Ce fichier en est la COPIE IDENTIQUE (même SQL,
+--     idempotent) pour un lancement manuel. Garder les deux synchronisés.
 -- ============================================================
 --
 --  POURQUOI un TRIGGER et pas une policy :
@@ -27,11 +32,15 @@ language plpgsql
 as $$
 declare
   k text;
-  -- Clés de CONFIG société réservées à l'admin. Ensemble volontairement CONSERVATEUR : uniquement
-  -- des clés qui n'ont AUCUN chemin d'écriture « de travail » pour un gestionnaire (vérifié dans le
-  -- code : les garages `prestataires` NE sont PAS ici car un gestionnaire les ajoute depuis Entretiens/
-  -- Sinistres). `profil` couvre l'adresse d'envoi des e-mails (mailExpediteur) = point sensible.
-  protected text[] := array['profil', 'societe', 'groupes', 'notif'];
+  -- Clés de CONFIG société réservées à l'admin, protégées EN BLOC. Chacune vérifiée : AUCUN
+  -- chemin d'écriture « de travail » pour un gestionnaire. (Les garages `prestataires` NE sont
+  -- PAS ici car un gestionnaire les ajoute depuis Entretiens/Sinistres.)
+  --   societe · groupes · notif · pleinSeuilAnormal (seuils, savers gardés par FP.canManageSociete)
+  --   customFields/docRequis/automations = DÉFINITIONS admin (valeurs/overrides/logs vivent ailleurs).
+  protected text[] := array[
+    'societe', 'groupes', 'notif', 'pleinSeuilAnormal',
+    'customFields', 'docRequis', 'automations'
+  ];
 begin
   -- N'agit que pour un GESTIONNAIRE (le rôle fait autorité = profiles via public.fp_role()).
   if public.fp_role() is distinct from 'gestionnaire' then
@@ -43,6 +52,13 @@ begin
         using errcode = '42501';   -- insufficient_privilege
     end if;
   end loop;
+  -- `profil` : protégé SAUF `logoUrl` (cache d'URL du logo hébergé régénéré par l'envoi d'e-mails
+  -- brandés — opération autorisée au gestionnaire). Le logo lui-même (logoDataUrl) reste protégé.
+  if (coalesce(OLD.data -> 'profil', '{}'::jsonb) - 'logoUrl')
+       is distinct from (coalesce(NEW.data -> 'profil', '{}'::jsonb) - 'logoUrl') then
+    raise exception 'Configuration societe (profil) reservee a l''administrateur.'
+      using errcode = '42501';
+  end if;
   return NEW;
 end;
 $$;
