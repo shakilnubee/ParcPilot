@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104b">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -381,8 +381,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104a"></script>
-<script src="../assets/js/supabase-client.js?v=20261104a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104b"></script>
+<script src="../assets/js/supabase-client.js?v=20261104b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -398,10 +398,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261104a"></script>
+<script src="../assets/js/app.min.js?v=20261104b"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -971,17 +971,21 @@
       if (!opts.force && !nom && !immat) return; // envoi auto : rien à personnaliser
       const c = (nom && FP.conducteurContact) ? (FP.conducteurContact(nom) || {}) : {};
       const prenom = nom.split(/\s+/)[0] || '';
+      // Langue du message = langue du CONDUCTEUR (FP.condLangue : 'fr', sinon 'en'). Source unique,
+      // même règle que les amendes / le relevé km : un conducteur non francophone reçoit en anglais.
+      const lang = (window.FP && FP.condLangue) ? FP.condLangue(nom) : 'fr';
+      const L = (fr, en) => (lang === 'en' ? en : fr);
       const titre = t.titre || 'Information';
       const dateFr = t.echeance ? (FP.date ? FP.date(t.echeance) : t.echeance) : '';
       const dateTxt = dateFr + (t.heure ? (' à ' + t.heure) : '');
       let msg;
-      if (taskType(t) === 'rdv' && FP.mailModeleProfil && FP.fillTags) {
-        msg = FP.fillTags(FP.mailModeleProfil('mailModeleRdvGarage', 'rdvgarage'), { prenom, immat, motif: titre, date: dateTxt });
+      if (taskType(t) === 'rdv' && FP.mailModeleProfilL && FP.fillTags) {
+        msg = FP.fillTags(FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang), { prenom, immat, motif: titre, date: dateTxt });
       } else {
-        msg = 'Bonjour' + (prenom ? (' ' + prenom) : '') + ',\n\n' + titre
-          + (immat ? ('\nVéhicule : ' + immat) : '')
-          + (dateTxt ? ('\nDate : ' + dateTxt) : '')
-          + (t.lieu ? ('\nLieu : ' + t.lieu) : '');
+        msg = L('Bonjour', 'Hello') + (prenom ? (' ' + prenom) : '') + ',\n\n' + titre
+          + (immat ? ('\n' + L('Véhicule', 'Vehicle') + ' : ' + immat) : '')
+          + (dateTxt ? ('\n' + L('Date', 'Date') + ' : ' + dateTxt) : '')
+          + (t.lieu ? ('\n' + L('Lieu', 'Location') + ' : ' + t.lieu) : '');
       }
       let logo = ''; try { const lu = (FP.settings.get().profil || {}).logoUrl; if (/^https?:\/\//.test(String(lu || ''))) logo = String(lu); } catch (_) {}
       let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (_) {}
@@ -1009,11 +1013,11 @@
       const html = FP.mailShell ? FP.mailShell({ brand: soc, logoUrl: logo, title: titre, bodyHtml: '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(msg).replace(/\n/g, '<br>') + '</div>' + noteAgenda }) : '';
       // Objet : RDV → objet ÉDITABLE (Paramètres → E-mails), balises {motif}{date}{immat}{prenom} ;
       // autres types → objet générique repli.
-      const _fallbackSubj = titre + (dateFr ? (' le ' + dateFr) : '') + (immat ? (' (' + immat + ')') : '');
-      const _subj = (taskType(t) === 'rdv' && FP.mailObjet)
-        ? (FP.mailObjet('rdvgarage', { motif: titre, date: dateFr, immat: immat, prenom: prenom }) || _fallbackSubj)
+      const _fallbackSubj = titre + (dateFr ? (L(' le ', ' on ') + dateFr) : '') + (immat ? (' (' + immat + ')') : '');
+      const _subj = (taskType(t) === 'rdv' && FP.mailObjetL)
+        ? (FP.mailObjetL('rdvgarage', { motif: titre, date: dateFr, immat: immat, prenom: prenom }, lang) || _fallbackSubj)
         : _fallbackSubj;
-      FP.msg.open({ phone: c.tel || '', email: c.email || '', nom: prenom, title: 'Envoyer', text: msg, emailSubject: _subj, emailHtml: html, emailOpts: emailOpts });
+      FP.msg.open({ phone: c.tel || '', email: c.email || '', nom: prenom, lang: lang, title: 'Envoyer', text: msg, emailSubject: _subj, emailHtml: html, emailOpts: emailOpts });
     } catch (_) {}
   }
 
