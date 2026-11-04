@@ -229,10 +229,15 @@
          de données (FP.offreAchat → table offres_achat), aucune duplication. -->
     <section id="sec-demandes" role="tabpanel" aria-labelledby="tab-demandes" hidden>
       <div class="card p-6 mb-6">
+        <!-- En-tête : titre+sous-titre à GAUCHE (wrapper flex:1), bouton à DROITE, puis le chevron de pli/dépli
+             (ajouté automatiquement par app.js) à l'extrémité. On NE met PAS ml-auto sur le bouton : le chevron
+             porte déjà margin-left:auto → deux marges auto se partageraient l'espace et centreraient le bouton. -->
         <div class="section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:800">
-          <i data-lucide="inbox" class="w-5 h-5"></i> Demandes d'achat
-          <span class="text-xs font-normal text-slate-400">les acheteurs intéressés par tes véhicules</span>
-          <button id="arch-add" type="button" class="btn btn-dark text-xs ml-auto" style="padding:4px 12px"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter une demande</button>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1 1 auto;min-width:0">
+            <i data-lucide="inbox" class="w-5 h-5"></i> Demandes d'achat
+            <span class="text-xs font-normal text-slate-400">les acheteurs intéressés par tes véhicules</span>
+          </div>
+          <button id="arch-add" type="button" class="btn btn-dark text-xs" style="padding:4px 12px;flex:0 0 auto"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter une demande</button>
         </div>
         <p class="text-sm text-slate-600 mb-4 mt-2">Chaque fois qu'un acheteur remplit le <b>formulaire acheteur</b> (lien envoyé depuis l'onglet <b>À vendre</b>), sa demande arrive ici. Tu retrouves les coordonnées (particulier ou société), tu peux ouvrir le <b>dossier de vente</b> du véhicule (où tu ranges le Cerfa de cession), puis <b>classer</b> la demande une fois traitée. Tu peux aussi en <b>ajouter une à la main</b> (acheteur rencontré hors formulaire).</p>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
