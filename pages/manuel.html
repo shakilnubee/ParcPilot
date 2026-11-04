@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -615,14 +615,15 @@
 
         <div class="man-zone">Le dossier « Dossier assurance — suivi » (nouveau)</div>
         <div class="man-item"><b>Barre d'étapes</b> : Déclaré → Envoyé assurance → Réponse assureur → Réparation → Remboursement → Clôturé, avec les dates clés et l'étape en cours mise en avant → tu vois d'un coup d'œil où en est chaque sinistre. <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> Ce bloc est <b>replié par défaut</b> (cartes plus courtes, moins de défilement sur mobile) : tape <b>« Dossier assurance — suivi »</b> pour le déplier, il <b>reste ouvert</b> pendant que tu remplis les champs.</div>
-        <div class="man-item"><b>📸 « Scanner le courrier de l'assureur (IA) »</b> : tu déposes le courrier reçu → l'IA lit la <b>responsabilité</b> (en tort / pas en tort / partagé), le <b>n° de dossier</b> et la <b>date</b>, garde le courrier (« Voir le courrier ») et te <b>propose</b> la responsabilité (tu confirmes, jamais enregistrée sans validation). Champs en plus : n° de dossier, date de déclaration, date de réponse. Bouton <b>« Clôturer / Rouvrir le dossier »</b>.</div>
+        <div class="man-item"><b>📸 « Scanner le courrier de l'assureur (IA) »</b> : tu déposes le courrier reçu → l'IA lit la <b>responsabilité</b> (en tort / pas en tort / partagé), le <b>n° de dossier</b> et la <b>date</b>, garde le courrier (« Voir le courrier ») et te <b>propose</b> la responsabilité (tu confirmes, jamais enregistrée sans validation). <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> L'IA lit aussi, <b>quand ils sont clairement écrits</b>, le montant de la <b>franchise</b> et la <b>prise en charge annoncée</b> et les reporte dans le suivi financier (elle n'invente rien : un montant non étiqueté reste vide). Champs en plus : n° de dossier, date de déclaration, date de réponse. Bouton <b>« Clôturer / Rouvrir le dossier »</b>.</div>
+        <div class="man-item"><b>💶 Suivi financier détaillé</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans le « Dossier assurance », un bloc <b>💶 Suivi financier</b> sépare clairement <b>tous les montants</b> d'un sinistre, sans jamais les mélanger : <b>Coût estimé</b> et <b>Coût facturé</b> (lu automatiquement sur les factures rattachées) ; <b>Franchise contractuelle</b> (prévue au contrat) et <b>Franchise appliquée</b> (réellement retenue) ; <b>PEC annoncée</b> et <b>PEC confirmée</b> (prise en charge de l'assureur). Les <b>remboursements encaissés</b> se saisissent un par un (<b>« + Ajouter »</b> : date, montant, libellé — tu peux en mettre plusieurs et en retirer), au lieu d'un seul chiffre. En bas, trois synthèses calculées toutes seules : <b>Reste à recevoir</b> (PEC confirmée − déjà encaissé), <b>Reste à charge prévisionnel</b> (franchise appliquée si saisie, sinon coût − PEC confirmée) et <b>Reste à charge définitif</b> (qui n'apparaît qu'une fois la case <b>« Dossier financièrement soldé »</b> cochée). <b>Règle d'or :</b> une information inconnue s'affiche <b style="color:#7c3aed">« À déterminer »</b> — <b>jamais remplacée par 0</b> ; un <b style="color:#047857">0 €</b> vert = valeur confirmée. La plateforme <b>n'invente aucun montant</b> (elle n'écrit pas « remboursement 300 € » juste parce que la franchise est de 300 €).</div>
         <div class="man-item"><b>Alertes automatiques</b> : « <b>sinistre sans réponse de l'assureur</b> » (déclaré depuis plus de 3 semaines sans responsabilité ni réponse → relance l'assureur) et « en attente de remboursement ». Elles s'éteignent dès que tu remplis la suite du dossier, scannes le courrier, <b>ou passes le suivi en « Remboursé » / « Prise en charge » / « Refusé »</b> (dans tous ces cas l'assureur a répondu → le sinistre n'est plus compté « sans réponse »), ou dès qu'un montant remboursé est saisi.</div>
 
         <div class="man-zone">Les 6 chiffres du haut</div>
         <div class="man-item"><b>Total sinistres</b> — nombre d'incidents.</div>
         <div class="man-item"><b>Coût total</b> — somme des coûts des incidents (les lignes « devis » ne comptent pas ; s'il n'y a que des devis, on prend le plus élevé).</div>
-        <div class="man-item"><b>Reste à charge</b> — la part que <b>ton entreprise paie vraiment</b>, une fois l'assurance déduite. Exemple : un sinistre coûte 2 000 €, l'assurance rembourse 1 500 € → il te reste <b>500 €</b> à ta charge. Le calcul : <b>coût du sinistre − montant remboursé par l'assurance</b> (jamais en dessous de 0 : si l'assurance rembourse tout, le reste à charge est 0). Le montant remboursé se saisit dans le <b>« Dossier assurance »</b> de chaque incident (le petit bloc dépliable à côté de la ligne).</div>
-        <div class="man-item"><b>Remboursé par l'assurance</b> — total déjà <b>remboursé / pris en charge</b> par l'assurance sur la période (somme du champ « Remboursé » saisi dans chaque dossier assurance). Les trois montants vont ensemble : <b>Total réparé</b> (ce qui a été facturé) − <b>Remboursé</b> (ce que l'assurance a rendu) = <b>Reste à charge</b> (ce que la société paie vraiment).</div>
+        <div class="man-item"><b>Reste à charge</b> — la part que <b>ton entreprise paie vraiment</b>. C'est la somme des <b>« reste à charge prévisionnel »</b> de chaque incident (voir « 💶 Suivi financier détaillé » plus haut) : la <b>franchise appliquée</b> si elle est saisie, sinon <b>coût − prise en charge confirmée</b> (jamais en dessous de 0). Un incident dont le reste est encore <b style="color:#7c3aed">« À déterminer »</b> ne compte pas (pas de chiffre inventé). C'est le <b>même nombre</b> que dans les Statistiques (TCO) et sur la fiche du véhicule.</div>
+        <div class="man-item"><b>Remboursé par l'assurance</b> — total réellement <b>encaissé</b> sur la période (somme des <b>versements</b> saisis dans chaque dossier). Les trois montants vont ensemble : <b>Total réparé</b> (ce qui a été facturé) − <b>Encaissé</b> (ce que l'assurance a versé) → <b>Reste à charge</b> (ce que la société paie vraiment). ⚠️ À ne pas confondre avec la <b>PEC confirmée</b> (ce que l'assureur s'est engagé à payer) : tant que l'argent n'est pas reçu, le <b>« reste à recevoir »</b> le montre.</div>
         <div class="man-item"><b>Véhicules concernés</b> — nombre de plaques touchées. <b>Cliquable</b> : clique la carte pour ouvrir la liste des véhicules concernés (avec le nombre d'incidents de chacun), chaque véhicule mène à sa fiche.</div>
         <div class="man-item"><b>Sinistres responsables</b> — incidents où la responsabilité « responsable » (conducteur en tort) a été renseignée. Astuce : dans le <b>« Dossier assurance »</b> de l'incident, le bouton <b>« 🔍 Lire le constat (IA) »</b> lit le <b>constat amiable</b> que tu déposes et te <b>propose</b> la responsabilité (une facture de réparation, elle, ne dit jamais qui est en tort). Tu <b>confirmes</b> d'un clic → le compteur se met à jour. L'IA met « inconnu » si le document ne permet pas de trancher (jamais de devinette).</div>
         <div class="man-item"><b>Cette année / Sur la période</b> — nombre d'incidents de l'année, ou de la période si une période est fixée.</div>
@@ -1088,8 +1089,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104c"></script>
-<script src="../assets/js/supabase-client.js?v=20261104c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104d"></script>
+<script src="../assets/js/supabase-client.js?v=20261104d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1105,10 +1106,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261104c"></script>
+<script src="../assets/js/app.min.js?v=20261104d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

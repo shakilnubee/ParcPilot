@@ -1715,21 +1715,86 @@ FP.sinistreResteIncident = function (coutReel, dossier, isPec) {
   if (isPec && franchise > 0) reste = Math.max(reste, franchise);
   return reste;
 };
+// Une facture de sinistre est-elle un DEVIS (estimation, pas une vraie dépense) ? (même règle que coutSinistre)
+FP._sinistreEstDevis = function (f) {
+  try {
+    if (!f) return false;
+    const stage = ((FP.settings.get().sinistreStage || {})[f.id] || '').toString().toLowerCase();
+    return stage ? (stage === 'devis') : /\b(devis|proforma|estimation)\b/i.test(((f.description || '') + ' ' + (f.fournisseur || '')));
+  } catch (e) { return false; }
+};
+// Versements (remboursements encaissés) d'un incident — tableau [{date, montant, libelle}].
+// Rétro-compat : ancien champ scalaire `rembourse` → un versement implicite (jamais de perte).
+FP.sinistreVersements = function (dv) {
+  dv = dv || {};
+  if (Array.isArray(dv.versements)) {
+    return dv.versements.filter(v => v && (((Number(v.montant) || 0) !== 0) || v.date || v.libelle))
+      .map(v => ({ date: v.date || '', montant: Number(v.montant) || 0, libelle: v.libelle || '' }));
+  }
+  const r = Number(dv.rembourse) || 0;
+  if (r > 0) return [{ date: dv.dateRemboursement || '', montant: r, libelle: '(remboursement)' }];
+  return [];
+};
+FP.sinistreEncaisse = function (dv) { return FP.sinistreVersements(dv).reduce((a, v) => a + (Number(v.montant) || 0), 0); };
+// ⚠️ SUIVI FINANCIER D'UN INCIDENT — SOURCE UNIQUE (carte Sinistres, KPI, TCO/Budget, fiche véhicule).
+//  Renvoie les 9 montants + synthèse. RÈGLE D'OR : une valeur INCONNUE = null (« À déterminer »),
+//  JAMAIS remplacée par 0. 0 = valeur CONFIRMÉE. On ne mélange jamais estimé / confirmé / encaissé.
+//  Montants : coutEstime, coutFacture (TTC réellement facturé, hors devis), coutEco (= facturé sinon estimé),
+//  franchiseContractuelle (repli legacy `franchise`), franchiseAppliquee, pecAnnoncee, pecConfirmee,
+//  versements/encaisse. Synthèse : resteARecevoir, resteChargePrev, resteChargeDef (seulement si soldé).
+//  resteChargePrev (consigne A2) : franchise appliquée si saisie, sinon coût éco − PEC confirmée ;
+//  replis compatibles avec l'ancien calcul (incident pris en charge → franchise ; sinon coût éco − encaissé)
+//  → `resteChargeSinistre` (TCO) reste IDENTIQUE sur les données existantes.
+FP.sinistreFin = function (incidentKey, factures) {
+  const num = x => (x == null || x === '' || isNaN(Number(x))) ? null : Number(x);
+  let s = {}; try { s = FP.settings.get(); } catch (e) {}
+  const grp = s.sinistreGroupes || {};
+  const dv = (s.sinistreAssurance || {})[incidentKey] || {};
+  const statut = ((s.sinistreStatut || {})[incidentKey] || '').toString().toLowerCase();
+  const isPec = (statut === 'pec' || statut === 'rembourse');
+  // Coût facturé = Σ TTC des factures NON-devis rattachées à cet incident (null si aucune facture).
+  let coutFacture = null;
+  (factures || []).forEach(f => {
+    if (!f || (f.type || '').toLowerCase() !== 'sinistre') return;
+    if ((grp[f.id] || f.id) !== incidentKey) return;
+    if (FP._sinistreEstDevis(f)) return;
+    const v = Number(f.montantTTC) || 0;
+    if (v > 0) coutFacture = (coutFacture || 0) + v;
+  });
+  const coutEstime = num(dv.coutEstime);
+  const franchiseContractuelle = (num(dv.franchiseContractuelle) != null) ? num(dv.franchiseContractuelle) : num(dv.franchise);
+  const franchiseAppliquee = num(dv.franchiseAppliquee);
+  const pecAnnoncee = num(dv.pecAnnoncee);
+  const pecConfirmee = num(dv.pecConfirmee);
+  const versements = FP.sinistreVersements(dv);
+  const encaisse = versements.reduce((a, v) => a + (Number(v.montant) || 0), 0);
+  const coutEco = (coutFacture != null) ? coutFacture : coutEstime;        // facturé prioritaire, sinon estimé
+  const resteARecevoir = (pecConfirmee != null) ? Math.max(0, pecConfirmee - encaisse) : null;
+  let resteChargePrev = null;
+  if (franchiseAppliquee != null) resteChargePrev = Math.max(0, franchiseAppliquee);
+  else if (coutEco != null && pecConfirmee != null) resteChargePrev = Math.max(0, coutEco - pecConfirmee);
+  else if (isPec) resteChargePrev = Math.max(0, franchiseContractuelle != null ? franchiseContractuelle : 0); // pris en charge → franchise (ou 0 confirmé)
+  else if (coutEco != null) resteChargePrev = Math.max(0, coutEco - encaisse);                                // legacy : coût − encaissé
+  const solde = !!dv.solde;
+  return {
+    incidentKey: incidentKey, statut: statut, isPec: isPec,
+    coutEstime: coutEstime, coutFacture: coutFacture, coutEco: coutEco,
+    franchiseContractuelle: franchiseContractuelle, franchiseAppliquee: franchiseAppliquee,
+    pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee,
+    versements: versements, encaisse: encaisse,
+    resteARecevoir: resteARecevoir, resteChargePrev: resteChargePrev,
+    solde: solde, resteChargeDef: (solde ? resteChargePrev : null),
+    garage: dv.garage || ''
+  };
+};
 FP.resteChargeSinistre = function (factures) {
   try {
     const s = FP.settings.get();
-    const grp = s.sinistreGroupes || {}, doss = s.sinistreAssurance || {};
-    const gk = id => grp[id] || id;
-    const byInc = {}, pec = {};
-    (factures || []).forEach(f => {
-      if (!f || (f.type || '').toLowerCase() !== 'sinistre') return;
-      const k = gk(f.id);
-      byInc[k] = (byInc[k] || 0) + (FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0));
-      const st = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : '';
-      if (st === 'pec' || st === 'rembourse') pec[k] = true;
-    });
+    const grp = s.sinistreGroupes || {};
+    const keys = new Set();
+    (factures || []).forEach(f => { if (f && (f.type || '').toLowerCase() === 'sinistre') keys.add(grp[f.id] || f.id); });
     let total = 0;
-    Object.keys(byInc).forEach(k => { total += FP.sinistreResteIncident(byInc[k], doss[k], pec[k]); });
+    keys.forEach(k => { const fin = FP.sinistreFin(k, factures); if (fin.resteChargePrev != null) total += fin.resteChargePrev; });
     return total;
   } catch (e) { return (factures || []).filter(f => f && (f.type || '').toLowerCase() === 'sinistre').reduce((a, f) => a + (Number(f.montantTTC) || 0), 0); }
 };
@@ -13895,16 +13960,23 @@ FP.courrierAssureurPrompt = function (plaque) {
     'Tu analyses un COURRIER D\'ASSURANCE reçu après la déclaration d\'un sinistre automobile, concernant',
     'NOTRE véhicule dont la plaque est « ' + p +' ». Ce courrier indique généralement la RESPONSABILITÉ',
     '(qui est en tort), un NUMÉRO DE DOSSIER / SINISTRE, et une DATE.',
+    'Il peut aussi mentionner une FRANCHISE (en euros) et/ou un montant de PRISE EN CHARGE / indemnité annoncé.',
     'Réponds UNIQUEMENT en JSON strict, sans texte autour :',
     '{',
     '  "responsabilite": "responsable" | "non-responsable" | "partagee" | "inconnu",',
     '  "numeroDossier": "<référence du dossier/sinistre si présente, sinon chaîne vide>",',
     '  "dateCourrier": "<date du courrier au format AAAA-MM-JJ si présente, sinon chaîne vide>",',
+    '  "franchise": <montant de la FRANCHISE en euros (nombre) si CLAIREMENT étiqueté « franchise », sinon null>,',
+    '  "priseEnCharge": <montant de PRISE EN CHARGE / indemnité ANNONCÉ en euros (nombre) si CLAIREMENT étiqueté, sinon null>,',
     '  "justification": "<une phrase courte en français expliquant la conclusion>"',
     '}',
     'Définitions : "responsable" = NOTRE véhicule/conducteur est en tort ; "non-responsable" = l\'autre',
     'partie est en tort ; "partagee" = torts partagés. Mets "inconnu" si le courrier ne tranche pas',
     'clairement. Ne DEVINE JAMAIS : en cas de doute, réponds "inconnu".',
+    '⚠️ MONTANTS — LIRE, JAMAIS DEVINER : ne lis QUE la somme écrite juste à côté du libellé',
+    '« franchise » (→ franchise) ou « prise en charge / indemnité / montant pris en charge » (→ priseEnCharge).',
+    'Ne prends JAMAIS un autre nombre (n° de dossier/police, téléphone, date, code postal, référence).',
+    'Si un montant n\'est pas clairement étiqueté, mets null. N\'invente AUCUN montant.',
   ].join('\n');
 };
 // Extrait la COUCHE TEXTE d'un PDF (reconstruite PAR POSITION, comme ulysPdfToText) → '' si PDF scanné
