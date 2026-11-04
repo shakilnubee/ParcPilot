@@ -13968,6 +13968,11 @@ FP.courrierAssureurPrompt = function (plaque) {
     '  "dateCourrier": "<date du courrier au format AAAA-MM-JJ si présente, sinon chaîne vide>",',
     '  "franchise": <montant de la FRANCHISE en euros (nombre) si CLAIREMENT étiqueté « franchise », sinon null>,',
     '  "priseEnCharge": <montant de PRISE EN CHARGE / indemnité ANNONCÉ en euros (nombre) si CLAIREMENT étiqueté, sinon null>,',
+    '  "police": "<numéro de POLICE / CONTRAT d\'assurance si présent (ex. 011165247/0599), sinon chaîne vide>",',
+    '  "courtier": "<nom du COURTIER / GESTIONNAIRE du dossier (cabinet qui envoie le courrier, ex. Verspieren), sinon chaîne vide>",',
+    '  "conducteur": "<nom du CONDUCTEUR mentionné dans le courrier si présent, sinon chaîne vide>",',
+    '  "plaque": "<plaque d\'immatriculation mentionnée dans le courrier, format AB-123-CD, sinon chaîne vide>",',
+    '  "dateSinistre": "<date du SINISTRE / de l\'accident au format AAAA-MM-JJ si présente (≠ date du courrier), sinon chaîne vide>",',
     '  "justification": "<une phrase courte en français expliquant la conclusion>"',
     '}',
     'Définitions : "responsable" = NOTRE véhicule/conducteur est en tort ; "non-responsable" = l\'autre',
@@ -13977,6 +13982,9 @@ FP.courrierAssureurPrompt = function (plaque) {
     '« franchise » (→ franchise) ou « prise en charge / indemnité / montant pris en charge » (→ priseEnCharge).',
     'Ne prends JAMAIS un autre nombre (n° de dossier/police, téléphone, date, code postal, référence).',
     'Si un montant n\'est pas clairement étiqueté, mets null. N\'invente AUCUN montant.',
+    '⚠️ POLICE ≠ DOSSIER : la POLICE est le n° du CONTRAT d\'assurance ; le DOSSIER est la référence du',
+    'sinistre. Ne les confonds pas. Le COURTIER est le cabinet/gestionnaire (en-tête ou signature du courrier).',
+    'Recopie conducteur / plaque / dates UNIQUEMENT s\'ils sont écrits ; sinon chaîne vide. N\'invente rien.',
   ].join('\n');
 };
 // Extrait la COUCHE TEXTE d'un PDF (reconstruite PAR POSITION, comme ulysPdfToText) → '' si PDF scanné

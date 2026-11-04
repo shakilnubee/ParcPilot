@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104f">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -425,8 +425,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104e"></script>
-<script src="../assets/js/supabase-client.js?v=20261104e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104f"></script>
+<script src="../assets/js/supabase-client.js?v=20261104f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -442,12 +442,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261104e"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261104e" defer></script>
+<script src="../assets/js/app.min.js?v=20261104f"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261104f" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -820,11 +820,29 @@
         const _inpCss = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
         // Ouverture via FP.openScan (URL signée) : le bucket des scans est privé → un lien public brut
         // ne s'ouvrirait pas. Repli Google Drive pour un éventuel identifiant Drive hérité.
-        const courrierLien = dv.courrierUrl ? `<button type="button" class="sin-courrier-open" data-url="${escapeHtml(dv.courrierUrl)}" style="display:inline-flex;align-items:center;gap:.25rem;font-size:12px;color:var(--fp-accent);background:none;border:none;cursor:pointer;text-decoration:underline;margin-left:2px"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> Voir le courrier</button>` : '';
         // Mini-timeline TOUJOURS visible sur la carte (avant : enfouie dans le panneau « Dossier assurance »
         // replié → il fallait déplier chaque carte pour voir où en est le dossier). Les CHAMPS de saisie
         // restent, eux, dans le panneau repliable.
         const sinTimeline = sinTimelineHTML(sinSteps(g, dv, cur));
+        // Ligne « document » du dossier : si un fichier existe → Voir / Télécharger / Remplacer / Supprimer
+        // (+ Relire (IA) pour le courrier) ; sinon → bouton de dépôt (scan). Source : dv.courrierUrl / dv.constatUrl.
+        const _docAct = 'font-size:11.5px;color:var(--fp-accent);background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 4px';
+        const _docRow = (kind, lbl, url, withRescan) => {
+          const safe = escapeHtml(url || ''), immat = escapeHtml(s.vehiculeImmat || '');
+          if (url) {
+            return `<div class="flex items-center gap-1 flex-wrap text-xs" style="padding:6px 0;border-bottom:1px dashed var(--fp-border)">
+                <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> ${lbl}</span>
+                <button type="button" class="sin-doc-view" data-url="${safe}" style="${_docAct}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
+                <button type="button" class="sin-doc-dl" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" style="${_docAct}"><i data-lucide="download" class="w-3.5 h-3.5"></i> Télécharger</button>
+                ${withRescan ? `<button type="button" class="sin-doc-rescan" data-key="${g.key}" data-immat="${immat}" data-url="${safe}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" title="Relancer la lecture IA sur ce courrier déjà déposé" style="${_docAct}"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Relire (IA)</button>` : ''}
+                <button type="button" class="sin-doc-replace" data-key="${g.key}" data-kind="${kind}" style="${_docAct}"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Remplacer</button>
+                <button type="button" class="sin-doc-del" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" style="${_docAct};color:#b91c1c"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>
+              </div>`;
+          }
+          return kind === 'courrier'
+            ? `<button type="button" class="fp-scan-btn sin-courrier-btn" data-key="${g.key}" data-immat="${immat}" title="Déposer le courrier de l'assureur : l'IA le lit et te propose les infos à valider"><i data-lucide="mail-search"></i> Scanner le courrier de l'assureur (IA)</button>`
+            : `<button type="button" class="sin-constat-btn" data-key="${g.key}" data-immat="${immat}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:600;color:var(--fp-accent);background:#fff;border:1px solid var(--fp-border);border-radius:8px;padding:4px 8px;cursor:pointer" title="Déposer le constat amiable : l'IA lit qui est en tort et te le propose (tu confirmes)"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Lire le constat (IA)</button>`;
+        };
         const dossierPanel = `
           <details class="mt-2 sin-doss-det" data-doss-key="${escapeHtml(g.key)}" ${sinDossOpen.has(g.key) ? 'open' : ''}>
             <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#475569;list-style:none" class="inline-flex items-center gap-1"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Dossier assurance — modifier le suivi <i data-lucide="chevron-down" class="w-3.5 h-3.5 sin-doss-chev" style="transition:transform .18s;color:#94a3b8"></i></summary>
@@ -834,8 +852,10 @@
               <label class="text-xs text-slate-500">Déclaré à l'assurance le<input class="sin-doss" data-key="${g.key}" data-k="dateDeclaration" type="date" value="${escapeHtml(dv.dateDeclaration || '')}" style="${_inpCss}"></label>
               <label class="text-xs text-slate-500">Réponse assureur le<input class="sin-doss" data-key="${g.key}" data-k="dateReponse" type="date" value="${escapeHtml(dv.dateReponse || '')}" style="${_inpCss}"></label>
             </div>
-            <div class="grid grid-cols-2 gap-2 mt-2 sin-dg">
+            <div class="grid grid-cols-3 gap-2 mt-2 sin-dg">
               <label class="text-xs text-slate-500">Responsabilité<select class="sin-doss" data-key="${g.key}" data-k="resp" style="${_inpCss}">${respOpts.map(([v, l]) => `<option value="${v}" ${dv.resp === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+              <label class="text-xs text-slate-500">N° de police (contrat)<input class="sin-doss" data-key="${g.key}" data-k="police" type="text" value="${escapeHtml(dv.police || '')}" placeholder="—" style="${_inpCss}"></label>
+              <label class="text-xs text-slate-500">Courtier / gestionnaire<input class="sin-doss" data-key="${g.key}" data-k="courtier" type="text" value="${escapeHtml(dv.courtier || '')}" placeholder="—" style="${_inpCss}"></label>
             </div>
             ${sinFinHTML(g)}
             <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">Lieu &amp; tiers impliqué</div>
@@ -845,13 +865,13 @@
               <label class="text-xs text-slate-500">Assureur adverse<input class="sin-doss" data-key="${g.key}" data-k="tiersAssureur" type="text" value="${escapeHtml(dv.tiersAssureur || '')}" placeholder="—" style="${_inpCss}"></label>
               <label class="text-xs text-slate-500">Conducteur adverse<input class="sin-doss" data-key="${g.key}" data-k="tiersNom" type="text" value="${escapeHtml(dv.tiersNom || '')}" placeholder="—" style="${_inpCss}"></label>
             </div>
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-              <button type="button" class="fp-scan-btn sin-courrier-btn" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" title="Déposer le courrier de l'assureur : l'IA lit la responsabilité, le n° de dossier et la date, et remplit le dossier (tu confirmes la responsabilité)"><i data-lucide="mail-search"></i> Scanner le courrier de l'assureur (IA)</button>
-              <input type="file" class="sin-courrier-file hidden" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" data-annee="${escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()))}" accept="image/*,application/pdf,.pdf">
-              <button type="button" class="sin-constat-btn" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:600;color:var(--fp-accent);background:#fff;border:1px solid var(--fp-border);border-radius:8px;padding:4px 8px;cursor:pointer" title="Déposer le constat amiable : l'IA lit qui est en tort et te le propose (tu confirmes)"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Lire le constat (IA)</button>
-              <input type="file" class="sin-constat-file hidden" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" accept="image/*,application/pdf,.pdf">
-              ${courrierLien}
+            <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">📎 Documents du dossier</div>
+            <div class="sin-docs">
+              ${_docRow('courrier', "Courrier de l'assureur", dv.courrierUrl, true)}
+              ${_docRow('constat', 'Constat amiable', dv.constatUrl, false)}
             </div>
+            <input type="file" class="sin-courrier-file hidden" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" data-annee="${escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()))}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" accept="image/*,application/pdf,.pdf">
+            <input type="file" class="sin-constat-file hidden" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" accept="image/*,application/pdf,.pdf">
             <div class="sin-courrier-status text-xs mt-1" data-key="${g.key}"></div>
             <div class="sin-constat-status text-xs mt-1" data-key="${g.key}"></div>
             <div class="mt-2">
@@ -1144,8 +1164,9 @@
       try {
         const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
         const annee = (input.dataset.annee && /^\d{4}$/.test(input.dataset.annee)) ? input.dataset.annee : String(new Date().getFullYear());
+        let oldUrl = ''; try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).constatUrl || ''; } catch (_) {}
         const url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`);
-        if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; o.constatUrl = url; FP.settings.save(s); constatSaved = true; }
+        if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; o.constatUrl = url; FP.settings.save(s); constatSaved = true; if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); } }
         else constatFail = true;   // upload échoué → à signaler (ne pas faire croire que le constat est classé)
       } catch (_) { constatFail = true; }
     }
@@ -1168,54 +1189,144 @@
     setSt(`🔍 <b>IA propose : ${labels[val]}</b>${just}. <button type="button" class="sin-constat-ok" data-key="${key}" data-val="${val}" style="margin-left:4px;font-size:11px;font-weight:700;color:#fff;background:#047857;border:none;border-radius:6px;padding:2px 8px;cursor:pointer">✓ Enregistrer</button> <span style="color:#94A3B8">ou corrige le menu ci-dessus.</span>`, '#0F766E');
   }
 
-  // Lecture IA du COURRIER de l'assureur : remplit n° dossier + date + garde le courrier, et PROPOSE
-  // la responsabilité (confirmation, jamais enregistrée en douce). Réutilise le bouton « ✓ Enregistrer ».
+  // Supprime un fichier du stockage UNIQUEMENT s'il n'est plus référencé par aucun dossier (anti fichier
+  // orphelin ET anti suppression d'un fichier partagé). Les liens externes (Drive) ne sont jamais touchés.
+  function sinFileReferencedElsewhere(url) {
+    try {
+      if (!url) return true;
+      const doss = FP.settings.get().sinistreAssurance || {};
+      let n = 0; Object.keys(doss).forEach(k => { const d = doss[k] || {}; if (d.courrierUrl === url) n++; if (d.constatUrl === url) n++; });
+      return n > 0;
+    } catch (e) { return true; }
+  }
+  async function sinDeleteStorageFile(url) {
+    try {
+      if (!url || !/\/scans\//.test(String(url))) return;        // externe → on ne supprime pas
+      if (sinFileReferencedElsewhere(url)) return;               // encore utilisé ailleurs → on garde le fichier
+      const ref = FP._storageRef ? FP._storageRef(url) : null;
+      if (ref && FP.supabase && FP.supabase.storage) await FP.supabase.storage.from(ref.bucket).remove([ref.path]);
+    } catch (e) {}
+  }
+
+  // Courrier déposé (ou remplacé) : on STOCKE le fichier (en purgeant l'ancien si remplacement), puis on
+  // lance la lecture IA → fenêtre de VALIDATION. Jamais d'écriture en douce : tout passe par la fenêtre.
   async function handleCourrierScan(input) {
-    const key = input.dataset.key, immat = input.dataset.immat || '';
+    const key = input.dataset.key, immat = input.dataset.immat || '', sinDate = input.dataset.sindate || '';
     const file = (input.files || [])[0]; input.value = '';
     if (!file) return;
     const setSt = (html, color) => { const el = $('timeline').querySelector(`.sin-courrier-status[data-key="${key}"]`); if (el) { el.innerHTML = html; el.style.color = color || 'var(--fp-muted)'; if (window.lucide) lucide.createIcons(); } };
-    if (!(window.FP && FP.scanIA && FP.courrierAssureurPrompt)) { setSt('⚠️ Connexion requise pour lire le courrier.', '#B91C1C'); return; }
-    setSt('⏳ Lecture du courrier par l\'IA…');
-    let res = null;
-    try { res = await FP.scanIA(file, 'courrier', FP.courrierAssureurPrompt(immat)); } catch (_) {}
-    // On garde le courrier (best-effort), RANGÉ par plaque puis par année → « sinistres/<PLAQUE>/<ANNÉE> ».
-    let url = '';
+    let url = '', courrierFail = false, oldUrl = '';
+    try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).courrierUrl || ''; } catch (_) {}
     const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
     const annee = (input.dataset.annee && /^\d{4}$/.test(input.dataset.annee)) ? input.dataset.annee : String(new Date().getFullYear());
-    let courrierFail = false;
+    setSt('⏳ Enregistrement du courrier…');
     try { if (FP.uploadScan) { url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`) || ''; if (!url) courrierFail = true; } } catch (_) { courrierFail = true; }
-    const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
-    const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-    if (url) o.courrierUrl = url;
-    if (res && res.numeroDossier && String(res.numeroDossier).trim()) o.numeroDossier = String(res.numeroDossier).trim();
-    if (res && res.dateCourrier && /^\d{4}-\d{2}-\d{2}/.test(String(res.dateCourrier))) o.dateReponse = String(res.dateCourrier).slice(0, 10);
-    // Montants LUS (jamais devinés) : franchise contractuelle + PEC annoncée, uniquement si clairement étiquetés.
+    if (url) {
+      const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+      const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+      o.courrierUrl = url; FP.settings.save(s);
+      if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); }   // remplacement → purge l'ancien fichier
+    }
+    const pfx = url ? '📎 Courrier enregistré. ' : (courrierFail ? '⚠️ Le courrier n\'a PAS pu être stocké (réessaie). ' : '');
+    render();   // la ligne « document » affiche désormais Voir / Télécharger / Remplacer / Supprimer / Relire
+    if (!(window.FP && FP.scanIA && FP.courrierAssureurPrompt)) { setSt(pfx + '⚠️ Connexion requise pour la lecture IA.', url ? '#0F766E' : '#B91C1C'); return; }
+    setSt(pfx + '⏳ Lecture du courrier par l\'IA…');
+    let res = null;
+    try { res = await FP.scanIA(file, 'courrier', FP.courrierAssureurPrompt(immat)); } catch (_) {}
+    if (!res) { setSt(pfx + '⚠️ Lecture impossible — utilise « Relire (IA) » ou renseigne à la main.', '#B45309'); return; }
+    setSt(pfx + '✓ Lecture faite — vérifie les informations proposées.', '#0F766E');
+    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate });
+  }
+
+  // Relance la lecture IA sur le courrier DÉJÀ stocké (sans re-déposer) : récupère le fichier via son lien
+  // signé → scanIA → fenêtre de validation.
+  async function rescanCourrier(key, immat, url, sinDate) {
+    const setSt = (html, color) => { const el = $('timeline').querySelector(`.sin-courrier-status[data-key="${key}"]`); if (el) { el.innerHTML = html; el.style.color = color || 'var(--fp-muted)'; if (window.lucide) lucide.createIcons(); } };
+    if (!(window.FP && FP.scanIA && FP.courrierAssureurPrompt)) { setSt('⚠️ Connexion requise pour la lecture IA.', '#B91C1C'); return; }
+    if (!url) { setSt('⚠️ Aucun courrier à relire.', '#B45309'); return; }
+    setSt('⏳ Relecture du courrier par l\'IA…');
+    let file = null;
+    try { const su = FP.signedScanUrl ? (await FP.signedScanUrl(url)) : url; const blob = await (await fetch(su || url)).blob(); file = new File([blob], 'courrier.pdf', { type: blob.type || 'application/pdf' }); } catch (_) {}
+    if (!file) { setSt('⚠️ Impossible de récupérer le fichier stocké — réessaie.', '#B45309'); return; }
+    let res = null;
+    try { res = await FP.scanIA(file, 'courrier', FP.courrierAssureurPrompt(immat)); } catch (_) {}
+    if (!res) { setSt('⚠️ Lecture impossible — renseigne à la main.', '#B45309'); return; }
+    setSt('✓ Relecture faite — vérifie les informations proposées.', '#0F766E');
+    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate });
+  }
+
+  // Fenêtre de VALIDATION des infos lues par l'IA (jamais d'enregistrement en douce) : par champ, valeur
+  // actuelle vs proposition, case Accepter (cochée seulement si le champ est VIDE ; les champs déjà remplis
+  // sont préservés sauf coche explicite). Avertissements de divergence (conducteur figé jamais remplacé,
+  // plaque / date / dossier). Montants : seulement franchise contractuelle + PEC annoncée (jamais
+  // remboursement ni reste à charge) → règles financières respectées.
+  function openCourrierValidation(res, key, ctx) {
+    res = res || {}; ctx = ctx || {};
+    const dv = (FP.settings.get().sinistreAssurance || {})[key] || {};
+    const immat = ctx.immat || '';
+    const veh = (data.vehicules || []).find(v => (FP.immatEq ? FP.immatEq(v.immat, immat) : (v.immat === immat)));
+    const vehCh = (veh && veh.chauffeur && veh.chauffeur !== '—') ? veh.chauffeur : '';
     const _amt = x => (x == null || x === '' || isNaN(Number(x)) || Number(x) < 0) ? null : Number(x);
-    const _franch = res ? _amt(res.franchise) : null;
-    const _pec = res ? _amt(res.priseEnCharge) : null;
-    if (_franch != null) o.franchiseContractuelle = _franch;
-    if (_pec != null) o.pecAnnoncee = _pec;
-    FP.settings.save(s);
-    // Mise à jour EN PLACE des champs (ne pas re-render : ça refermerait le panneau et masquerait la
-    // confirmation). Les nouveaux champs/timeline/lien se rafraîchissent au prochain rendu de la page.
-    const setVal = (k, v) => { const el = $('timeline').querySelector(`.sin-doss[data-k="${k}"][data-key="${key}"]`); if (el && v != null && v !== '') el.value = v; };
-    if (o.numeroDossier) setVal('numeroDossier', o.numeroDossier);
-    if (o.dateReponse) setVal('dateReponse', o.dateReponse);
-    if (_franch != null) setVal('franchiseContractuelle', _franch);
-    if (_pec != null) setVal('pecAnnoncee', _pec);
-    const norm = res && res.responsabilite ? String(res.responsabilite).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') : '';
-    const map = { 'responsable': 'responsable', 'non-responsable': 'non-responsable', 'non responsable': 'non-responsable', 'partagee': 'partagee' };
-    const val = map[norm] || '';
-    const labels = { 'responsable': 'Responsable (nous en tort)', 'non-responsable': 'Non responsable', 'partagee': 'Partagée' };
-    const just = (res && res.justification) ? ' — ' + FP.esc(res.justification) : '';
-    const lus = [url ? 'courrier enregistré' : '', (res && res.numeroDossier) ? ('n° ' + FP.esc(o.numeroDossier)) : '', (o.dateReponse) ? ('reçu le ' + (FP.dateNum ? FP.dateNum(o.dateReponse) : o.dateReponse)) : '', (_franch != null) ? ('franchise ' + FP.euroPrecis(_franch)) : '', (_pec != null) ? ('PEC annoncée ' + FP.euroPrecis(_pec)) : ''].filter(Boolean).join(' · ');
-    // ⚠️ Ne pas laisser croire que la lettre est classée si son upload a échoué.
-    const prefix = (courrierFail ? '⚠️ La lettre n\'a PAS pu être stockée (réessaie). ' : '') + (lus ? ('✓ ' + lus + '. ') : '');
-    if (!val) { setSt(prefix + '🤷 L\'IA n\'a pas pu trancher la responsabilité' + just + ' — renseigne-la à la main.', '#B45309'); return; }
-    const sel = $('timeline').querySelector(`.sin-doss[data-k="resp"][data-key="${key}"]`);
-    if (sel) sel.value = val;
-    setSt(prefix + `🔍 <b>IA propose : ${labels[val]}</b>${just}. <button type="button" class="sin-constat-ok" data-key="${key}" data-val="${val}" style="margin-left:4px;font-size:11px;font-weight:700;color:#fff;background:#047857;border:none;border-radius:6px;padding:2px 8px;cursor:pointer">✓ Enregistrer</button> <span style="color:#94A3B8">ou corrige le menu.</span>`, '#0F766E');
+    const mapResp = { 'responsable': 'responsable', 'non-responsable': 'non-responsable', 'non responsable': 'non-responsable', 'partagee': 'partagee' };
+    const respVal = res.responsabilite ? (mapResp[String(res.responsabilite).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')] || '') : '';
+    const respLbl = { 'responsable': 'Responsable (nous en tort)', 'non-responsable': 'Non responsable', 'partagee': 'Partagée' };
+    const dnum = d => (d && FP.dateNum) ? FP.dateNum(String(d).slice(0, 10)) : (d || '');
+    const nn = x => String(x == null ? '' : x).trim().toLowerCase();
+    const props = [];
+    const push = (field, label, curDisp, dispVal, raw) => { if (raw == null || String(raw).trim() === '') return; props.push({ field, label, cur: curDisp || '', disp: dispVal, raw }); };
+    push('numeroDossier', 'N° dossier assureur', dv.numeroDossier || '', (res.numeroDossier || '').toString().trim(), (res.numeroDossier || '').toString().trim());
+    push('police', 'N° de police', dv.police || '', (res.police || '').toString().trim(), (res.police || '').toString().trim());
+    push('courtier', 'Courtier / gestionnaire', dv.courtier || '', (res.courtier || '').toString().trim(), (res.courtier || '').toString().trim());
+    if (res.dateCourrier && /^\d{4}-\d{2}-\d{2}/.test(String(res.dateCourrier))) push('dateReponse', 'Réponse assureur le', dv.dateReponse ? dnum(dv.dateReponse) : '', dnum(res.dateCourrier), String(res.dateCourrier).slice(0, 10));
+    if (respVal) push('resp', 'Responsabilité', dv.resp ? (respLbl[dv.resp] || dv.resp) : '', respLbl[respVal], respVal);
+    const franch = _amt(res.franchise); if (franch != null) push('franchiseContractuelle', 'Franchise contractuelle', (dv.franchiseContractuelle != null ? FP.euroPrecis(dv.franchiseContractuelle) : (dv.franchise != null ? FP.euroPrecis(dv.franchise) : '')), FP.euroPrecis(franch), franch);
+    const pec = _amt(res.priseEnCharge); if (pec != null) push('pecAnnoncee', 'PEC annoncée', (dv.pecAnnoncee != null ? FP.euroPrecis(dv.pecAnnoncee) : ''), FP.euroPrecis(pec), pec);
+    const warns = [];
+    if (res.conducteur && nn(res.conducteur) && (dv.conducteur || vehCh) && nn(res.conducteur) !== nn(dv.conducteur || vehCh)) warns.push('Le conducteur mentionné dans le document (« ' + escapeHtml(res.conducteur) + ' ») est différent de celui enregistré (« ' + escapeHtml(dv.conducteur || vehCh) + ' »). Vérification nécessaire — le conducteur figé au moment du sinistre n\'est jamais remplacé automatiquement.');
+    if (res.plaque && veh && FP.normImmat && FP.normImmat(res.plaque) && !FP.immatEq(res.plaque, veh.immat)) warns.push('La plaque du document (« ' + escapeHtml(res.plaque) + ' ») diffère de celle du sinistre (« ' + escapeHtml(veh.immat || '') + ' »). Ce document concerne peut-être un autre véhicule — rien n\'est appliqué sans ta validation.');
+    if (res.dateSinistre && /^\d{4}-\d{2}-\d{2}/.test(String(res.dateSinistre)) && ctx.sinDate && String(res.dateSinistre).slice(0, 10) !== String(ctx.sinDate).slice(0, 10)) warns.push('La date de sinistre du document (' + dnum(res.dateSinistre) + ') diffère de celle enregistrée (' + dnum(ctx.sinDate) + '). À vérifier.');
+    if (res.numeroDossier && dv.numeroDossier && nn(res.numeroDossier) !== nn(dv.numeroDossier)) warns.push('Le n° de dossier du document diffère de celui déjà enregistré — à vérifier.');
+
+    const old = document.getElementById('sin-valid-ov'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'sin-valid-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(8,15,30,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    const rowsHtml = props.length ? props.map((p, i) => {
+      const same = nn(p.cur) === nn(p.disp);
+      const checked = (!p.cur && !same) ? 'checked' : '';
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--fp-border)">'
+        + '<input type="checkbox" class="sv-cb" data-i="' + i + '" ' + checked + (same ? ' disabled' : '') + ' style="margin-top:3px;width:16px;height:16px;flex:none">'
+        + '<div style="min-width:0;flex:1">'
+          + '<div style="font-weight:700;font-size:.82rem">' + escapeHtml(p.label) + '</div>'
+          + '<div class="text-xs" style="color:#64748b">Actuel : <b style="color:#334155">' + (p.cur ? escapeHtml(p.cur) : '<span style="color:#94a3b8">vide</span>') + '</b></div>'
+          + '<div class="text-xs">Proposé : <b style="color:' + (same ? '#94a3b8' : '#047857') + '">' + escapeHtml(p.disp) + '</b>' + (same ? ' <span style="color:#94a3b8">(identique)</span>' : '') + '</div>'
+        + '</div></div>';
+    }).join('') : '<div class="text-sm text-slate-400 py-3 text-center">Aucune information exploitable détectée dans ce document.</div>';
+    const warnHtml = warns.length ? '<div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;font-size:.8rem;color:#9a3412">⚠️ <b>À vérifier</b><ul style="margin:6px 0 0 1rem;padding:0;list-style:disc">' + warns.map(w => '<li style="margin:3px 0">' + w + '</li>').join('') + '</ul></div>' : '';
+    ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
+      + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--fp-surface,#fff)"><b style="font-size:1.02rem">🔍 Informations lues sur le courrier</b><button type="button" id="sv-x" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--fp-muted)">×</button></div>'
+      + '<div style="padding:14px 18px">'
+        + '<p class="text-xs text-slate-500" style="margin:0 0 8px">Coche ce que tu veux enregistrer. Les champs <b>déjà remplis</b> sont préservés (décochés) sauf si tu les coches. Les <b>montants de remboursement et le reste à charge ne sont jamais</b> renseignés depuis un courrier.</p>'
+        + rowsHtml + warnHtml
+        + '<div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="sv-cancel" class="btn btn-outline !text-sm" style="flex:1">Annuler</button><button type="button" id="sv-save" class="btn btn-dark !text-sm" style="flex:1"' + (props.length ? '' : ' disabled') + '>Enregistrer la sélection</button></div>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    if (window.lucide) lucide.createIcons();
+    const close = () => ov.remove();
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('#sv-x').addEventListener('click', close);
+    ov.querySelector('#sv-cancel').addEventListener('click', close);
+    const saveBtn = ov.querySelector('#sv-save');
+    if (saveBtn) saveBtn.addEventListener('click', () => {
+      const s2 = FP.settings.get(); s2.sinistreAssurance = s2.sinistreAssurance || {};
+      const o = s2.sinistreAssurance[key] = s2.sinistreAssurance[key] || {};
+      let n = 0;
+      ov.querySelectorAll('.sv-cb').forEach(cb => { if (!cb.checked || cb.disabled) return; const p = props[+cb.getAttribute('data-i')]; if (!p) return; o[p.field] = p.raw; n++; });
+      if (!Object.keys(o).length) delete s2.sinistreAssurance[key];
+      FP.settings.save(s2);
+      if (FP.toast) FP.toast(n ? ('✓ ' + n + ' information' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '')) : 'Aucune modification');
+      close(); refreshAll();
+    });
   }
 
   // Clics : associer / détacher / supprimer
@@ -1268,15 +1379,45 @@
       if (!Object.keys(o).length) delete s.sinistreAssurance[key];
       FP.settings.save(s); refreshAll(); return;
     }
-    // Courrier assureur : bouton → ouvre le sélecteur de fichier
+    // Helper : ouvre le sélecteur de fichier (courrier/constat) de CE dossier (input repéré par data-key —
+    // les inputs ne sont plus enfants du bouton depuis la refonte « Documents du dossier »).
+    const _openSinFile = (cls, key) => { const inp = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (inp) inp.click(); };
+    // Courrier assureur : « Scanner » (dépôt initial) → ouvre le sélecteur de fichier.
     const crbtn = e.target.closest('.sin-courrier-btn');
-    if (crbtn) { const inp = crbtn.parentElement && crbtn.parentElement.querySelector('.sin-courrier-file'); if (inp) inp.click(); return; }
-    // « Voir le courrier » : ouverture via lien signé (bucket privé), repli Drive pour un id hérité
-    const crOpen = e.target.closest('.sin-courrier-open');
-    if (crOpen) {
-      const u = crOpen.dataset.url || '';
-      if (/^https?:\/\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); }
-      else if (u) window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener');
+    if (crbtn) { _openSinFile('sin-courrier-file', crbtn.dataset.key); return; }
+    // Document : Voir (lien signé, bucket privé ; repli Drive pour un id hérité).
+    const dView = e.target.closest('.sin-doc-view');
+    if (dView) { const u = dView.dataset.url || ''; if (/^https?:\/\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); } else if (u) window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener'); return; }
+    // Document : Télécharger (lien signé → <a download>).
+    const dDl = e.target.closest('.sin-doc-dl');
+    if (dDl) {
+      const u = dDl.dataset.url || ''; if (!u) return;
+      (async () => { try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? (await FP.signedScanUrl(u)) : u; const a = document.createElement('a'); a.href = su || u; a.download = (dDl.dataset.name || 'document'); a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch (_) { if (FP.openScan) FP.openScan(u); } })();
+      return;
+    }
+    // Document : Remplacer → même flux que le dépôt (upload + purge de l'ancien fichier + lecture IA).
+    const dRep = e.target.closest('.sin-doc-replace');
+    if (dRep) { _openSinFile(dRep.dataset.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', dRep.dataset.key); return; }
+    // Document : Relire (IA) le courrier DÉJÀ stocké (sans re-déposer).
+    const dRescan = e.target.closest('.sin-doc-rescan');
+    if (dRescan) { rescanCourrier(dRescan.dataset.key, dRescan.dataset.immat || '', dRescan.dataset.url || '', dRescan.dataset.sindate || ''); return; }
+    // Document : Supprimer (confirmation nommée). Retire la RÉFÉRENCE du dossier + supprime le FICHIER
+    // seulement s'il n'est plus référencé ailleurs. Les infos déjà enregistrées (n° dossier, franchise…) restent.
+    const dDel = e.target.closest('.sin-doc-del');
+    if (dDel) {
+      const key = dDel.dataset.key, kind = dDel.dataset.kind, url = dDel.dataset.url || '';
+      const lbl = kind === 'constat' ? 'le constat amiable' : 'le courrier de l\'assureur';
+      (async () => {
+        const ok = FP.confirm ? await FP.confirm('Supprimer ' + lbl + ' de ce dossier ?\n\nLe document sera retiré. Les informations déjà enregistrées (n° dossier, franchise, responsabilité…) sont conservées.') : confirm('Supprimer ' + lbl + ' ?');
+        if (!ok) return;
+        const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+        const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+        delete o[(kind === 'constat') ? 'constatUrl' : 'courrierUrl'];
+        if (!Object.keys(o).length) delete s.sinistreAssurance[key];
+        FP.settings.save(s);
+        await sinDeleteStorageFile(url);
+        if (FP.toast) FP.toast('Document supprimé'); refreshAll();
+      })();
       return;
     }
     // Clôturer / rouvrir le dossier (pose ou retire la date de clôture)
@@ -1292,7 +1433,7 @@
     }
     // Constat IA : bouton « Lire le constat » → ouvre le sélecteur de fichier
     const cbtn = e.target.closest('.sin-constat-btn');
-    if (cbtn) { const inp = cbtn.parentElement && cbtn.parentElement.querySelector('.sin-constat-file'); if (inp) inp.click(); return; }
+    if (cbtn) { _openSinFile('sin-constat-file', cbtn.dataset.key); return; }
     // Constat IA : « ✓ Enregistrer » → sauve la responsabilité proposée + met à jour KPI/podium
     const cok = e.target.closest('.sin-constat-ok');
     if (cok) {
