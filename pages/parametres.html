@@ -704,6 +704,14 @@
         <div id="push-toggle-mount"><span class="text-sm text-slate-400">…</span></div>
       </div>
 
+      <!-- Supervision des tâches planifiées (lecture seule) — audit F22 -->
+      <div class="set-sub" style="border-color:#C7D2FE;background:linear-gradient(135deg,#F8FAFF,#EEF2FF);max-width:640px" id="cron-super">
+        <div class="set-sub-h"><i data-lucide="activity"></i> Tâches automatiques — dernière exécution</div>
+        <p class="set-sub-d">Les envois automatiques (relances km, rappels de rendez-vous, import des péages Ulys, rappels de tâches) tournent <strong>tout seuls chaque jour</strong> sur le serveur. Voici quand chacun s'est exécuté pour la dernière fois, et combien d'envois. <strong>Rien à régler ici</strong> — c'est un simple tableau de contrôle.</p>
+        <div id="cron-super-list" class="text-sm" style="display:grid;gap:8px"><span class="text-slate-400">Chargement…</span></div>
+        <button class="btn btn-outline text-xs mt-2" id="cron-super-refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Rafraîchir</button>
+      </div>
+
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));max-width:640px">
         <div>
           <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Révision — intervalle (km)</label>
@@ -3065,6 +3073,47 @@
         setR('Échec : ' + ((e && e.message) || 'réessaie') + ' — vérifie que Resend est configuré.', false);
       } finally { recapBtn.disabled = false; }
     });
+  })();
+
+  // ===== Supervision des tâches planifiées (lecture seule) — audit F22 =====
+  // Lit la table cron_runs (alimentée best-effort par les Edge Functions km-relance / task-reminders /
+  // ulys-daily) et affiche la DERNIÈRE exécution de chaque tâche. Ne montre que des COMPTEURS globaux
+  // (aucun nom de société / donnée perso). Tant que la table n'existe pas en prod, l'écran reste vide.
+  (function cronSupervision() {
+    const listEl = document.getElementById('cron-super-list');
+    if (!listEl) return;
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const JOBS = [
+      { id: 'km-relance', label: 'Relances km + rappels de rendez-vous', fmt: (d) => `${d.kmSent || 0} relance(s) km · ${d.ctSent || 0} rappel(s) RDV` + (((d.kmFailed || 0) + (d.ctFailed || 0)) ? ` · ${(d.kmFailed || 0) + (d.ctFailed || 0)} échec(s)` : '') },
+      { id: 'task-reminders', label: 'Rappels de tâches (matin + veille)', fmt: (d) => `${(d.digestSent || 0) + (d.leadSent || 0) + (d.veilleSent || 0)} rappel(s) envoyé(s)` },
+      { id: 'ulys-daily', label: 'Import automatique des péages Ulys', fmt: (d) => `${d.added || 0} importé(s)` + (d.error ? ` · erreur` : '') },
+    ];
+    const relTime = (iso) => { try { const t = new Date(iso).getTime(); if (isNaN(t)) return ''; const mn = Math.floor((Date.now() - t) / 60000); if (mn < 1) return 'à l\'instant'; if (mn < 60) return `il y a ${mn} min`; const h = Math.floor(mn / 60); if (h < 24) return `il y a ${h} h`; const j = Math.floor(h / 24); return j <= 1 ? 'hier' : `il y a ${j} j`; } catch (e) { return ''; } };
+    const row = (label, inner, badge, when) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;padding:8px 12px;background:#fff"><div style="min-width:0"><b>${esc(label)}</b><div class="text-xs text-slate-500">${inner}</div></div><div style="text-align:right;white-space:nowrap">${badge}<div class="text-xs text-slate-400 mt-1">${esc(when)}</div></div></div>`;
+    async function load() {
+      listEl.innerHTML = '<span class="text-sm text-slate-400">Chargement…</span>';
+      let rows = [];
+      try {
+        if (window.FP && FP.supabase) {
+          const r = await FP.supabase.from('cron_runs').select('job,status,finished_at,detail').order('finished_at', { ascending: false }).limit(60);
+          if (r && !r.error && Array.isArray(r.data)) rows = r.data;
+        }
+      } catch (e) { /* table absente / hors-ligne → écran vide */ }
+      const last = {};
+      rows.forEach(r => { if (r && r.job && !last[r.job]) last[r.job] = r; });
+      listEl.innerHTML = JOBS.map(j => {
+        const r = last[j.id];
+        if (!r) return row(j.label, 'Aucune exécution enregistrée pour l\'instant.', '<span class="text-xs" style="color:#94A3B8">—</span>', '');
+        const d = (r.detail && typeof r.detail === 'object') ? r.detail : {};
+        const ok = r.status !== 'error';
+        const badge = `<span style="font-size:.7rem;font-weight:700;color:#fff;background:${ok ? '#16a34a' : '#dc2626'};border-radius:9999px;padding:2px 9px">${ok ? 'OK' : 'Échec'}</span>`;
+        return row(j.label, esc(j.fmt(d)), badge, relTime(r.finished_at));
+      }).join('');
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+    }
+    const rb = document.getElementById('cron-super-refresh'); if (rb) rb.addEventListener('click', load);
+    load();
+    try { window.addEventListener('fp:data-ready', () => { load(); }, { once: true }); } catch (e) {}
   })();
 
   // ===== Logo de la société (upload → data URL redimensionnée, stockée dans profil, par société) =====

@@ -121,6 +121,34 @@ config = bloqués ; admin = tout passe ; idempotent) **et** sur le STAGING (migr
 
 ---
 
+## 5) `20261104100000_cron_runs_table.sql` — supervision des tâches planifiées (audit F22/F23)
+
+**À quoi ça sert.** Une petite table `cron_runs` qui garde l'**historique des exécutions** des tâches
+automatiques du serveur (relances km + rappels RDV, rappels de tâches, import péages Ulys). Un écran
+**lecture seule** « Tâches automatiques — dernière exécution » (Paramètres → **Notifications**, visible
+aussi par un gestionnaire) affiche, pour chaque tâche, **quand** elle a tourné et **combien** d'envois.
+
+**Sans danger.** 100 % additif (table neuve + 1 index + 1 policy de **lecture** pour les comptes
+connectés ; **écriture réservée au serveur**). Contenu non sensible : nom de la tâche, statut,
+horodatages, **compteurs globaux** (aucun nom de société, aucune donnée perso). Rollback = `drop table`.
+
+**Déjà branché (best-effort).** Les 3 Edge Functions écrivent une ligne à chaque exécution, dans un
+`try/catch` qui **ne peut jamais bloquer la tâche** : tant que la table n'existe pas en prod, le POST est
+ignoré et l'écran reste simplement **vide**. → **À lancer une fois** pour activer la supervision (sinon
+tout fonctionne comme avant, juste sans historique). Testée staging (migration-staging.yml).
+
+> 🔎 **Vérifier en même temps que les tâches cron sont bien ACTIVES** (audit F20, à faire en base — moi je
+> n'y ai pas accès). Dans Supabase → SQL Editor :
+> ```sql
+> select jobname, schedule, active from cron.job order by jobname;
+> ```
+> On doit voir les planifications de `km-relance`, `task-reminders`, `ulys-daily` avec `active = true`.
+> Si une ligne manque ou `active = false`, la tâche ne tourne pas → relancer le `*-setup.sql` concerné.
+> (L'écran de supervision le montrera aussi : une tâche active écrit une ligne chaque jour ; si rien
+> n'apparaît après 24-48 h, c'est le signe que la planification ou un secret `x-cron-secret` manque.)
+
+---
+
 ### En résumé
 | Script | Danger | Effet immédiat | Vraie valeur | Priorité |
 |--------|--------|----------------|--------------|----------|
@@ -128,6 +156,7 @@ config = bloqués ; admin = tout passe ; idempotent) **et** sur le STAGING (migr
 | `conducteurs-id-stable.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Faible |
 | `factures-notes-de-frais-columns.sql` | Aucun (additif) | **Oui** (métadonnées notes de frais/Sanef) | Dès le lancement | **Recommandée** |
 | `gestionnaire-config-guard.sql` (F6) | Aucun (fail-open) | ✅ **FAIT (03/11)** — faille config gestionnaire fermée | — (terminé) | — |
+| `cron_runs_table.sql` (F22/F23) | Aucun (additif) | Active la supervision des tâches auto | Dès le lancement | Moyenne (confort) |
 
 Dis-moi si tu veux qu'on enchaîne une **phase 2** (je la ferai par petites étapes,
 testables, sans casser l'existant).

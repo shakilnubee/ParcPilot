@@ -54,6 +54,14 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 04/11/2026 — Audit F22/F23 : supervision des tâches automatiques (lecture seule) 🟡 (livré, activation prod = 1 SQL)
+Il n'existait **aucun tableau de bord** pour voir si les envois automatiques du serveur (relances km, rappels de rendez-vous, rappels de tâches, import des péages Ulys) tournent bien — seul le CEO voyait le journal Resend des e-mails. Ajout d'une **supervision lecture seule** :
+- **Table `cron_runs`** (migration `20261104100000`, testée staging) : garde l'historique des exécutions. Lecture ouverte à tout compte connecté (gestionnaire inclus) ; **écriture réservée au serveur**. Contenu **non sensible** (nom de tâche, statut, horodatages, **compteurs globaux** — aucun nom de société ni donnée perso).
+- **3 Edge Functions instrumentées** (`km-relance`, `task-reminders`, `ulys-daily`) : chacune écrit **une ligne** à la fin de son exécution, dans un **`try/catch` qui ne peut JAMAIS bloquer la tâche** (si la table n'existe pas encore en prod, le log est simplement ignoré). Ajouts **purement additifs** (42 lignes, aucune suppression) ; le déploiement Edge **échoue proprement** en cas d'erreur (l'ancienne version reste en ligne).
+- **Écran** « 🩺 Tâches automatiques — dernière exécution » (Paramètres → **Notifications**, visible gestionnaire) : pour chaque tâche, **dernière exécution** (il y a X h/j), pastille **OK/Échec** et nombre d'envois. Pur voyant, rien à régler.
+- **F20** (jobs pg_cron réellement actifs) : non vérifiable sans accès base → **SQL de contrôle fourni** (`select jobname, schedule, active from cron.job;`) ; l'écran rend aussi le défaut visible (une tâche qui ne tourne plus « vieillit »).
+- Changement **sans `?v=`/min** (parametres.html + inline JS + Edge + migration + docs ; aucun `app.js`/`fleet-views.js`). `check-bugs` vert, manuel à jour. PR #1201. **Activation en prod = appliquer la migration `cron_runs`** (confort ; non appliquée par la PR).
+
 ### 03/11/2026 — Audit F26 : anti-doublon au dépôt de documents ✅ (en production après fusion)
 La table `documents` n'avait **pas** de garde anti-doublon centralisée (`FP.dupe`) → on pouvait déposer deux fois le même document (d'où l'outil de purge manuel existant). Corrigé :
 - **Cas `documents` ajouté à `FP.dupe`** (source unique anti-doublon de la plateforme) : doublon = **même véhicule + même type** + soit le **même fichier Drive** (`driveId`/`fileId`, id stable), soit le **même libellé** (un upload reçoit une URL neuve → on compare le libellé, pas l'URL).

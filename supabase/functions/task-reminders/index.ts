@@ -117,6 +117,17 @@ Deno.serve(async (req) => {
   const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ANON = Deno.env.get("SUPABASE_ANON_KEY");
   if (!SUPA || !SERVICE) return json({ error: "Configuration serveur incomplète." }, 500);
+  const _runStart = new Date().toISOString();
+  // Supervision (F22) : écrit UNE ligne d'historique de run (best-effort, JAMAIS bloquant).
+  const _logRun = async (status: string, detail: Record<string, unknown>) => {
+    try {
+      await fetch(`${SUPA}/rest/v1/cron_runs`, {
+        method: "POST",
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ job: "task-reminders", status, started_at: _runStart, finished_at: new Date().toISOString(), detail }),
+      });
+    } catch (_) { /* supervision best-effort */ }
+  };
 
   // --- Authentification : secret cron (task OU km-relance réutilisé) OU JWT de CEO (test manuel). ---
   const SECRETS = [Deno.env.get("TASK_REMINDERS_SECRET"), Deno.env.get("KM_RELANCE_SECRET")].map((s) => (s || "").trim()).filter(Boolean);
@@ -345,5 +356,6 @@ Deno.serve(async (req) => {
     }
   }
 
+  if (!dryRun) await _logRun("ok", { digestSent: summary.digestSent, leadSent: summary.leadSent, veilleSent: summary.veilleSent, skipped: summary.skipped, societes: summary.societes });
   return json({ ok: true, dryRun, now: nowDate.toISOString(), todayYMD, hourNow, summary, details });
 });
