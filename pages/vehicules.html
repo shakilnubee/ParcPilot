@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104b">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1203,8 +1203,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104a"></script>
-<script src="../assets/js/supabase-client.js?v=20261104a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104b"></script>
+<script src="../assets/js/supabase-client.js?v=20261104b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1220,13 +1220,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261104a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261104a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261104b"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261104b"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261104a"></script><script>
+<script src="../assets/js/app.min.js?v=20261104b"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2269,12 +2269,14 @@
           try {
             const veh = (data.vehicules || []).find(v => String(v.id) === String(vid));
             const ch = veh && veh.chauffeur ? String(veh.chauffeur).trim() : '';
-            if (veh && ch && ch !== '—' && FP.msg && FP.mailModeleProfil && FP.fillTags) {
+            if (veh && ch && ch !== '—' && FP.msg && FP.mailModeleProfilL && FP.fillTags) {
               const c = (FP.conducteurContact ? FP.conducteurContact(veh.chauffeur) : {}) || {};
               const prenom = ch.split(/\s+/)[0] || '';
+              // Langue du conducteur (fr / en) — même règle partout (amendes, relevé km…).
+              const lang = (FP.condLangue ? FP.condLangue(veh.chauffeur) : 'fr');
               const motif = mo || 'Rendez-vous garage';
               const dateFr = FP.date ? FP.date(dt) : dt;
-              const msg = FP.fillTags(FP.mailModeleProfil('mailModeleRdvGarage', 'rdvgarage'), { prenom, immat: veh.immat, motif, date: dateFr });
+              const msg = FP.fillTags(FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang), { prenom, immat: veh.immat, motif, date: dateFr });
               let logo = ''; try { const lu = (FP.settings.get().profil || {}).logoUrl; if (/^https?:\/\//.test(String(lu || ''))) logo = String(lu); } catch (_) {}
               let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (_) {}
               // Fichier agenda (.ics) joint → le client mail propose « Ajouter au calendrier ».
@@ -2283,10 +2285,10 @@
               try { const reply = ((FP.societeProfil ? FP.societeProfil() : {}) || {}).mailExpediteur || ''; if (reply) emailOpts.replyTo = reply; } catch (_) {}
               if (FP.ics) { try { const evI = { uid: 'rdvg-' + veh.id, title: motif + ' · ' + (veh.immat || ''), date: dt, location: '', description: 'Véhicule : ' + (veh.immat || '') + ((veh.marque || veh.modele) ? (' (' + ((veh.marque || '') + ' ' + (veh.modele || '')).trim() + ')') : '') }; const b64 = FP.ics.b64(evI); if (b64) { emailOpts.attachments = [{ filename: 'rendez-vous.ics', content: b64, content_type: 'text/calendar' }]; noteAgenda = FP.calendarBtnHtml ? FP.calendarBtnHtml(evI) : ''; } } catch (_) {} }
               const html = FP.mailShell ? FP.mailShell({ brand: soc, logoUrl: logo, title: motif, bodyHtml: '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(msg).replace(/\n/g, '<br>') + '</div>' + noteAgenda }) : '';
-              const _subjRdv = (FP.mailObjet ? FP.mailObjet('rdvgarage', { motif: motif, date: dateFr, immat: veh.immat, prenom: prenom }) : '') || (motif + ' le ' + dateFr + ' (' + (veh.immat || '') + ')');
+              const _subjRdv = (FP.mailObjetL ? FP.mailObjetL('rdvgarage', { motif: motif, date: dateFr, immat: veh.immat, prenom: prenom }, lang) : '') || (motif + (lang === 'en' ? ' on ' : ' le ') + dateFr + ' (' + (veh.immat || '') + ')');
               // PDF du garage rattaché → joint aussi à ce mail de RDV (l'utilisateur peut le retirer).
               const _gAttRdv = (FP.garages && FP.garages.pdfAttachmentDe) ? FP.garages.pdfAttachmentDe(veh) : null;
-              FP.msg.open({ phone: c.tel || '', email: c.email || '', nom: prenom, title: 'Prévenir du rendez-vous', text: msg, emailSubject: _subjRdv, emailHtml: html, emailOpts: emailOpts, attachments: _gAttRdv ? [Object.assign({ _auto: true }, _gAttRdv)] : [] });
+              FP.msg.open({ phone: c.tel || '', email: c.email || '', nom: prenom, lang: lang, title: 'Prévenir du rendez-vous', text: msg, emailSubject: _subjRdv, emailHtml: html, emailOpts: emailOpts, attachments: _gAttRdv ? [Object.assign({ _auto: true }, _gAttRdv)] : [] });
             }
           } catch (_) {}
         }

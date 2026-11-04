@@ -54,6 +54,17 @@ Le mode d'emploi du staging est dans `supabase/staging/README.md`.
 
 ## 5. Journal des réalisations
 
+### 04/11/2026 — Langue automatique FR/EN des messages conducteur + nettoyage des modèles 🟡 (manuel ✅ ; auto Edge = suite)
+**Problème 1 — mauvaise langue.** Un conducteur non francophone (ex. Gionata, italien) recevait des messages en **français** depuis certains flux. La logique de langue existait déjà (`FP.condLangue` → fr/en, accesseurs bilingues `FP.mailModeleProfilL`/`FP.mailObjetL`) mais **plusieurs flux appelaient les versions FR-only** ou du texte « en dur ». Corrigé (ils résolvent la langue du conducteur et choisissent FR/EN) :
+- **Tâche → « Envoyer »** (le bug montré), **fiche véhicule → « Prévenir du rendez-vous »**, **message de bienvenue** conducteur, **réponse SMS/WhatsApp à un signalement** (sinistre).
+- Déjà bilingues (vérifié) : **amendes**, **relances** (`FP.relances.message`), **entretiens**, **« Prévenir accès »**, **e-mail de réponse sinistre**.
+- **Réservation (emprunts)** : destinataire = demandeur externe, langue inconnue → reste **FR** (règle : langue non renseignée = défaut), documenté.
+- ⏳ **Rappels AUTOMATIQUES (Edge `km-relance` : demande/relance km + rappel CT la veille)** : encore **FR pour tous** → à rendre bilingues dans une **PR Edge isolée** (ajout de défauts EN côté serveur + lecture de la langue par conducteur), testée. `task-reminders` = messages **gestionnaire** → restent FR (règle).
+
+**Problème 2 — rédaction.** Nettoyage des **modèles par défaut** (code `FP.MAIL_DEFAUT`, FR **et** EN) : suppression des **tirets « — » utilisés comme séparateurs de phrases** (prévenir CG/EDL/CT/annonce, relances CT/entretien/garage/amende, et leurs versions EN), phrases rendues naturelles. **Variables préservées** (`{prenom}`, `{immat}`, `{lien}`, `{date}`, `{motif}`, `{revision}`…). **Aucune personnalisation client touchée** (stockée dans `app_settings`, intacte) ; `_MAIL_OBSOLETE` (détection d'anciens défauts) **non modifié**. Les tirets d'**objet** d'e-mail (« Titre — {immat} », mise en forme conventionnelle) sont conservés.
+
+**Méthode.** Cause racine corrigée, **fonctions communes réutilisées** (pas de nouveau moteur), Supabase/Edge/RLS/QR/perms/automatisations/destinataires/délais **inchangés** pour cette PR. `app.js` + `.min.js` régénérés, `?v=` bumpé (`20261104b`), `check-bugs` vert, manuel à jour.
+
 ### 04/11/2026 — Navigation « clic molette = nouvel onglet » (partout où une vraie page existe) ✅
 Comportement standard des navigateurs rétabli : **clic molette** (et **Ctrl/Cmd/Maj+clic**) ouvre la destination dans un **nouvel onglet**, sans quitter la page courante ; le **clic gauche** simple est inchangé.
 - **Deux causes racines** identifiées : (1) le menu latéral faisait `preventDefault()` sans vérifier les touches → Ctrl/Cmd+clic annulé ; (2) beaucoup de **cartes/lignes** naviguent en JavaScript (pas des `<a>`) → molette = rien, Ctrl/Cmd = même onglet.

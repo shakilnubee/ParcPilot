@@ -4973,44 +4973,44 @@ FP.MAIL_DEFAUT = {
   // ── Messages RAPIDES « Prévenir » (fiche véhicule → SMS / WhatsApp / e-mail). Courts, tutoiement.
   //    Balises : {prenom} {immat} {lien} {date}. {lien} = espace véhicule / relevé km / annonce selon le cas.
   prevAcces:     `Bonjour {prenom},\n🔑 Voici l'espace du véhicule {immat} 🎉 kilométrage, documents et petits soucis, tout au même endroit 👇\n{lien}`,
-  prevCarteGrise:`Bonjour {prenom},\n🪪 La carte grise du véhicule {immat} attend sagement ici — ouvrir le lien puis « Mes documents » 👇\n{lien}`,
+  prevCarteGrise:`Bonjour {prenom},\n🪪 La carte grise du véhicule {immat} attend sagement ici. Ouvre le lien puis « Mes documents » 👇\n{lien}`,
   prevRelanceKm: `Bonjour {prenom},\n📸 Un petit coup d'œil au compteur du véhicule {immat} ? 😊 Ça file en 30 secondes, c'est par ici 👇\n{lien}`,
-  prevEdl:       `Bonjour {prenom},\n📋 Petit rappel : l'état des lieux du véhicule {immat} est à faire 📸 (photos + kilométrage) — c'est rapide, tout est ici 👇\n{lien}`,
-  prevCt:        `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche à grands pas (échéance le {date}) ⏳ — un petit rendez-vous à caler ! 📅`,
+  prevEdl:       `Bonjour {prenom},\n📋 Petit rappel : l'état des lieux du véhicule {immat} est à faire 📸 (photos + kilométrage). C'est rapide, tout est ici 👇\n{lien}`,
+  prevCt:        `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche à grands pas (échéance le {date}) ⏳. Pense à caler un petit rendez-vous ! 📅`,
   prevRevision:  `Bonjour {prenom},\n🛠️ Le véhicule {immat} réclame bientôt un petit passage au garage 🚗 (révision / entretien à prévoir).`,
-  prevAnnonce:   `Bonjour,\n🏷️ Bonne affaire en vue ! Le véhicule {immat} est à vendre — photos et caractéristiques par ici 👇\n{lien}`,
+  prevAnnonce:   `Bonjour,\n🏷️ Bonne affaire en vue ! Le véhicule {immat} est à vendre. Photos et caractéristiques par ici 👇\n{lien}`,
   // Annonce d'un rendez-vous garage (envoyée QUAND on programme le RDV) — avec la DATE.
   rdvgarage: `Bonjour {prenom},\n\nUn rendez-vous est prévu pour le véhicule {immat} le {date}. 🗓️\nMotif : {motif}\n\nTu recevras un petit rappel la veille, pas d'inquiétude 🙂\nEt n'hésite pas si tu as la moindre question !`,
   // Rappel automatique la VEILLE (reprend les infos du rendez-vous).
   rappelgarage: `Bonjour {prenom},\n\nPetit rappel : un rendez-vous est prévu demain pour le véhicule {immat}. 🗓️\nMotif : {motif}\n\nBelle journée, et à très vite ! 🙂`,
   invitation: `Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗`,
   // ===== RELANCES (écran « 📣 Relances ») — rappels envoyés au conducteur. TOUS ÉDITABLES. =====
-  relanceCt: `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche (échéance le {date}) ⏳ — un petit rendez-vous à caler ! 📅`,
-  relanceEntretien: `Bonjour {prenom},\n🛠️ Le véhicule {immat} : révision {revision} 🚗 — pense à caler un passage au garage.`,
-  relanceGarage: `Bonjour {prenom},\n🔧 Rendez-vous garage pour le véhicule {immat} ({motif}) : prévu le {date} 📅 — pense à t'organiser.`,
+  relanceCt: `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche (échéance le {date}) ⏳. Pense à caler un rendez-vous ! 📅`,
+  relanceEntretien: `Bonjour {prenom},\n🛠️ Le véhicule {immat} : révision {revision} 🚗. Pense à caler un passage au garage.`,
+  relanceGarage: `Bonjour {prenom},\n🔧 Rendez-vous garage pour le véhicule {immat} ({motif}) : prévu le {date} 📅. Pense à t'organiser.`,
   relanceKm: `Bonjour {prenom},\n📸 Un petit coup d'œil au compteur du véhicule {immat} ? 😊 Ça file en 30 secondes !`,
-  relanceAmende: `Bonjour {prenom},\n🎫 Une amende concerne le véhicule {immat} — pense à la régler pour éviter une majoration 💵\nRegarde ta boîte mail 📩`,
+  relanceAmende: `Bonjour {prenom},\n🎫 Une amende concerne le véhicule {immat}. Pense à la régler pour éviter une majoration 💵\nRegarde ta boîte mail 📩`,
   // Modèle FR de la demande de signature d'état des lieux (SOURCE UNIQUE — utilisé aussi comme défaut du champ éditable).
   signature: `Bonjour {prenom},\n\nDernière étape avant de rouler ! 🚀 Signe l'état des lieux de ta {modele} ({immat}) en quelques secondes, directement depuis ce mail.`,
   // ===== VERSIONS ANGLAISES (envoyées quand la langue du conducteur n'est pas le français). TOUTES
   // ÉDITABLES dans Paramètres → E-mails (section « English e-mails ») — jamais en dur. =====
   relevekm_en: `Hello {prenom},\n\nPlease share the current mileage of vehicle {immat}. It's quick: one tap, one number, done.`,
   prevAcces_en:     `Hello {prenom},\n🔑 Here's the space for vehicle {immat} 🎉 mileage, documents and small issues, all in one place 👇\n{lien}`,
-  prevCarteGrise_en:`Hello {prenom},\n🪪 The registration document for vehicle {immat} is waiting here — open the link then "My documents" 👇\n{lien}`,
+  prevCarteGrise_en:`Hello {prenom},\n🪪 The registration document for vehicle {immat} is waiting here. Open the link, then "My documents" 👇\n{lien}`,
   prevRelanceKm_en: `Hello {prenom},\n📸 A quick look at the odometer of vehicle {immat}? 😊 It takes 30 seconds, it's right here 👇\n{lien}`,
-  prevEdl_en:       `Hello {prenom},\n📋 Quick reminder: the condition report for vehicle {immat} needs doing 📸 (photos + mileage) — it's quick, everything is here 👇\n{lien}`,
-  prevCt_en:        `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳ — time to book a slot! 📅`,
+  prevEdl_en:       `Hello {prenom},\n📋 Quick reminder: the condition report for vehicle {immat} needs doing 📸 (photos + mileage). It's quick, everything is here 👇\n{lien}`,
+  prevCt_en:        `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
   prevRevision_en:  `Hello {prenom},\n🛠️ Vehicle {immat} will soon need a trip to the garage 🚗 (service / maintenance due).`,
-  prevAnnonce_en:   `Hello,\n🏷️ Good deal ahead! Vehicle {immat} is for sale — photos and details here 👇\n{lien}`,
+  prevAnnonce_en:   `Hello,\n🏷️ Good deal ahead! Vehicle {immat} is for sale. Photos and details here 👇\n{lien}`,
   rdvgarage_en: `Hello {prenom},\n\nAn appointment is scheduled for vehicle {immat} on {date}. 🗓️\nReason: {motif}\n\nYou'll get a quick reminder the day before, no worries 🙂\nAnd feel free to ask if you have any question!`,
   rappelgarage_en: `Hello {prenom},\n\nQuick reminder: an appointment is scheduled tomorrow for vehicle {immat}. 🗓️\nReason: {motif}\n\nHave a great day, and see you soon! 🙂`,
   invitation_en: `Hello,\n\nWelcome to Parc Pilot! 🎉 Your access to the fleet management platform is ready.\n\nChoose your password in one click (button just below) and you can log in right away. Everything in one place, simple and fast.\n\nYour login: {email}\n\nSee you soon! 🚗`,
   signature_en: `Hello {prenom},\n\nLast step before hitting the road! 🚀 Sign the condition report for your {modele} ({immat}) in seconds, right from this email.`,
-  relanceCt_en: `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳ — time to book a slot! 📅`,
-  relanceEntretien_en: `Hello {prenom},\n🛠️ Vehicle {immat}: service {revision} 🚗 — remember to book a garage visit.`,
-  relanceGarage_en: `Hello {prenom},\n🔧 Garage appointment for vehicle {immat} ({motif}): scheduled on {date} 📅 — please plan ahead.`,
+  relanceCt_en: `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
+  relanceEntretien_en: `Hello {prenom},\n🛠️ Vehicle {immat}: service {revision} 🚗. Remember to book a garage visit.`,
+  relanceGarage_en: `Hello {prenom},\n🔧 Garage appointment for vehicle {immat} ({motif}): scheduled on {date} 📅. Please plan ahead.`,
   relanceKm_en: `Hello {prenom},\n📸 A quick look at the odometer of vehicle {immat}? 😊 It takes 30 seconds!`,
-  relanceAmende_en: `Hello {prenom},\n🎫 A fine concerns vehicle {immat} — remember to settle it to avoid a surcharge 💵\nCheck your inbox 📩`,
+  relanceAmende_en: `Hello {prenom},\n🎫 A fine concerns vehicle {immat}. Remember to settle it to avoid a surcharge 💵\nCheck your inbox 📩`,
 };
 // Remplissage GÉNÉRIQUE des balises d'un modèle e-mail ({prenom} = 1er mot ; {plaque}/{immat}/{motif}/
 // {date}/{email}). Une balise vide disparaît proprement (avec son espace). Source unique côté site + repli.
