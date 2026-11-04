@@ -8018,6 +8018,28 @@ FP.NAV_SUBMENUS = {
     { label: 'Décisions', tab: 'decisions' },
   ],
 };
+// ============================================================================
+// NAVIGATION « nouvel onglet » pour les CARTES / LIGNES cliquables qui ne sont PAS des <a>.
+// Beaucoup d'éléments naviguent via un handler JS (clic gauche → location.href / ouverture d'un
+// drawer). Pour retrouver le comportement standard des navigateurs, tout élément porteur de
+// `data-nav-href="URL"` s'ouvre dans un NOUVEL ONGLET au clic MOLETTE ou Ctrl/Cmd/Maj+clic. Le clic
+// gauche SIMPLE reste géré par le handler existant de l'élément (navigation en place / drawer) → aucun
+// comportement métier changé. ⚠️ On n'intervient PAS si le clic vise un vrai <a>/<button>/champ de
+// saisie : leur comportement natif est préservé (jamais deux onglets ouverts). Installé une seule fois.
+// (Les vrais liens — menu, FP.lienVehicule/lienConducteur, boutons d'action — n'ont pas besoin de ça :
+//  le navigateur gère déjà molette/Ctrl/Cmd/clic droit dessus.)
+FP.installNavHref = function () {
+  if (FP._navHrefInstalled) return; FP._navHrefInstalled = true;
+  const inInteractive = (t) => !!(t && t.closest && t.closest('a[href],button,input,select,textarea,label,[contenteditable]'));
+  const cardHref = (t) => { const el = t && t.closest && t.closest('[data-nav-href]'); return el ? el.getAttribute('data-nav-href') : ''; };
+  const abs = (h) => { try { return new URL(h, location.href).href; } catch (e) { return h; } };
+  const openTab = (h) => { if (h) { try { window.open(abs(h), '_blank', 'noopener'); } catch (e) {} } };
+  // Molette : empêcher l'autoscroll (rond gris) sur une carte navigable, puis ouvrir au relâchement.
+  document.addEventListener('mousedown', (e) => { if (e.button === 1 && !inInteractive(e.target) && cardHref(e.target)) e.preventDefault(); }, true);
+  document.addEventListener('auxclick', (e) => { if (e.button !== 1 || inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
+  document.addEventListener('click', (e) => { if (e.button !== 0 || !(e.ctrlKey || e.metaKey || e.shiftKey) || inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
+};
+try { FP.installNavHref(); } catch (e) {}
 FP.applyNavSubmenus = () => {
   try {
     const curPage = (location.pathname.split('/').pop() || 'dashboard.html');
@@ -8027,6 +8049,11 @@ FP.applyNavSubmenus = () => {
     if (!FP._navSubToggleInstalled) {
       FP._navSubToggleInstalled = true;
       document.addEventListener('click', (e) => {
+        // ⚠️ Clic MODIFIÉ (Ctrl / Cmd / Maj / Alt) ou clic non-gauche → on NE fait RIEN ici : on laisse
+        // le comportement NATIF du navigateur (ouvrir le lien dans un nouvel onglet). Sans ce garde-fou,
+        // le `e.preventDefault()` plus bas annulait Ctrl/Cmd+clic sur un onglet du menu. (La molette passe
+        // par `auxclick`, jamais `click`, donc elle n'était déjà pas interceptée ici.)
+        if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
         // (1) Clic sur un SOUS-ONGLET : si on est DÉJÀ sur sa page ET que la page expose un aiguilleur
         // (window.__fpSetTab), on bascule EN PLACE (aucun rechargement → zéro latence) au lieu de
         // recharger toute la page. Sinon navigation normale (autre page).
