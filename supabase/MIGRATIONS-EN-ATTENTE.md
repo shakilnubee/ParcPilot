@@ -121,7 +121,10 @@ config = bloqués ; admin = tout passe ; idempotent) **et** sur le STAGING (migr
 
 ---
 
-## 5) `20261104100000_cron_runs_table.sql` — supervision des tâches planifiées (audit F22/F23)
+## 5) `20261104100000_cron_runs_table.sql` — supervision des tâches planifiées (audit F22/F23) ✅ APPLIQUÉ EN PROD (04/11)
+
+> ✅ **04/11/2026 — APPLIQUÉ EN PRODUCTION** (Shakil, accord explicite ; voir `migrations/JOURNAL.md`).
+> Écran « Tâches automatiques — dernière exécution » actif (Paramètres → Notifications).
 
 **À quoi ça sert.** Une petite table `cron_runs` qui garde l'**historique des exécutions** des tâches
 automatiques du serveur (relances km + rappels RDV, rappels de tâches, import péages Ulys). Un écran
@@ -156,7 +159,7 @@ tout fonctionne comme avant, juste sans historique). Testée staging (migration-
 | `conducteurs-id-stable.sql` | Aucun (additif) | Aucun (socle) | Après phase 2 code | Faible |
 | `factures-notes-de-frais-columns.sql` | Aucun (additif) | **Oui** (métadonnées notes de frais/Sanef) | Dès le lancement | **Recommandée** |
 | `gestionnaire-config-guard.sql` (F6) | Aucun (fail-open) | ✅ **FAIT (03/11)** — faille config gestionnaire fermée | — (terminé) | — |
-| `cron_runs_table.sql` (F22/F23) | Aucun (additif) | Active la supervision des tâches auto | Dès le lancement | Moyenne (confort) |
+| `cron_runs_table.sql` (F22/F23) | Aucun (additif) | ✅ **FAIT (04/11)** — supervision des tâches auto active | — (terminé) | — |
 
 Dis-moi si tu veux qu'on enchaîne une **phase 2** (je la ferai par petites étapes,
 testables, sans casser l'existant).
