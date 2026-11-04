@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261103a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261103a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261103a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104a">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1203,8 +1203,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261103a"></script>
-<script src="../assets/js/supabase-client.js?v=20261103a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104a"></script>
+<script src="../assets/js/supabase-client.js?v=20261104a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1220,13 +1220,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261103a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261103a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261103a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261104a"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261104a"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261103a"></script><script>
+<script src="../assets/js/app.min.js?v=20261104a"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2885,7 +2885,7 @@
           return `<td${def.cellCls ? ` class="${def.cellCls}"` : ''} data-col="${k}" data-label="${escapeHtml(def.label || k)}">${def.render(v)}</td>`;
         }).join('');
         const fav = isFav(v.id);
-        return `<tr class="cursor-pointer${state.selectedIds.has(v.id) ? ' row-selected' : ''}${fav ? ' is-fav' : ''}" data-id="${v.id}">
+        return `<tr class="cursor-pointer${state.selectedIds.has(v.id) ? ' row-selected' : ''}${fav ? ' is-fav' : ''}" data-id="${v.id}" data-nav-href="vehicules.html?veh=${v.id}">
           <td class="cb-col"><span class="row-drag-handle" draggable="true" title="Glisser pour réorganiser">⋮⋮</span><input type="checkbox" class="row-cb" data-id="${v.id}" ${state.selectedIds.has(v.id) ? 'checked' : ''} /></td>
           ${cells}
           <td class="text-right whitespace-nowrap">
@@ -2943,7 +2943,7 @@
     const _kmA = (FP.kmActuel ? FP.kmActuel(v) : v.km); const km = (_kmA != null && _kmA !== '') ? FP.num(_kmA) : '—';
     const marque = escapeHtml((v.marque || '').trim()) || 'Véhicule';
     const modele = escapeHtml((v.modele || '').trim());
-    return `<div class="veh-card veh-appcard" data-id="${v.id}">
+    return `<div class="veh-card veh-appcard" data-id="${v.id}" data-nav-href="vehicules.html?veh=${v.id}">
       ${banner}
       <div class="veh-cbody">
         <div class="mm">${marque}</div>
