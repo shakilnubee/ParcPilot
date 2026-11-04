@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104c">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -381,8 +381,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104b"></script>
-<script src="../assets/js/supabase-client.js?v=20261104b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104c"></script>
+<script src="../assets/js/supabase-client.js?v=20261104c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -398,10 +398,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261104b"></script>
+<script src="../assets/js/app.min.js?v=20261104c"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -961,7 +961,7 @@
   }
   // Ouvre le sélecteur d'envoi (SMS / WhatsApp / e-mail) pré-rempli avec le message de la tâche.
   // RDV → annonce (date + motif) ; autres types → message simple. Message éditable avant envoi.
-  function notifyFromTask(t, opts) {
+  async function notifyFromTask(t, opts) {
     try {
       if (!FP.msg) return;
       opts = opts || {};
@@ -978,15 +978,33 @@
       const titre = t.titre || 'Information';
       const dateFr = t.echeance ? (FP.date ? FP.date(t.echeance) : t.echeance) : '';
       const dateTxt = dateFr + (t.heure ? (' à ' + t.heure) : '');
+      // ⚠️ TRADUCTION DU CONTENU (consigne) : l'interface reste en FR, mais pour un conducteur non
+      //    francophone on traduit le MOTIF (dico, instantané) + le texte libre note/lieu (IA Edge).
+      //    Échec/incertitude → on PRÉVIENT le gestionnaire (toast) et on ouvre quand même le composer
+      //    (éditable) avec le meilleur résultat — jamais d'envoi silencieux de français quand une
+      //    traduction est attendue.
+      let titreT = titre, noteT = String(t.note || ''), lieuT = String(t.lieu || '');
+      if (lang === 'en' && FP.tradTacheContenu) {
+        try {
+          if (FP.toast) FP.toast('Traduction du message…');
+          const tr = await FP.tradTacheContenu({ titre: titre, note: t.note, lieu: t.lieu }, 'en');
+          if (tr) { titreT = tr.titre || titre; noteT = String(tr.note || ''); lieuT = String(tr.lieu || ''); }
+          if (tr && tr.incertain && FP.toast) FP.toast('⚠️ Traduction incertaine — vérifie le message avant de l\'envoyer');
+        } catch (_) { if (FP.toast) FP.toast('⚠️ Traduction indisponible — vérifie le message (français) avant d\'envoyer'); }
+      }
+      // Corps : modèle garage (RDV) ou message simple, puis on ajoute lieu + note (texte libre traduit).
       let msg;
       if (taskType(t) === 'rdv' && FP.mailModeleProfilL && FP.fillTags) {
-        msg = FP.fillTags(FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang), { prenom, immat, motif: titre, date: dateTxt });
+        msg = FP.fillTags(FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang), { prenom, immat, motif: titreT, date: dateTxt });
       } else {
-        msg = L('Bonjour', 'Hello') + (prenom ? (' ' + prenom) : '') + ',\n\n' + titre
+        msg = L('Bonjour', 'Hello') + (prenom ? (' ' + prenom) : '') + ',\n\n' + titreT
           + (immat ? ('\n' + L('Véhicule', 'Vehicle') + ' : ' + immat) : '')
-          + (dateTxt ? ('\n' + L('Date', 'Date') + ' : ' + dateTxt) : '')
-          + (t.lieu ? ('\n' + L('Lieu', 'Location') + ' : ' + t.lieu) : '');
+          + (dateTxt ? ('\n' + L('Date', 'Date') + ' : ' + dateTxt) : '');
       }
+      if (lieuT.trim()) msg += '\n' + L('Lieu', 'Location') + ' : ' + lieuT;
+      if (noteT.trim()) msg += '\n\n' + noteT;
+      // Version traduite de la tâche (pour l'agenda .ics joint : résumé/lieu dans la langue du conducteur).
+      const tT = Object.assign({}, t, { titre: titreT, note: noteT, lieu: lieuT });
       let logo = ''; try { const lu = (FP.settings.get().profil || {}).logoUrl; if (/^https?:\/\//.test(String(lu || ''))) logo = String(lu); } catch (_) {}
       let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (_) {}
       // Tâche datée → on joint un fichier agenda (.ics) : le client mail propose « Ajouter au calendrier ».
@@ -995,10 +1013,10 @@
       try { let reply = ((FP.societeProfil ? FP.societeProfil() : {}) || {}).mailExpediteur || ''; if (reply) emailOpts.replyTo = reply; } catch (_) {}
       if (t.echeance && FP.ics) {
         try {
-          const b64 = FP.ics.b64(taskIcsEv(t));
+          const b64 = FP.ics.b64(taskIcsEv(tT));
           if (b64) {
             emailOpts.attachments = [{ filename: 'rendez-vous.ics', content: b64, content_type: 'text/calendar' }];
-            noteAgenda = FP.calendarBtnHtml ? FP.calendarBtnHtml({ title: titre + (immat ? (' · ' + immat) : ''), date: String(t.echeance).slice(0, 10), description: immat ? ('Véhicule : ' + immat) : '' }) : '';
+            noteAgenda = FP.calendarBtnHtml ? FP.calendarBtnHtml({ title: titreT + (immat ? (' · ' + immat) : ''), date: String(t.echeance).slice(0, 10), description: immat ? (L('Véhicule', 'Vehicle') + ' : ' + immat) : '' }) : '';
           }
         } catch (_) {}
       }
@@ -1010,12 +1028,12 @@
         if (!garagePj && veh && FP.garages && FP.garages.pdfAttachmentDe) garagePj = FP.garages.pdfAttachmentDe(veh);
       } catch (_) {}
       if (garagePj) { emailOpts.attachments = (emailOpts.attachments || []).concat([garagePj]); }
-      const html = FP.mailShell ? FP.mailShell({ brand: soc, logoUrl: logo, title: titre, bodyHtml: '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(msg).replace(/\n/g, '<br>') + '</div>' + noteAgenda }) : '';
+      const html = FP.mailShell ? FP.mailShell({ brand: soc, logoUrl: logo, title: titreT, bodyHtml: '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(msg).replace(/\n/g, '<br>') + '</div>' + noteAgenda }) : '';
       // Objet : RDV → objet ÉDITABLE (Paramètres → E-mails), balises {motif}{date}{immat}{prenom} ;
-      // autres types → objet générique repli.
-      const _fallbackSubj = titre + (dateFr ? (L(' le ', ' on ') + dateFr) : '') + (immat ? (' (' + immat + ')') : '');
+      // autres types → objet générique repli. Motif/intitulé traduit (titreT) pour un conducteur EN.
+      const _fallbackSubj = titreT + (dateFr ? (L(' le ', ' on ') + dateFr) : '') + (immat ? (' (' + immat + ')') : '');
       const _subj = (taskType(t) === 'rdv' && FP.mailObjetL)
-        ? (FP.mailObjetL('rdvgarage', { motif: titre, date: dateFr, immat: immat, prenom: prenom }, lang) || _fallbackSubj)
+        ? (FP.mailObjetL('rdvgarage', { motif: titreT, date: dateFr, immat: immat, prenom: prenom }, lang) || _fallbackSubj)
         : _fallbackSubj;
       FP.msg.open({ phone: c.tel || '', email: c.email || '', nom: prenom, lang: lang, title: 'Envoyer', text: msg, emailSubject: _subj, emailHtml: html, emailOpts: emailOpts });
     } catch (_) {}
