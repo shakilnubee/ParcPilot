@@ -12186,6 +12186,47 @@ FP.toast = (msg, opts) => {
   return el;
 };
 
+// Toast de PROGRESSION (empilable) pour une opération en plusieurs temps : « en cours… » → ✓ succès / ⚠ échec.
+// Renvoie { update(msg), done(msg), fail(msg), close() }. Visible en HAUT À DROITE (desktop) / haut (mobile,
+// sous la zone sûre), non bloquant, sans chevauchement (pile). Réutilisable PARTOUT (upload, scan IA, import,
+// envoi…). ⚠️ Toujours résoudre avec done()/fail() — un appel « en cours » laissé seul tournerait indéfiniment.
+FP.toastProgress = function (msg, opts) {
+  opts = opts || {};
+  let wrap = document.getElementById('fp-tp-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div'); wrap.id = 'fp-tp-wrap';
+    wrap.style.cssText = 'position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));z-index:100003;display:flex;flex-direction:column;gap:8px;max-width:min(360px,92vw);pointer-events:none';
+    document.body.appendChild(wrap);
+  }
+  if (!document.getElementById('fp-tp-style')) {
+    const st = document.createElement('style'); st.id = 'fp-tp-style';
+    st.textContent = '@keyframes fp-tp-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}@keyframes fp-tp-spin{to{transform:rotate(360deg)}}'
+      + '#fp-tp-wrap .fp-tp{pointer-events:auto;display:flex;align-items:flex-start;gap:9px;background:#0F1E3D;color:#fff;border-radius:11px;padding:10px 12px;box-shadow:0 14px 34px -14px rgba(0,0,0,.5);font-size:13px;font-weight:600;line-height:1.35;animation:fp-tp-in .18s ease}'
+      + '#fp-tp-wrap .fp-tp .ic{flex:none;width:16px;height:16px;margin-top:1px;display:inline-flex;align-items:center;justify-content:center;font-size:13px}'
+      + '#fp-tp-wrap .fp-tp .ic.sp{border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:fp-tp-spin .7s linear infinite}'
+      + '#fp-tp-wrap .fp-tp.ok{background:#047857}#fp-tp-wrap .fp-tp.err{background:#b91c1c}'
+      + '#fp-tp-wrap .fp-tp .x{margin-left:4px;background:none;border:none;color:rgba(255,255,255,.75);font-size:15px;line-height:1;cursor:pointer;flex:none;padding:0}';
+    document.head.appendChild(st);
+  }
+  const el = document.createElement('div'); el.className = 'fp-tp';
+  const ic = document.createElement('span'); ic.className = 'ic sp';
+  const tx = document.createElement('span'); tx.style.flex = '1'; tx.textContent = msg || '…';
+  const x = document.createElement('button'); x.className = 'x'; x.setAttribute('aria-label', 'Fermer'); x.textContent = '✕';
+  el.appendChild(ic); el.appendChild(tx); el.appendChild(x);
+  wrap.appendChild(el);
+  let timer = null;
+  const remove = () => { clearTimeout(timer); el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => { el.remove(); if (wrap && !wrap.children.length) wrap.remove(); }, 200); };
+  x.onclick = remove;
+  const settle = (cls, m, ms, icon) => { el.className = 'fp-tp ' + cls; ic.className = 'ic'; ic.textContent = icon; if (m != null) tx.textContent = m; try { if (FP.haptic) FP.haptic('light'); } catch (e) {} clearTimeout(timer); timer = setTimeout(remove, ms); };
+  return {
+    el: el,
+    update: (m) => { if (m != null) tx.textContent = m; },
+    done: (m) => settle('ok', m, opts.doneMs || 3200, '✓'),
+    fail: (m) => settle('err', m, opts.failMs || 7000, '⚠'),
+    close: remove,
+  };
+};
+
 // ── Fenêtres modales « à la sauce Parc Pilot » — remplacent les pop-ups natives ──
 // alert()/confirm()/prompt() du navigateur (moches, hors charte). Promesse en retour :
 //   await FP.confirm('Supprimer ?')  → true/false   ·   await FP.prompt('Nom ?', 'défaut') → texte/null
