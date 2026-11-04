@@ -218,6 +218,72 @@ function pickTxt(profVal: unknown, profValEn: unknown, defFr: string, defEn: str
   return defFr;
 }
 
+// ─── TRADUCTION DU MOTIF (rappel garage) pour un conducteur non francophone ───────────────
+//  Interface FR, mais le CONTENU part en EN si la langue du conducteur n'est pas le français.
+//  1) DICTIONNAIRE central des motifs connus (instantané, SANS IA). 2) IA (Claude) pour un
+//  motif libre non couvert. Échec IA → on NE renvoie PAS de français silencieux (l'appelant
+//  saute ce rappel et journalise une erreur exploitable, sans bloquer les autres).
+//  ⚠️ DICTIONNAIRE = MIROIR de `translate-text/index.ts` et de `assets/js/app.js`
+//     (FP.MOTIFS_TRAD). Toute nouvelle entrée doit être ajoutée aux 3.
+const MOTIFS_FR_EN: Record<string, string> = {
+  "revision": "Scheduled maintenance", "controle technique": "Vehicle inspection", "vidange": "Oil change",
+  "pneus": "Tyre service", "carrosserie": "Bodywork", "pare brise": "Windscreen", "climatisation": "Air conditioning",
+  "diagnostic": "Vehicle diagnostics", "lavage": "Car wash", "livraison": "Vehicle delivery",
+  "restitution": "Vehicle return", "expertise": "Vehicle assessment", "carte carburant": "Fuel card",
+  "badge telepeage": "Toll badge", "ampoules": "Bulbs", "accessoire": "Accessory", "equipement hiver": "Winter equipment",
+  "consommable": "Consumable", "verifier le permis": "Check driving licence", "relancer le garage": "Follow up with the garage",
+  "relancer le fournisseur": "Follow up with the supplier", "valider un devis": "Approve a quote",
+  "recuperer un document": "Collect a document", "rendez vous garage": "Garage appointment",
+  "reparation": "Repair", "reparation au garage": "Garage repair", "entretien": "Servicing",
+};
+function motifEn(fr: unknown): string | null {
+  const k = String(fr == null ? "" : fr).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return k && Object.prototype.hasOwnProperty.call(MOTIFS_FR_EN, k) ? MOTIFS_FR_EN[k] : null;
+}
+const TRANSLATE_MODELS = (Deno.env.get("TRANSLATE_MODEL") || Deno.env.get("ANTHROPIC_MODEL")
+  || "claude-haiku-4-5-20251001,claude-sonnet-5,claude-3-5-sonnet-20241022,claude-3-5-sonnet-latest")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+// Traduit UN motif libre FR → EN via Claude (noms propres/garages/plaques gardés tels quels, rien d'inventé).
+async function aiMotif(apiKey: string, text: string): Promise<{ ok: boolean; text: string; error?: string }> {
+  const prompt = "Translate this French vehicle-maintenance task label into a short, natural British-English label "
+    + "for a message sent to a driver. Keep proper nouns, brand/garage names and any {placeholder} tokens unchanged. "
+    + "Do not add or invent anything. Return ONLY the translated label, nothing else.\n\nLabel: " + JSON.stringify(text);
+  let lastErr = "aucun modele disponible";
+  for (const m of TRANSLATE_MODELS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    let r: Response;
+    try {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: m, max_tokens: 200, messages: [{ role: "user", content: prompt }] }),
+        signal: ctrl.signal,
+      });
+    } catch (e) { clearTimeout(timer); lastErr = (e && (e as Error).name === "AbortError") ? "timeout IA" : String((e as Error)?.message || e); continue; }
+    clearTimeout(timer);
+    const raw = await r.text(); let parsed: any = null; try { parsed = JSON.parse(raw); } catch (_) {}
+    if (r.ok && parsed) {
+      const t = (parsed.content || []).filter((x: any) => x.type === "text").map((x: any) => x.text || "").join("").trim()
+        .replace(/^["'`]+|["'`]+$/g, "").replace(/```/g, "").trim();
+      if (t) return { ok: true, text: t };
+      return { ok: false, text, error: "reponse IA vide" };
+    }
+    lastErr = (parsed && parsed.error && parsed.error.message) || ("HTTP " + r.status);
+    if (r.status === 404 && /model/i.test(lastErr)) continue;
+    return { ok: false, text, error: lastErr };
+  }
+  return { ok: false, text, error: lastErr };
+}
+// Résout le motif à afficher : FR si conducteur francophone ; EN sinon (dico, puis IA). ok:false = incertain.
+async function motifPourLangue(motif: string, lang: string, apiKey: string): Promise<{ ok: boolean; text: string; error?: string }> {
+  if (lang !== "en") return { ok: true, text: motif };
+  const d = motifEn(motif); if (d) return { ok: true, text: d };
+  if (!apiKey) return { ok: false, text: motif, error: "Aucune clé IA (ANTHROPIC_API_KEY)" };
+  return await aiMotif(apiKey, motif);
+}
+
 function buildMail(opts: { prenom: string; immat: string; marque: string; link: string; nomSoc: string; logoUrl: string; relance: boolean; modele?: string; objet?: string; lang?: string }) {
   const { prenom, immat, marque, link, nomSoc, logoUrl, relance } = opts;
   const en = opts.lang === "en";
@@ -377,6 +443,7 @@ Deno.serve(async (req) => {
   const onlySoc = body.societe ? String(body.societe).trim() : "";
 
   const RESEND_KEY = (Deno.env.get("RESEND_API_KEY") || "").trim();
+  const ANTHROPIC_KEY = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim(); // traduction motif libre (EN)
   // ⚠️ Repli sur un domaine VÉRIFIÉ dans Resend (seul projectxparis.fr l'est aujourd'hui) : l'adresse de
   // test onboarding@resend.dev ne peut écrire QU'au titulaire du compte → échec vers un destinataire tiers.
   // N'affecte QUE le repli (une société avec mailExpediteur configuré garde son adresse scopée ci-dessous).
@@ -574,7 +641,16 @@ Deno.serve(async (req) => {
       // Un e-mail par motif dû demain (en pratique 1 seul ; CT + rdv le même jour = 2, rare).
       for (const tg of targets) {
         if (dryRun) { ctBump(soc, "sent"); ctDetails.push({ societe: soc, immat: veh.immat || "", to: toList, motif: tg.motif, status: "dry-run" }); continue; }
-        const _motif = (_lang === "en" && tg.motif === "Contrôle technique") ? "Roadworthiness test" : tg.motif;
+        // Conducteur non francophone → motif traduit (dico d'abord, IA pour un motif libre). Si la
+        // traduction est INCERTAINE (échec IA), on ne part PAS en français en douce : on saute CE rappel
+        // et on journalise une erreur exploitable (les autres rappels continuent). Consigne explicite.
+        const _tr = await motifPourLangue(tg.motif, _lang, ANTHROPIC_KEY);
+        if (!_tr.ok) {
+          ctBump(soc, "skipped");
+          ctDetails.push({ societe: soc, immat: veh.immat || "", to: toList, motif: tg.motif, status: "traduction-incertaine", error: (_tr.error || "motif non traduit (EN)").slice(0, 200) });
+          continue;
+        }
+        const _motif = _tr.text;
         const mail = buildCtMail({ prenom, immat: veh.immat || "", marque: ((veh.marque || "") + " " + (veh.modele || "")).trim(), dateFr, dateIso: demain, nomSoc, logoUrl, lang: _lang, motif: _motif, modele: pickTxt(p.mailModeleRappelGarage, p.mailModeleRappelGarage_en, DEF_RAPPELGARAGE, DEF_RAPPELGARAGE_EN, _lang), objet: pickTxt(p.mailObjetRappelgarage, p.mailObjetRappelgarage_en, DEF_OBJ_RAPPELGARAGE, DEF_OBJ_RAPPELGARAGE_EN, _lang) });
         const payload: Record<string, unknown> = { from, to: toList, subject: mail.subject, html: mail.html, text: mail.text };
         if (replyTo) payload.reply_to = replyTo;

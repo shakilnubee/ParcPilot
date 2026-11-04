@@ -5117,6 +5117,77 @@ FP.mailObjetL = function (defKey, tags, lang) {
   const out = FP.fillTags ? FP.fillTags(raw, tags || {}) : raw;
   return String(out || '').trim();
 };
+
+// ─── TRADUCTION DU CONTENU DES TÂCHES (FR → EN) ─────────────────────────────────────────────
+//  L'interface de gestion reste en FRANÇAIS ; seul le CONTENU envoyé à un conducteur dont la
+//  langue n'est pas le français (SMS / WhatsApp / e-mail / aperçu) part en ANGLAIS. Les MODÈLES
+//  d'e-mail sont déjà bilingues (Paramètres → E-mails → 🇬🇧) ; ici on traduit les parties
+//  DYNAMIQUES saisies par le gestionnaire : le MOTIF/intitulé et le texte libre (note, lieu).
+//  MÉTHODE (consigne) : 1) DICTIONNAIRE central des motifs connus (instantané, SANS IA —
+//  jamais d'IA pour « Vidange »/« Révision ») ; 2) IA (Edge translate-text) pour le texte libre.
+//  ⚠️ DICTIONNAIRE = SOURCE UNIQUE côté client, MIROIR de supabase/functions/translate-text
+//     ET km-relance (MOTIFS_FR_EN). Toute nouvelle entrée doit être ajoutée aux 3 endroits.
+FP.MOTIFS_TRAD = {
+  'revision': 'Scheduled maintenance', 'controle technique': 'Vehicle inspection', 'vidange': 'Oil change',
+  'pneus': 'Tyre service', 'carrosserie': 'Bodywork', 'pare brise': 'Windscreen', 'climatisation': 'Air conditioning',
+  'diagnostic': 'Vehicle diagnostics', 'lavage': 'Car wash', 'livraison': 'Vehicle delivery',
+  'restitution': 'Vehicle return', 'expertise': 'Vehicle assessment', 'carte carburant': 'Fuel card',
+  'badge telepeage': 'Toll badge', 'ampoules': 'Bulbs', 'accessoire': 'Accessory', 'equipement hiver': 'Winter equipment',
+  'consommable': 'Consumable', 'verifier le permis': 'Check driving licence', 'relancer le garage': 'Follow up with the garage',
+  'relancer le fournisseur': 'Follow up with the supplier', 'valider un devis': 'Approve a quote',
+  'recuperer un document': 'Collect a document', 'rendez vous garage': 'Garage appointment',
+  'reparation': 'Repair', 'reparation au garage': 'Garage repair', 'entretien': 'Servicing'
+};
+FP._normMotif = function (s) {
+  return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+};
+// Motif connu → EN instantané (dictionnaire). null si inconnu (= texte libre à traduire par IA).
+FP.tradMotifLocal = function (fr) {
+  const k = FP._normMotif(fr);
+  return (k && Object.prototype.hasOwnProperty.call(FP.MOTIFS_TRAD, k)) ? FP.MOTIFS_TRAD[k] : null;
+};
+// Appel IA serveur (Edge translate-text) pour traduire des textes libres FR → EN.
+// Renvoie { ok, out:[{text, ok, source}] } ou { ok:false, error }.
+FP._tradViaEdge = async function (items) {
+  try {
+    if (!(FP.supabase && FP.supabase.functions && typeof FP.supabase.functions.invoke === 'function')) return { ok: false, error: 'hors-ligne' };
+    const { data, error } = await FP.supabase.functions.invoke('translate-text', { body: { items: items, target: 'en' } });
+    if (error) return { ok: false, error: String((error && error.message) || error) };
+    if (!data) return { ok: false, error: 'reponse vide' };
+    return data;
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+};
+// Traduit le CONTENU d'une tâche selon la langue du conducteur. Promise → { lang, titre, note, lieu, incertain }.
+//  • lang !== 'en' → renvoi TEL QUEL (zéro latence, zéro réseau).
+//  • lang === 'en' → motif connu par dico ; texte libre (intitulé perso, note, lieu) par IA (un seul
+//    appel groupé). En cas d'échec IA : incertain=true et on GARDE le FR d'origine (jamais masqué —
+//    l'appelant prévient le gestionnaire et le laisse corriger avant d'envoyer).
+FP.tradTacheContenu = async function (parts, lang) {
+  parts = parts || {};
+  const titre = String(parts.titre || ''), note = String(parts.note || ''), lieu = String(parts.lieu || '');
+  const out = { lang: lang, titre: titre, note: note, lieu: lieu, incertain: false };
+  if (lang !== 'en') return out;
+  // 1) Motif connu → dictionnaire (instantané, sans IA).
+  let titreDone = false;
+  const dm = FP.tradMotifLocal(titre);
+  if (dm) { out.titre = dm; titreDone = true; }
+  // 2) Texte libre restant → IA (un seul appel groupé).
+  const idx = [], items = [];
+  if (!titreDone && titre.trim()) { idx.push('titre'); items.push({ text: titre, kind: 'motif' }); }
+  if (note.trim()) { idx.push('note'); items.push({ text: note, kind: 'free' }); }
+  if (lieu.trim()) { idx.push('lieu'); items.push({ text: lieu, kind: 'free' }); }
+  if (!items.length) return out;
+  const res = await FP._tradViaEdge(items);
+  if (!res || !Array.isArray(res.out)) { out.incertain = true; return out; }
+  idx.forEach((field, i) => {
+    const o = res.out[i];
+    if (o && o.ok && typeof o.text === 'string') out[field] = o.text;
+    else out.incertain = true;
+  });
+  return out;
+};
+
 // Champs du profil société (rendu générique : le formulaire de Paramètres itère dessus).
 // Un champ avec `default` est PRÉ-REMPLI avec ce texte quand la valeur est vide (l'utilisateur le voit).
 FP.PROFIL_CHAMPS = [
