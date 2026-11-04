@@ -11069,7 +11069,7 @@ FP.buildAlertes = (data) => {
       if (nouv.length) {
         const items = nouv.map(s => ({
           label: `${s.plaque || 'Véhicule'}${s.modele ? ' · ' + s.modele : ''} — demande de ${FP.offreAchat.nomAcheteur(s)}${s.type === 'societe' ? ' (société)' : ''}`,
-          target: 'contrats.html?ctab=archive&offre=' + encodeURIComponent(s.id),
+          target: 'a-vendre.html?tab=demandes&offre=' + encodeURIComponent(s.id),
         }));
         out.push({ niveau: 'warn', categorie: 'Ventes', message: `${nouv.length} demande${nouv.length > 1 ? 's' : ''} d'achat reçue${nouv.length > 1 ? 's' : ''}`, detail: 'Un acheteur a rempli le formulaire acheteur. Le détail est dans Contrats → Archive — classe la demande une fois traitée.', sort: 210, muteKey: 'offre-achat-recue', vehicules: items });
       }
