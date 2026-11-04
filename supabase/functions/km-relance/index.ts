@@ -294,6 +294,18 @@ Deno.serve(async (req) => {
   const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ANON = Deno.env.get("SUPABASE_ANON_KEY");
   if (!SUPA || !SERVICE) return json({ error: "Configuration serveur incomplète." }, 500);
+  const _runStart = new Date().toISOString();
+  // Supervision (F22) : écrit UNE ligne d'historique de run (best-effort, JAMAIS bloquant).
+  // Compteurs GLOBAUX seulement (aucun nom de société / donnée perso). Ignoré en dry-run.
+  const _logRun = async (status: string, detail: Record<string, unknown>) => {
+    try {
+      await fetch(`${SUPA}/rest/v1/cron_runs`, {
+        method: "POST",
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ job: "km-relance", status, started_at: _runStart, finished_at: new Date().toISOString(), detail }),
+      });
+    } catch (_) { /* supervision best-effort */ }
+  };
 
   // --- Authentification : secret cron OU JWT de CEO (test manuel). ---
   const SECRET = (Deno.env.get("KM_RELANCE_SECRET") || "").trim();
@@ -548,5 +560,11 @@ Deno.serve(async (req) => {
     }
   } catch (e) { ctDetails.push({ status: "exception", error: String(e).slice(0, 200) }); }
 
+  if (!dryRun) {
+    const _sum = (o: Record<string, { sent: number; skipped: number; failed: number }>) =>
+      Object.values(o).reduce((a, x) => ({ sent: a.sent + (x.sent || 0), skipped: a.skipped + (x.skipped || 0), failed: a.failed + (x.failed || 0) }), { sent: 0, skipped: 0, failed: 0 });
+    const km = _sum(summary), ct = _sum(ctSummary);
+    await _logRun((km.failed + ct.failed) > 0 ? "error" : "ok", { kmSent: km.sent, kmSkipped: km.skipped, kmFailed: km.failed, ctSent: ct.sent, ctFailed: ct.failed });
+  }
   return json({ ok: true, dryRun, max: MAXREL, summary, details, ctSummary, ctDetails });
 });

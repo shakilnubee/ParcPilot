@@ -155,6 +155,17 @@ Deno.serve(async (req) => {
   const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ANON = Deno.env.get("SUPABASE_ANON_KEY");
   if (!SUPA || !SERVICE) return json({ error: "Configuration serveur incomplète." }, 500);
+  const _runStart = new Date().toISOString();
+  // Supervision (F22) : écrit UNE ligne d'historique de run (best-effort, JAMAIS bloquant).
+  const _logRun = async (status: string, detail: Record<string, unknown>) => {
+    try {
+      await fetch(`${SUPA}/rest/v1/cron_runs`, {
+        method: "POST",
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ job: "ulys-daily", status, started_at: _runStart, finished_at: new Date().toISOString(), detail }),
+      });
+    } catch (_) { /* supervision best-effort */ }
+  };
 
   // ── Authentification : secret cron (ULYS_DAILY_SECRET ou KM_RELANCE_SECRET) OU JWT de CEO. ──
   const SECRET1 = (Deno.env.get("ULYS_DAILY_SECRET") || "").trim();
@@ -280,5 +291,6 @@ Deno.serve(async (req) => {
     }
   }
 
+  if (!dryRun) await _logRun(mailError ? "error" : "ok", { added: added.length, skipped, emailed, error: mailError ? String(mailError).slice(0, 200) : undefined });
   return json({ ok: true, dryRun, societe: owner, added: added.length, skipped, imported: added, emailed, recipients, mailError });
 });
