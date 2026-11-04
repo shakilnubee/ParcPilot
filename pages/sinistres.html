@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261104d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261104d">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -425,8 +425,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104c"></script>
-<script src="../assets/js/supabase-client.js?v=20261104c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261104d"></script>
+<script src="../assets/js/supabase-client.js?v=20261104d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -442,12 +442,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261104c"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261104c" defer></script>
+<script src="../assets/js/app.min.js?v=20261104d"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261104d" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -593,18 +593,15 @@
     // Reste à charge total = Σ (coût réel incident − remboursé). Coût réel via FP.coutSinistre
     // (source unique : 0 si le sinistre est « Remboursé »/« Prise en charge » ou un devis) — même
     // règle que Statistiques/TCO (FP.resteChargeSinistre), sinon un dossier PEC restait à 100 %.
+    // SOURCE UNIQUE : FP.sinistreFin par incident (= reste à charge prévisionnel, identique à la carte,
+    // aux Statistiques et au TCO via FP.resteChargeSinistre). Une valeur « À déterminer » ne compte pas (0).
     const reste = groups.reduce((s, g) => {
-      const coutReel = g.lines.reduce((t, l) => t + FP.coutSinistre(l), 0);
-      // SOURCE UNIQUE FP.sinistreResteIncident (comme la carte + Statistiques) → compte la FRANCHISE sur un
-      // incident pris en charge. Avant, ce KPI l'ignorait → il affichait 0 € là où la carte montrait la franchise.
-      const st = (FP.sinistreStatutOf && g.lines[0]) ? FP.sinistreStatutOf(g.lines[0]) : '';
-      const isPec = (st === 'pec' || st === 'rembourse');
-      return s + (FP.sinistreResteIncident ? FP.sinistreResteIncident(coutReel, doss[g.key], isPec) : Math.max(0, coutReel - (Number((doss[g.key] || {}).rembourse) || 0)));
+      const fin = FP.sinistreFin ? FP.sinistreFin(g.key, g.lines) : null;
+      return s + ((fin && fin.resteChargePrev != null) ? fin.resteChargePrev : 0);
     }, 0);
-    // #34-C — Remboursé par l'assurance : Σ des montants « Remboursé » saisis dans les dossiers (période).
-    // Sépare clairement « facturé » (Total réparé) / « remboursé » (reçu) / « reste réel » — même source
-    // (champ dv.rembourse) que le calcul du reste à charge ci-dessus → les 3 cartes sont cohérentes.
-    const rembourse = groups.reduce((s, g) => s + (Number((doss[g.key] || {}).rembourse) || 0), 0);
+    // Remboursé encaissé = Σ des versements de chaque incident (tableau versements, ancien « rembourse » inclus).
+    // Sépare clairement « facturé » (Total réparé) / « encaissé » (reçu) / « reste réel » — même source que ci-dessus.
+    const rembourse = groups.reduce((s, g) => s + ((FP.sinistreFin ? FP.sinistreFin(g.key, g.lines).encaisse : 0) || 0), 0);
     const resp = groups.filter(g => (doss[g.key] || {}).resp === 'responsable').length;
     if ($('kpi-reste')) $('kpi-reste').textContent = FP.euro(reste);
     if ($('kpi-rembourse')) $('kpi-rembourse').textContent = FP.euro(rembourse);
@@ -697,7 +694,7 @@
   const RESP_LABEL = { 'responsable': 'Responsable', 'non-responsable': 'Non responsable', 'partagee': 'Partagée', 'en-cours': 'En cours' };
   function sinSteps(g, dv, cur) {
     const repaired = (g.cost || 0) > 0;
-    const reimbursed = (Number(dv.rembourse) || 0) > 0 || cur === 'rembourse' || cur === 'pec';
+    const reimbursed = (FP.sinistreEncaisse ? FP.sinistreEncaisse(dv) : (Number(dv.rembourse) || 0)) > 0 || cur === 'rembourse' || cur === 'pec';
     return [
       { label: 'Déclaré', done: true, date: g.rep.date },
       { label: 'Envoyé assurance', done: !!(dv.dateDeclaration || dv.numeroDossier), date: dv.dateDeclaration },
@@ -722,6 +719,53 @@
             </span>`;
       }).join('')
       + '</div>';
+  }
+
+  // 💶 SUIVI FINANCIER d'un incident — 9 montants + versements + synthèse (source unique FP.sinistreFin).
+  //   RÈGLE : une valeur inconnue = « À déterminer » (violet), JAMAIS 0. 0 € vert = valeur confirmée.
+  //   La plateforme n'invente aucun montant (ni « remboursement 300 € » ni « coût 300 € »).
+  function sinFinHTML(g) {
+    const fin = (FP.sinistreFin ? FP.sinistreFin(g.key, g.lines) : {}) || {};
+    const css = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
+    const td = '<span style="color:#7c3aed;font-weight:700;font-size:11px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:1px 6px">À déterminer</span>';
+    const eur = v => FP.euroPrecis(v);
+    const synth = v => (v == null) ? td : `<b style="color:${v > 0 ? '#b45309' : '#047857'}">${eur(v)}</b>`;
+    const money = (k, val) => `<input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="${k}" type="number" step="0.01" value="${val == null ? '' : val}" placeholder="—" style="${css}">`;
+    const coutFactTxt = (fin.coutFacture == null) ? '<span class="text-slate-400 italic text-xs">Aucune facture</span>' : `<b>${eur(fin.coutFacture)}</b>`;
+    const vers = fin.versements || [];
+    const versRows = vers.length ? vers.map((v, i) => `<div class="flex items-center gap-2 text-xs" style="padding:2px 0;border-bottom:1px dashed var(--fp-border)">
+        <span style="color:#64748b;min-width:68px">${v.date ? FP.date(v.date) : '—'}</span>
+        <b style="min-width:70px">${eur(v.montant)}</b>
+        <span class="text-slate-400 flex-1">${escapeHtml(v.libelle || '')}</span>
+        <button type="button" class="sin-vers-del" data-key="${escapeHtml(g.key)}" data-idx="${i}" title="Retirer ce versement" style="color:#b91c1c;background:none;border:none;cursor:pointer;font-weight:800;font-size:15px;line-height:1">×</button>
+      </div>`).join('') : '<div class="text-xs text-slate-400 italic" style="padding:2px 0">Aucun versement enregistré.</div>';
+    const inCss = 'font-size:12px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
+    return `
+      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💶 Suivi financier</div>
+      <div class="grid grid-cols-2 gap-2 sin-dg">
+        <label class="text-xs text-slate-500">Coût estimé (€)${money('coutEstime', fin.coutEstime)}</label>
+        <label class="text-xs text-slate-500">Coût facturé (TTC)<div style="margin-top:5px">${coutFactTxt}</div></label>
+        <label class="text-xs text-slate-500">Franchise contractuelle (€)${money('franchiseContractuelle', fin.franchiseContractuelle)}</label>
+        <label class="text-xs text-slate-500">Franchise appliquée (€)${money('franchiseAppliquee', fin.franchiseAppliquee)}</label>
+        <label class="text-xs text-slate-500">PEC annoncée (€)${money('pecAnnoncee', fin.pecAnnoncee)}</label>
+        <label class="text-xs text-slate-500">PEC confirmée (€)${money('pecConfirmee', fin.pecConfirmee)}</label>
+      </div>
+      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💳 Remboursements <span class="text-slate-400 normal-case font-normal">· encaissé ${eur(fin.encaisse)}</span></div>
+      <div>${versRows}</div>
+      <div class="flex flex-wrap gap-1 mt-1 items-center">
+        <input class="sin-vers-date" data-key="${escapeHtml(g.key)}" type="date" style="${inCss}">
+        <input class="sin-vers-montant" data-key="${escapeHtml(g.key)}" type="number" step="0.01" placeholder="Montant €" style="width:110px;${inCss}">
+        <input class="sin-vers-lib" data-key="${escapeHtml(g.key)}" type="text" placeholder="libellé (ex. acompte)" style="flex:1;min-width:120px;${inCss}">
+        <button type="button" class="sin-vers-add" data-key="${escapeHtml(g.key)}" style="font-size:12px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:7px;padding:4px 10px;cursor:pointer">+ Ajouter</button>
+      </div>
+      <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à recevoir</div><div style="margin-top:3px">${synth(fin.resteARecevoir)}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge prévisionnel</div><div style="margin-top:3px">${synth(fin.resteChargePrev)}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px;background:#fafbfc"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge définitif</div><div style="margin-top:3px">${fin.solde ? synth(fin.resteChargeDef) : '<span class="text-xs text-slate-400 italic">dossier non soldé</span>'}</div></div>
+      </div>
+      <label class="flex items-center gap-2 mt-2 text-xs text-slate-600" style="cursor:pointer"><input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="solde" type="checkbox" ${fin.solde ? 'checked' : ''}> Dossier financièrement soldé (affiche le reste à charge définitif)</label>
+      <div class="text-[11px] text-slate-400 mt-2" style="line-height:1.5">Légende : ${td} = information inconnue (jamais 0) · <b style="color:#047857">0 €</b> = valeur confirmée. La plateforme n'invente aucun montant.</div>
+    `;
   }
 
   function renderTimeline() {
@@ -770,11 +814,8 @@
         // Dossier assurance structuré (franchise / remboursé / responsabilité) — par incident
         const dv = (FP.settings.get().sinistreAssurance || {})[g.key] || {};
         const respOpts = [['', '—'], ['responsable', 'Responsable'], ['non-responsable', 'Non responsable'], ['partagee', 'Partagée'], ['en-cours', 'En cours']];
-        const coutReel = g.lines.reduce((t, l) => t + FP.coutSinistre(l), 0); // 0 si Remboursé/PEC/devis (source unique)
-        // Reste à charge = source unique FP.sinistreResteIncident (compte la FRANCHISE sur un incident pris
-        // en charge → plus de « reste à charge 0 € » quand la société a payé la franchise).
-        const _pec = /pec|rembours/i.test(String(cur));
-        const reste = FP.sinistreResteIncident ? FP.sinistreResteIncident(coutReel, dv, _pec) : (coutReel - (Number(dv.rembourse) || 0));
+        // Suivi financier détaillé (9 montants + versements + synthèse) : rendu par sinFinHTML(g) plus bas,
+        // source unique FP.sinistreFin (carte, KPI, TCO cohérents).
         const vehCh = (veh && veh.chauffeur && veh.chauffeur !== '—') ? veh.chauffeur : '';
         const _inpCss = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
         // Ouverture via FP.openScan (URL signée) : le bucket des scans est privé → un lien public brut
@@ -793,11 +834,10 @@
               <label class="text-xs text-slate-500">Déclaré à l'assurance le<input class="sin-doss" data-key="${g.key}" data-k="dateDeclaration" type="date" value="${escapeHtml(dv.dateDeclaration || '')}" style="${_inpCss}"></label>
               <label class="text-xs text-slate-500">Réponse assureur le<input class="sin-doss" data-key="${g.key}" data-k="dateReponse" type="date" value="${escapeHtml(dv.dateReponse || '')}" style="${_inpCss}"></label>
             </div>
-            <div class="grid grid-cols-3 gap-2 mt-2 sin-dg">
-              <label class="text-xs text-slate-500">Franchise (€)<input class="sin-doss" data-key="${g.key}" data-k="franchise" type="number" value="${dv.franchise ?? ''}" style="${_inpCss}"></label>
-              <label class="text-xs text-slate-500">Remboursé (€)<input class="sin-doss" data-key="${g.key}" data-k="rembourse" type="number" value="${dv.rembourse ?? ''}" style="${_inpCss}"></label>
+            <div class="grid grid-cols-2 gap-2 mt-2 sin-dg">
               <label class="text-xs text-slate-500">Responsabilité<select class="sin-doss" data-key="${g.key}" data-k="resp" style="${_inpCss}">${respOpts.map(([v, l]) => `<option value="${v}" ${dv.resp === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
             </div>
+            ${sinFinHTML(g)}
             <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">Lieu &amp; tiers impliqué</div>
             <div class="grid grid-cols-2 gap-2 sin-dg">
               <label class="text-xs text-slate-500">Lieu du sinistre<input class="sin-doss" data-key="${g.key}" data-k="lieu" type="text" value="${escapeHtml(dv.lieu || '')}" placeholder="—" style="${_inpCss}"></label>
@@ -814,7 +854,6 @@
             </div>
             <div class="sin-courrier-status text-xs mt-1" data-key="${g.key}"></div>
             <div class="sin-constat-status text-xs mt-1" data-key="${g.key}"></div>
-            ${g.cost ? `<div class="text-xs text-slate-500 mt-2">Coût ${FP.euroPrecis(g.cost)}${Number(dv.rembourse) ? ` · remboursé ${FP.euroPrecis(dv.rembourse)}` : ((cur === 'rembourse' || cur === 'pec') ? ` · <span style="color:#047857;font-weight:700">${cur === 'pec' ? 'pris en charge (assurance)' : 'remboursé (assurance)'}</span>` : '')} → <b style="color:${reste > 0 ? '#b45309' : '#047857'}">reste à charge ${FP.euroPrecis(Math.max(0, reste))}</b></div>` : ''}
             <div class="mt-2">
               <button type="button" class="sin-cloturer" data-key="${g.key}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;border-radius:8px;padding:4px 10px;cursor:pointer;${dv.dateCloture ? 'color:#475569;background:#fff;border:1px solid var(--fp-border)' : 'color:#047857;background:#ECFDF5;border:1px solid #A7F3D0'}"><i data-lucide="${dv.dateCloture ? 'rotate-ccw' : 'check-circle-2'}" class="w-3.5 h-3.5"></i> ${dv.dateCloture ? 'Rouvrir le dossier' : 'Clôturer le dossier'}</button>
             </div>
@@ -1062,7 +1101,11 @@
       const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
       const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
       let val = doss.value;
-      if (fld === 'franchise' || fld === 'rembourse') { val = (val === '' ? null : parseFloat(String(val).replace(',', '.'))); }
+      // Champs monétaires du suivi financier (nombres) + case « soldé » (booléen). « Vide » = on efface
+      // la clé → la valeur redevient « À déterminer » (jamais 0 fantôme). Source unique : FP.sinistreFin.
+      const NUM = ['franchise', 'rembourse', 'coutEstime', 'franchiseContractuelle', 'franchiseAppliquee', 'pecAnnoncee', 'pecConfirmee'];
+      if (doss.type === 'checkbox') { val = doss.checked ? true : null; }
+      else if (NUM.indexOf(fld) !== -1) { val = (val === '' ? null : parseFloat(String(val).replace(',', '.'))); if (typeof val === 'number' && isNaN(val)) val = null; }
       if (val === '' || val == null) delete o[fld]; else o[fld] = val;
       if (!Object.keys(o).length) delete s.sinistreAssurance[key];
       // ⚠️ Cohérence des statuts : si on saisit un REMBOURSÉ > 0 alors que le dossier est encore « à traiter »,
@@ -1147,18 +1190,26 @@
     if (url) o.courrierUrl = url;
     if (res && res.numeroDossier && String(res.numeroDossier).trim()) o.numeroDossier = String(res.numeroDossier).trim();
     if (res && res.dateCourrier && /^\d{4}-\d{2}-\d{2}/.test(String(res.dateCourrier))) o.dateReponse = String(res.dateCourrier).slice(0, 10);
+    // Montants LUS (jamais devinés) : franchise contractuelle + PEC annoncée, uniquement si clairement étiquetés.
+    const _amt = x => (x == null || x === '' || isNaN(Number(x)) || Number(x) < 0) ? null : Number(x);
+    const _franch = res ? _amt(res.franchise) : null;
+    const _pec = res ? _amt(res.priseEnCharge) : null;
+    if (_franch != null) o.franchiseContractuelle = _franch;
+    if (_pec != null) o.pecAnnoncee = _pec;
     FP.settings.save(s);
     // Mise à jour EN PLACE des champs (ne pas re-render : ça refermerait le panneau et masquerait la
     // confirmation). Les nouveaux champs/timeline/lien se rafraîchissent au prochain rendu de la page.
     const setVal = (k, v) => { const el = $('timeline').querySelector(`.sin-doss[data-k="${k}"][data-key="${key}"]`); if (el && v != null && v !== '') el.value = v; };
     if (o.numeroDossier) setVal('numeroDossier', o.numeroDossier);
     if (o.dateReponse) setVal('dateReponse', o.dateReponse);
+    if (_franch != null) setVal('franchiseContractuelle', _franch);
+    if (_pec != null) setVal('pecAnnoncee', _pec);
     const norm = res && res.responsabilite ? String(res.responsabilite).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '') : '';
     const map = { 'responsable': 'responsable', 'non-responsable': 'non-responsable', 'non responsable': 'non-responsable', 'partagee': 'partagee' };
     const val = map[norm] || '';
     const labels = { 'responsable': 'Responsable (nous en tort)', 'non-responsable': 'Non responsable', 'partagee': 'Partagée' };
     const just = (res && res.justification) ? ' — ' + FP.esc(res.justification) : '';
-    const lus = [url ? 'courrier enregistré' : '', (res && res.numeroDossier) ? ('n° ' + FP.esc(o.numeroDossier)) : '', (o.dateReponse) ? ('reçu le ' + (FP.dateNum ? FP.dateNum(o.dateReponse) : o.dateReponse)) : ''].filter(Boolean).join(' · ');
+    const lus = [url ? 'courrier enregistré' : '', (res && res.numeroDossier) ? ('n° ' + FP.esc(o.numeroDossier)) : '', (o.dateReponse) ? ('reçu le ' + (FP.dateNum ? FP.dateNum(o.dateReponse) : o.dateReponse)) : '', (_franch != null) ? ('franchise ' + FP.euroPrecis(_franch)) : '', (_pec != null) ? ('PEC annoncée ' + FP.euroPrecis(_pec)) : ''].filter(Boolean).join(' · ');
     // ⚠️ Ne pas laisser croire que la lettre est classée si son upload a échoué.
     const prefix = (courrierFail ? '⚠️ La lettre n\'a PAS pu être stockée (réessaie). ' : '') + (lus ? ('✓ ' + lus + '. ') : '');
     if (!val) { setSt(prefix + '🤷 L\'IA n\'a pas pu trancher la responsabilité' + just + ' — renseigne-la à la main.', '#B45309'); return; }
@@ -1183,6 +1234,39 @@
       col.title = willCollapse ? 'Agrandir cet incident' : 'Réduire cet incident';
       if (window.lucide) lucide.createIcons();
       return;
+    }
+    // 💳 Ajouter un versement (remboursement encaissé) à un incident — tableau sinistreAssurance[key].versements
+    const vadd = e.target.closest('.sin-vers-add');
+    if (vadd) {
+      const key = vadd.dataset.key;
+      const q = sel => $('timeline').querySelector(`${sel}[data-key="${key}"]`);
+      const dEl = q('.sin-vers-date'), mEl = q('.sin-vers-montant'), lEl = q('.sin-vers-lib');
+      const montant = mEl ? parseFloat(String(mEl.value).replace(',', '.')) : NaN;
+      if (!(montant > 0)) { if (FP.toast) FP.toast('Saisis un montant de versement.'); if (mEl) mEl.focus(); return; }
+      const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+      const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+      // Migration douce : un ancien « remboursé » scalaire devient le 1er versement, puis tableau (anti-perte).
+      if (!Array.isArray(o.versements)) o.versements = (Number(o.rembourse) > 0) ? [{ date: o.dateRemboursement || '', montant: Number(o.rembourse), libelle: '(remboursement)' }] : [];
+      delete o.rembourse; delete o.dateRemboursement;
+      o.versements.push({ date: (dEl && dEl.value) || '', montant: montant, libelle: ((lEl && lEl.value) || '').trim() });
+      // Cohérence du statut : un encaissement bascule « en attente » → « remboursé » (une seule source).
+      s.sinistreStatut = s.sinistreStatut || {};
+      const _cur = String(s.sinistreStatut[key] || '').toLowerCase();
+      if (!_cur || _cur === 'attente') s.sinistreStatut[key] = 'rembourse';
+      FP.settings.save(s); refreshAll(); return;
+    }
+    // 💳 Retirer un versement
+    const vdel = e.target.closest('.sin-vers-del');
+    if (vdel) {
+      const key = vdel.dataset.key, idx = parseInt(vdel.dataset.idx, 10);
+      const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+      const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+      if (!Array.isArray(o.versements)) o.versements = (Number(o.rembourse) > 0) ? [{ date: o.dateRemboursement || '', montant: Number(o.rembourse), libelle: '(remboursement)' }] : [];
+      delete o.rembourse; delete o.dateRemboursement;
+      if (idx >= 0 && idx < o.versements.length) o.versements.splice(idx, 1);
+      if (!o.versements.length) delete o.versements;
+      if (!Object.keys(o).length) delete s.sinistreAssurance[key];
+      FP.settings.save(s); refreshAll(); return;
     }
     // Courrier assureur : bouton → ouvre le sélecteur de fichier
     const crbtn = e.target.closest('.sin-courrier-btn');
