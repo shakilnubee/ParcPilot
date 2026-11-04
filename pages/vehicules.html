@@ -5053,7 +5053,12 @@
     _fillFilter('filter-entite', 'entite', 'Toutes entités', vs.map(v => v.entiteRattachement));
     _fillFilter('filter-detention', 'detention', 'Tous modes de détention', vs.map(v => v.modeDetention));
     _fillFilter('filter-pays', 'pays', "Tous pays", vs.map(v => v.paysImmat));
-    let loueurs = []; try { loueurs = vs.map(v => { try { return FP.loueurOf ? (FP.loueurOf(v) || '') : ''; } catch (e) { return ''; } }); } catch (e) {}
+    // ⚠️ LOUEUR ≠ SOCIÉTÉ : on ne liste QUE les loueurs de véhicules réellement EN LEASING (FP.estLeasing,
+    //    helper canonique). Sinon FP.loueurOf retombe sur le champ « propriétaire » brut (= la SOCIÉTÉ pour
+    //    un véhicule ACHETÉ : TJMAX, PROJECT X PARIS RETAIL, PXPR…) et ces sociétés polluaient la liste des
+    //    loueurs. Dynamique (aucun nom codé en dur) → marche pour tout futur client. Les véhicules achetés
+    //    n'ont pas de loueur et n'apparaissent donc plus ici.
+    let loueurs = []; try { loueurs = vs.filter(v => { try { return FP.estLeasing ? FP.estLeasing(v) : false; } catch (e) { return false; } }).map(v => { try { return FP.loueurOf ? (FP.loueurOf(v) || '') : ''; } catch (e) { return ''; } }); } catch (e) {}
     _fillFilter('filter-loueur', 'loueur', 'Tous loueurs', loueurs);
   }
   populateEntiteFilters();
