@@ -84,6 +84,26 @@ function resolveEmail(chauffeur: string, list: any[]): string {
   }
   return String((c && c.email) || "").trim();
 }
+// Langue e-mail du conducteur (fr/en) — miroir de FP.condLangue côté site : langue de sa fiche
+// (c.langue) sinon carte app_settings.condLangues[key] ; 'fr'/vide → français, toute autre → anglais.
+function langFromRaw(raw: unknown): "fr" | "en" {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) return "fr";
+  return (v === "fr" || v === "francais" || v === "français" || v === "french") ? "fr" : "en";
+}
+function resolveCondLang(chauffeur: string, list: any[], data: any): "fr" | "en" {
+  try {
+    const nm = String(chauffeur || "").trim(); if (!nm) return "fr";
+    const full = normNomComplet(nm);
+    let c: any = full ? (list || []).find((x) => normNomComplet(condDisplayName(x)) === full) : null;
+    if (!c) { const k = normPrenom(nm); const m = (list || []).filter((x) => normPrenom(x.name || x.prenom || x.key) === k); if (m.length === 1) c = m[0]; }
+    const direct = c && String(c.langue || "").trim();
+    if (direct) return langFromRaw(direct);
+    const map = (data && data.condLangues && typeof data.condLangues === "object") ? data.condLangues : {};
+    const key = c && c.key;
+    return langFromRaw(key ? map[key] : "");
+  } catch (_) { return "fr"; }
+}
 // Nettoie une liste de destinataires : un seul champ peut contenir PLUSIEURS adresses (séparées par
 // , ; espace ou retour ligne) et/ou la forme « Nom <email> ». On éclate, on extrait chaque adresse,
 // on valide le format, on met en minuscule et on dédoublonne. But : une adresse mal saisie (ou deux
@@ -183,13 +203,32 @@ const DEF_RAPPELGARAGE = "Bonjour {prenom},\n\nPetit rappel : un rendez-vous est
 // Objets (titres) ÉDITABLES côté site (Paramètres → E-mails) — mêmes défauts que FP.MAIL_OBJET_DEFAUT.
 const DEF_OBJ_RELEVEKM = "Relevé kilométrique — {immat}";
 const DEF_OBJ_RAPPELGARAGE = "Rappel : {motif} demain ({immat})";
+// Défauts ANGLAIS (conducteur non francophone) — mêmes textes que FP.MAIL_DEFAUT (_en) côté site.
+const DEF_RELEVEKM_EN = "Hello {prenom},\n\nPlease share the current mileage of vehicle {immat}. It's quick: one tap, one number, done.";
+const DEF_RAPPELGARAGE_EN = "Hello {prenom},\n\nQuick reminder: an appointment is scheduled tomorrow for vehicle {immat}. 🗓️\nReason: {motif}\n\nHave a great day, and see you soon! 🙂";
+const DEF_OBJ_RELEVEKM_EN = "Mileage reading — {immat}";
+const DEF_OBJ_RAPPELGARAGE_EN = "Reminder: {motif} tomorrow ({immat})";
+// Modèle/objet ACTIF selon la langue (fr/en) : perso EN → perso FR → défaut EN → défaut FR. Même priorité
+// que le site (FP.mailModeleProfilL/mailObjetL) : on respecte d'abord ce que la société a saisi.
+function pickTxt(profVal: unknown, profValEn: unknown, defFr: string, defEn: string, lang: string): string {
+  const en = lang === "en";
+  if (en) { const ve = String(profValEn ?? "").trim(); if (ve) return ve; }
+  const v = String(profVal ?? "").trim(); if (v) return v;
+  if (en && defEn) return defEn;
+  return defFr;
+}
 
-function buildMail(opts: { prenom: string; immat: string; marque: string; link: string; nomSoc: string; logoUrl: string; relance: boolean; modele?: string; objet?: string }) {
+function buildMail(opts: { prenom: string; immat: string; marque: string; link: string; nomSoc: string; logoUrl: string; relance: boolean; modele?: string; objet?: string; lang?: string }) {
   const { prenom, immat, marque, link, nomSoc, logoUrl, relance } = opts;
-  const subject = fillTags((opts.objet && String(opts.objet).trim()) ? String(opts.objet) : DEF_OBJ_RELEVEKM, { prenom, immat }) + (relance ? " (rappel)" : "");
-  const title = relance ? "Petit rappel : relevé kilométrique" : "Relevé kilométrique demandé";
-  // Message ÉDITABLE (Paramètres → E-mails). {prenom} {immat}. Repli = texte par défaut.
-  const msg = fillTags((opts.modele && String(opts.modele).trim()) ? String(opts.modele) : DEF_RELEVEKM, { prenom, immat });
+  const en = opts.lang === "en";
+  const subject = fillTags((opts.objet && String(opts.objet).trim()) ? String(opts.objet) : (en ? DEF_OBJ_RELEVEKM_EN : DEF_OBJ_RELEVEKM), { prenom, immat }) + (relance ? (en ? " (reminder)" : " (rappel)") : "");
+  const title = relance ? (en ? "Quick reminder: mileage reading" : "Petit rappel : relevé kilométrique") : (en ? "Mileage reading requested" : "Relevé kilométrique demandé");
+  const btnTxt = en ? "Enter my mileage →" : "Indiquer mon kilométrage →";
+  const helpTxt = en ? "If the button doesn't work, " : "Si le bouton ne fonctionne pas, ";
+  const helpLink = en ? "click here" : "cliquez ici";
+  const linkTxt = en ? "Click this link: " : "Clique sur ce lien : ";
+  // Message ÉDITABLE (Paramètres → E-mails). {prenom} {immat}. Repli = texte par défaut (langue conducteur).
+  const msg = fillTags((opts.modele && String(opts.modele).trim()) ? String(opts.modele) : (en ? DEF_RELEVEKM_EN : DEF_RELEVEKM), { prenom, immat });
   const plate = immat
     ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px">F</td>'
@@ -206,13 +245,13 @@ function buildMail(opts: { prenom: string; immat: string; marque: string; link: 
     + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 22px">'
     + bodyText(msg)
     + '<p style="text-align:center;margin:24px 0 6px">'
-    + '<a href="' + esc(link) + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px -8px rgba(11,18,32,.6)">Indiquer mon kilométrage →</a>'
+    + '<a href="' + esc(link) + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px -8px rgba(11,18,32,.6)">' + btnTxt + '</a>'
     + "</p>"
-    + '<p style="margin:10px 0 0;font-size:12px;color:#94A3B8;text-align:center">Si le bouton ne fonctionne pas, <a href="' + esc(link) + '" style="color:#94A3B8;text-decoration:underline">cliquez ici</a></p>'
+    + '<p style="margin:10px 0 0;font-size:12px;color:#94A3B8;text-align:center">' + helpTxt + '<a href="' + esc(link) + '" style="color:#94A3B8;text-decoration:underline">' + helpLink + '</a></p>'
     + "</div>"
     + ppFooter(nomSoc)
     + "</div>";
-  const text = msg + "\n\nClique sur ce lien : " + link + "\n\n" + (nomSoc || "Parc Pilot");
+  const text = msg + "\n\n" + linkTxt + link + "\n\n" + (nomSoc || "Parc Pilot");
   return { subject, html: mailDoc(html), text };
 }
 
@@ -248,20 +287,21 @@ function gcalUrl(opts: { title: string; dateIso: string; description?: string })
 
 // E-mail « rappel rendez-vous garage demain » (branded, même en-tête que le relevé km, sans bouton).
 // motif = libellé humain de l'intervention (« Révision », « Contrôle technique », « Réparation »…).
-function buildCtMail(opts: { prenom: string; immat: string; marque: string; dateFr: string; dateIso?: string; nomSoc: string; logoUrl: string; motif?: string; modele?: string; objet?: string }) {
+function buildCtMail(opts: { prenom: string; immat: string; marque: string; dateFr: string; dateIso?: string; nomSoc: string; logoUrl: string; motif?: string; modele?: string; objet?: string; lang?: string }) {
   const { prenom, immat, dateFr, nomSoc, logoUrl } = opts;
-  const motif = String(opts.motif || "Contrôle technique").trim() || "Contrôle technique";
-  const subject = fillTags((opts.objet && String(opts.objet).trim()) ? String(opts.objet) : DEF_OBJ_RAPPELGARAGE, { prenom, immat, motif });
+  const en = opts.lang === "en";
+  const motif = String(opts.motif || (en ? "Roadworthiness test" : "Contrôle technique")).trim() || (en ? "Roadworthiness test" : "Contrôle technique");
+  const subject = fillTags((opts.objet && String(opts.objet).trim()) ? String(opts.objet) : (en ? DEF_OBJ_RAPPELGARAGE_EN : DEF_OBJ_RAPPELGARAGE), { prenom, immat, motif });
   // Message ÉDITABLE (Paramètres → E-mails). {prenom} {immat} {motif} {date}.
-  const msg = fillTags((opts.modele && String(opts.modele).trim()) ? String(opts.modele) : DEF_RAPPELGARAGE, { prenom, immat, motif, date: dateFr });
+  const msg = fillTags((opts.modele && String(opts.modele).trim()) ? String(opts.modele) : (en ? DEF_RAPPELGARAGE_EN : DEF_RAPPELGARAGE), { prenom, immat, motif, date: dateFr });
   // Fichier agenda (.ics) du RDV (date = demain) → joint à l'e-mail + note d'explication.
   const icsB64 = buildIcs({ uid: "rdv-" + immat + "-" + String(opts.dateIso || "").slice(0, 10), title: motif + (immat ? " · " + immat : ""), dateIso: String(opts.dateIso || ""), description: immat ? ("Véhicule : " + immat) : "" });
   const gUrl = gcalUrl({ title: motif + (immat ? " · " + immat : ""), dateIso: String(opts.dateIso || ""), description: immat ? ("Véhicule : " + immat) : "" });
   const calBlock = (gUrl || icsB64)
     ? '<div style="text-align:center;margin:18px 0 2px">'
-      + (gUrl ? '<a href="' + gUrl + '" style="display:inline-block;background:#0B1220;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">📅 Ajouter à mon agenda</a>' : '')
+      + (gUrl ? '<a href="' + gUrl + '" style="display:inline-block;background:#0B1220;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">' + (en ? "📅 Add to my calendar" : "📅 Ajouter à mon agenda") + '</a>' : '')
       + '</div>'
-      + (icsB64 ? '<p style="font-size:12px;color:#94A3B8;text-align:center;margin:6px 0 0">Ou ouvre le fichier agenda joint (Apple / Outlook).</p>' : '')
+      + (icsB64 ? '<p style="font-size:12px;color:#94A3B8;text-align:center;margin:6px 0 0">' + (en ? "Or open the attached calendar file (Apple / Outlook)." : "Ou ouvre le fichier agenda joint (Apple / Outlook).") + '</p>' : '')
     : "";
   const plate = immat
     ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
@@ -272,7 +312,7 @@ function buildCtMail(opts: { prenom: string; immat: string; marque: string; date
     + '<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">'
     + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:22px 24px;border-radius:14px 14px 0 0">'
     + '<div>' + mailHead(nomSoc, logoUrl) + "</div>"
-    + '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + esc(motif) + ' demain</div>'
+    + '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + esc(motif) + (en ? ' tomorrow' : ' demain') + '</div>'
     + (prenom ? '<div style="font-size:16px;font-weight:700;margin-top:14px;color:#fff">' + esc(prenom) + "</div>" : "")
     + (plate ? '<div style="margin-top:14px">' + plate + "</div>" : "")
     + "</div>"
@@ -373,7 +413,7 @@ Deno.serve(async (req) => {
   const bump = (soc: string, k: "sent" | "skipped" | "failed") => { (summary[soc] || (summary[soc] = { sent: 0, skipped: 0, failed: 0 }))[k]++; };
 
   // Envoi effectif d'une demande (1re demande OU relance) : insère la ligne km_requests puis le mail.
-  const envoyer = async (veh: any, soc: string, data: any, email: string, chauffeur: string, relance: boolean, days: number) => {
+  const envoyer = async (veh: any, soc: string, data: any, email: string, chauffeur: string, relance: boolean, days: number, lang: string) => {
     if (dryRun) { bump(soc, "sent"); details.push({ societe: soc, immat: veh.immat || "", email, days, status: relance ? "dry-run-relance" : "dry-run-1re-demande" }); return; }
     const token = uuid();
     const kmAvant = Number.isFinite(Number(veh.km)) && Number(veh.km) > 0 ? Math.round(Number(veh.km)) : null;
@@ -401,7 +441,7 @@ Deno.serve(async (req) => {
     const nomSoc = String((data.societe && data.societe.nom) || "").trim();
     const prenom = String(chauffeur || veh.chauffeur || "").trim().split(/\s+/)[0] || "";
     const link = BASE + "?t=" + token;
-    const mail = buildMail({ prenom, immat: veh.immat || "", marque: ((veh.marque || "") + " " + (veh.modele || "")).trim(), link, nomSoc, logoUrl, relance, modele: String(p.mailModeleReleveKm || ""), objet: String(p.mailObjetRelevekm || "") });
+    const mail = buildMail({ prenom, immat: veh.immat || "", marque: ((veh.marque || "") + " " + (veh.modele || "")).trim(), link, nomSoc, logoUrl, relance, lang, modele: pickTxt(p.mailModeleReleveKm, p.mailModeleReleveKm_en, DEF_RELEVEKM, DEF_RELEVEKM_EN, lang), objet: pickTxt(p.mailObjetRelevekm, p.mailObjetRelevekm_en, DEF_OBJ_RELEVEKM, DEF_OBJ_RELEVEKM_EN, lang) });
     const payload: Record<string, unknown> = { from, to: [email], subject: mail.subject, html: mail.html, text: mail.text };
     if (replyTo) payload.reply_to = replyTo;
     try {
@@ -469,13 +509,13 @@ Deno.serve(async (req) => {
       if (sentInStreak >= MAXREL) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days, status: "plafond-atteint" }); continue; }
       const email = cleanEmails([pending.email])[0] || "";
       if (!email) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days, status: String(pending.email || "").trim() ? "email-invalide" : "sans-email" }); continue; }
-      await envoyer(veh, soc, data, email, pending.chauffeur || veh.chauffeur || "", true, days);
+      await envoyer(veh, soc, data, email, pending.chauffeur || veh.chauffeur || "", true, days, resolveCondLang(pending.chauffeur || veh.chauffeur || "", condBySoc[soc] || [], data));
     } else {
       // ── 1re DEMANDE AUTO : aucune demande en cours, et le km est EN RETARD (même règle que l'alerte du site). ──
       if (!kmDue(veh.immat, kmDates, notif, now)) continue;
       const email = cleanEmails([resolveEmail(String(veh.chauffeur || ""), condBySoc[soc] || [])])[0] || "";
       if (!email) { bump(soc, "skipped"); details.push({ societe: soc, immat: veh.immat || "", email: "", days: 0, status: "sans-email" }); continue; }
-      await envoyer(veh, soc, data, email, String(veh.chauffeur || ""), false, 0);
+      await envoyer(veh, soc, data, email, String(veh.chauffeur || ""), false, 0, resolveCondLang(String(veh.chauffeur || ""), condBySoc[soc] || [], data));
     }
   }
 
@@ -528,11 +568,14 @@ Deno.serve(async (req) => {
       const logoUrl = /^https?:\/\//.test(String(p.logoUrl || "")) ? String(p.logoUrl) : "";
       const nomSoc = String((data.societe && data.societe.nom) || "").trim();
       const prenom = String(veh.chauffeur || "").trim().split(/\s+/)[0] || "";
+      // Langue du conducteur (destinataire principal) — fr/en.
+      const _lang = resolveCondLang(String(veh.chauffeur || ""), condBySoc[soc] || [], data);
       const dateFr = demain.split("-").reverse().join("/");
       // Un e-mail par motif dû demain (en pratique 1 seul ; CT + rdv le même jour = 2, rare).
       for (const tg of targets) {
         if (dryRun) { ctBump(soc, "sent"); ctDetails.push({ societe: soc, immat: veh.immat || "", to: toList, motif: tg.motif, status: "dry-run" }); continue; }
-        const mail = buildCtMail({ prenom, immat: veh.immat || "", marque: ((veh.marque || "") + " " + (veh.modele || "")).trim(), dateFr, dateIso: demain, nomSoc, logoUrl, motif: tg.motif, modele: String(p.mailModeleRappelGarage || ""), objet: String(p.mailObjetRappelgarage || "") });
+        const _motif = (_lang === "en" && tg.motif === "Contrôle technique") ? "Roadworthiness test" : tg.motif;
+        const mail = buildCtMail({ prenom, immat: veh.immat || "", marque: ((veh.marque || "") + " " + (veh.modele || "")).trim(), dateFr, dateIso: demain, nomSoc, logoUrl, lang: _lang, motif: _motif, modele: pickTxt(p.mailModeleRappelGarage, p.mailModeleRappelGarage_en, DEF_RAPPELGARAGE, DEF_RAPPELGARAGE_EN, _lang), objet: pickTxt(p.mailObjetRappelgarage, p.mailObjetRappelgarage_en, DEF_OBJ_RAPPELGARAGE, DEF_OBJ_RAPPELGARAGE_EN, _lang) });
         const payload: Record<string, unknown> = { from, to: toList, subject: mail.subject, html: mail.html, text: mail.text };
         if (replyTo) payload.reply_to = replyTo;
         if (mail.ics) payload.attachments = [{ filename: "rendez-vous.ics", content: mail.ics, content_type: "text/calendar" }];
