@@ -169,6 +169,67 @@
   .sin-edit:hover { color: var(--fp-accent); border-bottom-color: var(--fp-accent); }
   .sin-edit-empty { color: var(--fp-muted); font-style: italic; font-weight: 500; }
   .sin-info-grid .val { white-space: normal; }
+  /* ─── Liste : sélecteur de vue + maquette B (liste + aperçu) + maquette A (tableau) ─── */
+  .sin-plate-l { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; font-size: 12px; background: #eef2f8; border: 1px solid var(--fp-border); border-radius: 6px; padding: 2px 7px; white-space: nowrap; color: var(--fp-text, #111A2B); }
+  body.fp-dark .sin-plate-l { background: #1b2639; color: #e6edf6; }
+  .sin-viewtoggle { display: inline-flex; gap: 2px; border: 1px solid var(--fp-border); border-radius: 9px; padding: 2px; background: var(--fp-surface); }
+  .sin-viewtoggle button { border: none; background: none; color: var(--fp-muted); border-radius: 7px; padding: 6px 9px; cursor: pointer; display: grid; place-items: center; }
+  .sin-viewtoggle button:hover { color: var(--fp-accent); }
+  .sin-viewtoggle button.on { background: var(--fp-accent); color: #fff; }
+  .sin-splitwrap { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .sin-minilist { overflow: hidden; }
+  .sin-mini { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; border-bottom: 1px solid var(--fp-border); padding: 10px 13px; cursor: pointer; }
+  .sin-mini:last-child { border-bottom: none; }
+  .sin-mini:hover { background: var(--fp-bg); }
+  .sin-mini.sel { background: var(--fp-accent-soft, #FFF3EA); border-left-color: var(--fp-accent); }
+  body.fp-dark .sin-mini:hover { background: #0f1829; }
+  body.fp-dark .sin-mini.sel { background: #1b2639; }
+  .sin-mini .grow { min-width: 0; flex: 1; }
+  .sin-mini .l1 { display: flex; align-items: center; gap: 8px; }
+  .sin-mini .l2 { font-size: 11.5px; color: var(--fp-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sin-mini-badge { font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .sin-mini-prio { width: 8px; height: 8px; border-radius: 50%; background: var(--fp-accent); flex: none; } .sin-mini-prio.wait { background: var(--fp-data, #0EA5E9); }
+  .sin-preview { position: sticky; top: 12px; align-self: start; overflow: hidden; }
+  .pv-head { background: linear-gradient(135deg, var(--fp-primary, #0B1220), #1b2d52); color: #fff; padding: 14px 16px; position: relative; }
+  .pv-close { position: absolute; top: 9px; right: 9px; background: rgba(255,255,255,.14); border: none; color: #fff; width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-weight: 700; }
+  .pv-head h3 { font-size: 15px; color: #fff; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; font-family: var(--fp-title, inherit); }
+  .pv-head .sin-plate { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.3); color: #fff; }
+  .pv-sub { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 5px; } .pv-sub b { color: #fff; }
+  .pv-chip { display: inline-block; margin-top: 9px; font-size: 10.5px; font-weight: 800; border-radius: 9999px; padding: 3px 10px; color: #fff; }
+  .pv-body { padding: 13px 15px; display: flex; flex-direction: column; gap: 12px; }
+  .pv-cta { display: flex; gap: 8px; align-items: flex-start; border-radius: 10px; padding: 9px 11px; }
+  .pv-cta.pv-do { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; } .pv-cta.pv-wait { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; } .pv-cta.pv-done { background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; }
+  body.fp-dark .pv-cta.pv-do { background: #2a1c10; border-color: #7c4a1e; } body.fp-dark .pv-cta.pv-wait { background: #0b2740; border-color: #1e4e7a; } body.fp-dark .pv-cta.pv-done { background: #0e2a20; border-color: #1c6048; }
+  .pv-k { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; opacity: .85; } .pv-t { font-weight: 700; font-size: 12.5px; }
+  .pv-desc { font-size: 12.5px; color: var(--fp-muted); }
+  .pv-fin { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pv-fc { border: 1px solid var(--fp-border); border-radius: 9px; padding: 8px 10px; background: var(--fp-surface-2, #f8fafc); } body.fp-dark .pv-fc { background: #0f1829; }
+  .pv-fc .k { font-size: 9.5px; text-transform: uppercase; color: var(--fp-faint, #8a93a3); font-weight: 700; } .pv-fc .v { font-size: 14px; margin-top: 3px; font-family: var(--fp-title, inherit); }
+  .pv-doc { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fp-muted); padding: 5px 0; border-bottom: 1px dashed var(--fp-border); } .pv-doc:last-child { border-bottom: none; }
+  .pv-voir { color: var(--fp-accent); font-weight: 700; background: none; border: none; cursor: pointer; font-size: 12px; }
+  .pv-foot { padding: 0 15px 15px; }
+  .pv-open { width: 100%; background: var(--fp-accent); color: #fff; border: none; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; }
+  .pv-empty { padding: 44px 20px; text-align: center; color: var(--fp-faint, #8a93a3); } .pv-empty-ic { font-size: 28px; opacity: .4; margin-bottom: 6px; }
+  .sin-tablewrap { grid-column: 1 / -1; overflow: hidden; }
+  .sin-tbl-scroll { overflow-x: auto; }
+  .sin-tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
+  .sin-tbl th { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--fp-faint, #8a93a3); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--fp-border); white-space: nowrap; background: var(--fp-surface-2, #f8fafc); font-weight: 700; }
+  body.fp-dark .sin-tbl th { background: #0f1829; }
+  .sin-tbl td { padding: 10px 12px; border-bottom: 1px solid var(--fp-border); vertical-align: middle; font-size: 13px; }
+  .sin-tbl tr:last-child td { border-bottom: none; }
+  .sin-tbl tbody tr:hover { background: var(--fp-bg); } body.fp-dark .sin-tbl tbody tr:hover { background: #0f1829; }
+  .sin-tbl tr.row-selected { background: var(--fp-accent-soft, #FFF3EA); } body.fp-dark .sin-tbl tr.row-selected { background: #1b2639; }
+  .sin-tbl .nowrap { white-space: nowrap; }
+  .sin-tbl .veh-cell { display: flex; align-items: center; gap: 9px; } .sin-tbl .vm { font-size: 11px; color: var(--fp-muted); }
+  .sin-tbl .next-c { font-size: 12px; color: var(--fp-muted); max-width: 220px; }
+  .sin-tbl .pin { color: var(--fp-accent); font-weight: 700; }
+  .sin-tbadge { font-size: 11px; font-weight: 700; border-radius: 9999px; padding: 2px 9px; white-space: nowrap; }
+  .btn-open-sm { background: var(--fp-accent); color: #fff; border: none; border-radius: 7px; padding: 5px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+  @media (max-width: 820px) {
+    .sin-splitwrap { grid-template-columns: 1fr; }
+    .sin-preview { position: fixed; inset: auto 0 0 0; z-index: 55; border-radius: 16px 16px 0 0; max-height: 85vh; overflow-y: auto; box-shadow: var(--fp-shadow-lg, 0 -10px 40px rgba(0,0,0,.3)); margin: 0 auto; max-width: 620px; display: none; }
+    .sin-preview.pv-open { display: block; }
+  }
 </style>
 <script>
 (function(){
@@ -775,6 +836,12 @@
   let sinDetailKey = null;
   let sinDetailTab = 'fin';   // onglet actif de la fiche détail (fin|assurance|docs|tiers|histo)
   let sinListScrollY = 0;     // position de défilement de la LISTE, mémorisée à l'ouverture d'une fiche → restaurée au retour
+  // Mode d'affichage de la liste : 'apercu' (maquette B — liste compacte + aperçu latéral, défaut) ou
+  // 'tableau' (maquette A — 1 ligne/dossier). Mémorisé par société (préférence d'affichage par appareil).
+  const SIN_MODE_KEY = 'fp_sin_listmode_' + (((window.FP && FP.activeSociete) ? FP.activeSociete() : '') || 'PXP');
+  let sinListMode = 'apercu';
+  try { const _m = localStorage.getItem(SIN_MODE_KEY); if (_m === 'tableau' || _m === 'apercu') sinListMode = _m; } catch (e) {}
+  let sinSelKey = null;       // incident sélectionné pour l'aperçu latéral (mode B)
   function saveSinCollapsed(){ try { localStorage.setItem(SIN_COLLAPSE_KEY, JSON.stringify([...sinCollapsed])); } catch (e) {} }
 
   // ---- Suivi d'étapes d'un dossier sinistre (déclaration → réponse assureur → réparation → remboursement → clôture) ----
@@ -1168,6 +1235,101 @@
     } catch (e) {}
   }
 
+  // ─── LISTE : maquette B (liste + aperçu) et maquette A (tableau), toutes deux en CONSULTATION ───
+  // Infos d'affichage d'un incident (source unique : mêmes helpers que la fiche).
+  function sinRowInfo(g) {
+    const s = g.rep;
+    const veh = (data.vehicules || []).find(v => FP.normImmat(v.immat) === FP.normImmat(s.vehiculeImmat));
+    const vm = veh ? (`${veh.marque || ''} ${veh.modele || ''}`).trim() : '';
+    const cur = (FP.settings.get().sinistreStatut || {})[g.key] || '';
+    const dv = (FP.settings.get().sinistreAssurance || {})[g.key] || {};
+    const fin = (FP.sinistreFin ? FP.sinistreFin(g.key, g.lines) : {}) || {};
+    const cond = dv.conducteur || (veh && veh.chauffeur && veh.chauffeur !== '—' ? veh.chauffeur : '');
+    const parc = sinFinParcours(g, fin, dv, cur);
+    const clot = !!dv.dateCloture;
+    return { s, veh, vm, cur, dv, fin, cond, parc, clot };
+  }
+  function sinMiniRowHTML(g) {
+    const i = sinRowInfo(g); const col = i.clot ? '#047857' : statColor(i.cur);
+    const lab = i.clot ? 'Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+    return `<button type="button" class="sin-mini${g.key === sinSelKey ? ' sel' : ''}" data-sel="${escapeHtml(g.key)}" style="border-left-color:${col}">
+        <div class="grow"><div class="l1"><span class="sin-plate-l">${escapeHtml(i.s.vehiculeImmat || '—')}</span> <span class="sin-mini-badge" style="color:${col}">${escapeHtml(lab)}</span></div>
+        <div class="l2">${FP.date(i.s.date)} · ${escapeHtml(i.cond || '—')}${i.vm ? ' · ' + escapeHtml(i.vm) : ''}</div></div>
+        ${i.parc.next.tone === 'do' ? '<span class="sin-mini-prio" title="Action requise"></span>' : (i.parc.next.tone === 'wait' ? '<span class="sin-mini-prio wait" title="En attente d\'un tiers"></span>' : '')}
+      </button>`;
+  }
+  function sinPreviewDocsHTML(dv) {
+    const rows = [];
+    [['courrier', "Courrier de l'assureur", dv.courrierUrl], ['constat', 'Constat amiable', dv.constatUrl]].forEach(([k, l, u]) => {
+      if (!u) return;
+      const isImg = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(u);
+      rows.push(`<div class="pv-doc">${isImg ? `<img class="sin-doc-thumb sin-doc-view" data-url="${escapeHtml(u)}" alt="aperçu" loading="lazy">` : '<i data-lucide="file-text" class="w-4 h-4" style="color:#059669"></i>'}<span style="flex:1;min-width:0">${l}</span><button type="button" class="sin-doc-view pv-voir" data-url="${escapeHtml(u)}">Voir</button></div>`);
+    });
+    return rows.length ? rows.join('') : '<div class="text-xs text-slate-400 italic">Aucun document déposé.</div>';
+  }
+  function sinListPreviewHTML(g) {
+    if (!g) return '<div class="pv-empty"><div class="pv-empty-ic">📂</div>Sélectionne un dossier à gauche pour voir son aperçu.</div>';
+    const i = sinRowInfo(g), s = i.s, fin = i.fin;
+    const eur = v => FP.euroPrecis(v);
+    const td = '<span class="sin-det-td">À déterminer</span>';
+    const kv = v => (v == null) ? td : `<b${v === 0 ? ' style="color:#047857"' : ''}>${eur(v)}</b>`;
+    const chipCol = i.clot ? '#047857' : statColor(i.cur), chipLbl = i.clot ? '✓ Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+    const coutAperc = (fin.coutFacture != null) ? fin.coutFacture : (fin.coutEstime != null ? fin.coutEstime : null);
+    return `<div class="pv-head"><button class="pv-close" data-closepv title="Fermer l'aperçu">✕</button>
+        <h3><span class="sin-plate">${escapeHtml(s.vehiculeImmat || '—')}</span> ${escapeHtml(i.vm || '')}</h3>
+        <div class="pv-sub">Sinistre du <b>${FP.date(s.date)}</b>${i.cond ? ' · ' + escapeHtml(i.cond) : ''}${s.fournisseur ? ' · ' + escapeHtml(s.fournisseur) : ''}</div>
+        <span class="pv-chip" style="background:${chipCol}">${escapeHtml(chipLbl)}</span></div>
+      <div class="pv-body">
+        <div class="pv-cta pv-${i.parc.next.tone}"><i data-lucide="${i.parc.next.tone === 'done' ? 'check-circle-2' : (i.parc.next.tone === 'wait' ? 'clock' : 'arrow-right-circle')}" class="w-4 h-4" style="flex:0 0 auto"></i><div style="min-width:0"><div class="pv-k">Prochaine action</div><div class="pv-t">${escapeHtml(i.parc.next.text)}</div></div></div>
+        ${s.description ? `<div class="pv-desc">${escapeHtml(s.description)}</div>` : ''}
+        <div><div class="sin-det-sec" style="padding:0 0 5px">Résumé financier</div><div class="pv-fin">
+          <div class="pv-fc"><div class="k">Coût facturé</div><div class="v">${kv(coutAperc)}</div></div>
+          <div class="pv-fc"><div class="k">Prise en charge</div><div class="v">${kv(fin.pecConfirmee)}</div></div>
+          <div class="pv-fc"><div class="k">Remboursé</div><div class="v">${kv(fin.encaisse == null ? 0 : fin.encaisse)}</div></div>
+          <div class="pv-fc"><div class="k">Reste à charge</div><div class="v">${kv(fin.resteChargePrev)}</div></div>
+        </div></div>
+        <div><div class="sin-det-sec" style="padding:0 0 5px">Parcours du dossier</div>${sinTimelineHTML(sinSteps(g, i.dv, i.cur))}</div>
+        <div><div class="sin-det-sec" style="padding:0 0 5px">Documents</div>${sinPreviewDocsHTML(i.dv)}</div>
+      </div>
+      <div class="pv-foot"><button type="button" class="pv-open" data-sin-open="${escapeHtml(g.key)}"><i data-lucide="maximize-2" class="w-4 h-4"></i> Ouvrir la fiche complète</button></div>`;
+  }
+  function sinApercuHTML(shown) {
+    if (shown.length && !shown.some(g => g.key === sinSelKey)) sinSelKey = shown[0].key;
+    const sel = shown.find(g => g.key === sinSelKey) || shown[0] || null;
+    return `<div class="sin-splitwrap">
+        <div class="panel sin-minilist" id="sin-minilist">${shown.map(sinMiniRowHTML).join('')}</div>
+        <div class="panel sin-preview" id="sin-preview">${sinListPreviewHTML(sel)}</div>
+      </div>`;
+  }
+  function sinTableHTML(shown) {
+    const money = v => v == null ? '<span class="sin-det-td">À déterminer</span>' : (v === 0 ? '<span style="color:#047857;font-weight:700">0 €</span>' : FP.euroPrecis(v));
+    const rows = shown.map(g => {
+      const i = sinRowInfo(g), s = i.s, fin = i.fin, col = i.clot ? '#047857' : statColor(i.cur);
+      const lab = i.clot ? 'Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+      const due = fin.resteChargePrev;
+      const dueTxt = due == null ? '<span class="sin-det-td">À déterminer</span>' : (due > 0 ? '<span style="color:#B45309;font-weight:700">' + FP.euroPrecis(due) + '</span>' : '<span style="color:#047857;font-weight:700">0 €</span>');
+      return `<tr class="${sinBulk && sinBulk.has(g.key) ? 'row-selected' : ''}">
+          <td>${sinBulk ? sinBulk.cbCell(g.key) : ''}</td>
+          <td><div class="veh-cell"><span class="sin-plate-l">${escapeHtml(s.vehiculeImmat || '—')}</span><span class="vm">${escapeHtml(i.vm || '')}</span></div></td>
+          <td class="nowrap">${FP.date(s.date)}</td>
+          <td>${escapeHtml(i.cond || '—')}</td>
+          <td><span class="sin-tbadge" style="color:${col};background:${col}1a">${escapeHtml(lab)}</span></td>
+          <td class="nowrap">${money(i.fin.coutFacture != null ? i.fin.coutFacture : (i.fin.coutEstime != null ? i.fin.coutEstime : null))}</td>
+          <td class="nowrap">${dueTxt}</td>
+          <td class="next-c">${i.parc.next.tone === 'do' ? '<span class="pin">▶ </span>' : ''}${escapeHtml(i.parc.next.text)}</td>
+          <td style="text-align:right"><button type="button" class="btn-open-sm" data-sin-open="${escapeHtml(g.key)}"><i data-lucide="maximize-2" class="w-3 h-3"></i> Ouvrir</button></td>
+        </tr>`;
+    }).join('');
+    return `<div class="sin-tablewrap panel"><div class="sin-tbl-scroll"><table class="sin-tbl">
+        <thead><tr><th style="width:26px"></th><th>Véhicule</th><th>Date</th><th>Conducteur</th><th>Statut</th><th>Coût facturé</th><th>Reste à charge</th><th>Prochaine action</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>`;
+  }
+  // Reflète le mode actif sur le sélecteur de vue (injecté dans la barre de filtres).
+  function sinSyncViewToggle() {
+    const w = document.getElementById('sin-viewtoggle'); if (!w) return;
+    w.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.lmode === sinListMode));
+  }
+
   function renderTimeline() {
     // Fiche détail ouverte : on rend UN incident en plein écran (dans #timeline → gestionnaires délégués OK),
     // et on masque le chrome de liste (filtres, sélection multiple, « voir plus »). La liste réapparaît au « Retour ».
@@ -1219,88 +1381,10 @@
             : `<button id="sin-toggle" class="btn btn-outline text-sm">Voir les ${groups.length - SIN_LIMIT} autres incidents</button>`;
         } else { more.classList.add('hidden'); more.innerHTML = ''; }
       }
-      tl.innerHTML = shown.map(g => {
-        const s = g.rep;
-        const multi = g.lines.length > 1;
-        const collapsed = sinCollapsed.has(g.key);   // carte réduite (en-tête seul) ?
-        const veh = (data.vehicules || []).find(v => FP.normImmat(v.immat) === FP.normImmat(s.vehiculeImmat));
-        const vehInfo = veh ? `${escapeHtml(veh.marque)} ${escapeHtml(veh.modele)}${veh.chauffeur && veh.chauffeur !== '—' ? ' · ' + (FP.lienConducteur ? FP.lienConducteur(veh.chauffeur) : escapeHtml(veh.chauffeur)) : ''}` : (s.vehiculeImmat || '');
-        const cur = (FP.settings.get().sinistreStatut || {})[g.key] || '';
-        const bar = statColor(cur);
-        // Dossier assurance structuré (franchise / remboursé / responsabilité) — par incident.
-        // Champs/documents/financier rendus par les helpers partagés (sinAssureFieldsHTML, sinFinHTML,
-        // sinTiersFieldsHTML, sinDocsSectionHTML) → mêmes composants que la fiche détail (source unique).
-        const dv = (FP.settings.get().sinistreAssurance || {})[g.key] || {};
-        const vehCh = (veh && veh.chauffeur && veh.chauffeur !== '—') ? veh.chauffeur : '';
-        // Mini-timeline TOUJOURS visible sur la carte (les champs de saisie restent dans le panneau repliable).
-        const sinTimeline = sinTimelineHTML(sinSteps(g, dv, cur));
-        const dossierPanel = `
-          <details class="mt-2 sin-doss-det" data-doss-key="${escapeHtml(g.key)}" ${sinDossOpen.has(g.key) ? 'open' : ''}>
-            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#475569;list-style:none" class="inline-flex items-center gap-1"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Dossier assurance — modifier le suivi <i data-lucide="chevron-down" class="w-3.5 h-3.5 sin-doss-chev" style="transition:transform .18s;color:#94a3b8"></i></summary>
-            ${sinAssureFieldsHTML(g, dv, vehCh)}
-            ${sinFinHTML(g, dv, cur)}
-            <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">Lieu &amp; tiers impliqué</div>
-            ${sinTiersFieldsHTML(g, dv)}
-            <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">📎 Documents du dossier</div>
-            ${sinDocsSectionHTML(g, s, dv)}
-            <div class="mt-2">${sinCloturerBtnHTML(g, dv)}</div>
-          </details>`;
-        // Candidats à associer : autres sinistres du même véhicule pas déjà dans cet incident
-        const candidats = sinistres.filter(c => FP.immatEq(c.vehiculeImmat, s.vehiculeImmat) && groupKeyOf(c.id) !== g.key);
-        const assocPanel = `
-          <div data-assoc-panel="${g.key}" class="hidden mt-3 pt-3" style="border-top:1px dashed var(--fp-border)">
-            ${candidats.length ? `
-              <div class="text-xs text-slate-500 mb-1">Rattacher un autre sinistre de <b>${escapeHtml(s.vehiculeImmat || '')}</b> à cet incident :</div>
-              <div class="flex gap-2">
-                <select class="sin-assoc-pick flex-1" style="font-size:12px;border:1px solid var(--fp-border);border-radius:8px;padding:4px 6px">
-                  ${candidats.map(c => `<option value="${c.id}">${FP.date(c.date)} · ${c.montantTTC ? FP.euroPrecis(c.montantTTC) : 'sans montant'}${c.description ? ' · ' + escapeHtml(c.description.slice(0, 40)) : ''}</option>`).join('')}
-                </select>
-                <button type="button" data-sin-assoc-ok="${g.key}" class="btn btn-dark text-xs">Rattacher</button>
-              </div>` : `<div class="text-xs text-slate-400">Aucun autre sinistre enregistré pour ${escapeHtml(s.vehiculeImmat || 'ce véhicule')}.</div>`}
-          </div>`;
-        return `
-          <div class="card p-4${sinBulk && sinBulk.has(g.key) ? ' row-selected' : ''}" style="border-left:4px solid ${bar}">
-            <div class="flex justify-between items-start gap-2">
-              <div class="flex items-start gap-2 min-w-0">
-                ${sinBulk ? `<label style="padding-top:2px;cursor:pointer" title="Sélectionner cet incident">${sinBulk.cbCell(g.key)}</label>` : ''}
-                <div class="min-w-0">
-                  <div class="font-mono font-extrabold text-slate-900 cursor-pointer hover:underline" data-sin-edit="${s.id}" data-fld="vehiculeImmat" data-lbl="Plaque du véhicule" title="Cliquer pour modifier">${escapeHtml(s.vehiculeImmat || '—')}</div>
-                  <div class="text-xs text-slate-500 mt-0.5"><span class="cursor-pointer hover:underline" data-sin-edit="${s.id}" data-fld="date" data-typ="date" data-lbl="Date du sinistre" title="Modifier la date">${FP.date(s.date)}</span>${!multi ? ` · <span class="cursor-pointer hover:underline" data-sin-edit="${s.id}" data-fld="fournisseur" data-lbl="Fournisseur / réparateur" title="Modifier">${s.fournisseur ? escapeHtml(s.fournisseur) : 'fournisseur'}</span>` : ''}</div>
-                </div>
-              </div>
-              <div class="text-right shrink-0 flex items-start gap-1.5">
-                <div>
-                ${multi
-                  ? (g.cost ? `<div class="font-extrabold text-red-600 text-lg leading-none">${FP.euroPrecis(g.cost)}</div>` : '<div class="text-xs text-slate-400 italic">Sans montant</div>')
-                  : `<div class="font-extrabold text-red-600 text-lg leading-none cursor-pointer hover:underline" data-sin-edit="${s.id}" data-fld="montantTTC" data-typ="number" data-lbl="Montant TTC (€)" title="Modifier le montant">${g.cost ? FP.euroPrecis(g.cost) : '<span class="text-slate-400 text-sm italic">+ montant</span>'}</div>`}
-                ${multi ? `<div class="text-[11px] text-slate-400 mt-0.5">${g.lines.length} documents</div>` : ''}
-                </div>
-                <button type="button" data-sin-collapse="${g.key}" title="${collapsed ? 'Agrandir cet incident' : 'Réduire cet incident'}" class="shrink-0 text-slate-400 hover:text-slate-700" style="background:none;border:none;cursor:pointer;padding:2px;line-height:0;margin-top:1px"><i data-lucide="chevron-${collapsed ? 'down' : 'up'}" class="w-4 h-4"></i></button>
-              </div>
-            </div>
-            <div class="sin-body" data-sin-body="${escapeHtml(g.key)}"${collapsed ? ' style="display:none"' : ''}>
-            ${multi
-              ? g.lines.map(lineBlock).join('')
-              : `<div class="text-sm text-slate-700 mt-2 cursor-pointer hover:underline" data-sin-edit="${s.id}" data-fld="description" data-lbl="Description" title="Cliquer pour modifier">${escapeHtml(s.description || '— ajouter une description')}</div>`}
-            ${vehInfo ? `<div class="text-xs text-slate-400 mt-1">${vehInfo}</div>` : ''}
-            <div class="flex items-center justify-between gap-2 mt-3 pt-3" style="border-top:1px solid var(--fp-border)">
-              ${statutSelect(g.key)}
-              <div class="flex items-center gap-3 shrink-0">
-                <button type="button" data-sin-open="${g.key}" title="Ouvrir la fiche détaillée de ce dossier (parcours guidé, suivi financier, documents)" class="inline-flex items-center gap-1 text-xs font-bold" style="color:#fff;background:var(--fp-accent);border-radius:8px;padding:4px 10px"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Ouvrir la fiche</button>
-                <button type="button" data-sin-depose="${s.id}" data-key="${g.key}" title="Déposer la facture de réparation de CET accident : l'IA lit le montant et la rattache à cet incident (sans créer de doublon)" class="inline-flex items-center gap-1 text-xs font-semibold" style="color:var(--fp-accent)"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer la facture</button>
-                <button type="button" data-sin-assoc="${g.key}" title="Associer un devis / une facture déjà enregistré" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Associer</button>
-                ${multi ? '' : docLink(s.fileId, false)}
-                <button type="button" data-sin-pdf="${s.id}" title="Générer le rapport PDF (avec photos) à envoyer à l'assurance" class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>
-                ${multi ? '' : `<button type="button" data-sin-del="${s.id}" title="Supprimer ce sinistre" class="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>`}
-              </div>
-            </div>
-            ${sinTimeline}
-            ${dossierPanel}
-            ${assocPanel}
-            </div>
-          </div>
-        `;
-      }).join('');
+      // Maquette B (défaut) : liste compacte + aperçu latéral · Maquette A : tableau. Les deux sont en
+      // CONSULTATION (aucun formulaire) : toute l'édition se fait dans la fiche détaillée (« Ouvrir »).
+      tl.innerHTML = (sinListMode === 'tableau') ? sinTableHTML(shown) : sinApercuHTML(shown);
+      sinSyncViewToggle();
     }
     const stat = FP.settings.get().sinistreStatut || {};
     const all = allGroups();
@@ -1835,6 +1919,17 @@
     // Changer d'onglet DANS la fiche : on ne touche pas au défilement (l'utilisateur reste à sa hauteur).
     const dtab = e.target.closest('.sin-dtab, .sin-dtab2');
     if (dtab) { sinDetailTab = dtab.dataset.tab || 'fin'; renderTimeline(); return; }
+    // Maquette B : clic sur une ligne de la liste compacte → aperçu latéral (mise à jour légère, sans re-render global).
+    const selRow = e.target.closest('[data-sel]');
+    if (selRow) {
+      sinSelKey = selRow.getAttribute('data-sel');
+      const ml = document.getElementById('sin-minilist'); if (ml) ml.querySelectorAll('.sin-mini').forEach(x => x.classList.toggle('sel', x.getAttribute('data-sel') === sinSelKey));
+      const pv = document.getElementById('sin-preview');
+      if (pv) { const gg = allGroups().find(x => x.key === sinSelKey); pv.innerHTML = sinListPreviewHTML(gg); pv.classList.add('pv-open'); if (window.lucide) lucide.createIcons(); sinHydrateThumbs(); }
+      return;
+    }
+    const closePv = e.target.closest('[data-closepv]');
+    if (closePv) { const pv = document.getElementById('sin-preview'); if (pv) pv.classList.remove('pv-open'); return; }
     // Réduire / agrandir une carte incident (toggle, mémorisé). On bascule l'affichage sans tout re-rendre.
     const col = e.target.closest('[data-sin-collapse]');
     if (col) {
@@ -2154,6 +2249,23 @@
     if (sk) { sk.value = state.sortKey; sk.addEventListener('change', e => { state.sortKey = e.target.value; renderTimeline(); }); }
     if (sd) sd.addEventListener('click', () => { state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc'; syncDir(); renderTimeline(); });
     syncDir();
+  })();
+
+  // Sélecteur de VUE de la liste : « Liste + aperçu » (maquette B) / « Tableau » (maquette A). Injecté dans la
+  // barre de filtres ; le choix est mémorisé par société. La fiche détaillée reste la vue complète commune.
+  (function () {
+    const fb = document.getElementById('sin-filterbar'); if (!fb || document.getElementById('sin-viewtoggle')) return;
+    const w = document.createElement('div'); w.id = 'sin-viewtoggle'; w.className = 'sin-viewtoggle';
+    w.innerHTML = '<button type="button" data-lmode="apercu" title="Liste + aperçu"><i data-lucide="panel-right" class="w-4 h-4"></i></button>'
+      + '<button type="button" data-lmode="tableau" title="Tableau"><i data-lucide="table" class="w-4 h-4"></i></button>';
+    fb.appendChild(w);
+    w.addEventListener('click', e => {
+      const b = e.target.closest('button[data-lmode]'); if (!b) return;
+      sinListMode = b.dataset.lmode === 'tableau' ? 'tableau' : 'apercu';
+      try { localStorage.setItem(SIN_MODE_KEY, sinListMode); } catch (_) {}
+      renderTimeline();
+    });
+    sinSyncViewToggle();
   })();
 
   // ---------- Sélecteur de PÉRIODE (pilote toute la page) ----------
