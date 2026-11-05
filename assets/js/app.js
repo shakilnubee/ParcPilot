@@ -4100,6 +4100,51 @@ FP.consoNonRattaches = function (items) {
   });
   return out;
 };
+// Classe les entrées de conso (name, num, numKey) en 3 paniers, SANS jamais choisir au hasard sur un
+// homonyme : { attribue, aVerifier, nonAttribue } (listes d'items distincts par signature).
+//  • attribue    : rattaché de façon FIABLE — par n° de carte/badge (FP._condParNumero garde déjà
+//                  l'ambiguïté → null si ambigu), ou par un nom NON ambigu (nom de famille, ou prénom
+//                  unique dans la flotte).
+//  • aVerifier   : le nom est un PRÉNOM SEUL partagé par ≥ 2 fiches (homonyme) et aucun n° ne tranche →
+//                  on refuse de deviner ; l'utilisateur choisit la bonne personne.
+//  • nonAttribue : aucune fiche ne correspond (ni par n°, ni par nom) → à relier/créer (hors « ignorés »).
+// Source UNIQUE pour le récap des buckets (Total Fleet / Ulys). Lecture seule.
+FP.consoBuckets = function (items) {
+  const ignored = FP.rapprIgnored ? FP.rapprIgnored() : {};
+  const all = FP.conducteursTous ? FP.conducteursTous() : [];
+  const np = (n) => FP.normPrenom ? FP.normPrenom(n) : String(n || '').trim().toLowerCase().split(/\s+/)[0];
+  const prenomCount = (name) => { const p = np(name); if (!p) return 0; return all.filter(c => np(c.name || c.prenom || c.key) === p).length; };
+  const hasSurname = (name) => String(name || '').trim().split(/\s+/).filter(Boolean).length >= 2;
+  const res = { attribue: [], aVerifier: [], nonAttribue: [] }; const seen = new Set();
+  (items || []).forEach(it => {
+    if (!it) return;
+    const name = String(it.name || '').trim();
+    let num = String(it.num || '').trim();
+    const numKey = it.numKey || null;
+    if (numKey === 'condBadgeUlys') num = num.replace(/^ULYS[-_\s]*/i, '');
+    if (!name && !num) return;
+    if (name && FP.txCat && FP.txCat(name) === 'frais') return;            // « Frais de gestion… » ≠ conducteur
+    const sig = (numKey || '') + '|' + (num || ('nom:' + (FP.norm ? FP.norm(name) : name.toLowerCase())));
+    if (seen.has(sig)) return; seen.add(sig);
+    // 1) par n° (fiable) — _condParNumero renvoie null si le n° est ambigu (jamais de choix au hasard).
+    let key = null;
+    try {
+      if (num && numKey === 'condBadgeUlys' && FP.conducteurParBadgeUlys) { const c = FP.conducteurParBadgeUlys(num); if (c && c.key) key = c.key; }
+      else if (num && numKey === 'condCarteTotal' && FP.conducteurParCarteTotal) { const c = FP.conducteurParCarteTotal(num); if (c && c.key) key = c.key; }
+    } catch (e) {}
+    if (key) { res.attribue.push({ name, num, numKey, key, via: 'numero' }); return; }
+    // 2) par nom. Homonyme (prénom seul partagé par ≥2 fiches) → à vérifier, on ne devine pas.
+    if (name) {
+      if (!hasSurname(name) && prenomCount(name) >= 2) { res.aVerifier.push({ name, num, numKey }); return; }
+      let nameKey = null; try { nameKey = FP.condKeyParNom(name); } catch (e) {}
+      if (nameKey) { res.attribue.push({ name, num, numKey, key: nameKey, via: 'nom' }); return; }
+    }
+    // 3) rien ne correspond → non attribué (sauf si l'utilisateur l'a ignoré).
+    if (ignored[sig]) return;
+    res.nonAttribue.push({ name, num, numKey });
+  });
+  return res;
+};
 // Panneau « conducteurs à relier » : pour chaque entrée non rattachée, choisir un conducteur
 // existant (recherche au clavier) OU en créer un. Le lien est PERSISTANT (n° écrit sur la fiche).
 // mount = élément DOM ; items = liste brute ; onDone(nbRestant) appelé quand la liste se vide.
