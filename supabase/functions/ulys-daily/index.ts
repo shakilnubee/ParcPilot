@@ -13,6 +13,13 @@
 //       n° de facture) — en-têtes HT / TVA / TTC, fournisseur « Ulys » → onglet Ulys ;
 //    3) s'il y a du nouveau, elle envoie un E-MAIL d'alerte au gestionnaire (comme le
 //       fait Ulys), avec la liste des factures importées.
+//    4) CHANGEMENT DE TITULAIRE (Lot A2) : elle récupère les badges (getbadges) et COMPARE
+//       le nom du titulaire (detailBadge.assignment) au snapshot du run PRÉCÉDENT
+//       (mémorisé dans cron_runs.detail.badgeSnapshot). Si un badge a changé de personne
+//       (hors simple faute d'orthographe), elle envoie un E-MAIL « à vérifier » → on est
+//       prévenu sans ouvrir l'écran. Elle ne RÉATTRIBUE jamais rien (c'est l'app, via
+//       l'assistant, sur confirmation de la date) et n'écrit PAS app_settings (anti-perte) :
+//       l'alerte IN-APP reste gérée par l'app (FP.ulysEnregistrerChangements à la synchro).
 //
 //  ⚠️ Le DÉTAIL par conducteur (transaction par transaction) reste rempli par l'app à la
 //     prochaine ouverture de l'onglet Ulys (FP.ulysApi.importConsoRecent, idempotent) :
@@ -91,6 +98,69 @@ function ppLogoMail(): string {
 }
 function euro(n: number): string {
   try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(n) || 0); } catch { return (Number(n) || 0).toFixed(2) + " €"; }
+}
+
+// ── DÉTECTION « changement de titulaire » (Lot A2) — version serveur du moteur client FP.ulysDiffTitulaire ──
+// L'API Ulys ne renvoie QUE le titulaire COURANT (detailBadge.assignment), sans historique ni date : on
+// détecte en comparant le snapshot du run PRÉCÉDENT au nouveau. On ne réattribue JAMAIS rien (l'app le fait
+// via l'assistant, sur confirmation) : on PRÉVIENT par e-mail pour que l'utilisateur agisse sans ouvrir l'écran.
+// ⚠️ Côté serveur on n'a pas les fiches conducteurs → on distingue correction d'orthographe (distance d'édition
+// faible = même personne, on ignore) vs changement de personne par la seule chaîne (le client, lui, résout en
+// plus par fiche). Volontairement prudent : mieux vaut un e-mail de trop qu'un changement manqué.
+function lev(a: string, b: string): number {
+  a = String(a || ""); b = String(b || "");
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i); let cur = new Array(n + 1);
+  for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); } const t = prev; prev = cur; cur = t; }
+  return prev[n];
+}
+function normNom(s: string): string { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim(); }
+// 'identique' | 'nouveau' | 'correction' | 'changement' | 'incertain'
+function diffTitulaire(ancien: string, nouveau: string): string {
+  const a = String(ancien || "").trim(), b = String(nouveau || "").trim();
+  if (!b) return "incertain";                 // badge devenu sans titulaire → à vérifier
+  if (!a) return "nouveau";                    // aucun ancien → 1re attribution
+  const na = normNom(a), nb = normNom(b);
+  if (na === nb) return "identique";           // accents/casse/espaces → rien
+  const dist = lev(na, nb), L = Math.max(na.length, nb.length);
+  if (dist <= 1 || (dist <= 2 && L >= 6) || (dist <= 3 && L >= 10)) return "correction"; // faute de frappe → même personne
+  return "changement";
+}
+function buildTitulaireMail(opts: { nomSoc: string; logoUrl: string; link: string; rows: Array<{ badge: string; ancien: string; nouveau: string; sur: boolean }> }) {
+  const { nomSoc, logoUrl, link, rows } = opts;
+  const n = rows.length;
+  const subject = n + " badge" + (n > 1 ? "s" : "") + " Ulys : changement de titulaire à vérifier";
+  const head = logoUrl
+    ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || "Logo") + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:block">'
+    : (nomSoc ? '<span style="font-weight:900;font-size:17px;color:#fff">' + esc(nomSoc) + '</span>' : ppLogoMail());
+  const lignes = rows.map((r) => {
+    const flou = r.sur ? "" : '<div style="color:#B45309;font-size:11px">à confirmer</div>';
+    return '<tr>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid #EEF2F7;font-size:13px;white-space:nowrap;font-family:ui-monospace,Menlo,Consolas,monospace">' + esc(r.badge) + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid #EEF2F7;font-size:13px">' + esc(r.ancien || "—") + ' <span style="color:#94A3B8">→</span> <b>' + esc(r.nouveau || "—") + '</b>' + flou + '</td>'
+      + '</tr>';
+  }).join("");
+  const html = ''
+    + '<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0F1E3D">'
+    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0">'
+    + '<div>' + head + '</div>'
+    + '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;color:#fff">🔁 ' + n + ' badge' + (n > 1 ? "s" : "") + ' Ulys : titulaire changé</div>'
+    + '</div>'
+    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 24px">'
+    + '<p style="margin:0 0 14px;line-height:1.55;font-size:14px">Le nom du titulaire ' + (n > 1 ? "de ces badges a" : "de ce badge a") + ' changé côté <b>Ulys</b> (VINCI Autoroutes). Parc&nbsp;Pilot <b>ne réattribue rien tout seul</b> : ouvre l\'assistant pour confirmer la <b>date réelle</b> du changement — ainsi les anciennes dépenses restent à l\'ancien titulaire et les nouvelles vont au nouveau.</p>'
+    + '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #EEF2F7;border-radius:10px;overflow:hidden">'
+    + '<tr style="background:#F8FAFC"><th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748B;text-transform:uppercase">Badge</th><th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748B;text-transform:uppercase">Ancien → Nouveau titulaire</th></tr>'
+    + lignes
+    + '</table>'
+    + '<p style="margin:16px 0 0;font-size:12px;color:#64748B;line-height:1.5">💡 Une <b>alerte</b> apparaît aussi dans Parc Pilot (page Alertes → Conducteurs) et ouvre directement l\'assistant de réattribution.</p>'
+    + '<p style="text-align:center;margin:22px 0 6px">'
+    + '<a href="' + esc(link) + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:800;font-size:15px">Ouvrir Contrôle → Ulys →</a>'
+    + '</p>'
+    + '</div>'
+    + '<div style="background-color:#0B1220;padding:18px 22px;border-radius:0 0 14px 14px;text-align:center"><div>' + ppLogoMail() + '</div></div>'
+    + '</div>';
+  const text = subject + "\n\n" + rows.map((r) => (r.badge + " : " + (r.ancien || "—") + " -> " + (r.nouveau || "—") + (r.sur ? "" : " (à confirmer)"))).join("\n") + "\n\n" + link;
+  return { subject, html: mailDoc(html), text };
 }
 function buildAlertMail(opts: { nomSoc: string; logoUrl: string; link: string; rows: Array<{ date: string; num: string; ttc: number; type: string }> }) {
   const { nomSoc, logoUrl, link, rows } = opts;
@@ -371,6 +441,87 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!dryRun) await _logRun(mailError ? "error" : "ok", { added: added.length, skipped, emailed, error: mailError ? String(mailError).slice(0, 200) : undefined });
-  return json({ ok: true, dryRun, societe: owner, added: added.length, skipped, imported: added, emailed, recipients, mailError });
+  // 5) DÉTECTION « changement de titulaire » (Lot A2) — on récupère les badges, on compare au snapshot du
+  //    run PRÉCÉDENT (stocké dans cron_runs.detail.badgeSnapshot) et on PRÉVIENT par e-mail. Best-effort :
+  //    un échec ici ne doit JAMAIS casser l'import de factures (déjà fait). N'écrit PAS app_settings (anti-perte) :
+  //    l'alerte IN-APP reste gérée par l'app (FP.ulysEnregistrerChangements à la synchro) ; ici on ajoute juste
+  //    l'e-mail nocturne pour être prévenu sans ouvrir l'écran. Snapshot compact {n:badge, a:titulaire}.
+  let badgeSnapshot: Array<{ n: string; a: string }> | undefined;
+  let titulaireChanges: Array<{ badge: string; ancien: string; nouveau: string; sur: boolean }> = [];
+  let titulaireEmailed = false, titulaireMailError = "", titulaireFirstRun = false, titulaireSkipped = false;
+  try {
+    const bRes = await ulysGet("/api/badges/getbadges/");
+    if (bRes.ok && Array.isArray(bRes.data)) {
+      const badges = bRes.data as any[];
+      const asg = (x: any) => String((x && x.detailBadge && x.detailBadge.assignment) || "").trim();
+      badgeSnapshot = badges.map((x) => ({ n: String((x && x.badgeNumber) || "").trim(), a: asg(x) })).filter((x) => x.n);
+      // Snapshot précédent = dernier run ulys-daily qui en portait un.
+      let prevSnap: Record<string, string> | null = null;
+      try {
+        const runs = await fetch(`${SUPA}/rest/v1/cron_runs?job=eq.ulys-daily&order=finished_at.desc&limit=12&select=detail`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+        if (Array.isArray(runs)) {
+          for (const r of runs) {
+            const snap = r && r.detail && (r.detail as any).badgeSnapshot;
+            if (Array.isArray(snap) && snap.length) { prevSnap = {}; for (const it of snap) { const n = String((it && it.n) || "").trim(); if (n) prevSnap[n] = String((it && it.a) || "").trim(); } break; }
+          }
+        }
+      } catch (_) { /* pas d'historique → 1er run */ }
+      if (!prevSnap) {
+        titulaireFirstRun = true;   // aucune référence → on mémorise, pas d'alerte (comme le client à la 1re synchro)
+      } else {
+        for (const x of badges) {
+          const num = String((x && x.badgeNumber) || "").trim(); if (!num) continue;
+          const ancien = prevSnap[num]; if (ancien === undefined) continue;    // badge nouveau → pas un changement
+          const nouveau = asg(x);
+          const kind = diffTitulaire(ancien, nouveau);
+          if (kind === "changement" || kind === "incertain") titulaireChanges.push({ badge: num, ancien, nouveau, sur: kind === "changement" });
+        }
+      }
+      // E-mail si des changements notables (et pas en test). Anti-spam : on ne stocke le nouveau snapshot QUE si
+      // l'e-mail est parti (ou s'il n'y avait rien à signaler) → un envoi échoué est RE-tenté au prochain run.
+      if (titulaireChanges.length && !dryRun) {
+        if (!RESEND_KEY) { titulaireMailError = "RESEND_API_KEY absent."; }
+        else {
+          const alertTo = (Deno.env.get("ULYS_ALERT_TO") || "").split(",").map((s) => s.trim()).filter(Boolean);
+          let profil: any = {}, societeCfg: any = {};
+          try {
+            const setRows = await fetch(`${SUPA}/rest/v1/app_settings?id=eq.${encodeURIComponent(owner)}&select=data`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+            const data = (Array.isArray(setRows) && setRows[0] && setRows[0].data) || {};
+            profil = (data.profil && typeof data.profil === "object") ? data.profil : {};
+            societeCfg = (data.societe && typeof data.societe === "object") ? data.societe : {};
+          } catch (_) { /* repli */ }
+          const fromCfg = [String(profil.mailExpediteur || "").trim(), String(profil.mailCopie || "").trim()].filter(Boolean);
+          const recips = [...new Set((alertTo.length ? alertTo : fromCfg).map((x) => x.toLowerCase()))];
+          if (!recips.length) { titulaireMailError = "Aucun destinataire."; }
+          else {
+            let from = envFrom, replyTo = "";
+            const exp = String(profil.mailExpediteur || "").trim();
+            if (exp) {
+              const dom = String(profil.mailDomaineEnvoi || "").trim().replace(/^@/, "");
+              const fromAddr = dom ? (exp.split("@")[0] + "@" + dom) : exp;
+              let nom = String(societeCfg.nom || "").replace(/[<>"]/g, "").trim();
+              if (/^parc\s*pilot$/i.test(nom)) nom = "";
+              from = nom ? `${nom} <${fromAddr}>` : fromAddr;
+              replyTo = exp;
+            }
+            const logoUrl = /^https?:\/\//.test(String(profil.logoUrl || "")) ? String(profil.logoUrl) : "";
+            const nomSoc = String(societeCfg.nom || "").trim();
+            const mail = buildTitulaireMail({ nomSoc, logoUrl, link: BASE + "/pages/controle.html?tab=ulys", rows: titulaireChanges });
+            const payload: Record<string, unknown> = { from, to: recips, subject: mail.subject, html: mail.html, text: mail.text };
+            if (replyTo) payload.reply_to = replyTo;
+            try {
+              const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+              if (r.ok) titulaireEmailed = true; else titulaireMailError = (await r.text().catch(() => "")).slice(0, 200);
+            } catch (e) { titulaireMailError = String(e).slice(0, 200); }
+          }
+        }
+        // E-mail des changements non parti → on GARDE le snapshot précédent pour re-tenter au prochain run.
+        if (!titulaireEmailed) { titulaireSkipped = true; badgeSnapshot = Object.keys(prevSnap!).map((n) => ({ n, a: prevSnap![n] })); }
+      }
+    }
+  } catch (_) { /* détection titulaire best-effort : ne jamais casser l'import de factures */ }
+
+  const runStatus = (mailError || titulaireMailError) ? "error" : "ok";
+  if (!dryRun) await _logRun(runStatus, { added: added.length, skipped, emailed, error: mailError ? String(mailError).slice(0, 200) : undefined, titulaireChanges: titulaireChanges.length, titulaireEmailed, titulaireFirstRun, titulaireMailError: titulaireMailError || undefined, badgeSnapshot });
+  return json({ ok: true, dryRun, societe: owner, added: added.length, skipped, imported: added, emailed, recipients, mailError, titulaire: { changes: titulaireChanges, emailed: titulaireEmailed, firstRun: titulaireFirstRun, skippedStore: titulaireSkipped, mailError: titulaireMailError } });
 });

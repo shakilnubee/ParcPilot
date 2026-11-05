@@ -3941,6 +3941,7 @@ FP.congeDansMois = (condKey, mois) => {
 FP.condKeyDeConso = (t) => {
   if (!t) return null;
   const carte = t.carte || t.badge || null;
+  const dateTx = String((t.dateTx || t.date_tx || t.date) || '').slice(0, 10);
   if (carte) {
     const s = String(carte);
     // ⚠️ Le badge Ulys est stocké « ULYS-<n°> » : on RETIRE le préfixe « ULYS » avant de comparer au
@@ -3948,6 +3949,18 @@ FP.condKeyDeConso = (t) => {
     // fiche porte le n° complet alors que le relevé n'affiche que les derniers chiffres).
     const isUlys = /^ULYS/i.test(s);
     const num = s.replace(/^ULYS[-_\s]*/i, '');
+    const mapKey = isUlys ? 'condBadgeUlys' : 'condCarteTotal';
+    // ATTRIBUTION DATÉE (source unique) : si des périodes de validité existent pour cette carte/badge
+    // (réattribution « changement de titulaire »), le titulaire est celui À LA DATE de la transaction —
+    // une réattribution ne transfère JAMAIS l'historique au nouveau porteur. Périodes présentes mais date
+    // non couverte → non attribué (on ne DEVINE pas le porteur courant, cf. 0-conducteurs + spec audit).
+    try {
+      if (dateTx && FP.cartePeriodesGet && FP.titulaireCarteALaDate && FP.cartePeriodesGet(mapKey, s).length) {
+        const tt = FP.titulaireCarteALaDate(mapKey, s, dateTx);
+        return (tt && tt.key) ? tt.key : null;
+      }
+    } catch (e) {}
+    // Pas de période saisie → titulaire COURANT par n° (comportement STRICTEMENT inchangé).
     if (isUlys) {
       try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(num); if (c && c.key) return c.key; } catch (e) {}
     } else {
@@ -4245,19 +4258,31 @@ FP.consoPendantConge = (txList, opts) => {
     // NE teste le congé QUE sous SON identité — élargir aux clés d'un HOMONYME de prénom accuserait à tort un
     // collègue (ex. conso carburant de Charles X un jour où Charles Y est en congé). Règle « ne jamais accuser
     // à tort » + 0-conducteurs. L'élargissement « même prénom » ne sert QUE de repli quand la carte n'identifie rien.
-    let carteKey = null;
+    let carteKey = null, carteDateeNonCouverte = false;
     try {
       const carte = t.carte || t.badge;
       if (carte) {
         const sC = String(carte); const isU = /^ULYS/i.test(sC); const numC = sC.replace(/^ULYS[-_\s]*/i, '');
-        const cc = isU ? (FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(numC))
-                       : ((FP.conducteurParCarteTotal && FP.conducteurParCarteTotal(sC)) || (FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(sC)));
-        if (cc && cc.key) carteKey = cc.key;
+        const mapKey = isU ? 'condBadgeUlys' : 'condCarteTotal';
+        // ATTRIBUTION DATÉE : si des périodes de validité existent pour cette carte/badge (réattribution),
+        // le titulaire CERTAIN est celui À LA DATE — pas le porteur courant. Si des périodes existent mais
+        // qu'AUCUNE ne couvre la date → non attribué : on ne teste alors AUCUN congé (ni par n°, ni par
+        // prénom homonyme) car on ne devine pas le porteur (cf. 0-conducteurs + spec audit titulaires).
+        if (dtx && FP.cartePeriodesGet && FP.titulaireCarteALaDate && FP.cartePeriodesGet(mapKey, sC).length) {
+          const tt = FP.titulaireCarteALaDate(mapKey, sC, dtx);
+          if (tt && tt.key) carteKey = tt.key; else carteDateeNonCouverte = true;
+        } else {
+          const cc = isU ? (FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(numC))
+                         : ((FP.conducteurParCarteTotal && FP.conducteurParCarteTotal(sC)) || (FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(sC)));
+          if (cc && cc.key) carteKey = cc.key;
+        }
       }
     } catch (e) {}
     const cand = [];
     if (carteKey) {
-      cand.push(carteKey);   // conso reliée à une personne CERTAINE → on ne teste QUE son congé
+      cand.push(carteKey);   // conso reliée à une personne CERTAINE (à la date) → on ne teste QUE son congé
+    } else if (carteDateeNonCouverte) {
+      /* périodes présentes mais date non couverte → non attribué : aucun candidat (pas de fausse accusation) */
     } else {
       const k1 = FP.condKeyDeConso(t); if (k1) cand.push(k1);
       try { const c = FP.conducteurs && FP.conducteurs.find ? FP.conducteurs.find(t.conducteur) : null; if (c && c.key && cand.indexOf(c.key) < 0) cand.push(c.key); } catch (e) {}
@@ -4557,12 +4582,23 @@ FP.removeCondNum = function (condKey, numKey, val) {
 // ─── PÉRIODES DE VALIDITÉ carte/badge → conducteur (ATTRIBUTION DATÉE) ─────────────────────────
 // Problème résolu : une carte/badge RÉATTRIBUÉ(e) ne doit pas faire basculer l'historique sur le
 // nouveau titulaire. Chaque transaction est attribuée au titulaire À SA DATE.
-// Stockage (donnée de travail, par société) : settings.cartePeriodes[mapKey][normCarte] =
+// Stockage (donnée de travail, par société) : settings.cartePeriodes[mapKey][_cartePeriodeKey] =
+//   (clé = normCarte, SAUF badge Ulys dont on strippe le préfixe « ULYS » → voir FP._cartePeriodeKey)
 //   [ { key:<condKey>, from:'AAAA-MM-JJ'|'', to:'AAAA-MM-JJ'|'' } ].  mapKey ∈ 'condCarteTotal'|'condBadgeUlys'.
 // ⚠️ ADDITIF : si AUCUNE période n'existe pour une carte, on retombe sur l'attribution COURANTE
 // (FP._condParNumero) → comportement STRICTEMENT inchangé tant que l'utilisateur n'a rien saisi.
+// ⚠️ CLÉ DE PÉRIODE CANONIQUE (source unique) — un badge Ulys est stocké « ULYS-<n°> » dans total_conso_tx
+// (carte), mais sur la fiche conducteur (condBadgeUlys) et dans l'éditeur de périodes il est SANS préfixe.
+// Sans normalisation commune, normCarte('ULYS-70-0123') ≠ normCarte('70-0123') → les périodes saisies ne
+// s'appliquaient JAMAIS aux conso Ulys (ni à l'affichage, ni à l'aperçu de l'assistant). On strippe donc le
+// préfixe « ULYS » pour la clé des badges, des DEUX côtés (écriture ET lecture) → elles convergent toujours.
+FP._cartePeriodeKey = function (mapKey, carte) {
+  let c = String(carte == null ? '' : carte);
+  if (mapKey === 'condBadgeUlys') c = c.replace(/^ULYS[-_\s]*/i, '');
+  return FP.normCarte(c);
+};
 FP.cartePeriodesGet = function (mapKey, carte) {
-  try { const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {}; const a = m[FP.normCarte(carte)]; return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  try { const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {}; const a = m[FP._cartePeriodeKey(mapKey, carte)]; return Array.isArray(a) ? a : []; } catch (e) { return []; }
 };
 // Toutes les périodes d'un conducteur (pour l'UI) : [{mapKey, carte, from, to, idx}].
 FP.cartePeriodesDuConducteur = function (condKey) {
@@ -4593,10 +4629,10 @@ FP.titulaireCarteALaDate = function (mapKey, carte, dateISO) {
 };
 // Ajoute une période (UI). Additif, persiste via FP.settings.save.
 FP.setCartePeriode = function (mapKey, carte, condKey, from, to) {
-  try { if (!mapKey || !carte || !condKey) return false; const s = FP.settings.get(); s.cartePeriodes = s.cartePeriodes || {}; s.cartePeriodes[mapKey] = s.cartePeriodes[mapKey] || {}; const nk = FP.normCarte(carte); const arr = Array.isArray(s.cartePeriodes[mapKey][nk]) ? s.cartePeriodes[mapKey][nk] : []; arr.push({ key: condKey, from: String(from || '').slice(0, 10), to: String(to || '').slice(0, 10) }); s.cartePeriodes[mapKey][nk] = arr; FP.settings.save(s); return true; } catch (e) { return false; }
+  try { if (!mapKey || !carte || !condKey) return false; const s = FP.settings.get(); s.cartePeriodes = s.cartePeriodes || {}; s.cartePeriodes[mapKey] = s.cartePeriodes[mapKey] || {}; const nk = FP._cartePeriodeKey(mapKey, carte); const arr = Array.isArray(s.cartePeriodes[mapKey][nk]) ? s.cartePeriodes[mapKey][nk] : []; arr.push({ key: condKey, from: String(from || '').slice(0, 10), to: String(to || '').slice(0, 10) }); s.cartePeriodes[mapKey][nk] = arr; FP.settings.save(s); return true; } catch (e) { return false; }
 };
 FP.removeCartePeriode = function (mapKey, carte, idx) {
-  try { const s = FP.settings.get(); const nk = FP.normCarte(carte); const arr = ((s.cartePeriodes || {})[mapKey] || {})[nk]; if (!Array.isArray(arr)) return false; arr.splice(idx, 1); if (arr.length) s.cartePeriodes[mapKey][nk] = arr; else { delete s.cartePeriodes[mapKey][nk]; } FP.settings.save(s); return true; } catch (e) { return false; }
+  try { const s = FP.settings.get(); const nk = FP._cartePeriodeKey(mapKey, carte); const arr = ((s.cartePeriodes || {})[mapKey] || {})[nk]; if (!Array.isArray(arr)) return false; arr.splice(idx, 1); if (arr.length) s.cartePeriodes[mapKey][nk] = arr; else { delete s.cartePeriodes[mapKey][nk]; } FP.settings.save(s); return true; } catch (e) { return false; }
 };
 // RÉATTRIBUTION d'une carte/badge (opération de données pure sur cartePeriodes) : l'ancien titulaire garde
 // tout jusqu'à la VEILLE du changement, le nouveau prend à partir de la date. Clôture proprement une
@@ -4609,7 +4645,7 @@ FP.reattribuerCarte = function (mapKey, carte, nouveauKey, dateISO, ancienKey) {
     const s = FP.settings.get();
     s.cartePeriodes = s.cartePeriodes || {};
     s.cartePeriodes[mapKey] = s.cartePeriodes[mapKey] || {};
-    const nk = FP.normCarte(carte);
+    const nk = FP._cartePeriodeKey(mapKey, carte);
     let arr = Array.isArray(s.cartePeriodes[mapKey][nk]) ? s.cartePeriodes[mapKey][nk].map(p => Object.assign({}, p)) : [];
     // 1) Clôturer toute période OUVERTE (to vide) commencée avant/à la veille, sauf celle du nouveau titulaire.
     arr = arr.map(p => {
@@ -4789,8 +4825,10 @@ FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
       const cols = 'id,date_tx,montant_ttc,carte,produit,facnum,plaque,conducteur';
       let r; try { r = FP.selectAllPaged ? await FP.selectAllPaged('total_conso_tx', null, 'id', cols) : await FP.supabase.from('total_conso_tx').select(cols); } catch (e) { r = null; }
       const rows = (r && r.data) || [];
-      const nk = FP.normCarte(carte);
-      let list = rows.filter(x => FP.normCarte(x.carte) === nk);
+      // Clé canonique (strip « ULYS » pour les badges) des DEUX côtés → l'aperçu retrouve bien les conso Ulys
+      // (stockées « ULYS-<n°> ») alors que la carte sélectionnée est le n° de badge nu.
+      const nk = FP._cartePeriodeKey(mapKey, carte);
+      let list = rows.filter(x => FP._cartePeriodeKey(mapKey, x.carte) === nk);
       if (FP.dedupeConsoTx) list = FP.dedupeConsoTx(list);
       return (txCache = list);
     } catch (e) { return (txCache = null); }
