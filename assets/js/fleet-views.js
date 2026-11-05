@@ -800,6 +800,41 @@
     }
 
     function tfCondSel(){ const s = $('tf-conso-cond'); return s ? (s.value || '') : ''; }
+    // Détail daté d'une transaction : date de l'opération (ISO 'AAAA-MM-JJ'), tolérant snake/camel.
+    const _tfTxDate = (t) => String((t && (t.date_tx || t.dateTx)) || '');
+    const _tfTxTtc  = (t) => Number((t && (t.montant_ttc != null ? t.montant_ttc : t.montantTtc)) || 0) || 0;
+    const _tfTxCat  = (t) => (t && t.produit) ? txCat(t.produit) : String((t && t.categorie) || 'autre').toLowerCase();
+    // ⚠️ CORRECTIF FILTRE AU JOUR : en mode « Du → Au », on NE PEUT PAS lire la table mensuelle
+    // `total_conso` (pas de jour). On reconstruit des lignes au MÊME format (par carte + mois) depuis le
+    // détail daté `total_conso_tx` filtré par date_tx (bornes INCLUSES). Frais déjà exclus à l'import
+    // (garde-fou ci-dessous). litres/HT/TVA ne sont pas disponibles par transaction → 0 (affiché « — »).
+    function _tfRowsFromTx(from, to){
+      const by = new Map();
+      (consoTx || []).forEach(t => {
+        const d = _tfTxDate(t); if (!d) return;
+        if (from && d < from) return;
+        if (to && d > to) return;
+        const cat = _tfTxCat(t);
+        if (cat === 'frais') return;   // jamais attribué au conducteur (cohérent avec l'import)
+        const carte = (t.carte && String(t.carte)) || '';
+        const mois = (t.mois || d.slice(0, 7));
+        const key = carte + '|' + mois + '|' + (carte ? '' : (t.conducteur || t.plaque || ''));
+        let g = by.get(key);
+        if (!g){ g = { id: 'TXDAY-' + key, mois: mois, _month: mois, carte: t.carte || null, conducteur: t.conducteur || null,
+                       plaque: t.plaque || null, type_vehicule: null, carburant_ttc: 0, litres: 0, boutique_ttc: 0,
+                       lavage_ttc: 0, peage_ttc: 0, total_ht: 0, total_tva: 0, total_ttc: 0 }; by.set(key, g); }
+        g.conducteur = g.conducteur || t.conducteur || null;
+        g.plaque = g.plaque || t.plaque || null;
+        const m = _tfTxTtc(t);
+        if (cat === 'carburant') g.carburant_ttc += m;
+        else if (cat === 'repas' || cat === 'boutique') g.boutique_ttc += m;
+        else if (cat === 'lavage') g.lavage_ttc += m;
+        else if (cat === 'peage' || cat === 'parking') g.peage_ttc += m;
+        // 'autre' : pas de colonne dédiée (affiché via la colonne « Autres », recalculée depuis le détail)
+        g.total_ttc += m;   // total = somme réelle de toutes les transactions de la période (hors frais)
+      });
+      return [...by.values()];
+    }
     // Période (mois OU dates) + CONDUCTEUR → { src, label, cond }. Partagée table/analyse/exports.
     function tfPeriodSrc(){
       const sel = $('tf-conso-mois');
@@ -810,8 +845,8 @@
       if (sel){ sel.disabled = dateMode; sel.style.opacity = dateMode ? '0.5' : ''; }
       let periodSrc, label;
       if (dateMode){
-        const fromM = from ? from.slice(0, 7) : null, toM = to ? to.slice(0, 7) : null;
-        periodSrc = all.filter(c => (!fromM || (c.mois || '') >= fromM) && (!toM || (c.mois || '') <= toM));
+        // Filtre au JOUR : reconstruit depuis le détail daté (total_conso_tx), jamais la table mensuelle.
+        periodSrc = _tfRowsFromTx(from || null, to || null);
         label = (from ? FP.date(from) : '…') + ' → ' + (to ? FP.date(to) : '…');
       } else {
         const moisDispo = [...new Set(all.map(c => c.mois).filter(Boolean))].sort().reverse();
@@ -876,7 +911,13 @@
       // En-tête 1re colonne : « Mois » quand on filtre un conducteur, sinon « Conducteur / Véhicule ».
       { const th = document.querySelector('#tf-conso-table thead th:first-child'); if (th) th.textContent = cond ? 'Mois' : 'Conducteur / Véhicule'; }
       empty.classList.toggle('hidden', rows.length > 0);
-      if (!rows.length) { tbody.innerHTML = ''; tfoot.innerHTML = ''; const _cb = $('tf-conso-cards'); if (_cb) _cb.innerHTML = ''; emptyMsg.textContent = 'Aucun détail de consommation pour cette période.'; applyConsoView(true); return; }
+      if (!rows.length) { tbody.innerHTML = ''; tfoot.innerHTML = ''; const _cb = $('tf-conso-cards'); if (_cb) _cb.innerHTML = '';
+        // Filtre par DATES sans détail daté disponible → on le DIT (on ne retombe pas sur un total mensuel faux).
+        const _dm = !!($('tf-conso-from').value || $('tf-conso-to').value);
+        emptyMsg.textContent = (_dm && (!consoTx || !consoTx.length))
+          ? "Filtre par dates : le détail au jour n'est pas encore chargé (il se reconstruit à l'ouverture de l'onglet Contrôle). Reviens dans un instant, ou choisis un mois."
+          : 'Aucun détail de consommation pour cette période.';
+        applyConsoView(true); return; }
 
       // Si un conducteur a plusieurs véhicules (plusieurs lignes), on garde la plaque.
       const nameCount = {};
@@ -907,7 +948,7 @@
       if (consoTx && consoTx.length) {
         const _f = $('tf-conso-from').value, _t = $('tf-conso-to').value, _sm = (!_f && !_t) ? ($('tf-conso-mois').value || '') : '', _cs = tfCondSel();
         consoTx.forEach(t => {
-          if (_f || _t) { const fm = _f ? _f.slice(0, 7) : null, tm = _t ? _t.slice(0, 7) : null; if (fm && (t.mois || '') < fm) return; if (tm && (t.mois || '') > tm) return; }
+          if (_f || _t) { const d = _tfTxDate(t); if (_f && d < _f) return; if (_t && d > _t) return; }   // ⚠️ filtre au JOUR (date_tx), pas au mois
           else if (_sm && _sm !== '__all__') { if ((t.mois || '') !== _sm) return; }
           if (_cs && (t.conducteur || '') !== _cs) return;
           const cat = t.produit ? txCat(t.produit) : (t.categorie || 'autre');
@@ -1040,7 +1081,7 @@
         const _f = $('tf-conso-from').value, _t = $('tf-conso-to').value;
         const _sm = (!_f && !_t) ? ($('tf-conso-mois').value || '') : '', _cs = tfCondSel();
         consoTx.forEach(t => {
-          if (_f || _t) { const fm = _f ? _f.slice(0, 7) : null, tm = _t ? _t.slice(0, 7) : null; if (fm && (t.mois || '') < fm) return; if (tm && (t.mois || '') > tm) return; }
+          if (_f || _t) { const d = _tfTxDate(t); if (_f && d < _f) return; if (_t && d > _t) return; }   // ⚠️ filtre au JOUR (date_tx)
           else if (_sm && _sm !== '__all__') { if ((t.mois || '') !== _sm) return; }
           if (_cs && (t.conducteur || '') !== _cs) return;
           const _c = t.produit ? txCat(t.produit) : (t.categorie || 'autre');
@@ -1065,7 +1106,7 @@
       const _selM = (!_from && !_to) ? ($('tf-conso-mois').value || '') : '';
       const _condSel = tfCondSel();
       const _txIn = (t) => {
-        if (_from || _to) { const fm = _from ? _from.slice(0, 7) : null, tm = _to ? _to.slice(0, 7) : null; if (fm && (t.mois || '') < fm) return false; if (tm && (t.mois || '') > tm) return false; }
+        if (_from || _to) { const d = _tfTxDate(t); if (_from && d < _from) return false; if (_to && d > _to) return false; }   // ⚠️ filtre au JOUR (date_tx)
         else if (_selM && _selM !== '__all__') { if ((t.mois || '') !== _selM) return false; }
         return !_condSel || (t.conducteur || '') === _condSel;
       };
