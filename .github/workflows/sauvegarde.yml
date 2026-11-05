@@ -115,13 +115,21 @@ jobs:
           mkdir -p sauvegarde/base
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/roles.sql --role-only
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/schema.sql
-          # Tables INTERNES du stockage Supabase (gérées par storage-api, pas des données métier) exclues du
-          # dump : elles n'existent que dans les versions récentes de storage-api. La restauration d'essai
-          # démarre un Supabase local figé (plus ancien) → sans ces exclusions, l'insertion échoue sur une
-          # « relation inexistante ». (bucket_lifecycle_states ajoutée ici le 05/11/2026 : cause de l'échec
-          # de la restauration d'essai en prod.) Les fichiers, storage.objects et les règles d'accès restent sauvegardés.
+          # Tables INTERNES du stockage Supabase (gérées par storage-api, PAS des données métier) exclues du
+          # dump : elles n'existent que dans les versions RÉCENTES de storage-api, alors que la restauration
+          # d'essai démarre un Supabase local FIGÉ (CLI 2.121.0 / storage-api v1.82.1, plus ancien) dont le
+          # schéma « storage » ne les contient pas → sans ces exclusions, l'insertion échoue sur une « relation
+          # inexistante » et toute la sauvegarde s'arrête (aucune archive produite). La vérification
+          # (scripts/sauvegarde/compter.sql) ne porte QUE sur public.*, auth.users/identities et
+          # storage.buckets/objects → ces tables internes n'ont aucune valeur de sauvegarde. Les fichiers
+          # (scans), storage.objects/buckets et les règles d'accès restent, eux, bien sauvegardés.
+          # Familles exclues : vector-search (vectors, buckets_vectors), cycle de vie / TTL
+          # (bucket_lifecycle_states, lifecycle_abandoned_artifacts), analytics / iceberg
+          # (buckets_analytics, iceberg_namespaces, iceberg_tables). Exclure une table absente est sans effet.
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/data.sql --use-copy --data-only \
-            -x 'storage.buckets_vectors' -x 'storage.vectors' -x 'storage.bucket_lifecycle_states'
+            -x 'storage.buckets_vectors' -x 'storage.vectors' \
+            -x 'storage.bucket_lifecycle_states' -x 'storage.lifecycle_abandoned_artifacts' \
+            -x 'storage.buckets_analytics' -x 'storage.iceberg_namespaces' -x 'storage.iceberg_tables'
           # Le dump officiel ignore le schéma storage : ses règles d'accès sont exportées à part.
           psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/regles-stockage.sql > sauvegarde/base/regles-stockage.sql
           psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/compter.sql > sauvegarde/base/comptes-source.txt
