@@ -132,6 +132,34 @@ function buildAlertMail(opts: { nomSoc: string; logoUrl: string; link: string; r
   const text = subject + "\n\n" + rows.map((r) => (String(r.date || "").slice(0, 10) + " · " + r.num + " · " + euro(r.ttc))).join("\n") + "\n\nTotal : " + euro(total) + "\n\n" + link;
   return { subject, html: mailDoc(html), text };
 }
+// ── E-mail d'ALERTE D'ÉCHEC : la synchro quotidienne Ulys n'a pas pu joindre/lire l'API (jeton expiré,
+//    API indisponible, quota…). Sans ça, l'échec était SILENCIEUX (aucun e-mail) → on l'apprenait trop tard.
+function buildFailureMail(opts: { nomSoc: string; logoUrl: string; reason: string; link: string }) {
+  const { nomSoc, logoUrl, reason, link } = opts;
+  const subject = "⚠️ Synchro Ulys en échec — aucune facture importée";
+  const head = logoUrl
+    ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || "Logo") + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:block">'
+    : (nomSoc ? '<span style="font-weight:900;font-size:17px;color:#fff">' + esc(nomSoc) + '</span>' : ppLogoMail());
+  const html = ''
+    + '<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0F1E3D">'
+    + '<div style="background-color:#7F1D1D;background-image:linear-gradient(135deg,#7F1D1D,#B91C1C);color:#fff;padding:20px 24px;border-radius:16px 16px 0 0">'
+    + '<div>' + head + '</div>'
+    + '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;color:#fff">⚠️ Synchro Ulys en échec</div>'
+    + '</div>'
+    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 24px">'
+    + '<p style="margin:0 0 12px;line-height:1.55;font-size:14px">La synchronisation automatique quotidienne des factures <b>Ulys</b> (télépéage VINCI) n\'a pas pu aboutir aujourd\'hui. <b>Aucune facture n\'a été importée.</b></p>'
+    + '<p style="margin:0 0 12px;line-height:1.55;font-size:13px;color:#334155"><b>Raison technique :</b><br><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#B91C1C;word-break:break-word">' + esc(String(reason || "").slice(0, 300)) + '</span></p>'
+    + '<p style="margin:0 0 4px;line-height:1.55;font-size:13px;color:#334155">👉 À vérifier en général : le <b>jeton d\'accès Ulys</b> (peut avoir expiré), la disponibilité de l\'API VINCI, ou le quota d\'appels du jour. Les factures déjà en base ne sont pas affectées ; dès que l\'accès est rétabli, la synchro repart toute seule le lendemain (ou à la prochaine ouverture de l\'onglet Ulys).</p>'
+    + '<p style="text-align:center;margin:22px 0 6px">'
+    + '<a href="' + esc(link) + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:800;font-size:15px">Ouvrir Contrôle → Ulys →</a>'
+    + '</p>'
+    + '<p style="margin:14px 0 0;font-size:11px;color:#94A3B8;line-height:1.5">Tu reçois cet e-mail une seule fois par épisode : tant que l\'échec persiste, il ne sera pas répété chaque jour. Un nouvel e-mail partira seulement si ça échoue de nouveau après un retour à la normale.</p>'
+    + '</div>'
+    + '<div style="background-color:#0B1220;padding:18px 22px;border-radius:0 0 14px 14px;text-align:center"><div>' + ppLogoMail() + '</div></div>'
+    + '</div>';
+  const text = subject + "\n\n" + "Raison : " + String(reason || "").slice(0, 300) + "\n\nÀ vérifier : jeton Ulys (expiré ?), API VINCI, quota du jour.\n\n" + link;
+  return { subject, html: mailDoc(html), text };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -206,9 +234,61 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPA, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
 
+  // ── ALERTE D'ÉCHEC (Lot 4) : prévient par e-mail quand la synchro Ulys ne peut PAS joindre/lire l'API
+  //    (jeton expiré, API indisponible, quota). Auto-suffisant (ne touche pas le chemin d'import qui marche).
+  //    Anti-spam : si le run PRÉCÉDENT était déjà en échec, on log mais on ne renvoie pas d'e-mail.
+  const sendFailureAlert = async (reason: string) => {
+    let emailed = false, skippedSpam = false;
+    try {
+      // 1) Le dernier run était-il déjà en échec ? (évite un e-mail chaque jour pendant une panne prolongée.)
+      let lastErr = false;
+      try {
+        const last = await fetch(`${SUPA}/rest/v1/cron_runs?job=eq.ulys-daily&order=finished_at.desc&limit=1&select=status`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+        lastErr = Array.isArray(last) && last[0] && last[0].status === "error";
+      } catch (_) { /* pas de table cron_runs → on alerte quand même (fail-open sur l'e-mail) */ }
+      await _logRun("error", { stage: "ulys-api", error: String(reason).slice(0, 200) });
+      if (lastErr) { skippedSpam = true; return { emailed, skippedSpam }; }
+      if (!RESEND_KEY) return { emailed, skippedSpam };
+      // 2) Destinataires + expéditeur scopé société (mêmes réglages que l'alerte « nouvelle facture »).
+      const alertTo = (Deno.env.get("ULYS_ALERT_TO") || "").split(",").map((s) => s.trim()).filter(Boolean);
+      let profil: any = {}, societeCfg: any = {};
+      try {
+        const setRows = await fetch(`${SUPA}/rest/v1/app_settings?id=eq.${encodeURIComponent(owner)}&select=data`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+        const data = (Array.isArray(setRows) && setRows[0] && setRows[0].data) || {};
+        profil = (data.profil && typeof data.profil === "object") ? data.profil : {};
+        societeCfg = (data.societe && typeof data.societe === "object") ? data.societe : {};
+      } catch (_) { /* repli sur ULYS_ALERT_TO / EMAIL_FROM */ }
+      const fromCfg = [String(profil.mailExpediteur || "").trim(), String(profil.mailCopie || "").trim()].filter(Boolean);
+      const recipients = [...new Set((alertTo.length ? alertTo : fromCfg).map((x) => x.toLowerCase()))];
+      if (!recipients.length) return { emailed, skippedSpam };
+      let from = envFrom, replyTo = "";
+      const exp = String(profil.mailExpediteur || "").trim();
+      if (exp) {
+        const dom = String(profil.mailDomaineEnvoi || "").trim().replace(/^@/, "");
+        const fromAddr = dom ? (exp.split("@")[0] + "@" + dom) : exp;
+        let nom = String(societeCfg.nom || "").replace(/[<>"]/g, "").trim();
+        if (/^parc\s*pilot$/i.test(nom)) nom = "";
+        from = nom ? `${nom} <${fromAddr}>` : fromAddr;
+        replyTo = exp;
+      }
+      const logoUrl = /^https?:\/\//.test(String(profil.logoUrl || "")) ? String(profil.logoUrl) : "";
+      const nomSoc = String(societeCfg.nom || "").trim();
+      const mail = buildFailureMail({ nomSoc, logoUrl, reason, link: BASE + "/pages/controle.html?tab=ulys" });
+      const payload: Record<string, unknown> = { from, to: recipients, subject: mail.subject, html: mail.html, text: mail.text };
+      if (replyTo) payload.reply_to = replyTo;
+      const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      emailed = r.ok;
+    } catch (_) { /* l'alerte ne doit jamais faire planter la fonction */ }
+    return { emailed, skippedSpam };
+  };
+
   // 1) Factures Ulys côté API.
   const inv = await ulysGet("/api/invoices/getinvoices/");
-  if (!inv.ok) return json({ error: inv.error }, inv.status || 502);
+  if (!inv.ok) {
+    // Échec de synchro : on PRÉVIENT (sauf en test dryRun) au lieu d'échouer en silence.
+    const alert = dryRun ? { emailed: false, skippedSpam: false } : await sendFailureAlert(inv.error || "Synchro Ulys en échec.");
+    return json({ error: inv.error, failureAlert: alert }, inv.status || 502);
+  }
   const invList = Array.isArray(inv.data) ? inv.data as any[] : [];
 
   // 2) N° de factures DÉJÀ en base pour la société propriétaire (anti-doublon). PXP inclut les lignes
