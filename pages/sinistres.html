@@ -165,6 +165,10 @@
   .sin-det-row:last-child { border-bottom: none; }
   .sin-det-row .lab { color: var(--fp-muted); min-width: 0; }
   .sin-det-row .val { font-weight: 700; text-align: right; white-space: nowrap; }
+  .sin-edit { cursor: pointer; border-bottom: 1px dashed var(--fp-border); font-weight: 700; }
+  .sin-edit:hover { color: var(--fp-accent); border-bottom-color: var(--fp-accent); }
+  .sin-edit-empty { color: var(--fp-muted); font-style: italic; font-weight: 500; }
+  .sin-info-grid .val { white-space: normal; }
 </style>
 <script>
 (function(){
@@ -1060,6 +1064,38 @@
     const coutKpi = (fin.coutFacture != null) ? fin.coutFacture : (fin.coutEstime != null ? fin.coutEstime : ((g.cost || 0) > 0 ? g.cost : null));
     // Historique : chronologie administrative + lignes (factures/devis) rattachées à l'incident.
     const histoLignes = (g.lines || []).map(l => `<div class="sin-det-row"><span class="lab">${FP.date(l.date)}${l.fournisseur ? ' · ' + escapeHtml(l.fournisseur) : ''}${l.description ? ' · ' + escapeHtml(String(l.description).slice(0, 60)) : ''}</span><span class="val">${l.montantTTC ? eur(l.montantTTC) : '—'}</span></div>`).join('') || '<div class="text-xs text-slate-400 italic">Aucune ligne rattachée.</div>';
+    const multi = (g.lines || []).length > 1;
+    // ── Bloc « Informations & actions » de l'onglet Historique : toute l'édition de base du sinistre
+    // (plaque / date / fournisseur / montant / description / statut) + Associer + Supprimer, sur fond
+    // clair (l'éditeur FP.cellEditor s'affiche en place). Même data-* que l'ancienne carte → mêmes
+    // gestionnaires (editSinField, data-sin-assoc, data-sin-del) : aucune capacité perdue.
+    const _ed = (fld, val, typ, lbl) => `<span class="sin-edit" data-sin-edit="${s.id}" data-fld="${fld}"${typ ? ` data-typ="${typ}"` : ''} data-lbl="${escapeHtml(lbl)}" title="Modifier">${val}</span>`;
+    const infoBlock = `<div class="sin-det-sec" style="padding:0 0 6px">Informations du sinistre</div>
+      <div class="sin-info-grid">
+        <div class="sin-det-row"><span class="lab">Plaque</span><span class="val">${_ed('vehiculeImmat', escapeHtml(s.vehiculeImmat || '—'), '', 'Plaque du véhicule')}</span></div>
+        <div class="sin-det-row"><span class="lab">Date du sinistre</span><span class="val">${_ed('date', FP.date(s.date), 'date', 'Date du sinistre')}</span></div>
+        ${multi ? '' : `<div class="sin-det-row"><span class="lab">Réparateur / fournisseur</span><span class="val">${_ed('fournisseur', s.fournisseur ? escapeHtml(s.fournisseur) : '<span class="sin-edit-empty">+ ajouter</span>', '', 'Fournisseur / réparateur')}</span></div>`}
+        ${multi ? '' : `<div class="sin-det-row"><span class="lab">Montant TTC</span><span class="val">${_ed('montantTTC', s.montantTTC ? eur(s.montantTTC) : '<span class="sin-edit-empty">+ montant</span>', 'number', 'Montant TTC (€)')}</span></div>`}
+        <div class="sin-det-row"><span class="lab">Description</span><span class="val" style="text-align:left;max-width:60%">${_ed('description', s.description ? escapeHtml(s.description) : '<span class="sin-edit-empty">+ description</span>', '', 'Description')}</span></div>
+        <div class="sin-det-row"><span class="lab">Suivi remboursement</span><span class="val">${statutSelect(g.key)}</span></div>
+      </div>`;
+    // Candidats à rattacher (autres sinistres du même véhicule) — panneau « Associer », identique à l'ancienne carte.
+    const candidats = sinistres.filter(c => FP.immatEq(c.vehiculeImmat, s.vehiculeImmat) && groupKeyOf(c.id) !== g.key);
+    const assocPanel = `<div data-assoc-panel="${g.key}" class="hidden mt-3 pt-3" style="border-top:1px dashed var(--fp-border)">
+        ${candidats.length ? `<div class="text-xs text-slate-500 mb-1">Rattacher un autre sinistre de <b>${escapeHtml(s.vehiculeImmat || '')}</b> à cet incident :</div>
+          <div class="flex gap-2"><select class="sin-assoc-pick flex-1" style="font-size:12px;border:1px solid var(--fp-border);border-radius:8px;padding:4px 6px">${candidats.map(c => `<option value="${c.id}">${FP.date(c.date)} · ${c.montantTTC ? FP.euroPrecis(c.montantTTC) : 'sans montant'}${c.description ? ' · ' + escapeHtml(c.description.slice(0, 40)) : ''}</option>`).join('')}</select>
+          <button type="button" data-sin-assoc-ok="${g.key}" class="btn btn-dark text-xs">Rattacher</button></div>` : `<div class="text-xs text-slate-400">Aucun autre sinistre enregistré pour ${escapeHtml(s.vehiculeImmat || 'ce véhicule')}.</div>`}
+      </div>`;
+    const histoBody = multi
+      ? ('<div class="sin-det-sec" style="padding:14px 0 4px">Documents rattachés (' + g.lines.length + ')</div>' + g.lines.map(lineBlock).join(''))
+      : ('<div class="sin-det-sec" style="padding:14px 0 4px">Lignes rattachées</div><div>' + histoLignes + '</div>');
+    const histoActions = '<div class="mt-3 flex gap-2 flex-wrap">'
+      + '<button type="button" class="btn" data-sin-depose="' + s.id + '" data-key="' + g.key + '"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer une facture</button>'
+      + '<button type="button" class="btn" data-sin-assoc="' + g.key + '"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Associer</button>'
+      + '<button type="button" class="btn" data-sin-pdf="' + s.id + '"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>'
+      + (multi ? '' : '<button type="button" class="btn" style="color:var(--fp-danger);border-color:color-mix(in srgb,var(--fp-danger) 40%,transparent)" data-sin-del="' + s.id + '"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>')
+      + '</div>';
+    const histoPane = infoBlock + '<div class="mt-3">' + sinTimelineHTML(sinSteps(g, dv, cur)) + '</div>' + histoBody + histoActions + assocPanel;
     return `
       <div class="sin-detail">
         <button type="button" class="sin-detail-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Retour à la liste</button>
@@ -1105,7 +1141,7 @@
           ${pane('assurance', sinAssureFieldsHTML(g, dv, vehCh) + `<div class="mt-3">${sinCloturerBtnHTML(g, dv)}</div>`)}
           ${pane('docs', sinDocsSectionHTML(g, s, dv, true))}
           ${pane('tiers', sinTiersFieldsHTML(g, dv))}
-          ${pane('histo', sinTimelineHTML(sinSteps(g, dv, cur)) + '<div class="mt-2">' + histoLignes + '</div><div class="mt-3 flex gap-2 flex-wrap"><button type="button" class="btn" data-sin-depose="' + s.id + '" data-key="' + g.key + '"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer une facture</button><button type="button" class="btn" data-sin-pdf="' + s.id + '"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button></div>')}
+          ${pane('histo', histoPane)}
         </div>
       </div>`;
   }
