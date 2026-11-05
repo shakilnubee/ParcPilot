@@ -4598,6 +4598,34 @@ FP.setCartePeriode = function (mapKey, carte, condKey, from, to) {
 FP.removeCartePeriode = function (mapKey, carte, idx) {
   try { const s = FP.settings.get(); const nk = FP.normCarte(carte); const arr = ((s.cartePeriodes || {})[mapKey] || {})[nk]; if (!Array.isArray(arr)) return false; arr.splice(idx, 1); if (arr.length) s.cartePeriodes[mapKey][nk] = arr; else { delete s.cartePeriodes[mapKey][nk]; } FP.settings.save(s); return true; } catch (e) { return false; }
 };
+// RÉATTRIBUTION d'une carte/badge (opération de données pure sur cartePeriodes) : l'ancien titulaire garde
+// tout jusqu'à la VEILLE du changement, le nouveau prend à partir de la date. Clôture proprement une
+// période ouverte existante (anti-chevauchement) et n'invente jamais de date. Réutilisée par l'assistant.
+FP.reattribuerCarte = function (mapKey, carte, nouveauKey, dateISO, ancienKey) {
+  try {
+    if (!mapKey || !carte || !nouveauKey || !dateISO) return false;
+    const d = String(dateISO).slice(0, 10);
+    let veille = ''; try { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() - 1); veille = dt.toISOString().slice(0, 10); } catch (e) { return false; }
+    const s = FP.settings.get();
+    s.cartePeriodes = s.cartePeriodes || {};
+    s.cartePeriodes[mapKey] = s.cartePeriodes[mapKey] || {};
+    const nk = FP.normCarte(carte);
+    let arr = Array.isArray(s.cartePeriodes[mapKey][nk]) ? s.cartePeriodes[mapKey][nk].map(p => Object.assign({}, p)) : [];
+    // 1) Clôturer toute période OUVERTE (to vide) commencée avant/à la veille, sauf celle du nouveau titulaire.
+    arr = arr.map(p => {
+      if (p && p.key && p.key !== nouveauKey && (!p.to || p.to === '') && (!p.from || p.from <= veille)) return Object.assign({}, p, { to: veille });
+      return p;
+    });
+    // 2) Si rien ne couvre la veille et qu'on connaît l'ancien titulaire → lui donner l'historique [.., veille].
+    const couvreVeille = arr.some(p => p && p.key && (!p.from || p.from <= veille) && (!p.to || p.to >= veille));
+    if (!couvreVeille && ancienKey && ancienKey !== nouveauKey) arr.push({ key: ancienKey, from: '', to: veille });
+    // 3) Période du nouveau titulaire [d, …] (évite un doublon strict).
+    if (!arr.some(p => p && p.key === nouveauKey && p.from === d && (!p.to || p.to === ''))) arr.push({ key: nouveauKey, from: d, to: '' });
+    s.cartePeriodes[mapKey][nk] = arr;
+    FP.settings.save(s);
+    return true;
+  } catch (e) { return false; }
+};
 // ÉDITEUR (overlay autonome) des périodes de validité carte/badge d'un conducteur. Ouvert depuis la fiche
 // conducteur. Montre, pour CHAQUE carte/badge que ce conducteur détient (ou qui le concerne), la frise
 // complète des titulaires successifs + ajout/retrait. Additif : tant que rien n'est saisi, l'attribution
@@ -4620,7 +4648,22 @@ FP.cartePeriodesEditor = function (condKey) {
       '.fp-cpe-sub{font-size:.82rem;color:#64748B;line-height:1.5;margin-bottom:.9rem}',
       '.fp-cpe-grp{border:1px solid var(--fp-border,#E3E8F0);border-radius:12px;padding:.75rem .8rem;margin-bottom:.8rem}',
       '.fp-cpe-grp>.t{font-weight:700;font-size:.9rem;color:var(--fp-primary,#0B1220);margin-bottom:.5rem}',
+      '.fp-cpe-grp>.t{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}',
       '.fp-cpe-grp>.t span{font-family:monospace;color:#475569;font-weight:600}',
+      '.fp-cpe-reattr{margin-left:auto;border:1px solid var(--fp-accent,#F97316);background:#fff;color:var(--fp-accent,#F97316);border-radius:8px;padding:.25rem .6rem;font-size:.76rem;font-weight:700;cursor:pointer}',
+      '.fp-ra-back{position:fixed;inset:0;z-index:2147483540;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;padding-top:6vh;overflow-y:auto;background:rgba(11,18,32,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}',
+      '.fp-ra-card{width:100%;max-width:520px;background:#fff;border:1px solid var(--fp-border,#E3E8F0);border-radius:16px;box-shadow:0 30px 70px -20px rgba(11,18,32,.5);padding:1.3rem}',
+      '.fp-ra-card h3{font-weight:800;font-size:1.06rem;color:var(--fp-primary,#0B1220);margin-bottom:.15rem}',
+      '.fp-ra-field{display:flex;flex-direction:column;gap:3px;margin-top:.7rem;font-size:.8rem;color:#64748B}',
+      '.fp-ra-field select,.fp-ra-field input{border:1px solid var(--fp-border,#E3E8F0);border-radius:8px;padding:.45rem .55rem;font-size:.9rem;font-family:inherit;color:var(--fp-primary,#0B1220)}',
+      '.fp-ra-prev{margin-top:.9rem;border:1px solid var(--fp-border,#E3E8F0);border-radius:10px;padding:.7rem .8rem;font-size:.85rem;background:#F8FAFC}',
+      '.fp-ra-prev .r{display:flex;justify-content:space-between;gap:10px;padding:.2rem 0}',
+      '.fp-ra-prev .r b{color:var(--fp-primary,#0B1220)}',
+      '.fp-ra-act{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.1rem;flex-wrap:wrap}',
+      '.fp-ra-btn{border:none;border-radius:9px;padding:.55rem 1rem;font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit}',
+      '.fp-ra-cancel{background:#EEF1F6;color:var(--fp-primary,#0B1220)}',
+      '.fp-ra-ok{background:var(--fp-accent,#F97316);color:#fff}',
+      '.fp-ra-ok:disabled{opacity:.5;cursor:not-allowed}',
       '.fp-cpe-row{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:.85rem;color:#334155;border-top:1px dashed var(--fp-border,#E3E8F0)}',
       '.fp-cpe-row:first-of-type{border-top:none}',
       '.fp-cpe-row .nm{font-weight:600;color:var(--fp-primary,#0B1220)}',
@@ -4662,7 +4705,8 @@ FP.cartePeriodesEditor = function (condKey) {
           + '<span class="pe">' + (p.from ? ('du ' + esc(dFR(p.from))) : 'depuis toujours') + (p.to ? (' au ' + esc(dFR(p.to))) : (p.from ? ' (en cours)' : '')) + '</span>'
           + '<button type="button" class="fp-cpe-rm" data-cpe-rm="' + esc(M.mapKey) + '|' + esc(carte) + '|' + p.idx + '" title="Retirer cette période">✕</button></div>'
         ).join('') : '<div class="fp-cpe-empty">Aucune période — la conso suit le titulaire actuel.</div>';
-        body += '<div class="fp-cpe-grp"><div class="t">' + esc(M.label) + ' <span>' + esc(carte) + '</span></div>'
+        body += '<div class="fp-cpe-grp"><div class="t">' + esc(M.label) + ' <span>' + esc(carte) + '</span>'
+          + '<button type="button" class="fp-cpe-reattr" data-cpe-reattr="' + esc(M.mapKey) + '|' + esc(carte) + '" title="Assistant : changer de titulaire à une date, avec aperçu">➡️ Réattribuer</button></div>'
           + rows
           + '<div class="fp-cpe-add" data-cpe-map="' + esc(M.mapKey) + '" data-cpe-carte="' + esc(carte) + '">'
           + '<label class="who">Titulaire<select class="cpe-who">' + optionsHTML(condKey) + '</select></label>'
@@ -4680,6 +4724,14 @@ FP.cartePeriodesEditor = function (condKey) {
   };
   back.addEventListener('click', (e) => {
     if (e.target === back || e.target.closest('[data-cpe-close]')) { close(); return; }
+    const reattr = e.target.closest && e.target.closest('[data-cpe-reattr]');
+    if (reattr && FP.reattribuerAssistant) {
+      const parts = reattr.getAttribute('data-cpe-reattr').split('|');
+      // Titulaire actuel de cette carte = détenteur courant (sinon le conducteur dont on a ouvert la fiche).
+      let ancien = condKey; try { const cur = FP._condParNumero(parts[0], parts[1]); if (cur && cur.key) ancien = cur.key; } catch (e2) {}
+      FP.reattribuerAssistant(parts[0], parts[1], ancien, () => render());
+      return;
+    }
     const rm = e.target.closest && e.target.closest('[data-cpe-rm]');
     if (rm) {
       const parts = rm.getAttribute('data-cpe-rm').split('|');
@@ -4702,6 +4754,85 @@ FP.cartePeriodesEditor = function (condKey) {
   render();
   document.body.appendChild(back);
   document.addEventListener('keydown', onKey, true);
+};
+// ASSISTANT DE RÉATTRIBUTION (guidé) : carte/badge donné + ancien titulaire → choisir le NOUVEAU + la DATE
+// réelle, voir l'APERÇU des dépenses avant/après (depuis total_conso_tx, dédoublonné), puis confirmer.
+// Confirmer = crée les périodes (FP.reattribuerCarte) ET déplace le n° vers le nouveau (futur → nouveau).
+// Ne touche AUCUNE transaction (total société invariant). mapKey ∈ condCarteTotal|condBadgeUlys|condNum_*.
+FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
+  if (!mapKey || !carte) return;
+  const esc = FP.esc || (x => String(x == null ? '' : x));
+  const all = (FP.conducteursTous ? FP.conducteursTous() : []) || [];
+  const nameOfKey = (k) => { const c = all.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : (k || '—'); };
+  const back = document.createElement('div'); back.className = 'fp-ra-back';
+  const close = () => { try { document.removeEventListener('keydown', onKey, true); } catch (e) {} try { back.remove(); } catch (e) {} };
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  const opts = all.slice().sort((a, b) => (FP.conducteurs.displayName(a) || '').localeCompare(FP.conducteurs.displayName(b) || ''))
+    .map(c => '<option value="' + esc(c.key) + '">' + esc(FP.conducteurs.displayName(c) || c.key) + (c.masque ? ' (masqué)' : '') + '</option>').join('');
+  back.innerHTML = '<div class="fp-ra-card" role="dialog" aria-modal="true">'
+    + '<h3>Réattribuer <span style="font-family:monospace;color:#475569">' + esc(carte) + '</span></h3>'
+    + '<p style="font-size:.82rem;color:#64748B;margin:.1rem 0 .2rem">Titulaire actuel : <b>' + esc(nameOfKey(ancienKey)) + '</b>. Les dépenses <b>avant</b> la date restent à lui ; <b>à partir</b> de la date elles vont au nouveau. Aucune transaction n\'est modifiée.</p>'
+    + '<label class="fp-ra-field">Nouveau titulaire<select class="fp-ra-who"><option value="">— Choisir… —</option>' + opts + '</select></label>'
+    + '<label class="fp-ra-field">Date du changement (remise réelle)<input type="date" class="fp-ra-date"></label>'
+    + '<div class="fp-ra-prev" id="fp-ra-prev"><span style="color:#94A3B8">Choisis une date pour voir l\'aperçu des dépenses concernées…</span></div>'
+    + '<div class="fp-ra-act"><button type="button" class="fp-ra-btn fp-ra-cancel" data-ra-cancel>Annuler</button>'
+    + '<button type="button" class="fp-ra-btn fp-ra-ok" data-ra-ok disabled>Confirmer la réattribution</button></div>'
+    + '</div>';
+  const sel = back.querySelector('.fp-ra-who'), dateI = back.querySelector('.fp-ra-date');
+  const prev = back.querySelector('#fp-ra-prev'), okBtn = back.querySelector('[data-ra-ok]');
+  try { if (FP.searchSelect) FP.searchSelect(sel, { placeholder: 'Chercher un conducteur…' }); } catch (e) {}
+  let txCache = null, txLoaded = false;
+  const loadTx = async () => {
+    if (txLoaded) return txCache; txLoaded = true;
+    try {
+      if (!(window.FP && FP.supabase)) return (txCache = null);
+      const cols = 'id,date_tx,montant_ttc,carte,produit,facnum,plaque,conducteur';
+      let r; try { r = FP.selectAllPaged ? await FP.selectAllPaged('total_conso_tx', null, 'id', cols) : await FP.supabase.from('total_conso_tx').select(cols); } catch (e) { r = null; }
+      const rows = (r && r.data) || [];
+      const nk = FP.normCarte(carte);
+      let list = rows.filter(x => FP.normCarte(x.carte) === nk);
+      if (FP.dedupeConsoTx) list = FP.dedupeConsoTx(list);
+      return (txCache = list);
+    } catch (e) { return (txCache = null); }
+  };
+  const euro = (n) => FP.euro ? FP.euro(n) : (Math.round((Number(n) || 0) * 100) / 100) + ' €';
+  const renderPrev = async () => {
+    const d = dateI.value, k = sel.value;
+    okBtn.disabled = !(d && k && k !== ancienKey);
+    if (!d) { prev.innerHTML = '<span style="color:#94A3B8">Choisis une date pour voir l\'aperçu…</span>'; return; }
+    if (k && k === ancienKey) { prev.innerHTML = '<span style="color:#B45309">Le nouveau titulaire est identique à l\'actuel.</span>'; return; }
+    prev.innerHTML = '<span style="color:#94A3B8">Calcul de l\'aperçu…</span>';
+    const list = await loadTx();
+    if (list == null) { prev.innerHTML = '<span style="color:#94A3B8">Aperçu des montants indisponible ici (ouvre la page Contrôle pour le détail). La réattribution reste possible.</span>'; return; }
+    let avN = 0, avS = 0, apN = 0, apS = 0;
+    list.forEach(t => { const dt = String(t.date_tx || '').slice(0, 10); const m = Number(t.montant_ttc) || 0; if (!dt) return; if (dt < d) { avN++; avS += m; } else { apN++; apS += m; } });
+    prev.innerHTML =
+      '<div class="r"><span>Avant le ' + esc(d) + ' → <b>' + esc(nameOfKey(ancienKey)) + '</b></span><span>' + avN + ' op. · <b>' + esc(euro(avS)) + '</b></span></div>'
+      + '<div class="r"><span>À partir du ' + esc(d) + ' → <b>' + esc(nameOfKey(k)) + '</b></span><span>' + apN + ' op. · <b>' + esc(euro(apS)) + '</b></span></div>'
+      + '<div class="r" style="border-top:1px dashed var(--fp-border,#E3E8F0);margin-top:.3rem;padding-top:.3rem"><span style="color:#64748B">Total (inchangé)</span><span><b>' + esc(euro(avS + apS)) + '</b></span></div>'
+      + (txCache.length === 0 ? '<div style="color:#94A3B8;font-size:.78rem;margin-top:.3rem">Aucune dépense datée trouvée pour cette carte — la réattribution s\'appliquera aux futures.</div>' : '');
+  };
+  sel.addEventListener('change', renderPrev); dateI.addEventListener('change', renderPrev); dateI.addEventListener('input', renderPrev);
+  back.addEventListener('click', (e) => {
+    if (e.target === back || e.target.closest('[data-ra-cancel]')) { close(); return; }
+    if (e.target.closest('[data-ra-ok]')) {
+      const d = dateI.value, k = sel.value;
+      if (!d || !k) { if (FP.toast) FP.toast('Choisis le nouveau titulaire et la date'); return; }
+      if (k === ancienKey) { if (FP.toast) FP.toast('Le nouveau titulaire est identique à l\'actuel'); return; }
+      okBtn.disabled = true;
+      const ok = FP.reattribuerCarte(mapKey, carte, k, d, ancienKey);
+      if (!ok) { if (FP.toast) FP.toast('Échec de la réattribution'); okBtn.disabled = false; return; }
+      // Déplace le n° vers le nouveau titulaire (la conso FUTURE lui revient) — réutilise les helpers existants.
+      try { if (ancienKey && FP.removeCondNum) FP.removeCondNum(ancienKey, mapKey, carte); } catch (e2) {}
+      try { if (FP.addCondNum) FP.addCondNum(k, mapKey, carte); } catch (e2) {}
+      if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e2) {} }
+      if (FP.toast) FP.toast('✓ Réattribué — ' + nameOfKey(k) + ' depuis le ' + d);
+      close(); if (typeof onDone === 'function') { try { onDone(); } catch (e2) {} }
+    }
+  });
+  document.body.appendChild(back);
+  document.addEventListener('keydown', onKey, true);
+  setTimeout(() => { try { sel.focus(); } catch (e) {} }, 40);
 };
 // Véhicule par id (source unique pour l'éditeur de puces côté fiche véhicule).
 FP.vehById = (id) => { try { const vs = (window.FP_DATA && FP_DATA.vehicules) || (window.data && data.vehicules) || []; return vs.find(x => String(x.id) === String(id)) || null; } catch (e) { return null; } };
