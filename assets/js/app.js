@@ -4825,6 +4825,8 @@ FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
       // Déplace le n° vers le nouveau titulaire (la conso FUTURE lui revient) — réutilise les helpers existants.
       try { if (ancienKey && FP.removeCondNum) FP.removeCondNum(ancienKey, mapKey, carte); } catch (e2) {}
       try { if (FP.addCondNum) FP.addCondNum(k, mapKey, carte); } catch (e2) {}
+      // Si cette carte/badge avait un changement Ulys « en attente » → il est maintenant traité (plus d'alerte).
+      try { if (FP.ulysChangementResolu) FP.ulysChangementResolu(mapKey, carte); } catch (e2) {}
       if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e2) {} }
       if (FP.toast) FP.toast('✓ Réattribué — ' + nameOfKey(k) + ' depuis le ' + d);
       close(); if (typeof onDone === 'function') { try { onDone(); } catch (e2) {} }
@@ -6999,7 +7001,7 @@ FP.settings = {
   // utilisateur normale (on ne supprime pas 12 congés d'un coup) → on le BLOQUE et on RESTAURE la clé
   // depuis la dernière valeur connue (snapshot serveur, sinon cache local). Une édition normale
   // (12 → 11 congés) n'est pas concernée (11 > 0).
-  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'condDocs',
+  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements', 'condDocs',
     'affectations', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
     'leasingContrats', 'localeaseContrats', 'loueurs', 'prestatairesPerso', 'prestataires',
     'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'kmMajDates', 'antiPollDates',
@@ -7161,7 +7163,7 @@ FP.settings = {
     // CONFIG qui se remplacent en bloc — profil, societe, groupes, navOrder, sidebarLabels… — n'y sont PAS.)
     const COLLECTION_KEYS = new Set(['taches', 'tachesAutoFaites', 'rappelsFaits', 'rappelsPerso', 'vehImmobilise', 'amendeMontantPaye', 'amendeMontants', 'kmMajDates', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes', 'docStatus', 'permisMasque', 'condDocs', 'leasingContrats', 'kmSuiviExclus', 'inspections', 'reservations', 'docTypes', 'loueurs', 'alertesMasquees', 'alertesMasqueesInfo', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
-      'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes',
+      'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements',
       // — Historique & données par VÉHICULE :
       'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
       // — Données par SINISTRE :
@@ -12052,6 +12054,24 @@ FP.buildAlertes = (data) => {
     }
   } catch (e) {}
 
+  // --- Changement de titulaire détecté sur Ulys (le nom du badge a changé côté Ulys, cf. FP.ulysApi.sync) ---
+  //     On ALERTE (sans rien réattribuer) → le lien ouvre l'assistant de réattribution (date + aperçu).
+  try {
+    (FP.ulysChangementsPending ? FP.ulysChangementsPending() : []).forEach(ch => {
+      const badge = String(ch.badge || ''); if (!badge) return;
+      const anc = ch.ancien || '—', nouv = ch.nouveau || '—', incert = ch.kind === 'incertain';
+      const deep = 'conducteurs.html?reattr=' + encodeURIComponent((ch.mapKey || 'condBadgeUlys') + '|' + badge + '|' + (ch.ancienKey || ''))
+        + (ch.ancienKey ? ('&cond=' + encodeURIComponent(ch.ancienKey)) : (ch.nouveauKey ? ('&cond=' + encodeURIComponent(ch.nouveauKey)) : ''));
+      out.push({
+        niveau: 'warn', categorie: 'Conducteurs',
+        message: 'Badge Ulys ' + badge + ' : changement de titulaire sur Ulys',
+        detail: anc + ' → ' + nouv + (incert ? ' (à vérifier)' : '') + ' — confirme la date réelle (l\'historique ne bascule pas tout seul).',
+        sort: 50, target: deep,
+        muteKey: 'ulyschg|' + FP.normCarte(badge) + '|' + (FP.norm ? FP.norm(nouv) : String(nouv).toLowerCase()),
+      });
+    });
+  } catch (e) {}
+
   const order = { danger: 0, warn: 1, info: 2 };
   out.sort((a, b) => (order[a.niveau] - order[b.niveau]) || (a.sort - b.sort));
   // TOUTE alerte porte une clé (celles sans en reçoivent une, basée sur le contenu). Les alertes
@@ -12828,6 +12848,82 @@ FP.emptyState = function (el, opts) {
 // RAPPROCHE automatiquement des véhicules (par immatriculation) et conducteurs (par nom), et on
 // propose de RELIER un badge à un conducteur (écrit condBadgeUlys via le helper canonique
 // FP.setCondNum → la conso se rattache ensuite AUTO). Aucune écriture vers Ulys à ce palier.
+// ─── DÉTECTION d'un CHANGEMENT DE TITULAIRE sur Ulys (le nom du badge a changé côté Ulys) ───────────
+// L'API Ulys ne renvoie QUE le titulaire COURANT (detailBadge.assignment), sans historique ni date. On
+// détecte donc en COMPARANT le snapshot précédent au nouveau à chaque synchro. On ne RÉATTRIBUE jamais
+// tout seul : on enregistre un « changement en attente » qui déclenche une alerte → l'utilisateur confirme
+// la date via l'assistant. Dédupliqué (pas d'alerte répétée pour un même changement déjà vu).
+// Distingue correction d'orthographe (même personne) vs changement de personne — jamais sur la seule chaîne.
+FP._lev = function (a, b) {             // distance de Levenshtein (petite, pour « Paulinne » vs « Pauline »)
+  a = String(a || ''); b = String(b || '');
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i), cur = new Array(n + 1);
+  for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); } const t = prev; prev = cur; cur = t; }
+  return prev[n];
+};
+// Renvoie : 'identique' | 'nouveau' | 'correction' | 'changement' | 'incertain'.
+FP.ulysDiffTitulaire = function (ancien, nouveau) {
+  const a = String(ancien || '').trim(), b = String(nouveau || '').trim();
+  if (!b) return 'incertain';                               // badge devenu sans titulaire → à vérifier
+  if (!a) return 'nouveau';                                 // aucun ancien connu → simple 1re attribution
+  const nrm = (s) => (FP.norm ? FP.norm(s) : String(s).toLowerCase()).replace(/\s+/g, ' ').trim();
+  const na = nrm(a), nb = nrm(b);
+  if (na === nb) return 'identique';                        // accents/casse/espaces → rien
+  let ka = null, kb = null; try { ka = FP.condKeyParNom(a); } catch (e) {} try { kb = FP.condKeyParNom(b); } catch (e) {}
+  if (ka && kb) return (ka === kb) ? 'correction' : 'changement';   // 2 fiches : même = correction, ≠ = changement
+  // Petite faute de frappe (distance d'édition faible, proportionnée à la longueur) → même personne.
+  const dist = FP._lev(na, nb), L = Math.max(na.length, nb.length);
+  if (dist <= 1 || (dist <= 2 && L >= 6) || (dist <= 3 && L >= 10)) return 'correction';
+  if (kb && !ka) return 'changement';                      // le nouveau est une fiche connue, pas l'ancien
+  return 'incertain';                                      // on ne tranche pas → demander
+};
+// Compare l'ancien snapshot (badges) au nouveau et enregistre les CHANGEMENTS (changement|incertain) en
+// attente. Dédupliqué par badge+nouveau nom (pas de ré-alerte). Ne touche à AUCUNE conso.
+FP.ulysEnregistrerChangements = function (oldBadges, newBadges) {
+  try {
+    if (!Array.isArray(oldBadges) || !oldBadges.length) return 0;   // pas de référence → rien (1re synchro)
+    const asg = (x) => String((x && x.detailBadge && x.detailBadge.assignment) || '').trim();
+    const oldByNum = {}; oldBadges.forEach(x => { const n = String((x && x.badgeNumber) || '').trim(); if (n) oldByNum[n] = asg(x); });
+    const s = FP.settings.get(); const map = (s.ulysChangements && typeof s.ulysChangements === 'object') ? s.ulysChangements : {};
+    let n = 0;
+    (newBadges || []).forEach(x => {
+      const num = String((x && x.badgeNumber) || '').trim(); if (!num) return;
+      const ancien = oldByNum[num]; if (ancien === undefined) return;   // badge nouveau → pas un changement
+      const nouveau = asg(x);
+      const kind = FP.ulysDiffTitulaire(ancien, nouveau);
+      if (kind !== 'changement' && kind !== 'incertain') return;        // identique/correction/nouveau → rien
+      const key = FP.normCarte(num);
+      const prev = map[key];
+      // Dédup : même changement déjà en attente (même nouveau nom) ou déjà résolu/ignoré → on ne re-signale pas.
+      if (prev && nrmEq(prev.nouveau, nouveau) && (prev.status === 'pending' || prev.status === 'resolu' || prev.status === 'ignore')) return;
+      let ancienKey = null, nouveauKey = null;
+      try { ancienKey = FP.condKeyParNom(ancien) || (FP._condParNumero('condBadgeUlys', num) || {}).key || null; } catch (e) {}
+      try { nouveauKey = FP.condKeyParNom(nouveau); } catch (e) {}
+      map[key] = { badge: num, mapKey: 'condBadgeUlys', ancien: ancien, ancienKey: ancienKey, nouveau: nouveau, nouveauKey: nouveauKey, kind: kind, seenAt: new Date().toISOString(), status: 'pending' };
+      n++;
+    });
+    function nrmEq(a, b) { const f = (x) => (FP.norm ? FP.norm(x) : String(x || '').toLowerCase()).trim(); return f(a) === f(b); }
+    if (n) { s.ulysChangements = map; FP.settings.save(s); }
+    return n;
+  } catch (e) { return 0; }
+};
+FP.ulysChangementsPending = function () {
+  try { const m = FP.settings.get().ulysChangements || {}; return Object.keys(m).map(k => m[k]).filter(c => c && c.status === 'pending'); } catch (e) { return []; }
+};
+// Marque résolu(s) le(s) changement(s) en attente d'une carte/badge (appelé après une réattribution).
+FP.ulysChangementResolu = function (mapKey, carte) {
+  try {
+    const s = FP.settings.get(); const m = s.ulysChangements; if (!m) return false;
+    const k = FP.normCarte(carte); let touched = false;
+    if (m[k] && m[k].status === 'pending' && (!mapKey || m[k].mapKey === mapKey)) { m[k].status = 'resolu'; m[k].resoluAt = new Date().toISOString(); touched = true; }
+    if (touched) { s.ulysChangements = m; FP.settings.save(s); }
+    return touched;
+  } catch (e) { return false; }
+};
+// Ignorer un changement signalé (ne reviendra plus) — utilisé par le bouton « Ignorer » de l'alerte.
+FP.ulysChangementIgnore = function (carte) {
+  try { const s = FP.settings.get(); const m = s.ulysChangements; if (!m) return false; const k = FP.normCarte(carte); if (m[k]) { m[k].status = 'ignore'; s.ulysChangements = m; FP.settings.save(s); return true; } return false; } catch (e) { return false; }
+};
 FP.ulysApi = (function () {
   const K_BADGES = 'ulysBadges', K_AT = 'ulysSyncAt';
   const available = () => !!(FP.supabase && FP.supabase.functions && typeof FP.supabase.functions.invoke === 'function');
@@ -12901,7 +12997,12 @@ FP.ulysApi = (function () {
   }
 
   return { available, call, cache, saveCache, matchBadge, anomalies,
-    sync: async function () { const badges = await call('badges'); const arr = Array.isArray(badges) ? badges : []; saveCache(arr); return arr; },
+    sync: async function () {
+      const avant = cache().badges;                      // snapshot PRÉCÉDENT (avant écrasement) → détection
+      const badges = await call('badges'); const arr = Array.isArray(badges) ? badges : [];
+      try { if (FP.ulysEnregistrerChangements) FP.ulysEnregistrerChangements(avant, arr); } catch (e) {}
+      saveCache(arr); return arr;
+    },
     account: () => call('account'),
     contracts: () => call('contracts'),
     invoices: () => call('invoices'),
