@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261104g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261105a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261104g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261105a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261104g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261105a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -492,7 +492,7 @@
           Le <b>signataire société</b> (le titulaire qui signe côté entreprise) se règle une fois par société dans <b>Paramètres → Société</b> (« signataire société ») et se pré-remplit ici. <b>Par défaut</b>, si tu ne mets rien, le signataire = le <b>nom de ta société</b> et l'<b>e-mail d'envoi des amendes</b> (souvent la même personne) — tu vois donc toujours une valeur, tu la modifies si le signataire est quelqu'un d'autre. Les <b>e-mails</b> (celui de l'employé et celui du signataire société) sont <b>pré-remplis automatiquement</b> à partir de la fiche conducteur / de ton compte, et tu peux les <b>modifier avant l'envoi</b> si besoin.
           <br>✏️ <b>Personnaliser le message de l'e-mail</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le texte de l'e-mail de demande de signature se règle dans <b>Paramètres → Société</b> (« Modèle e-mail — demande de signature »). Tu peux y mettre les balises <code>{prenom}</code>, <code>{immat}</code>, <code>{modele}</code>, <code>{date}</code> ; le beau bouton « Signer le document » et le rappel du véhicule sont ajoutés automatiquement (mise en page soignée, ton logo).
           <br>🔔 <b>Suivi des signatures</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dès qu'<b>une personne signe</b>, tu reçois une <b>notification</b> (« Signature reçue », en précisant combien il en reste), et une <b>notification « État des lieux signé »</b> quand <b>tout le monde</b> a signé. Tant qu'il <b>manque au moins une signature</b>, une alerte <b>« N états des lieux à signer »</b> s'affiche dans <b>Suivi &amp; alertes</b> et sur le <b>tableau de bord</b> : déplie-la pour voir <b>qui</b> n'a pas encore signé, chaque ligne mène à la fiche du véhicule.
-          <br>📩 <b>Copie signée envoyée à tout le monde</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand les <b>deux parties ont signé</b>, un <b>e-mail récapitulatif</b> part automatiquement au gestionnaire ET au salarié avec le <b>PDF signé en pièce jointe</b> (+ bouton de téléchargement). Le PDF signé arrive aussi dans les <b>Documents</b> de la fiche. Sur la page de signature, le dernier signataire voit un bouton <b>« Télécharger l'état des lieux signé »</b> tout de suite. Le PDF signé indique, sous chaque signature, la <b>date</b> et l'<b>e-mail</b> du signataire.
+          <br>📩 <b>Copie signée envoyée à tout le monde</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand les <b>deux parties ont signé</b>, un <b>e-mail récapitulatif</b> part automatiquement au gestionnaire ET au salarié avec le <b>PDF signé en pièce jointe</b> (+ bouton de téléchargement). Le PDF signé arrive aussi dans les <b>Documents</b> de la fiche. Sur la page de signature, le dernier signataire voit un bouton <b>« Télécharger l'état des lieux signé »</b> tout de suite. Le PDF signé indique, sous chaque signature, la <b>date</b> et l'<b>e-mail</b> du signataire. <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> <b>Langue automatique</b> : comme l'e-mail de demande de signature, cet e-mail « document signé » part désormais dans la <b>langue du conducteur</b> (français ou anglais selon sa fiche) ; le gestionnaire reçoit toujours le sien en français.
           <br>✗ <b>Refuser de signer (avec motif)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur la page de signature, en dessous de « Je signe le document », le signataire peut cliquer <b>« Je refuse de signer »</b> : il doit alors saisir un <b>motif obligatoire</b> (ex. rayure non mentionnée, km incorrect). En confirmant, la <b>demande est annulée</b> (plus aucune relance) et tu reçois une <b>notification push</b> + une <b>alerte rouge « état des lieux refusé »</b> dans <b>Suivi &amp; alertes</b>, avec le <b>motif</b> et qui a refusé. À toi de corriger et de renvoyer un nouvel état des lieux.
           <br>En 1 clic il produit un <b>PDF au ton de ta société (ton logo)</b>, l'<b>enregistre dans les Documents du véhicule</b>, et l'<b>envoie par e-mail à l'employé</b> (copie selon ta config). Chaque société utilise <b>son propre logo</b> automatiquement. <i>Astuce processus : à la restitution, choisis « Restitution », ajoute les photos, puis « Enregistrer + envoyer » — tu as une trace datée signée des deux côtés.</i></div>
         <div class="man-item"><b>Documents</b> — carte grise, assurance, contrôle technique, PV, code de cession, contrat leasing, facture d'achat, autre. Stockés en ligne, lisibles de partout. <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> Les <b>contrats de leasing et bons de commande</b> téléversés depuis l'onglet <b>Contrats</b> apparaissent aussi <b>ici</b>, sous « Contrat leasing/location » (mention « géré dans Contrats »), quel que soit le loueur (BPCE, Ayvens, LLD…) — rapprochés automatiquement par la plaque. C'est une <b>seule source</b> : pour les gérer (remplacer / supprimer), utilise le bouton « Gérer dans Contrats » qui t'emmène au bon endroit.
@@ -1099,8 +1099,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261104g"></script>
-<script src="../assets/js/supabase-client.js?v=20261104g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261105a"></script>
+<script src="../assets/js/supabase-client.js?v=20261105a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1116,10 +1116,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261104g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261105a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261104g"></script>
+<script src="../assets/js/app.min.js?v=20261105a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

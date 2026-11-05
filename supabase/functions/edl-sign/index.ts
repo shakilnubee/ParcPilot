@@ -123,7 +123,7 @@ async function sendSignEmail(db: ReturnType<typeof createClient>, societe: strin
   } catch { return false; }
 }
 
-type Signer = { role: string; nom?: string; email?: string; signed?: boolean; signedAt?: string; ip?: string; sigUrl?: string; ordre?: number; notified?: boolean; sigToken?: string; mailSubject?: string; mailHtml?: string; mailText?: string; refused?: boolean; refusMotif?: string; refusedAt?: string };
+type Signer = { role: string; nom?: string; email?: string; signed?: boolean; signedAt?: string; ip?: string; sigUrl?: string; ordre?: number; notified?: boolean; sigToken?: string; mailSubject?: string; mailHtml?: string; mailText?: string; lang?: string; refused?: boolean; refusMotif?: string; refusedAt?: string };
 
 // Résout le signataire à partir du jeton reçu dans l'URL, de façon SÛRE :
 //  1) jeton PROPRE au signataire (sigToken, liens récents) → identifie le signataire ET son rôle sans se
@@ -360,7 +360,6 @@ Deno.serve(async (req) => {
       if (allSigned && signedPdfUrl) {
         const plaque = String(row.plaque || "Véhicule"), modele = String(row.modele || "");
         const dateStr = String(row.date || "").slice(0, 10).split("-").reverse().join("/");
-        const sensTxt = row.sens === "restitution" ? "restitution" : "remise";
         const { from, replyTo } = await societeFrom(db, String(row.societe || "PXP"));
         const key = Deno.env.get("RESEND_API_KEY");
         const ppLogo = '<span style="display:inline-block;vertical-align:middle;line-height:0;margin-right:9px">'
@@ -371,29 +370,52 @@ Deno.serve(async (req) => {
           + '<span style="font-weight:900;font-style:italic;font-size:16px;color:#ffffff;vertical-align:middle">Parc</span>'
           + '<span style="vertical-align:middle">&#160;</span>'
           + '<span style="font-weight:900;font-style:italic;font-size:16px;color:#F97316;vertical-align:middle">Pilot</span>';
-        const mailDoc = (inner: string) => '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+        // E-mail « document signé » LOCALISÉ (fr/en) selon la langue de CHAQUE signataire (stockée à la
+        // création, miroir de l'e-mail de signature qu'il a reçu ; société + anciens dossiers = fr par défaut).
+        const mailDoc = (inner: string, lang: string) => '<!DOCTYPE html><html lang="' + (lang === "en" ? "en" : "fr") + '"><head><meta charset="utf-8">'
           + '<meta name="viewport" content="width=device-width,initial-scale=1">'
           + '<meta name="color-scheme" content="only light"><meta name="supported-color-schemes" content="only light">'
           + '</head><body style="margin:0;padding:0;background:#EEF2F7;color:#0F1E3D">' + inner + '</body></html>';
-        const html = mailDoc(`<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">
+        const buildMail = (lang: string) => {
+          const en = lang === "en";
+          const sensTxt = en ? (row.sens === "restitution" ? "return" : "handover") : (row.sens === "restitution" ? "restitution" : "remise");
+          const title = en ? "✅ Condition report signed" : "✅ État des lieux signé";
+          const greet = en ? "Hello," : "Bonjour,";
+          const line = en
+            ? `The vehicle condition report (${sensTxt}) has been <b>signed by all parties</b>. You'll find the <b>signed version attached</b>, to keep.`
+            : `L'état des lieux (${sensTxt}) du véhicule a été <b>signé par toutes les parties</b>. Tu en trouveras la <b>version signée en pièce jointe</b>, à conserver.`;
+          const btn = en ? "⬇️ Download the signed condition report" : "⬇️ Télécharger l'état des lieux signé";
+          const html = mailDoc(`<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">
   <div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:22px 24px;border-radius:14px 14px 0 0">
     <div>${ppLogo}</div>
-    <div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">✅ État des lieux signé</div>
+    <div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">${title}</div>
   </div>
   <div style="border:1px solid #E7EBF0;border-top:none;padding:22px;color:#0F1E3D">
-    <p style="margin:0 0 16px;line-height:1.55">Bonjour,</p>
-    <p style="margin:0 0 16px;line-height:1.55">L'état des lieux (${sensTxt}) du véhicule a été <b>signé par toutes les parties</b>. Tu en trouveras la <b>version signée en pièce jointe</b>, à conserver.</p>
+    <p style="margin:0 0 16px;line-height:1.55">${greet}</p>
+    <p style="margin:0 0 16px;line-height:1.55">${line}</p>
     <div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155">🚗 <b>${modele}</b> · ${plaque}${dateStr ? " · " + dateStr : ""}</div>
-    <p style="text-align:center;margin:22px 0"><a href="${signedPdfUrl}" style="display:inline-block;background:#0B1220;color:#ffffff;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">⬇️ Télécharger l'état des lieux signé</a></p>
+    <p style="text-align:center;margin:22px 0"><a href="${signedPdfUrl}" style="display:inline-block;background:#0B1220;color:#ffffff;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">${btn}</a></p>
   </div>
   <div style="background-color:#0B1220;padding:18px 22px;border-radius:0 0 14px 14px;text-align:center">
     <div>${ppLogo}</div>
   </div>
-</div>`);
+</div>`, lang);
+          const subject = en ? ("Condition report signed (" + plaque + ")") : ("État des lieux signé (" + plaque + ")");
+          const text = en
+            ? ("The signed condition report for vehicle " + plaque + " is available: " + signedPdfUrl)
+            : ("L'état des lieux signé du véhicule " + plaque + " est disponible : " + signedPdfUrl);
+          return { subject, html, text };
+        };
+        const attachName = (lang: string) => (lang === "en" ? "Signed-condition-report-" : "Etat-des-lieux-signe-") + plaque + ".pdf";
         if (key) {
-          const dest = Array.from(new Set(required.map((s) => String(s.email || "")).filter(Boolean)));
-          for (const to of dest) {
-            const payload: Record<string, unknown> = { from, to: [to], subject: "État des lieux signé (" + plaque + ")", html, text: "L'état des lieux signé du véhicule " + plaque + " est disponible : " + signedPdfUrl, attachments: [{ filename: "Etat-des-lieux-signe-" + plaque + ".pdf", path: signedPdfUrl }] };
+          // Langue par e-mail : on prend celle du 1er signataire portant cette adresse (repli fr).
+          const langByEmail = new Map<string, string>();
+          for (const s of required) { const em = String(s.email || ""); if (em && !langByEmail.has(em)) langByEmail.set(em, s.lang === "en" ? "en" : "fr"); }
+          const builtByLang: Record<string, { subject: string; html: string; text: string }> = {};
+          for (const to of langByEmail.keys()) {
+            const lang = langByEmail.get(to) || "fr";
+            const m = builtByLang[lang] || (builtByLang[lang] = buildMail(lang));
+            const payload: Record<string, unknown> = { from, to: [to], subject: m.subject, html: m.html, text: m.text, attachments: [{ filename: attachName(lang), path: signedPdfUrl }] };
             if (replyTo) payload.reply_to = replyTo;
             try { await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch { /* best-effort */ }
           }
