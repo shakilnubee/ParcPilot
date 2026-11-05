@@ -88,6 +88,22 @@
   .drive-file.fp-dragging { opacity: .4; }
   .drive-folder.fp-drop-hover, [data-drop-root].fp-drop-hover { outline: 2px dashed var(--fp-accent); outline-offset: 2px; background: rgba(20,184,166,.10); border-radius: 6px; }
   .drive-upload svg { width: 26px; height: 26px; }
+  /* Zone de glisser-déposer des documents du dossier (courrier / constat) : le fichier est lu par l'IA. */
+  .sin-dz { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 12px 10px; margin-bottom: 8px; border: 2px dashed var(--fp-border); border-radius: 10px; background: #f8fafc; color: #475569; cursor: pointer; font-size: 12.5px; transition: border-color .15s, background .15s, color .15s; }
+  .sin-dz:hover, .sin-dz:focus-visible { border-color: var(--fp-accent); color: var(--fp-primary); background: rgba(20,184,166,.06); outline: none; }
+  .sin-dz.sin-dz-over { border-color: var(--fp-accent); border-style: solid; background: rgba(20,184,166,.12); color: var(--fp-primary); }
+  .sin-dz-sub { font-size: 11px; color: #94a3b8; }
+  body.fp-dark .sin-dz { background: #182234; color: #cbd5e1; }
+  body.fp-dark .sin-dz:hover, body.fp-dark .sin-dz:focus-visible, body.fp-dark .sin-dz.sin-dz-over { background: rgba(20,184,166,.14); color: #e6edf6; }
+  /* Menu « ⋯ » des actions document (ancré au <body> → jamais rogné par la carte) */
+  .sin-doc-pop { position: fixed; z-index: 70; min-width: 186px; background: #fff; border: 1px solid var(--fp-border); border-radius: 10px; box-shadow: 0 16px 40px -16px rgba(15,30,61,.5); padding: 5px; }
+  .sin-doc-pop button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font-size: 13px; font-weight: 600; color: #334155; background: none; border: none; border-radius: 7px; padding: 8px 10px; cursor: pointer; }
+  .sin-doc-pop button:hover { background: rgba(20,184,166,.10); }
+  .sin-doc-pop button.danger { color: #b91c1c; }
+  .sin-doc-pop button.danger:hover { background: rgba(185,28,28,.08); }
+  .sin-doc-pop button svg { width: 15px; height: 15px; flex: 0 0 auto; }
+  body.fp-dark .sin-doc-pop { background: #1e293b; }
+  body.fp-dark .sin-doc-pop button { color: #e6edf6; }
 </style>
 <script>
 (function(){
@@ -826,17 +842,17 @@
         const sinTimeline = sinTimelineHTML(sinSteps(g, dv, cur));
         // Ligne « document » du dossier : si un fichier existe → Voir / Télécharger / Remplacer / Supprimer
         // (+ Relire (IA) pour le courrier) ; sinon → bouton de dépôt (scan). Source : dv.courrierUrl / dv.constatUrl.
-        const _docAct = 'font-size:11.5px;color:var(--fp-accent);background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 4px';
+        const _docAct = 'font-size:11.5px;color:var(--fp-accent);background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border:1px solid var(--fp-border);border-radius:7px';
+        // Ligne « document » : fichier présent → « Voir » (action principale) + menu « ⋯ » qui regroupe les
+        // actions secondaires (Télécharger / Relire (IA) / Remplacer / Supprimer) pour désencombrer la fiche
+        // (surtout sur mobile). Le menu est construit depuis les data-* du bouton « ⋯ » (cf. openSinDocMenu).
         const _docRow = (kind, lbl, url, withRescan) => {
           const safe = escapeHtml(url || ''), immat = escapeHtml(s.vehiculeImmat || '');
           if (url) {
-            return `<div class="flex items-center gap-1 flex-wrap text-xs" style="padding:6px 0;border-bottom:1px dashed var(--fp-border)">
-                <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-text" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> ${lbl}</span>
+            return `<div class="flex items-center gap-1.5 flex-wrap text-xs" style="padding:6px 0;border-bottom:1px dashed var(--fp-border)">
+                <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-check-2" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;color:#059669"></i> ${lbl}</span>
                 <button type="button" class="sin-doc-view" data-url="${safe}" style="${_docAct}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
-                <button type="button" class="sin-doc-dl" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" style="${_docAct}"><i data-lucide="download" class="w-3.5 h-3.5"></i> Télécharger</button>
-                ${withRescan ? `<button type="button" class="sin-doc-rescan" data-key="${g.key}" data-immat="${immat}" data-url="${safe}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" title="Relancer la lecture IA sur ce courrier déjà déposé" style="${_docAct}"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Relire (IA)</button>` : ''}
-                <button type="button" class="sin-doc-replace" data-key="${g.key}" data-kind="${kind}" style="${_docAct}"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Remplacer</button>
-                <button type="button" class="sin-doc-del" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" style="${_docAct};color:#b91c1c"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>
+                <button type="button" class="sin-doc-menu" title="Autres actions (télécharger, remplacer, supprimer…)" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" data-immat="${immat}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" data-rescan="${withRescan ? '1' : '0'}" data-lbl="${escapeHtml(lbl)}" style="${_docAct};padding:3px 6px"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
               </div>`;
           }
           return kind === 'courrier'
@@ -867,6 +883,21 @@
             </div>
             <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">📎 Documents du dossier</div>
             <div class="sin-docs">
+              <div class="sin-dz" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" data-annee="${escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()))}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" tabindex="0" role="button" title="Glissez un document ici ou cliquez pour en choisir un — l'IA le lit automatiquement">
+                <div class="sin-dz-idle">
+                  <i data-lucide="upload-cloud" class="w-5 h-5" style="color:var(--fp-accent)"></i>
+                  <div><b>Glissez un document ici</b> <span class="text-slate-400">ou cliquez</span></div>
+                  <div class="sin-dz-sub">Courrier assureur ou constat amiable — lu automatiquement par l'IA</div>
+                </div>
+                <div class="sin-dz-choose hidden">
+                  <div class="text-xs text-slate-600 mb-1">Ce document est&nbsp;:</div>
+                  <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <button type="button" class="sin-dz-as" data-type="courrier" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:8px;padding:5px 10px;cursor:pointer"><i data-lucide="mail-search" class="w-3.5 h-3.5"></i> Courrier assureur</button>
+                    <button type="button" class="sin-dz-as" data-type="constat" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;color:var(--fp-accent);background:#fff;border:1px solid var(--fp-accent);border-radius:8px;padding:5px 10px;cursor:pointer"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Constat amiable</button>
+                    <button type="button" class="sin-dz-cancel" style="font-size:11.5px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:5px 6px">Annuler</button>
+                  </div>
+                </div>
+              </div>
               ${_docRow('courrier', "Courrier de l'assureur", dv.courrierUrl, true)}
               ${_docRow('constat', 'Constat amiable', dv.constatUrl, false)}
             </div>
@@ -1097,6 +1128,41 @@
     if (d.open) sinDossOpen.add(k); else sinDossOpen.delete(k);
   }, true);
 
+  // ─── Zone de glisser-déposer des documents du dossier (courrier / constat) ───
+  // Un fichier déposé (ou choisi au clic) ouvre un petit sélecteur « Courrier assureur / Constat amiable »
+  // qui route vers EXACTEMENT le même flux que les boutons de scan (ingestCourrier / ingestConstat).
+  let _sinDzFile = null;                              // fichier en attente de choix de type
+  const _sinDzReset = (z) => { if (!z) return; z.classList.remove('sin-dz-over'); const i = z.querySelector('.sin-dz-idle'), c = z.querySelector('.sin-dz-choose'); if (i) i.classList.remove('hidden'); if (c) c.classList.add('hidden'); };
+  const _sinDzChoose = (z) => { if (!z) return; const i = z.querySelector('.sin-dz-idle'), c = z.querySelector('.sin-dz-choose'); if (i) i.classList.add('hidden'); if (c) c.classList.remove('hidden'); if (window.lucide) lucide.createIcons(); };
+  function sinDzFileInput() {
+    let inp = document.getElementById('sin-dz-file');
+    if (!inp) {
+      inp = document.createElement('input'); inp.type = 'file'; inp.id = 'sin-dz-file'; inp.className = 'hidden'; inp.accept = 'image/*,application/pdf,.pdf'; document.body.appendChild(inp);
+      inp.addEventListener('change', () => {
+        const f = (inp.files || [])[0]; inp.value = '';
+        const key = inp.dataset.key; const z = key ? $('timeline').querySelector('.sin-dz[data-key="' + key + '"]') : null;
+        if (f && z) { _sinDzFile = f; _sinDzChoose(z); } else { _sinDzFile = null; }
+      });
+    }
+    return inp;
+  }
+  $('timeline').addEventListener('dragover', (e) => { const z = e.target.closest && e.target.closest('.sin-dz'); if (!z) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; z.classList.add('sin-dz-over'); });
+  $('timeline').addEventListener('dragleave', (e) => { const z = e.target.closest && e.target.closest('.sin-dz'); if (!z) return; if (z.contains(e.relatedTarget)) return; z.classList.remove('sin-dz-over'); });
+  $('timeline').addEventListener('drop', (e) => {
+    const z = e.target.closest && e.target.closest('.sin-dz'); if (!z) return;
+    e.preventDefault(); z.classList.remove('sin-dz-over');
+    const f = (e.dataTransfer && e.dataTransfer.files || [])[0];
+    if (!f) return;
+    _sinDzFile = f; _sinDzChoose(z);
+  });
+  // Accessibilité clavier : Entrée/Espace sur la zone (focus) = ouvrir le sélecteur de fichier.
+  $('timeline').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const z = e.target.closest && e.target.closest('.sin-dz'); if (!z) return;
+    if (e.target.closest('.sin-dz-as') || e.target.closest('.sin-dz-cancel')) return;
+    e.preventDefault(); const inp = sinDzFileInput(); inp.dataset.key = z.dataset.key || ''; inp.click();
+  });
+
   // Changements (statut de remboursement, stade devis/facture)
   $('timeline').addEventListener('change', (e) => {
     const sel = e.target.closest('.sin-stat');
@@ -1150,9 +1216,16 @@
   });
 
   // Lecture IA d'un constat : propose la responsabilité de NOTRE véhicule (jamais enregistré sans confirmation).
-  async function handleConstatScan(input) {
-    const key = input.dataset.key, immat = input.dataset.immat || '';
+  // Thin wrapper : extrait le fichier + le contexte de l'<input file> puis délègue au cœur ingestConstat
+  // (ainsi le glisser-déposer peut réutiliser EXACTEMENT le même flux d'enregistrement + analyse IA).
+  function handleConstatScan(input) {
     const file = (input.files || [])[0]; input.value = '';
+    if (!file) return;
+    return ingestConstat(file, { key: input.dataset.key, immat: input.dataset.immat || '', annee: input.dataset.annee || '' });
+  }
+  async function ingestConstat(file, ctx) {
+    ctx = ctx || {};
+    const key = ctx.key, immat = ctx.immat || '';
     if (!file) return;
     const setSt = (html, color) => { const statusEl = $('timeline').querySelector(`.sin-constat-status[data-key="${key}"]`); if (statusEl) { statusEl.innerHTML = html; statusEl.style.color = color || 'var(--fp-muted)'; if (window.lucide) lucide.createIcons(); } };
     clearSinStatus('sin-constat-status', key);
@@ -1163,7 +1236,7 @@
     if (FP.uploadScan) {
       try {
         const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
-        const annee = (input.dataset.annee && /^\d{4}$/.test(input.dataset.annee)) ? input.dataset.annee : String(new Date().getFullYear());
+        const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
         let oldUrl = ''; try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).constatUrl || ''; } catch (_) {}
         const url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`);
         if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; o.constatUrl = url; FP.settings.save(s); constatSaved = true; if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); } }
@@ -1209,6 +1282,65 @@
     } catch (e) {}
   }
 
+  // ─── Actions sur un document du dossier (source unique, appelées par « Voir » et le menu « ⋯ ») ───
+  // Voir : lien signé (bucket privé) ; repli Drive pour un identifiant hérité.
+  function sinDocView(u) {
+    if (!u) return;
+    if (/^https?:\/\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); }
+    else window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener');
+  }
+  // Télécharger : lien signé → <a download>.
+  async function sinDocDownload(u, name) {
+    if (!u) return;
+    try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? (await FP.signedScanUrl(u)) : u; const a = document.createElement('a'); a.href = su || u; a.download = (name || 'document'); a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+    catch (_) { if (FP.openScan) FP.openScan(u); }
+  }
+  // Supprimer (confirmation nommée) : retire la RÉFÉRENCE du dossier + supprime le FICHIER seulement s'il
+  // n'est plus référencé ailleurs. Les infos déjà enregistrées (n° dossier, franchise…) sont conservées.
+  async function sinDocDelete(key, kind, url) {
+    const lbl = kind === 'constat' ? 'le constat amiable' : 'le courrier de l\'assureur';
+    const ok = FP.confirm ? await FP.confirm('Supprimer ' + lbl + ' de ce dossier ?\n\nLe document sera retiré. Les informations déjà enregistrées (n° dossier, franchise, responsabilité…) sont conservées.') : confirm('Supprimer ' + lbl + ' ?');
+    if (!ok) return;
+    const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+    const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+    delete o[(kind === 'constat') ? 'constatUrl' : 'courrierUrl'];
+    if (!Object.keys(o).length) delete s.sinistreAssurance[key];
+    FP.settings.save(s);
+    await sinDeleteStorageFile(url);
+    if (FP.toast) FP.toast('Document supprimé'); refreshAll();
+  }
+
+  // Menu « ⋯ » d'un document : popover ancré au <body> (jamais rogné par la carte). Les actions secondaires
+  // (Télécharger / Relire (IA) / Remplacer / Supprimer) sont regroupées pour désencombrer la fiche.
+  function closeSinDocMenu() { const p = document.getElementById('sin-doc-pop'); if (p) p.remove(); document.removeEventListener('click', _sinDocMenuOutside, true); window.removeEventListener('scroll', closeSinDocMenu, true); window.removeEventListener('resize', closeSinDocMenu); }
+  function _sinDocMenuOutside(ev) { const p = document.getElementById('sin-doc-pop'); if (p && !p.contains(ev.target) && !(ev.target.closest && ev.target.closest('.sin-doc-menu'))) closeSinDocMenu(); }
+  function openSinDocMenu(btn, openFileFn) {
+    const existing = document.getElementById('sin-doc-pop');
+    closeSinDocMenu();
+    if (existing && existing.dataset.for === (btn.dataset.key + '|' + btn.dataset.kind)) return;   // re-clic sur le même bouton = ferme
+    const d = btn.dataset;
+    const pop = document.createElement('div'); pop.id = 'sin-doc-pop'; pop.className = 'sin-doc-pop'; pop.dataset.for = (d.key + '|' + d.kind);
+    const items = [];
+    items.push({ ic: 'download', txt: 'Télécharger', fn: () => sinDocDownload(d.url || '', d.name || 'document') });
+    if (d.rescan === '1') items.push({ ic: 'sparkles', txt: 'Relire (IA)', fn: () => rescanCourrier(d.key, d.immat || '', d.url || '', d.sindate || '') });
+    items.push({ ic: 'refresh-cw', txt: 'Remplacer', fn: () => openFileFn(d.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', d.key) });
+    items.push({ ic: 'trash-2', txt: 'Supprimer', danger: true, fn: () => sinDocDelete(d.key, d.kind, d.url || '') });
+    items.forEach(it => {
+      const b = document.createElement('button'); b.type = 'button'; if (it.danger) b.className = 'danger';
+      b.innerHTML = '<i data-lucide="' + it.ic + '"></i> ' + it.txt;
+      b.addEventListener('click', () => { closeSinDocMenu(); it.fn(); });
+      pop.appendChild(b);
+    });
+    document.body.appendChild(pop);
+    // Positionnement : sous le bouton, aligné à droite, replié vers le haut si pas de place en bas.
+    const r = btn.getBoundingClientRect(); const pw = pop.offsetWidth || 190, ph = pop.offsetHeight || 160;
+    let left = Math.min(r.right - pw, window.innerWidth - pw - 8); left = Math.max(8, left);
+    let top = r.bottom + 6; if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { document.addEventListener('click', _sinDocMenuOutside, true); window.addEventListener('scroll', closeSinDocMenu, true); window.addEventListener('resize', closeSinDocMenu); }, 0);
+  }
+
   // Courrier déposé (ou remplacé) : on STOCKE le fichier (en purgeant l'ancien si remplacement), puis on
   // lance la lecture IA → fenêtre de VALIDATION. Jamais d'écriture en douce : tout passe par la fenêtre.
   // Helper : toast de progression (haut-droite, visible) avec repli silencieux si indispo.
@@ -1216,16 +1348,23 @@
   // Nettoie l'ancienne ligne de statut discrète (en bas) — le feedback passe désormais par le toast.
   function clearSinStatus(cls, key) { const el = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (el) { el.innerHTML = ''; } }
 
-  async function handleCourrierScan(input) {
-    const key = input.dataset.key, immat = input.dataset.immat || '', sinDate = input.dataset.sindate || '';
+  // Thin wrapper : extrait le fichier + le contexte de l'<input file> puis délègue au cœur ingestCourrier
+  // (le glisser-déposer réutilise le même flux upload → analyse IA → fenêtre de validation).
+  function handleCourrierScan(input) {
     const file = (input.files || [])[0]; input.value = '';
+    if (!file) return;
+    return ingestCourrier(file, { key: input.dataset.key, immat: input.dataset.immat || '', sinDate: input.dataset.sindate || '', annee: input.dataset.annee || '' });
+  }
+  async function ingestCourrier(file, ctx) {
+    ctx = ctx || {};
+    const key = ctx.key, immat = ctx.immat || '', sinDate = ctx.sinDate || '';
     if (!file) return;
     clearSinStatus('sin-courrier-status', key);
     const tp = sinProgress('Enregistrement du courrier…');
     let url = '', courrierFail = false, oldUrl = '';
     try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).courrierUrl || ''; } catch (_) {}
     const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
-    const annee = (input.dataset.annee && /^\d{4}$/.test(input.dataset.annee)) ? input.dataset.annee : String(new Date().getFullYear());
+    const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
     try { if (FP.uploadScan) { url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`) || ''; if (!url) courrierFail = true; } } catch (_) { courrierFail = true; }
     if (url) {
       const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
@@ -1388,44 +1527,32 @@
     // Helper : ouvre le sélecteur de fichier (courrier/constat) de CE dossier (input repéré par data-key —
     // les inputs ne sont plus enfants du bouton depuis la refonte « Documents du dossier »).
     const _openSinFile = (cls, key) => { const inp = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (inp) inp.click(); };
+    // Zone de glisser-déposer : clic sur la zone (hors boutons de choix) → sélecteur de fichier.
+    const dz = e.target.closest('.sin-dz');
+    if (dz && !e.target.closest('.sin-dz-as') && !e.target.closest('.sin-dz-cancel')) {
+      const inp = sinDzFileInput(); inp.dataset.key = dz.dataset.key || ''; inp.click(); return;
+    }
+    // Choix du type d'un fichier déposé/choisi → même flux que les boutons de scan (ingestCourrier/ingestConstat).
+    const dzAs = e.target.closest('.sin-dz-as');
+    if (dzAs) {
+      const zone = dzAs.closest('.sin-dz'); const f = _sinDzFile; _sinDzFile = null;
+      if (zone) _sinDzReset(zone);
+      if (!f || !zone) return;
+      const ctx = { key: zone.dataset.key, immat: zone.dataset.immat || '', annee: zone.dataset.annee || '', sinDate: zone.dataset.sindate || '' };
+      if (dzAs.dataset.type === 'constat') ingestConstat(f, ctx); else ingestCourrier(f, ctx);
+      return;
+    }
+    const dzCancel = e.target.closest('.sin-dz-cancel');
+    if (dzCancel) { _sinDzFile = null; _sinDzReset(dzCancel.closest('.sin-dz')); return; }
     // Courrier assureur : « Scanner » (dépôt initial) → ouvre le sélecteur de fichier.
     const crbtn = e.target.closest('.sin-courrier-btn');
     if (crbtn) { _openSinFile('sin-courrier-file', crbtn.dataset.key); return; }
     // Document : Voir (lien signé, bucket privé ; repli Drive pour un id hérité).
     const dView = e.target.closest('.sin-doc-view');
-    if (dView) { const u = dView.dataset.url || ''; if (/^https?:\/\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); } else if (u) window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener'); return; }
-    // Document : Télécharger (lien signé → <a download>).
-    const dDl = e.target.closest('.sin-doc-dl');
-    if (dDl) {
-      const u = dDl.dataset.url || ''; if (!u) return;
-      (async () => { try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? (await FP.signedScanUrl(u)) : u; const a = document.createElement('a'); a.href = su || u; a.download = (dDl.dataset.name || 'document'); a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch (_) { if (FP.openScan) FP.openScan(u); } })();
-      return;
-    }
-    // Document : Remplacer → même flux que le dépôt (upload + purge de l'ancien fichier + lecture IA).
-    const dRep = e.target.closest('.sin-doc-replace');
-    if (dRep) { _openSinFile(dRep.dataset.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', dRep.dataset.key); return; }
-    // Document : Relire (IA) le courrier DÉJÀ stocké (sans re-déposer).
-    const dRescan = e.target.closest('.sin-doc-rescan');
-    if (dRescan) { rescanCourrier(dRescan.dataset.key, dRescan.dataset.immat || '', dRescan.dataset.url || '', dRescan.dataset.sindate || ''); return; }
-    // Document : Supprimer (confirmation nommée). Retire la RÉFÉRENCE du dossier + supprime le FICHIER
-    // seulement s'il n'est plus référencé ailleurs. Les infos déjà enregistrées (n° dossier, franchise…) restent.
-    const dDel = e.target.closest('.sin-doc-del');
-    if (dDel) {
-      const key = dDel.dataset.key, kind = dDel.dataset.kind, url = dDel.dataset.url || '';
-      const lbl = kind === 'constat' ? 'le constat amiable' : 'le courrier de l\'assureur';
-      (async () => {
-        const ok = FP.confirm ? await FP.confirm('Supprimer ' + lbl + ' de ce dossier ?\n\nLe document sera retiré. Les informations déjà enregistrées (n° dossier, franchise, responsabilité…) sont conservées.') : confirm('Supprimer ' + lbl + ' ?');
-        if (!ok) return;
-        const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
-        const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-        delete o[(kind === 'constat') ? 'constatUrl' : 'courrierUrl'];
-        if (!Object.keys(o).length) delete s.sinistreAssurance[key];
-        FP.settings.save(s);
-        await sinDeleteStorageFile(url);
-        if (FP.toast) FP.toast('Document supprimé'); refreshAll();
-      })();
-      return;
-    }
+    if (dView) { sinDocView(dView.dataset.url || ''); return; }
+    // Document : menu « ⋯ » → actions secondaires regroupées (Télécharger / Relire (IA) / Remplacer / Supprimer).
+    const dMenu = e.target.closest('.sin-doc-menu');
+    if (dMenu) { openSinDocMenu(dMenu, _openSinFile); return; }
     // Clôturer / rouvrir le dossier (pose ou retire la date de clôture)
     const clo = e.target.closest('.sin-cloturer');
     if (clo) {
