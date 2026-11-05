@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261105c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261105d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261105c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261105d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261105c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261105d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -708,6 +708,7 @@
         <div class="man-item">🔄 <b>Import automatique des factures Ulys + alerte e-mail</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — tu <b>n'as plus besoin d'importer le PDF à la main</b>. Une fois par jour, la plateforme se connecte <b>toute seule</b> à ton compte Ulys (VINCI Autoroutes), <b>enregistre les nouvelles factures</b> (dates + HT/TVA/TTC, dans l'onglet Factures → Ulys, sans doublon) <b>et t'envoie un e-mail</b> listant ce qui est arrivé — exactement comme l'e-mail d'Ulys, mais côté Parc Pilot. Le <b>détail trajet par trajet et par conducteur</b> se complète ensuite tout seul à ta prochaine ouverture de l'onglet <b>Contrôle → Ulys</b>. ⚠️ Prérequis unique côté administrateur : activer la tâche (script <code>ulys-daily-setup.sql</code> dans Supabase) et, si tu veux choisir l'adresse qui reçoit l'alerte, le secret <code>ULYS_ALERT_TO</code>. <i>(Avant, la synchro ne se faisait qu'en ouvrant l'onglet Ulys, et l'alerte était une simple notif du navigateur — d'où l'impression de « ne rien recevoir ».)</i></div>
         <div class="man-item">🔎 <b>Filtre « Par conducteur »</b> (Total Fleet) <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — choisis un conducteur (liste cherchable) pour ne voir <b>que sa conso</b>. Sans mois précis, le tableau affiche <b>son détail mois par mois</b> ; avec un mois choisi, seulement ce mois. Le relevé PDF et l'export CSV suivent la sélection. Un bouton <b>↺ Réinitialiser</b> remet tous les filtres (conducteur + période) à zéro d'un clic.</div>
         <div class="man-item">📆 <b>Filtre « Du → Au » précis au JOUR</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — quand tu choisis un <b>intervalle de dates</b> (ex. <b>13 → 31 octobre</b>), le total ne retient désormais que les <b>transactions réellement effectuées dans ces dates</b> (la <b>vraie date d'opération</b> du relevé), <b>bornes incluses</b> — et <b>non plus le mois entier</b>. Une opération du 5 octobre n'est donc <b>plus comptée</b> dans un filtre « 13 → 31 ». Tableau, analyse, « Points à vérifier » et <b>exports</b> suivent exactement la même règle. <i>Remarque : pour une plage de dates personnalisée, les colonnes <b>litres</b>, <b>HT/TVA</b> et le <b>CO₂</b> ne s'affichent pas (ils ne sont connus qu'au niveau du mois) — choisis un <b>mois</b> pour les retrouver. Les mêmes dépenses restent exactes.</i> Le filtre par <b>mois</b>, lui, est inchangé. <b>Idem côté Ulys</b> (péages) : le « Du → Au » retient les <b>passages réellement effectués</b> dans l'intervalle (le <b>km</b> reste affiché au mois seulement — le montant TTC et le nombre de trajets, eux, sont exacts au jour).</div>
+        <div class="man-item">🌍 <b>Factures étrangères lues au détail (Belgique, Allemagne…)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — le détail <b>achat par achat</b> d'un relevé TotalEnergies était lu uniquement sur les factures <b>françaises</b> ; une facture <b>belge (en néerlandais)</b> ou <b>allemande</b> voyait bien son total mensuel, mais <b>pas ses transactions datées</b> → ces achats n'apparaissaient pas dans un filtre « Du → Au » (ex. un plein en Belgique manquait au total par dates). C'est <b>corrigé</b> : les en-têtes par carte « Totaal Kaart » (NL) et « Summe Karte / Telebadge » (DE) ainsi que les carburants étrangers (« Euro 95 Loodvrij »…) sont désormais reconnus. <b>Rien à refaire</b> : le détail se <b>reconstruit tout seul</b> à l'ouverture de l'onglet Contrôle, pour <b>toutes les factures déjà importées, toutes périodes confondues</b> (le re-traitement est relancé automatiquement après cette mise à jour).</div>
         <div class="man-item">⬇️ <b>Export CSV</b> + <b>Rapport PDF</b> propres à chaque sous-onglet : sur <b>Total Fleet</b> et <b>Ulys</b>, les boutons d'export exportent <b>les données de CE sous-onglet</b> (conso carburant/péages), pas les factures. Les boutons « Export comptable / Relevé PDF / Récap par poste » du haut restent, eux, dédiés à l'onglet <b>Factures</b> (ils n'apparaissent que là).</div>
 
         <div class="man-zone">Sous-onglets « Fournisseurs » &amp; « Entretiens »</div>
@@ -1100,8 +1101,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261105c"></script>
-<script src="../assets/js/supabase-client.js?v=20261105c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261105d"></script>
+<script src="../assets/js/supabase-client.js?v=20261105d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1117,10 +1118,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261105c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261105d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261105c"></script>
+<script src="../assets/js/app.min.js?v=20261105d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

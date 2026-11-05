@@ -1450,7 +1450,7 @@
     // === DÉTAIL TRANSACTION PAR TRANSACTION (une ligne = un achat) ===
     // Validé sur une vraie facture Total. Ancre les produits sur leurs libellés connus, prend le
     // TTC = dernier montant à 2 décimales non suivi d'un chiffre (exclut les PU à 4 décimales).
-    const TX_PROD = /(Gazole(?: Premier| Excellium)?|Super \d+(?: Sans PL)?|SP\d{2}(?: E\d+)?|Bouteille Gaz|Boissons(?: T[A-Z]{1,2})?|Alimentation(?: T[A-Z]{1,2})?|Produit [Ff]rais|Sandwich|Lavage(?: Progr\.? ?\d)?|Parking|AdBlue|GNR|GPL|E85|Lubrifiant|Lave[- ]?glace|Accessoires?|Huile|Ampoule|Balai)/;
+    const TX_PROD = /(Gazole(?: Premier| Excellium)?|Super \d+(?: Sans PL)?|SP\d{2}(?: E\d+)?|Euro ?\d{2}(?: Loodvrij| Ongelood)?|Loodvrij|Ongelood|Benzine|Diesel|Gasolio|Bouteille Gaz|Boissons(?: T[A-Z]{1,2})?|Alimentation(?: T[A-Z]{1,2})?|Produit [Ff]rais|Sandwich|Lavage(?: Progr\.? ?\d)?|Parking|AdBlue|GNR|GPL|E85|Lubrifiant|Lave[- ]?glace|Accessoires?|Huile|Ampoule|Balai)/;
     // Préfixe de STATION à retirer d'un libellé « <n° site/pompe> NOM STATION » (ex. « 79 PAMPRO »)
     // quand le produit exact n'est pas reconnu → sinon le nom de la station pollue le libellé.
     const TX_STATION = /^\s*\d{1,4}\s+[A-ZÉÈÀÂÊÎÔÛÇ][A-Z0-9ÉÈÀÂÊÎÔÛÇ'.\-]+(?:\s+[A-Z0-9ÉÈÀÂÊÎÔÛÇ'.\-]{2,})*\s+/;
@@ -1461,9 +1461,17 @@
       const t = (raw || '').replace(SP, ' ').replace(/[ \t]+/g, ' ');
       const idx = t.indexOf('Votre Facture et son détail');
       const det = idx >= 0 ? t.slice(idx) : t;
-      const supRe = /Total Support (\d+)(?: (\d+))? (.+?) Type véh\. (\d+)/g;
+      // En-tête par carte, MULTILINGUE (même couverture que le parseur mensuel) : FR « Total Support …
+      // Type véh. N », NL « Totaal Kaart … N » (factures belges), DE « Summe Karte / Telebadge … Kfz-Typ N ».
+      // Sans ça, une facture belge/allemande ne produisait AUCUNE transaction datée (détail manquant).
       const hits = []; let m;
-      while ((m = supRe.exec(det))) hits.push({ i:m.index, end:supRe.lastIndex, carte:m[1], rang:m[2] || '', nom:m[3].trim() });
+      const reFR = /Total Support (\d+)(?: (\d+))? (.+?) Type véh\. (\d+)/g;
+      while ((m = reFR.exec(det))) hits.push({ i:m.index, end:reFR.lastIndex, carte:m[1], nom:m[3].trim() });
+      const reNL = /Totaal Kaart (\d+)(?: (\d+))? (.+?) (\d{1,2})(?=\s+\d[\d .]*[.,]\d)/g;
+      while ((m = reNL.exec(det))) hits.push({ i:m.index, end:reNL.lastIndex, carte:m[1], nom:m[3].trim() });
+      const reDE = /Summe Karte(?: \/ Telebadge)? (\d+)(?: (\d+))? (.+?) Kfz-Typ (\d+)/g;
+      while ((m = reDE.exec(det))) hits.push({ i:m.index, end:reDE.lastIndex, carte:m[1], nom:m[3].trim() });
+      hits.sort((a, b) => a.i - b.i);
       const out = []; let prev = 0, seq = 0;
       for (const h of hits){
         const block = det.slice(prev, h.i); prev = h.end;
@@ -1473,7 +1481,7 @@
         // TOTAL/GEIE : il y a aussi les PARTENAIRES (parkings INDIGO, SAEMES, EFFIA…). On capture le RÉSEAU
         // à PART (groupe 3, mots EN MAJUSCULES) pour que le PRODUIT (groupe 4) reste propre — sinon le repli
         // prenait « TOTAL TF » comme produit → carburant classé à tort « achat hors carburant ».
-        const txRe = /(\d{6}) (\d{4}) ([A-Z]{2,}(?: [A-Z]{2,})?) (.+?)(?=(?:\d{6} \d{4} [A-Z]{2,})|Total\b|$)/gs;
+        const txRe = /(\d{6}) (\d{4}) ([A-Z]{2,}(?: [A-Z]{2,})?) (.+?)(?=(?:\d{6} \d{4} [A-Z]{2,})|Tot(?:al|aal)\b|Summe\b|$)/gs;
         let x;
         while ((x = txRe.exec(block))){
           const dmy = x[1], tail = x[4];
@@ -1865,8 +1873,13 @@
       // En mode AUTO (silencieux), on mémorise aussi les relevés ANCIENS DÉJÀ TENTÉS (même sans ligne
       // datée : PDF illisible/sans détail) pour ne pas les re-télécharger à chaque session. Les récents
       // ne sont JAMAIS mis en cache « tenté » → ils se re-vérifient tant qu'ils sont dans la fenêtre.
+      // ⚠️ Cache « déjà tenté » VERSIONNÉ par FP.ASSET_VERSION (règle CLAUDE.md : un cache de RÉSULTAT CALCULÉ
+      // doit porter la version de logique). À chaque mise à jour du parseur (nouveau ?v=), les relevés anciens
+      // tentés AVANT sans détail (ex. factures belges/allemandes avant ce correctif NL/DE) sont RE-TENTÉS une
+      // fois → le correctif se propage à TOUTES les périodes (passées), pas seulement aux relevés récents.
+      const TRIED_KEY = 'fp_conso_backfill_tried_' + ((window.FP && FP.ASSET_VERSION) || '');
       let tried = {};
-      if (silent && !force) { try { tried = JSON.parse(localStorage.getItem('fp_conso_backfill_tried') || '{}') || {}; } catch (e) {} }
+      if (silent && !force) { try { tried = JSON.parse(localStorage.getItem(TRIED_KEY) || '{}') || {}; } catch (e) {} }
       const dejaTente = (f) => silent && !force && f && f.fileId && tried[f.fileId] && !estRecent(f);
       // Correspondance carte → conducteur (comme à l'import) pour bien nommer les achats.
       try { if (!consoLoaded) await loadConso(); } catch (e) {}
@@ -1954,7 +1967,7 @@
         }
       } catch (e) { if (!ulErr) ulErr = String((e && (e.message || e)) || e); console.warn('[backfillTx ulys]', e); }
       if (btn) { btn.innerHTML = old; btn.disabled = false; }
-      if (silent && !force) { try { localStorage.setItem('fp_conso_backfill_tried', JSON.stringify(tried)); } catch (e) {} }
+      if (silent && !force) { try { localStorage.setItem(TRIED_KEY, JSON.stringify(tried)); } catch (e) {} }
       consoLoaded = false; try { await loadConso(); } catch (e) {}
       try { renderConso(); renderAnalyse(); } catch (e) {}
       // Prévient les autres écrans (ex. Suivi & alertes → conso pendant congé) qu'il y a du neuf.
