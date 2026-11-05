@@ -737,10 +737,58 @@
       + '</div>';
   }
 
+  // 🧭 PARCOURS FINANCIER guidé (6 étapes) + « prochaine action » contextuelle.
+  //   Lecture seule : déduit l'état du dossier des données existantes (FP.sinistreFin + dossier) — aucune
+  //   nouvelle donnée, aucune écriture. But : montrer d'un coup d'œil où en est l'argent et QUOI faire ensuite.
+  function sinFinParcours(g, fin, dv, cur) {
+    fin = fin || {}; dv = dv || {};
+    const eur = v => FP.euroPrecis(v);
+    const coutKnown = (fin.coutFacture != null) || (fin.coutEstime != null) || ((g.cost || 0) > 0);
+    const answered = !!(dv.resp || dv.dateReponse);
+    // Une réponse de l'assureur implique que le sinistre a été déclaré → on considère l'étape « Déclaré »
+    // franchie même si le n° de dossier n'a pas (encore) été saisi, pour ne pas guider à contre-sens.
+    const declared = !!(dv.dateDeclaration || dv.numeroDossier) || answered;
+    const pecConf = fin.pecConfirmee != null;
+    const encaisse = (fin.encaisse || 0) > 0;
+    const solde = !!fin.solde;
+    const reste = fin.resteARecevoir;   // null = inconnu
+    const steps = [
+      { n: 1, label: 'Coût', done: coutKnown },
+      { n: 2, label: 'Déclaré', done: declared },
+      { n: 3, label: 'Réponse', done: answered },
+      { n: 4, label: 'Prise en charge', done: pecConf },
+      { n: 5, label: 'Encaissé', done: encaisse },
+      { n: 6, label: 'Soldé', done: solde },
+    ];
+    let next;
+    if (solde) next = { tone: 'done', text: 'Dossier financièrement soldé.' + (fin.resteChargeDef != null ? (' Reste à charge définitif : ' + eur(fin.resteChargeDef) + '.') : '') };
+    else if (!coutKnown) next = { tone: 'do', text: 'Chiffre le sinistre : saisis le coût estimé, ou dépose la facture de réparation (le coût facturé se lit tout seul).' };
+    else if (!declared) next = { tone: 'do', text: 'Déclare le sinistre à l’assurance : renseigne le n° de dossier et la date de déclaration (ou dépose le courrier de l’assureur).' };
+    else if (!answered) next = { tone: 'wait', text: 'En attente de la réponse de l’assureur : renseigne la responsabilité / la date de réponse, ou dépose le courrier (lu par l’IA).' };
+    else if (dv.resp === 'responsable' && !pecConf && !encaisse) next = { tone: 'wait', text: 'Responsabilité : en tort. S’il y a une garantie (tous risques), saisis la prise en charge ; sinon le reste à charge = la franchise.' };
+    else if (!pecConf) next = { tone: 'do', text: 'Saisis la prise en charge confirmée par l’assureur (le montant accordé).' };
+    else if (reste != null && reste > 0) next = { tone: 'do', text: 'Enregistre le versement reçu — reste à recevoir : ' + eur(reste) + '.' };
+    else next = { tone: 'do', text: 'Tout est réglé ? Coche « Dossier financièrement soldé » pour figer le reste à charge définitif.' };
+    return { steps, next };
+  }
+  function sinFinParcoursHTML(g, fin, dv, cur) {
+    const parc = sinFinParcours(g, fin, dv, cur);
+    const stepBar = '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;margin:2px 0 8px">'
+      + parc.steps.map((st, i) => {
+        const bg = st.done ? '#047857' : '#E2E8F0', col = st.done ? '#334155' : '#94A3B8';
+        return (i ? '<span style="color:#CBD5E1;font-size:11px">›</span>' : '')
+          + `<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:16px;height:16px;border-radius:50%;background:${bg};color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${st.done ? '✓' : st.n}</span><span style="font-size:10.5px;font-weight:${st.done ? 700 : 600};color:${col}">${st.label}</span></span>`;
+      }).join('') + '</div>';
+    const toneCss = { do: 'background:#fff7ed;border:1px solid #fed7aa;color:#9a3412', wait: 'background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af', done: 'background:#ecfdf5;border:1px solid #a7f3d0;color:#047857' };
+    const toneIc = { do: 'arrow-right-circle', wait: 'clock', done: 'check-circle-2' };
+    const banner = `<div style="display:flex;align-items:flex-start;gap:7px;${toneCss[parc.next.tone]};border-radius:9px;padding:7px 10px;font-size:12px;font-weight:600;margin-bottom:8px"><i data-lucide="${toneIc[parc.next.tone]}" class="w-4 h-4" style="flex:0 0 auto;margin-top:1px"></i><span>${parc.next.tone === 'done' ? '' : '<b>Prochaine action :</b> '}${escapeHtml(parc.next.text)}</span></div>`;
+    return stepBar + banner;
+  }
+
   // 💶 SUIVI FINANCIER d'un incident — 9 montants + versements + synthèse (source unique FP.sinistreFin).
   //   RÈGLE : une valeur inconnue = « À déterminer » (violet), JAMAIS 0. 0 € vert = valeur confirmée.
   //   La plateforme n'invente aucun montant (ni « remboursement 300 € » ni « coût 300 € »).
-  function sinFinHTML(g) {
+  function sinFinHTML(g, dv, cur) {
     const fin = (FP.sinistreFin ? FP.sinistreFin(g.key, g.lines) : {}) || {};
     const css = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
     const td = '<span style="color:#7c3aed;font-weight:700;font-size:11px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:1px 6px">À déterminer</span>';
@@ -757,6 +805,8 @@
       </div>`).join('') : '<div class="text-xs text-slate-400 italic" style="padding:2px 0">Aucun versement enregistré.</div>';
     const inCss = 'font-size:12px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
     return `
+      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">🧭 Parcours financier</div>
+      ${sinFinParcoursHTML(g, fin, dv, cur)}
       <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💶 Suivi financier</div>
       <div class="grid grid-cols-2 gap-2 sin-dg">
         <label class="text-xs text-slate-500">Coût estimé (€)${money('coutEstime', fin.coutEstime)}</label>
@@ -873,7 +923,7 @@
               <label class="text-xs text-slate-500">N° de police (contrat)<input class="sin-doss" data-key="${g.key}" data-k="police" type="text" value="${escapeHtml(dv.police || '')}" placeholder="—" style="${_inpCss}"></label>
               <label class="text-xs text-slate-500">Courtier / gestionnaire<input class="sin-doss" data-key="${g.key}" data-k="courtier" type="text" value="${escapeHtml(dv.courtier || '')}" placeholder="—" style="${_inpCss}"></label>
             </div>
-            ${sinFinHTML(g)}
+            ${sinFinHTML(g, dv, cur)}
             <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">Lieu &amp; tiers impliqué</div>
             <div class="grid grid-cols-2 gap-2 sin-dg">
               <label class="text-xs text-slate-500">Lieu du sinistre<input class="sin-doss" data-key="${g.key}" data-k="lieu" type="text" value="${escapeHtml(dv.lieu || '')}" placeholder="—" style="${_inpCss}"></label>
