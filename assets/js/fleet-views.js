@@ -451,7 +451,7 @@
     });
 
     // --- Consommation par conducteur (table ulys_conso) ---
-    let conso = null, consoLoaded = false;
+    let conso = null, consoLoaded = false, consoTxU = null;   // consoTxU = détail daté Ulys (total_conso_tx, cartes ULYS)
     const moisLabel = (m) => { const [y, mo] = (m || '').split('-'); const N = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']; return mo ? `${N[+mo]} ${y}` : m; };
     // Clé canonique par PERSONNE (dédoublonne « Charles » ⇄ « Charles LENNON », sépare 2 homonymes).
     const _np = (s) => (FP.condGroupKey ? FP.condGroupKey(s) : (FP.normPrenom ? FP.normPrenom(s) : String(s || '').trim().toLowerCase()));
@@ -480,6 +480,12 @@
       consoLoaded = true;
       try { const r = FP.selectAllPaged ? await FP.selectAllPaged('ulys_conso', null, 'id') : await FP.supabase.from('ulys_conso').select('*'); if (r.error) throw r.error; conso = r.data || []; const _soc = FP.activeSociete ? FP.activeSociete() : null; if (_soc && _soc !== '__all__') conso = conso.filter(x => x.societe ? String(x.societe) === _soc : _soc === 'PXP'); }   // NULL société → PXP (règle canonique, cf. lignes plus bas)
       catch (e) { console.warn('[ulys_conso] indisponible :', e && (e.message || e)); conso = null; }
+      // Détail DATÉ des passages Ulys (total_conso_tx, cartes « ULYS… ») → permet le filtre « Du → Au » au JOUR.
+      try {
+        const rt = FP.selectAllPaged ? await FP.selectAllPaged('total_conso_tx', q => q.ilike('carte', 'ULYS%'), 'id') : await FP.supabase.from('total_conso_tx').select('*').ilike('carte', 'ULYS%');
+        if (rt && !rt.error) { consoTxU = rt.data || []; const _soc = FP.activeSociete ? FP.activeSociete() : null; if (_soc && _soc !== '__all__') consoTxU = consoTxU.filter(x => x.societe ? String(x.societe) === _soc : _soc === 'PXP'); }
+        else consoTxU = null;
+      } catch (e) { consoTxU = null; }
       renderConso();
       try { window.showConsoRapproch && window.showConsoRapproch(); } catch (e) {}
     }
@@ -494,11 +500,13 @@
       const moisList = [...new Set(backed.map(c => c.mois).filter(Boolean))].sort().reverse();
       const filledKey = 'all,' + moisList.join(',');
       if (sel.dataset.filled !== filledKey) { sel.innerHTML = '<option value="all">Toutes les périodes</option>' + moisList.map(m => `<option value="${m}">${moisLabel(m)}</option>`).join(''); sel.dataset.filled = filledKey; sel.value = 'all'; }
-      const { src, label } = ulsPeriod();
+      const per = ulsPeriod(); const { src, label } = per;
       // Regroupement par PERSONNE via la SOURCE UNIQUE ulsGroup (même dédoublonnage que les exports).
       const rows = ulsGroup(src, false).sort((a, b) => b.total_ttc - a.total_ttc);
       empty.classList.toggle('hidden', rows.length > 0);
-      if (!rows.length) emptyMsg.textContent = 'Aucun détail de consommation sur cette période (importe la facture Ulys correspondante).';
+      if (!rows.length) emptyMsg.textContent = per.noDetail
+        ? "Filtre par dates : le détail des passages au jour n'est pas encore disponible (il se reconstruit à l'ouverture de l'onglet Contrôle). Choisis un mois en attendant."
+        : 'Aucun détail de consommation sur cette période (importe la facture Ulys correspondante).';
       tbody.innerHTML = rows.map(c => `<tr><td>${esc(c.conducteur || '—')}</td><td style="text-align:right">${c.nb_trajets ? c.nb_trajets : '—'}</td><td style="text-align:right">${c.km ? FP.num(c.km) + ' km' : '—'}</td><td style="text-align:right;font-weight:700">${FP.euro(c.total_ttc || 0)}</td></tr>`).join('');
       const tot = rows.reduce((s,c) => s + (Number(c.total_ttc)||0), 0);
       const totKm = rows.reduce((s,c) => s + (Number(c.km)||0), 0);
@@ -532,6 +540,29 @@
       const facMois = new Set(ulsFac.map(f => (f.date || '').slice(0, 7)).filter(Boolean));
       return conso.filter(c => { const n = String(c.numeroFacture || '').trim(); return n ? facNums.has(n) : facMois.has(c.mois); });
     }
+    // ⚠️ FILTRE AU JOUR (Ulys) : en mode « Du → Au », reconstruit des lignes au format ulys_conso depuis le
+    // détail DATÉ des passages (total_conso_tx ULYS) filtré par date_tx (bornes incluses), adossé aux
+    // factures présentes. 1 passage = 1 trajet ; montant TTC exact ; km non disponible par passage (→ affiché
+    // au mois seulement). Renvoie null si aucun détail daté (on ne snappe alors PAS au mois en silence).
+    function _ulsRowsFromTx(from, to){
+      if (!consoTxU || !consoTxU.length) return null;
+      const ulsFac = (window.FP_DATA.factures || []).filter(isUlys);
+      const facNums = new Set(ulsFac.map(f => String(f.numeroFacture || '').trim()).filter(Boolean));
+      const facMois = new Set(ulsFac.map(f => (f.date || '').slice(0, 7)).filter(Boolean));
+      const by = new Map();
+      consoTxU.forEach(t => {
+        const d = String((t.date_tx || t.dateTx) || ''); if (!d) return;
+        if (from && d < from) return;
+        if (to && d > to) return;
+        const fn = String(t.facnum || '').trim(), mo = (t.mois || d.slice(0, 7));
+        if (!(fn ? facNums.has(fn) : facMois.has(mo))) return;   // adossé à une facture Ulys réellement présente
+        const key = (t.conducteur || '—') + '|' + mo;
+        let g = by.get(key); if (!g){ g = { mois: mo, conducteur: t.conducteur || '—', nb_trajets: 0, km: 0, total_ttc: 0, numeroFacture: fn }; by.set(key, g); }
+        g.nb_trajets += 1;
+        g.total_ttc += Number(t.montant_ttc != null ? t.montant_ttc : t.montantTtc) || 0;
+      });
+      return [...by.values()];
+    }
     // Période choisie (mois rapide OU dates) → { src, label }. Partagée table + exports.
     function ulsPeriod(){
       const sel = $('uls-conso-mois');
@@ -541,9 +572,10 @@
       if (sel){ sel.disabled = dateMode; sel.style.opacity = dateMode ? '0.5' : ''; }
       const backed = ulsBacked();
       if (dateMode){
-        const fromM = from ? from.slice(0, 7) : null, toM = to ? to.slice(0, 7) : null;
-        return { src: backed.filter(c => (!fromM || (c.mois || '') >= fromM) && (!toM || (c.mois || '') <= toM)),
-                 label: (from ? FP.date(from) : '…') + ' → ' + (to ? FP.date(to) : '…') };
+        const label = (from ? FP.date(from) : '…') + ' → ' + (to ? FP.date(to) : '…');
+        const rowsTx = _ulsRowsFromTx(from || null, to || null);
+        if (rowsTx) return { src: rowsTx, label, dayMode: true };
+        return { src: [], label, dayMode: true, noDetail: true };   // pas de détail daté → on le signale (jamais de repli mensuel trompeur)
       }
       const mois = (sel && sel.value) || 'all';
       if (mois === 'all') return { src: backed.slice(), label: 'Toutes les périodes' };
