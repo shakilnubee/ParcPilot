@@ -8,9 +8,13 @@
 //       → colle ce fichier.
 //    2. Supabase → Project Settings → Edge Functions → Secrets :
 //         RESEND_API_KEY = <ta clé Resend>
-//         EMAIL_FROM     = Parc Pilot <shakil.nubee@projectxparis.fr>
-//       (EMAIL_FROM : mets d'abord "Parc Pilot <onboarding@resend.dev>" pour tester,
-//        puis ton adresse @projectxparis.fr une fois le domaine vérifié sur Resend.)
+//         EMAIL_FROM     = Parc Pilot <envoi@parc-pilot.fr>   ← « Solution 2 » (domaine plateforme)
+//       ⚠️ « Solution 2 » : une société SANS domaine d'envoi dédié vérifié envoie désormais AU NOM
+//       de sa société depuis le domaine PLATEFORME (adresse déduite de EMAIL_FROM), avec reply-to =
+//       son adresse de contact. Il faut donc VÉRIFIER parc-pilot.fr dans Resend (DNS GoDaddy) puis
+//       régler EMAIL_FROM ci-dessus. Tant que ce n'est pas fait, le repli reste l'adresse PXP
+//       historique (projectxparis.fr, déjà vérifié) — aucun envoi cassé. Les adresses PXP et les
+//       sociétés AVEC leur propre domaine vérifié (option premium) sont inchangées.
 //
 //  Le site appelle cette fonction (utilisateur connecté requis) → elle envoie le mail.
 // ============================================================================
@@ -59,11 +63,17 @@ Deno.serve(async (req) => {
   if (!key) {
     return json({ error: "RESEND_API_KEY absent — ajoute-le dans Supabase → Settings → Edge Functions → Secrets." }, 500);
   }
-  // ⚠️ Repli d'expéditeur sur un domaine VÉRIFIÉ dans Resend (seul projectxparis.fr l'est aujourd'hui) :
-  // l'adresse de test onboarding@resend.dev ne peut écrire QU'au titulaire du compte Resend. N'affecte
-  // QUE les envois sans `from` de société explicite (les amendes/EDL passent déjà leur adresse scopée).
+  // ⚠️ Repli d'expéditeur sur un domaine VÉRIFIÉ dans Resend. Cible « Solution 2 » : EMAIL_FROM =
+  // « Parc Pilot <envoi@parc-pilot.fr> » (domaine plateforme vérifié, commun à toutes les sociétés).
+  // Tant que ce secret n'est pas mis à jour, on retombe sur l'adresse PXP historique (projectxparis.fr,
+  // déjà vérifié) — le code ci-dessous est compatible avec les deux (il déduit l'adresse plateforme de
+  // EMAIL_FROM). L'adresse de test onboarding@resend.dev ne peut écrire QU'au titulaire du compte Resend.
   let envFrom = Deno.env.get("EMAIL_FROM") || "";
   if (!envFrom || /resend\.dev/i.test(envFrom)) envFrom = "Parc Pilot <noreply@projectxparis.fr>";
+  // Adresse d'envoi PLATEFORME (partie e-mail seule) déduite de EMAIL_FROM : « Nom <a@b> » → « a@b ».
+  // Sert au repli « Solution 2 » : envoyer AU NOM d'une société depuis ce domaine vérifié + reply-to client.
+  const _pfMatch = envFrom.match(/<([^>]+)>/);
+  const platformAddr = (_pfMatch ? _pfMatch[1] : envFrom).trim();
 
   let msg: Record<string, unknown>;
   try {
@@ -98,14 +108,24 @@ Deno.serve(async (req) => {
           const data = (Array.isArray(setRows) && setRows[0] && setRows[0].data) || {};
           const p = (data.profil && typeof data.profil === "object") ? data.profil : {};
           const exp = String(p.mailExpediteur || "").trim();
-          if (exp) {
-            const dom = String(p.mailDomaineEnvoi || "").trim().replace(/^@/, "");
-            const fromAddr = dom ? (exp.split("@")[0] + "@" + dom) : exp;
-            let nom = (data.societe && data.societe.nom) || "";
-            nom = String(nom).replace(/[<>"]/g, "").trim();
-            if (/^parc\s*pilot$/i.test(nom)) nom = "";
+          const dom = String(p.mailDomaineEnvoi || "").trim().replace(/^@/, "");
+          let nom = (data.societe && data.societe.nom) || "";
+          nom = String(nom).replace(/[<>"]/g, "").trim();
+          if (/^parc\s*pilot$/i.test(nom)) nom = "";
+          if (exp && dom) {
+            // OPTION PREMIUM : la société a son PROPRE domaine d'envoi VÉRIFIÉ dans Resend → on envoie
+            // depuis CE domaine (expéditeur = son adresse, reply-to = son adresse). Inchangé.
+            const fromAddr = exp.split("@")[0] + "@" + dom;
             scopedFrom = nom ? `${nom} <${fromAddr}>` : fromAddr;
             scopedReply = exp;
+          } else if (platformAddr) {
+            // SOLUTION 2 (défaut) : pas de domaine dédié vérifié → on envoie AU NOM de la société mais
+            // depuis le domaine PLATEFORME (le SEUL vérifié pour elle), avec reply-to = l'adresse de
+            // contact de la société → les réponses arrivent BIEN chez le client. Sans adresse de contact
+            // configurée, on garde l'expéditeur plateforme brandé (sans reply-to). Avant ce correctif,
+            // une société sans domaine vérifié voyait Resend REFUSER l'envoi (domaine non vérifié).
+            scopedFrom = nom ? `${nom} <${platformAddr}>` : envFrom;
+            scopedReply = exp || "";
           }
         }
       }
