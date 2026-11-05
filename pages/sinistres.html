@@ -177,7 +177,7 @@
   .sin-viewtoggle button:hover { color: var(--fp-accent); }
   .sin-viewtoggle button.on { background: var(--fp-accent); color: #fff; }
   .sin-splitwrap { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-  .sin-minilist { overflow: hidden; }
+  .sin-minilist { overflow: hidden; background: var(--fp-surface); border: 1px solid var(--fp-border); border-radius: 14px; box-shadow: var(--fp-shadow-sm, 0 1px 2px rgba(16,26,45,.06)); }
   .sin-mini { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; border-bottom: 1px solid var(--fp-border); padding: 10px 13px; cursor: pointer; }
   .sin-mini:last-child { border-bottom: none; }
   .sin-mini:hover { background: var(--fp-bg); }
@@ -189,7 +189,7 @@
   .sin-mini .l2 { font-size: 11.5px; color: var(--fp-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sin-mini-badge { font-size: 11px; font-weight: 700; white-space: nowrap; }
   .sin-mini-prio { width: 8px; height: 8px; border-radius: 50%; background: var(--fp-accent); flex: none; } .sin-mini-prio.wait { background: var(--fp-data, #0EA5E9); }
-  .sin-preview { position: sticky; top: 12px; align-self: start; overflow: hidden; }
+  .sin-preview { position: sticky; top: 12px; align-self: start; overflow: hidden; background: var(--fp-surface); border: 1px solid var(--fp-border); border-radius: 14px; box-shadow: var(--fp-shadow-sm, 0 1px 2px rgba(16,26,45,.06)); }
   .pv-head { background: linear-gradient(135deg, var(--fp-primary, #0B1220), #1b2d52); color: #fff; padding: 14px 16px; position: relative; }
   .pv-close { position: absolute; top: 9px; right: 9px; background: rgba(255,255,255,.14); border: none; color: #fff; width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-weight: 700; }
   .pv-head h3 { font-size: 15px; color: #fff; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; font-family: var(--fp-title, inherit); }
@@ -210,7 +210,7 @@
   .pv-foot { padding: 0 15px 15px; }
   .pv-open { width: 100%; background: var(--fp-accent); color: #fff; border: none; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; }
   .pv-empty { padding: 44px 20px; text-align: center; color: var(--fp-faint, #8a93a3); } .pv-empty-ic { font-size: 28px; opacity: .4; margin-bottom: 6px; }
-  .sin-tablewrap { grid-column: 1 / -1; overflow: hidden; }
+  .sin-tablewrap { grid-column: 1 / -1; overflow: hidden; background: var(--fp-surface); border: 1px solid var(--fp-border); border-radius: 14px; box-shadow: var(--fp-shadow-sm, 0 1px 2px rgba(16,26,45,.06)); }
   .sin-tbl-scroll { overflow-x: auto; }
   .sin-tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
   .sin-tbl th { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--fp-faint, #8a93a3); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--fp-border); white-space: nowrap; background: var(--fp-surface-2, #f8fafc); font-weight: 700; }
@@ -228,7 +228,7 @@
   @media (max-width: 820px) {
     .sin-splitwrap { grid-template-columns: 1fr; }
     .sin-preview { position: fixed; inset: auto 0 0 0; z-index: 55; border-radius: 16px 16px 0 0; max-height: 85vh; overflow-y: auto; box-shadow: var(--fp-shadow-lg, 0 -10px 40px rgba(0,0,0,.3)); margin: 0 auto; max-width: 620px; display: none; }
-    .sin-preview.pv-open { display: block; }
+    .sin-preview.pv-show { display: block; }
   }
 </style>
 <script>
@@ -1297,8 +1297,8 @@
     if (shown.length && !shown.some(g => g.key === sinSelKey)) sinSelKey = shown[0].key;
     const sel = shown.find(g => g.key === sinSelKey) || shown[0] || null;
     return `<div class="sin-splitwrap">
-        <div class="panel sin-minilist" id="sin-minilist">${shown.map(sinMiniRowHTML).join('')}</div>
-        <div class="panel sin-preview" id="sin-preview">${sinListPreviewHTML(sel)}</div>
+        <div class="sin-minilist" id="sin-minilist">${shown.map(sinMiniRowHTML).join('')}</div>
+        <div class="sin-preview" id="sin-preview">${sinListPreviewHTML(sel)}</div>
       </div>`;
   }
   function sinTableHTML(shown) {
@@ -1320,7 +1320,7 @@
           <td style="text-align:right"><button type="button" class="btn-open-sm" data-sin-open="${escapeHtml(g.key)}"><i data-lucide="maximize-2" class="w-3 h-3"></i> Ouvrir</button></td>
         </tr>`;
     }).join('');
-    return `<div class="sin-tablewrap panel"><div class="sin-tbl-scroll"><table class="sin-tbl">
+    return `<div class="sin-tablewrap"><div class="sin-tbl-scroll"><table class="sin-tbl">
         <thead><tr><th style="width:26px"></th><th>Véhicule</th><th>Date</th><th>Conducteur</th><th>Statut</th><th>Coût facturé</th><th>Reste à charge</th><th>Prochaine action</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>`;
   }
@@ -1925,11 +1925,11 @@
       sinSelKey = selRow.getAttribute('data-sel');
       const ml = document.getElementById('sin-minilist'); if (ml) ml.querySelectorAll('.sin-mini').forEach(x => x.classList.toggle('sel', x.getAttribute('data-sel') === sinSelKey));
       const pv = document.getElementById('sin-preview');
-      if (pv) { const gg = allGroups().find(x => x.key === sinSelKey); pv.innerHTML = sinListPreviewHTML(gg); pv.classList.add('pv-open'); if (window.lucide) lucide.createIcons(); sinHydrateThumbs(); }
+      if (pv) { const gg = allGroups().find(x => x.key === sinSelKey); pv.innerHTML = sinListPreviewHTML(gg); pv.classList.add('pv-show'); if (window.lucide) lucide.createIcons(); sinHydrateThumbs(); }
       return;
     }
     const closePv = e.target.closest('[data-closepv]');
-    if (closePv) { const pv = document.getElementById('sin-preview'); if (pv) pv.classList.remove('pv-open'); return; }
+    if (closePv) { const pv = document.getElementById('sin-preview'); if (pv) pv.classList.remove('pv-show'); return; }
     // Réduire / agrandir une carte incident (toggle, mémorisé). On bascule l'affichage sans tout re-rendre.
     const col = e.target.closest('[data-sin-collapse]');
     if (col) {
