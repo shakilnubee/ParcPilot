@@ -15590,7 +15590,9 @@ FP.edl = {
               const _subjSign = (s.role === 'societe')
                 ? ('À signer pour la société — état des lieux ' + data.immat)
                 : ((FP.mailObjetL ? FP.mailObjetL('signature', { immat: data.immat, modele: data.modele, prenom: prenomS }, _sen ? 'en' : 'fr') : '') || (_sen ? ('To sign — condition report ' + data.immat) : ('À signer — état des lieux ' + data.immat)));
-              return { link, subject: _subjSign, html, text: (_sen ? 'Sign the condition report: ' : 'Signer l\'état des lieux : ') + link };
+              // `lang` = langue de l'e-mail du signataire (fr/en) → stockée pour que l'edge edl-sign
+              // envoie l'e-mail « document signé » dans la MÊME langue (société toujours fr).
+              return { link, subject: _subjSign, html, text: (_sen ? 'Sign the condition report: ' : 'Signer l\'état des lieux : ') + link, lang: (_sen ? 'en' : 'fr') };
             };
             const minOrdre = Math.min.apply(null, signersList.map(s => s.ordre));
             const rec = {
@@ -15601,7 +15603,7 @@ FP.edl = {
               // ⚠️ notified = false pour TOUS au départ : on ne marque « notifié » que si l'e-mail PART vraiment
               // (sinon le serveur — qui ne relance QUE si notified!==true — ne rattrapera jamais, et le conducteur
               // ne recevra JAMAIS son lien alors que l'app afficherait « envoyé »). Correctif 0-perte ③.
-              signataires: signersList.map(s => { const mk = renderMail(s); return { role: s.role, nom: s.nom, email: s.email, ordre: s.ordre, sigToken: s.sigToken, signed: false, notified: false, mailSubject: mk.subject, mailHtml: mk.html, mailText: mk.text }; }),
+              signataires: signersList.map(s => { const mk = renderMail(s); return { role: s.role, nom: s.nom, email: s.email, ordre: s.ordre, sigToken: s.sigToken, signed: false, notified: false, mailSubject: mk.subject, mailHtml: mk.html, mailText: mk.text, lang: mk.lang }; }),
               statut: 'en_attente',
             };
             const ins = await FP.db.insert('edl_signatures', rec);
