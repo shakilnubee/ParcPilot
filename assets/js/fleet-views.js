@@ -850,12 +850,20 @@
         if (cat === 'frais') return;   // jamais attribué au conducteur (cohérent avec l'import)
         const carte = (t.carte && String(t.carte)) || '';
         const mois = (t.mois || d.slice(0, 7));
-        const key = carte + '|' + mois + '|' + (carte ? '' : (t.conducteur || t.plaque || ''));
+        // Attribution DATÉE : si des PÉRIODES de validité existent pour cette carte, le titulaire À LA DATE
+        // de la transaction prime (et on groupe PAR titulaire → un changement de titulaire en cours de mois
+        // sépare bien les lignes). Sans période saisie : comportement inchangé (titulaire stocké du tx).
+        let titulaire = t.conducteur || null, dated = false;
+        if (carte && window.FP && FP.cartePeriodesGet && FP.titulaireCarteALaDate) {
+          const mk = /^ULYS/i.test(carte) ? 'condBadgeUlys' : 'condCarteTotal';
+          if (FP.cartePeriodesGet(mk, carte).length) { const tt = FP.titulaireCarteALaDate(mk, carte, d); titulaire = (tt && tt.name) ? tt.name : (t.conducteur || null); dated = true; }
+        }
+        const key = carte + '|' + mois + '|' + (dated ? (titulaire || '') : (carte ? '' : (t.conducteur || t.plaque || '')));
         let g = by.get(key);
-        if (!g){ g = { id: 'TXDAY-' + key, mois: mois, _month: mois, carte: t.carte || null, conducteur: t.conducteur || null,
-                       plaque: t.plaque || null, type_vehicule: null, carburant_ttc: 0, litres: 0, boutique_ttc: 0,
+        if (!g){ g = { id: 'TXDAY-' + key, mois: mois, _month: mois, carte: t.carte || null, conducteur: titulaire,
+                       _dated: dated, plaque: t.plaque || null, type_vehicule: null, carburant_ttc: 0, litres: 0, boutique_ttc: 0,
                        lavage_ttc: 0, peage_ttc: 0, total_ht: 0, total_tva: 0, total_ttc: 0 }; by.set(key, g); }
-        g.conducteur = g.conducteur || t.conducteur || null;
+        g.conducteur = g.conducteur || titulaire || null;
         g.plaque = g.plaque || t.plaque || null;
         const m = _tfTxTtc(t);
         if (cat === 'carburant') g.carburant_ttc += m;
@@ -1068,6 +1076,21 @@
     const _tfNormP = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     function _tfVehBy(){ const m = {}; (window.FP_DATA.vehicules || []).forEach(v => { if (v.immat) m[_tfNormP(v.immat)] = v; }); return m; }
     function _tfName(c, vbp){
+      const _unif = (n) => (window.FP && FP.conducteurNomUnifie) ? FP.conducteurNomUnifie(n) : n;
+      // Attribution DATÉE (périodes de validité) : si des périodes existent pour la carte, le titulaire À LA
+      // DATE prime — l'historique ne bascule PAS sur le titulaire actuel quand une carte change de titulaire.
+      // • Ligne reconstruite du détail daté (_tfRowsFromTx) : titulaire déjà résolu par jour → on le garde.
+      // • Ligne mensuelle (table total_conso) : on résout au mois (pas de jour disponible). Sans période : inchangé.
+      if (c && c._dated && c.conducteur) return _unif(c.conducteur);
+      if (window.FP && FP.cartePeriodesGet && FP.titulaireCarteALaDate && c && c.carte) {
+        const mk = /^ULYS/i.test(String(c.carte)) ? 'condBadgeUlys' : 'condCarteTotal';
+        if (FP.cartePeriodesGet(mk, c.carte).length) {
+          const d = c.mois ? (c.mois + '-15') : '';   // milieu du mois (meilleure estimation sans le jour)
+          const t = FP.titulaireCarteALaDate(mk, c.carte, d);
+          if (t && t.name) return _unif(t.name);
+          if (c.conducteur) return _unif(c.conducteur);   // période(s) présentes mais mois non couvert → nom stocké
+        }
+      }
       // Priorité au n° de carte enregistré sur une fiche conducteur (rattachement fiable, même pour
       // la conso déjà en base : elle suit la fiche en direct). Sinon nom stocké, puis chauffeur/plaque.
       if (window.FP && FP.conducteurParCarteTotal && c.carte){ const rc = FP.conducteurParCarteTotal(c.carte); if (rc && rc.name) return rc.name; }
@@ -1475,7 +1498,6 @@
       const out = []; let prev = 0, seq = 0;
       for (const h of hits){
         const block = det.slice(prev, h.i); prev = h.end;
-        const who = (typeof resolveNom === 'function' ? (resolveNom(h.nom, h.carte) || h.nom) : h.nom);
         const plaque = isPlaque(h.nom) ? h.nom : null;
         // ⚠️ Une transaction = « <date6> <heure4> <RÉSEAU> <libellé/produit…> ». Le réseau n'est PAS que
         // TOTAL/GEIE : il y a aussi les PARTENAIRES (parkings INDIGO, SAEMES, EFFIA…). On capture le RÉSEAU
@@ -1498,8 +1520,12 @@
           // « Autres », ni anomalie, ni rapprochement). Les vrais Parking/Lavage restent, eux, gardés.
           if (cat === 'frais') continue;
           const y = dmy.slice(4, 6), mo = dmy.slice(2, 4), da = dmy.slice(0, 2);
+          const dateISO = '20' + y + '-' + mo + '-' + da;
+          // Résolution du conducteur PAR TRANSACTION (avec sa date) → attribution datée si des périodes de
+          // validité sont saisies ; sinon le résolveur retombe sur sa logique habituelle (comportement inchangé).
+          const who = (typeof resolveNom === 'function' ? (resolveNom(h.nom, h.carte, dateISO) || h.nom) : h.nom);
           out.push({ id: facNum + '-' + (seq++), facnum: facNum, carte: h.carte, conducteur: who, plaque,
-            dateTx: '20' + y + '-' + mo + '-' + da, mois: '20' + y + '-' + mo, produit, categorie: cat, montantTtc: +ttc.toFixed(2) });
+            dateTx: dateISO, mois: '20' + y + '-' + mo, produit, categorie: cat, montantTtc: +ttc.toFixed(2) });
         }
       }
       return out;
@@ -1703,6 +1729,23 @@
       return hit || raw;
     }
 
+    // Attribution DATÉE d'une transaction via les PÉRIODES DE VALIDITÉ saisies (settings.cartePeriodes).
+    // → undefined : AUCUNE période pour cette carte (le résolveur appelant garde sa logique habituelle, inchangée).
+    // → sinon : nom du titulaire À LA DATE (période couvrante) ; à défaut, le nom IMPRIMÉ sur le relevé
+    //   (date-correct par nature), rapproché d'une fiche conducteur si possible — JAMAIS le titulaire ACTUEL,
+    //   pour ne pas réattribuer l'historique quand une carte/badge change de titulaire.
+    function _txTitulaireDate(mapKey, carte, dateISO, nomImprime){
+      try {
+        if (!(window.FP && FP.cartePeriodesGet && FP.titulaireCarteALaDate)) return undefined;
+        if (!FP.cartePeriodesGet(mapKey, carte).length) return undefined;         // pas de période → logique habituelle
+        const t = FP.titulaireCarteALaDate(mapKey, carte, dateISO);
+        if (t && t.dated && t.name) return t.name;                                // période couvrante → titulaire daté
+        const nom = nomImprime || null;
+        if (nom && !isPlaque(nom)) { const rn = resolveConducteurName(nom); return rn || nom; }
+        return nom;
+      } catch (e) { return undefined; }
+    }
+
     async function handleReleves(fileList){
       // ZIP accepté : on le décompresse en mémoire et on ne garde que les FACTURES (FAC*),
       // en IGNORANT le relevé global (RLP*) → anti double-comptage (cf. règle projet + consigne).
@@ -1740,7 +1783,12 @@
       const consoByKey = new Map(); // mois|carte -> conso agregee
       const txOut = [];             // détail transaction par transaction (achats)
       // Résolveur de conducteur pour le détail : carte connue → son conducteur ; sinon nom/plaque du PDF.
-      const resolveTxNom = (nom, carte) => {
+      // ⚠️ ATTRIBUTION DATÉE (périodes de validité) : si l'utilisateur a saisi des PÉRIODES pour cette carte
+      //    (changement de titulaire), la transaction est attribuée au titulaire À SA DATE — l'historique ne
+      //    bascule PAS sur le titulaire actuel. SANS période saisie, comportement STRICTEMENT inchangé.
+      const resolveTxNom = (nom, carte, dateISO) => {
+        const dated = _txTitulaireDate('condCarteTotal', carte, dateISO, nom);
+        if (dated !== undefined) return dated;
         // Priorité absolue : n° de carte enregistré sur une fiche CONDUCTEUR (sinon carte du véhicule).
         const att = (window.FP && FP.attributionCarteTotal) ? FP.attributionCarteTotal(carte) : null;
         if (att && att.conducteur) return att.conducteur;
@@ -1884,7 +1932,9 @@
       // Correspondance carte → conducteur (comme à l'import) pour bien nommer les achats.
       try { if (!consoLoaded) await loadConso(); } catch (e) {}
       const cardMap = {}; (conso || []).forEach(c => { if (c.carte) cardMap[String(c.carte)] = c; });
-      const resolveTxNom = (nom, carte) => {
+      const resolveTxNom = (nom, carte, dateISO) => {
+        const dated = _txTitulaireDate('condCarteTotal', carte, dateISO, nom);   // attribution datée si périodes saisies
+        if (dated !== undefined) return dated;
         // Priorité absolue : n° de carte enregistré sur une fiche CONDUCTEUR (sinon carte du véhicule).
         const att = (window.FP && FP.attributionCarteTotal) ? FP.attributionCarteTotal(carte) : null;
         if (att && att.conducteur) return att.conducteur;

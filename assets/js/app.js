@@ -4508,6 +4508,156 @@ FP.removeCondNum = function (condKey, numKey, val) {
     return true;
   } catch (e) { return false; }
 };
+
+// ─── PÉRIODES DE VALIDITÉ carte/badge → conducteur (ATTRIBUTION DATÉE) ─────────────────────────
+// Problème résolu : une carte/badge RÉATTRIBUÉ(e) ne doit pas faire basculer l'historique sur le
+// nouveau titulaire. Chaque transaction est attribuée au titulaire À SA DATE.
+// Stockage (donnée de travail, par société) : settings.cartePeriodes[mapKey][normCarte] =
+//   [ { key:<condKey>, from:'AAAA-MM-JJ'|'', to:'AAAA-MM-JJ'|'' } ].  mapKey ∈ 'condCarteTotal'|'condBadgeUlys'.
+// ⚠️ ADDITIF : si AUCUNE période n'existe pour une carte, on retombe sur l'attribution COURANTE
+// (FP._condParNumero) → comportement STRICTEMENT inchangé tant que l'utilisateur n'a rien saisi.
+FP.cartePeriodesGet = function (mapKey, carte) {
+  try { const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {}; const a = m[FP.normCarte(carte)]; return Array.isArray(a) ? a : []; } catch (e) { return []; }
+};
+// Toutes les périodes d'un conducteur (pour l'UI) : [{mapKey, carte, from, to, idx}].
+FP.cartePeriodesDuConducteur = function (condKey) {
+  const out = [];
+  try { const cp = FP.settings.get().cartePeriodes || {};
+    for (const mapKey of Object.keys(cp)) { const m = cp[mapKey] || {}; for (const nk of Object.keys(m)) { (m[nk] || []).forEach((p, idx) => { if (p && p.key === condKey) out.push({ mapKey, carte: nk, from: p.from || '', to: p.to || '', idx }); }); } }
+  } catch (e) {}
+  return out;
+};
+// Titulaire d'une carte/badge À UNE DATE donnée → { key, name, dated } (ou null). Repli : titulaire courant.
+FP.titulaireCarteALaDate = function (mapKey, carte, dateISO) {
+  const d = String(dateISO || '').slice(0, 10);
+  const periods = FP.cartePeriodesGet(mapKey, carte);
+  if (periods.length && d) {
+    const hit = periods
+      .filter(p => p && p.key && (!p.from || d >= p.from) && (!p.to || d <= p.to))
+      .sort((a, b) => String(b.from || '').localeCompare(String(a.from || '')))[0];   // la plus récemment commencée gagne (chevauchement)
+    if (hit) {
+      let name = hit.key;
+      try { const all = FP.conducteursTous ? FP.conducteursTous() : FP.conducteurs.list(); const c = all.find(x => x.key === hit.key); if (c) name = FP.conducteurs.displayName(c); } catch (e) {}
+      return { key: hit.key, name, dated: true };
+    }
+    // Des périodes existent pour cette carte mais AUCUNE ne couvre la date → on NE devine pas le titulaire
+    // courant (ce serait la fausse attribution qu'on veut éviter) : non attribué à cette date.
+    return null;
+  }
+  const cur = FP._condParNumero(mapKey, carte); return cur ? { key: cur.key, name: cur.name, dated: false } : null;
+};
+// Ajoute une période (UI). Additif, persiste via FP.settings.save.
+FP.setCartePeriode = function (mapKey, carte, condKey, from, to) {
+  try { if (!mapKey || !carte || !condKey) return false; const s = FP.settings.get(); s.cartePeriodes = s.cartePeriodes || {}; s.cartePeriodes[mapKey] = s.cartePeriodes[mapKey] || {}; const nk = FP.normCarte(carte); const arr = Array.isArray(s.cartePeriodes[mapKey][nk]) ? s.cartePeriodes[mapKey][nk] : []; arr.push({ key: condKey, from: String(from || '').slice(0, 10), to: String(to || '').slice(0, 10) }); s.cartePeriodes[mapKey][nk] = arr; FP.settings.save(s); return true; } catch (e) { return false; }
+};
+FP.removeCartePeriode = function (mapKey, carte, idx) {
+  try { const s = FP.settings.get(); const nk = FP.normCarte(carte); const arr = ((s.cartePeriodes || {})[mapKey] || {})[nk]; if (!Array.isArray(arr)) return false; arr.splice(idx, 1); if (arr.length) s.cartePeriodes[mapKey][nk] = arr; else { delete s.cartePeriodes[mapKey][nk]; } FP.settings.save(s); return true; } catch (e) { return false; }
+};
+// ÉDITEUR (overlay autonome) des périodes de validité carte/badge d'un conducteur. Ouvert depuis la fiche
+// conducteur. Montre, pour CHAQUE carte/badge que ce conducteur détient (ou qui le concerne), la frise
+// complète des titulaires successifs + ajout/retrait. Additif : tant que rien n'est saisi, l'attribution
+// de la conso reste sur le titulaire courant (comportement inchangé).
+FP.cartePeriodesEditor = function (condKey) {
+  if (!condKey) return;
+  const esc = FP.esc || (x => String(x == null ? '' : x));
+  const allConds = (FP.conducteursTous ? FP.conducteursTous() : (FP.conducteurs && FP.conducteurs.list ? FP.conducteurs.list() : [])) || [];
+  const nameOfKey = (k) => { const c = allConds.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : k; };
+  const dFR = (iso) => { const s = String(iso || '').slice(0, 10); if (!s) return ''; return (FP.date ? FP.date(s) : s); };
+  const MAPS = [{ mapKey: 'condCarteTotal', label: 'Carte carburant' }, { mapKey: 'condBadgeUlys', label: 'Badge télépéage / Ulys' }];
+  if (!document.getElementById('fp-cpe-style')) {
+    const st = document.createElement('style'); st.id = 'fp-cpe-style';
+    st.textContent = [
+      '.fp-cpe-back{position:fixed;inset:0;z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;padding-top:6vh;overflow-y:auto;background:rgba(11,18,32,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}',
+      '.fp-cpe-card{width:100%;max-width:560px;background:#fff;border:1px solid var(--fp-border,#E3E8F0);border-radius:16px;box-shadow:0 30px 70px -20px rgba(11,18,32,.5);padding:1.3rem 1.3rem 1.1rem}',
+      '.fp-cpe-h{display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem;margin-bottom:.2rem}',
+      '.fp-cpe-h h3{font-weight:800;font-size:1.08rem;color:var(--fp-primary,#0B1220);line-height:1.25}',
+      '.fp-cpe-x{border:none;background:#EEF1F6;color:#0B1220;border-radius:9px;width:34px;height:34px;font-size:1rem;cursor:pointer;flex:none}',
+      '.fp-cpe-sub{font-size:.82rem;color:#64748B;line-height:1.5;margin-bottom:.9rem}',
+      '.fp-cpe-grp{border:1px solid var(--fp-border,#E3E8F0);border-radius:12px;padding:.75rem .8rem;margin-bottom:.8rem}',
+      '.fp-cpe-grp>.t{font-weight:700;font-size:.9rem;color:var(--fp-primary,#0B1220);margin-bottom:.5rem}',
+      '.fp-cpe-grp>.t span{font-family:monospace;color:#475569;font-weight:600}',
+      '.fp-cpe-row{display:flex;align-items:center;gap:.5rem;padding:.3rem 0;font-size:.85rem;color:#334155;border-top:1px dashed var(--fp-border,#E3E8F0)}',
+      '.fp-cpe-row:first-of-type{border-top:none}',
+      '.fp-cpe-row .nm{font-weight:600;color:var(--fp-primary,#0B1220)}',
+      '.fp-cpe-row .pe{flex:1;color:#64748B}',
+      '.fp-cpe-rm{border:none;background:none;color:#EF4444;font-weight:800;cursor:pointer;padding:0 .3rem}',
+      '.fp-cpe-add{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.45rem;margin-top:.6rem;padding-top:.55rem;border-top:1px solid var(--fp-border,#E3E8F0)}',
+      '.fp-cpe-add label{display:flex;flex-direction:column;font-size:.68rem;color:#64748B;gap:2px}',
+      '.fp-cpe-add select,.fp-cpe-add input{border:1px solid var(--fp-border,#E3E8F0);border-radius:8px;padding:.4rem .5rem;font-size:.82rem;font-family:inherit;color:var(--fp-primary,#0B1220)}',
+      '.fp-cpe-add .who{flex:2 1 150px;min-width:140px}.fp-cpe-add .who select{width:100%}',
+      '.fp-cpe-addbtn{border:none;background:var(--fp-accent,#F97316);color:#fff;border-radius:8px;padding:.45rem .8rem;font-weight:700;font-size:.82rem;cursor:pointer}',
+      '.fp-cpe-empty{font-size:.82rem;color:#94A3B8;padding:.2rem 0}'
+    ].join('');
+    document.head.appendChild(st);
+  }
+  const back = document.createElement('div'); back.className = 'fp-cpe-back';
+  const close = () => { try { document.removeEventListener('keydown', onKey, true); } catch (e) {} try { back.remove(); } catch (e) {} };
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  // Cartes concernées = celles détenues par le conducteur + celles dont une période le concerne.
+  const cardsFor = (mapKey) => {
+    const held = (FP.currentBadgeNums ? FP.currentBadgeNums('cond', mapKey, condKey) : []) || [];
+    const set = new Map(); held.forEach(n => { if (n) set.set(FP.normCarte(n), n); });
+    FP.cartePeriodesDuConducteur(condKey).forEach(p => { if (p.mapKey === mapKey && !set.has(p.carte)) set.set(p.carte, p.carte); });
+    return [...set.values()];
+  };
+  const optionsHTML = (sel) => allConds.slice()
+    .sort((a, b) => (FP.conducteurs.displayName(a) || '').localeCompare(FP.conducteurs.displayName(b) || ''))
+    .map(c => '<option value="' + esc(c.key) + '"' + (c.key === sel ? ' selected' : '') + '>' + esc(FP.conducteurs.displayName(c) || c.key) + '</option>').join('');
+  const render = () => {
+    let body = '';
+    MAPS.forEach(M => {
+      const cards = cardsFor(M.mapKey);
+      if (!cards.length) return;
+      cards.forEach(carte => {
+        const periods = FP.cartePeriodesGet(M.mapKey, carte)
+          .map((p, idx) => Object.assign({}, p, { idx }))
+          .sort((a, b) => String(a.from || '').localeCompare(String(b.from || '')));
+        const rows = periods.length ? periods.map(p =>
+          '<div class="fp-cpe-row"><span class="nm">' + esc(nameOfKey(p.key)) + '</span>'
+          + '<span class="pe">' + (p.from ? ('du ' + esc(dFR(p.from))) : 'depuis toujours') + (p.to ? (' au ' + esc(dFR(p.to))) : (p.from ? ' (en cours)' : '')) + '</span>'
+          + '<button type="button" class="fp-cpe-rm" data-cpe-rm="' + esc(M.mapKey) + '|' + esc(carte) + '|' + p.idx + '" title="Retirer cette période">✕</button></div>'
+        ).join('') : '<div class="fp-cpe-empty">Aucune période — la conso suit le titulaire actuel.</div>';
+        body += '<div class="fp-cpe-grp"><div class="t">' + esc(M.label) + ' <span>' + esc(carte) + '</span></div>'
+          + rows
+          + '<div class="fp-cpe-add" data-cpe-map="' + esc(M.mapKey) + '" data-cpe-carte="' + esc(carte) + '">'
+          + '<label class="who">Titulaire<select class="cpe-who">' + optionsHTML(condKey) + '</select></label>'
+          + '<label>Du<input type="date" class="cpe-from"></label>'
+          + '<label>Au (vide = en cours)<input type="date" class="cpe-to"></label>'
+          + '<button type="button" class="fp-cpe-addbtn" data-cpe-add>+ Ajouter</button></div></div>';
+      });
+    });
+    if (!body) body = '<div class="fp-cpe-empty">Ce conducteur n\'a aucune carte carburant ni badge télépéage enregistré. Ajoute d\'abord un n° de carte/badge sur sa fiche.</div>';
+    back.innerHTML = '<div class="fp-cpe-card" role="dialog" aria-modal="true">'
+      + '<div class="fp-cpe-h"><h3>Changement de titulaire — ' + esc(nameOfKey(condKey)) + '</h3>'
+      + '<button type="button" class="fp-cpe-x" data-cpe-close title="Fermer">✕</button></div>'
+      + '<p class="fp-cpe-sub">Une carte/un badge peut changer de titulaire. Indique ici <b>qui le détenait et quand</b> : chaque dépense est alors attribuée au titulaire <b>à sa date</b>, sans réécrire l\'historique. Tant qu\'aucune période n\'est saisie, la conso suit le titulaire actuel.</p>'
+      + body + '</div>';
+  };
+  back.addEventListener('click', (e) => {
+    if (e.target === back || e.target.closest('[data-cpe-close]')) { close(); return; }
+    const rm = e.target.closest && e.target.closest('[data-cpe-rm]');
+    if (rm) {
+      const parts = rm.getAttribute('data-cpe-rm').split('|');
+      FP.removeCartePeriode(parts[0], parts[1], parseInt(parts[2], 10));
+      render(); if (FP.toast) FP.toast('Période retirée'); return;
+    }
+    const add = e.target.closest && e.target.closest('[data-cpe-add]');
+    if (add) {
+      const box = add.closest('[data-cpe-map]'); if (!box) return;
+      const mapKey = box.getAttribute('data-cpe-map'), carte = box.getAttribute('data-cpe-carte');
+      const who = box.querySelector('.cpe-who'), from = box.querySelector('.cpe-from'), to = box.querySelector('.cpe-to');
+      const k = who && who.value, f = from && from.value, t = to && to.value;
+      if (!k) { if (FP.toast) FP.toast('Choisis un titulaire'); return; }
+      if (!f && !t) { if (FP.toast) FP.toast('Indique au moins une date (Du)'); return; }
+      if (f && t && t < f) { if (FP.toast) FP.toast('La date « Au » est avant « Du »'); return; }
+      FP.setCartePeriode(mapKey, carte, k, f, t);
+      render(); if (FP.toast) FP.toast('✓ Période ajoutée');
+    }
+  });
+  render();
+  document.body.appendChild(back);
+  document.addEventListener('keydown', onKey, true);
+};
 // Véhicule par id (source unique pour l'éditeur de puces côté fiche véhicule).
 FP.vehById = (id) => { try { const vs = (window.FP_DATA && FP_DATA.vehicules) || (window.data && data.vehicules) || []; return vs.find(x => String(x.id) === String(id)) || null; } catch (e) { return null; } };
 // AJOUTE un n° de carte/badge à un VÉHICULE (liste multi) SANS écraser les autres, et le miroir sur
@@ -6673,7 +6823,7 @@ FP.settings = {
   // utilisateur normale (on ne supprime pas 12 congés d'un coup) → on le BLOQUE et on RESTAURE la clé
   // depuis la dernière valeur connue (snapshot serveur, sinon cache local). Une édition normale
   // (12 → 11 congés) n'est pas concernée (11 > 0).
-  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'condDocs',
+  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'condDocs',
     'affectations', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
     'leasingContrats', 'localeaseContrats', 'loueurs', 'prestatairesPerso', 'prestataires',
     'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'kmMajDates', 'antiPollDates',
@@ -6835,7 +6985,7 @@ FP.settings = {
     // CONFIG qui se remplacent en bloc — profil, societe, groupes, navOrder, sidebarLabels… — n'y sont PAS.)
     const COLLECTION_KEYS = new Set(['taches', 'tachesAutoFaites', 'rappelsFaits', 'rappelsPerso', 'vehImmobilise', 'amendeMontantPaye', 'amendeMontants', 'kmMajDates', 'sinistreStage', 'sinistreStatut', 'sinistreGroupes', 'docStatus', 'permisMasque', 'condDocs', 'leasingContrats', 'kmSuiviExclus', 'inspections', 'reservations', 'docTypes', 'loueurs', 'alertesMasquees', 'alertesMasqueesInfo', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
-      'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys',
+      'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes',
       // — Historique & données par VÉHICULE :
       'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
       // — Données par SINISTRE :
