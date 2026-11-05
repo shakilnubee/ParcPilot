@@ -104,6 +104,10 @@
   .sin-doc-pop button svg { width: 15px; height: 15px; flex: 0 0 auto; }
   body.fp-dark .sin-doc-pop { background: #1e293b; }
   body.fp-dark .sin-doc-pop button { color: #e6edf6; }
+  /* Aperçu des documents images (bucket privé → src injectée via URL signée après rendu) */
+  .sin-doc-thumb { width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--fp-border); border-radius: 6px; cursor: zoom-in; background: #f1f5f9; flex: 0 0 auto; }
+  .sin-doc-thumb.big { width: auto; max-width: 100%; height: auto; max-height: 420px; display: block; object-fit: contain; }
+  body.fp-dark .sin-doc-thumb { background: #0f1829; }
   /* ─── Fiche détail plein écran (maquette B) ─── */
   /* #timeline est une grille 2 colonnes pour la LISTE : la fiche détail doit occuper toute la largeur. */
   .sin-detail { grid-column: 1 / -1; max-width: 920px; margin: 0 auto; width: 100%; }
@@ -766,6 +770,7 @@
   // → tous les gestionnaires délégués (champs .sin-doss, documents, versements…) continuent de fonctionner.
   let sinDetailKey = null;
   let sinDetailTab = 'fin';   // onglet actif de la fiche détail (fin|assurance|docs|tiers|histo)
+  let sinListScrollY = 0;     // position de défilement de la LISTE, mémorisée à l'ouverture d'une fiche → restaurée au retour
   function saveSinCollapsed(){ try { localStorage.setItem(SIN_COLLAPSE_KEY, JSON.stringify([...sinCollapsed])); } catch (e) {} }
 
   // ---- Suivi d'étapes d'un dossier sinistre (déclaration → réponse assureur → réparation → remboursement → clôture) ----
@@ -902,13 +907,24 @@
   const SIN_INP_CSS = 'width:100%;margin-top:2px;font-size:13px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
   const SIN_DOC_ACT = 'font-size:11.5px;color:var(--fp-accent);background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border:1px solid var(--fp-border);border-radius:7px';
   // Ligne « document » : fichier présent → « Voir » + menu « ⋯ » (actions regroupées) ; sinon → bouton de dépôt.
-  function sinDocRowHTML(g, s, kind, lbl, url, withRescan) {
+  // url présente → le document est une IMAGE (aperçu) ou un PDF (icône) ? (détection par l'extension du
+  // fichier stocké — FP.uploadScan conserve l'extension d'origine). Les liens Drive hérités (sans extension
+  // image) restent sans aperçu. big = aperçu agrandi (onglet Documents de la fiche détail).
+  function sinDocRowHTML(g, s, kind, lbl, url, withRescan, big) {
     const safe = escapeHtml(url || ''), immat = escapeHtml(s.vehiculeImmat || '');
     if (url) {
-      return `<div class="flex items-center gap-1.5 flex-wrap text-xs" style="padding:6px 0;border-bottom:1px dashed var(--fp-border)">
-          <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-check-2" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;color:#059669"></i> ${lbl}</span>
-          <button type="button" class="sin-doc-view" data-url="${safe}" style="${SIN_DOC_ACT}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
-          <button type="button" class="sin-doc-menu" title="Autres actions (télécharger, remplacer, supprimer…)" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" data-immat="${immat}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" data-rescan="${withRescan ? '1' : '0'}" data-lbl="${escapeHtml(lbl)}" style="${SIN_DOC_ACT};padding:3px 6px"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
+      const isImg = /\.(png|jpe?g|gif|webp|bmp|heic|heif)(\?|$)/i.test(url);
+      // Vignette (petite) ou aperçu (grand) : la vraie source est une URL SIGNÉE (bucket privé), injectée
+      // après rendu par sinHydrateThumbs. Cliquer l'image = « Voir » (grand format) via la classe sin-doc-view.
+      const thumb = isImg ? `<img class="sin-doc-thumb sin-doc-view${big ? ' big' : ''}" data-url="${safe}" alt="aperçu du document" title="Cliquer pour agrandir" loading="lazy">` : '';
+      return `<div style="padding:6px 0;border-bottom:1px dashed var(--fp-border)">
+          <div class="flex items-center gap-1.5 flex-wrap text-xs">
+            ${!big && thumb ? thumb : ''}
+            <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-check-2" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;color:#059669"></i> ${lbl}</span>
+            <button type="button" class="sin-doc-view" data-url="${safe}" style="${SIN_DOC_ACT}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
+            <button type="button" class="sin-doc-menu" title="Autres actions (télécharger, remplacer, supprimer…)" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" data-immat="${immat}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" data-rescan="${withRescan ? '1' : '0'}" data-lbl="${escapeHtml(lbl)}" style="${SIN_DOC_ACT};padding:3px 6px"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
+          </div>
+          ${big && thumb ? `<div style="margin-top:8px">${thumb}</div>` : ''}
         </div>`;
     }
     return kind === 'courrier'
@@ -916,7 +932,7 @@
       : `<button type="button" class="sin-constat-btn" data-key="${g.key}" data-immat="${immat}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:600;color:var(--fp-accent);background:#fff;border:1px solid var(--fp-border);border-radius:8px;padding:4px 8px;cursor:pointer" title="Déposer le constat amiable : l'IA lit qui est en tort et te le propose (tu confirmes)"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Lire le constat (IA)</button>`;
   }
   // Section « Documents du dossier » complète (zone de dépôt + 2 lignes doc + inputs fichier cachés + statuts).
-  function sinDocsSectionHTML(g, s, dv) {
+  function sinDocsSectionHTML(g, s, dv, big) {
     const annee = escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()));
     const immat = escapeHtml(s.vehiculeImmat || ''), sinDate = escapeHtml(String(s.date || '').slice(0, 10));
     return `<div class="sin-docs">
@@ -935,8 +951,8 @@
             </div>
           </div>
         </div>
-        ${sinDocRowHTML(g, s, 'courrier', "Courrier de l'assureur", dv.courrierUrl, true)}
-        ${sinDocRowHTML(g, s, 'constat', 'Constat amiable', dv.constatUrl, false)}
+        ${sinDocRowHTML(g, s, 'courrier', "Courrier de l'assureur", dv.courrierUrl, true, big)}
+        ${sinDocRowHTML(g, s, 'constat', 'Constat amiable', dv.constatUrl, false, big)}
       </div>
       <input type="file" class="sin-courrier-file hidden" data-key="${g.key}" data-immat="${immat}" data-annee="${annee}" data-sindate="${sinDate}" accept="image/*,application/pdf,.pdf">
       <input type="file" class="sin-constat-file hidden" data-key="${g.key}" data-immat="${immat}" accept="image/*,application/pdf,.pdf">
@@ -1087,7 +1103,7 @@
           </div>
           ${pane('fin', sinFinHTML(g, dv, cur, { noParcours: true }))}
           ${pane('assurance', sinAssureFieldsHTML(g, dv, vehCh) + `<div class="mt-3">${sinCloturerBtnHTML(g, dv)}</div>`)}
-          ${pane('docs', sinDocsSectionHTML(g, s, dv))}
+          ${pane('docs', sinDocsSectionHTML(g, s, dv, true))}
           ${pane('tiers', sinTiersFieldsHTML(g, dv))}
           ${pane('histo', sinTimelineHTML(sinSteps(g, dv, cur)) + '<div class="mt-2">' + histoLignes + '</div><div class="mt-3 flex gap-2 flex-wrap"><button type="button" class="btn" data-sin-depose="' + s.id + '" data-key="' + g.key + '"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer une facture</button><button type="button" class="btn" data-sin-pdf="' + s.id + '"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button></div>')}
         </div>
@@ -1102,6 +1118,20 @@
     [card, $('sin-filters'), $('sin-bulk-mount')].forEach(el => { if (el) el.classList.toggle('hidden', !show); });
   }
 
+  // Injecte l'aperçu des documents IMAGES après rendu : le bucket « scans » est PRIVÉ → une balise <img>
+  // a besoin d'une URL SIGNÉE (jamais le lien brut). On ne charge que les vignettes pas encore hydratées.
+  async function sinHydrateThumbs() {
+    try {
+      const imgs = $('timeline').querySelectorAll('img.sin-doc-thumb[data-url]:not([data-hydrated])');
+      for (const img of imgs) {
+        img.setAttribute('data-hydrated', '1');
+        const u = img.getAttribute('data-url'); if (!u) continue;
+        try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? (await FP.signedScanUrl(u)) : u; if (su) img.src = su; }
+        catch (_) { /* vignette simplement absente si l'URL signée échoue — « Voir » reste disponible */ }
+      }
+    } catch (e) {}
+  }
+
   function renderTimeline() {
     // Fiche détail ouverte : on rend UN incident en plein écran (dans #timeline → gestionnaires délégués OK),
     // et on masque le chrome de liste (filtres, sélection multiple, « voir plus »). La liste réapparaît au « Retour ».
@@ -1113,6 +1143,7 @@
         const moreEl = $('sin-more'); if (moreEl) { moreEl.classList.add('hidden'); moreEl.innerHTML = ''; }
         $('timeline').innerHTML = renderSinDetail(gd);
         if (window.lucide) lucide.createIcons();
+        sinHydrateThumbs();   // aperçus d'images (URL signée) de l'onglet Documents
         return;
       }
       sinDetailKey = null;   // incident disparu (supprimé) → on retombe sur la liste
@@ -1241,6 +1272,7 @@
     $('result-count').innerHTML = `${groups.length} incident${groups.length > 1 ? 's' : ''} sur ${all.length}` + (attente ? ` · <b style="color:#B45309">${attente} en attente de remboursement</b>` : '');
     if (sinBulk) sinBulk.refresh();
     lucide.createIcons();
+    sinHydrateThumbs();   // aperçus d'images (URL signée) des documents de chaque dossier
     // ⚠️ Sélecteur conducteur intelligent (choisir OU créer) sur chaque dossier — règle 0quater :
     // plus de texte libre → plus de nom fantôme qui ne correspond à aucune fiche. Source unique FP.conducteurPicker.
     document.querySelectorAll('.sin-doss[data-k="conducteur"]').forEach(inp => {
@@ -1661,7 +1693,14 @@
     if (!url) { if (FP.notifyError) FP.notifyError('Aucun courrier à relire.'); return; }
     const tp = sinProgress('Relecture du courrier par l\'IA…');
     let file = null;
-    try { const su = FP.signedScanUrl ? (await FP.signedScanUrl(url)) : url; const blob = await (await fetch(su || url)).blob(); file = new File([blob], 'courrier.pdf', { type: blob.type || 'application/pdf' }); } catch (_) {}
+    // Nom/type dérivés du fichier RÉEL (image ou PDF) : une relecture IA d'une PHOTO de courrier doit partir
+    // comme une image (FP.scanIA se base sur le type MIME), pas être forcée en « .pdf ».
+    try {
+      const su = FP.signedScanUrl ? (await FP.signedScanUrl(url)) : url;
+      const blob = await (await fetch(su || url)).blob();
+      const ext = ((/\.(\w{2,5})(\?|$)/.exec(url) || [])[1] || (/pdf/i.test(blob.type) ? 'pdf' : 'jpg')).toLowerCase();
+      file = new File([blob], 'courrier.' + ext, { type: blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/' + (ext === 'jpg' ? 'jpeg' : ext)) });
+    } catch (_) {}
     if (!file) { if (tp) tp.fail('Impossible de récupérer le fichier stocké — réessaie.'); return; }
     let res = null;
     try { res = await FP.scanIA(file, 'courrier', FP.courrierAssureurPrompt(immat)); } catch (_) {}
@@ -1748,9 +1787,16 @@
   $('timeline').addEventListener('click', async (e) => {
     // Fiche détail : ouvrir / retour / changer d'onglet.
     const openBtn = e.target.closest('[data-sin-open]');
-    if (openBtn) { sinDetailKey = openBtn.dataset.sinOpen; sinDetailTab = 'fin'; renderTimeline(); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); } return; }
+    if (openBtn) {
+      sinListScrollY = window.scrollY || window.pageYOffset || 0;   // mémorise la place dans la LISTE (pour le retour)
+      sinDetailKey = openBtn.dataset.sinOpen; sinDetailTab = 'fin'; renderTimeline();
+      // Vue plein écran = on cale la FICHE en haut de l'écran (instantané, pas de saut animé « tout en haut »).
+      requestAnimationFrame(() => { const el = $('timeline').querySelector('.sin-detail'); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0); });
+      return;
+    }
     const backBtn = e.target.closest('.sin-detail-back');
-    if (backBtn) { sinDetailKey = null; renderTimeline(); return; }
+    if (backBtn) { sinDetailKey = null; renderTimeline(); requestAnimationFrame(() => window.scrollTo(0, sinListScrollY || 0)); return; }   // retour = on retrouve sa place dans la liste
+    // Changer d'onglet DANS la fiche : on ne touche pas au défilement (l'utilisateur reste à sa hauteur).
     const dtab = e.target.closest('.sin-dtab, .sin-dtab2');
     if (dtab) { sinDetailTab = dtab.dataset.tab || 'fin'; renderTimeline(); return; }
     // Réduire / agrandir une carte incident (toggle, mémorisé). On bascule l'affichage sans tout re-rendre.
