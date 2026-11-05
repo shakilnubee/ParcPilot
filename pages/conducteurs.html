@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261105d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261105e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261105d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261105e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261105d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261105e">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -679,8 +679,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261105d"></script>
-<script src="../assets/js/supabase-client.js?v=20261105d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261105e"></script>
+<script src="../assets/js/supabase-client.js?v=20261105e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -696,12 +696,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261105d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261105e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261105d"></script>
-<script src="../assets/js/app.min.js?v=20261105d"></script>
+<script src="../assets/js/fleet-docs.js?v=20261105e"></script>
+<script src="../assets/js/app.min.js?v=20261105e"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1742,6 +1742,10 @@
     const carteInner = `<div class="text-sm space-y-2">
         ${(FP.prestataires ? FP.prestataires() : []).map(p => { const lbl = (p.type === 'peage' ? 'Badge télépéage' : 'Carte carburant'); return `<div class="flex flex-col gap-1.5"><span class="text-slate-600">${lbl} <b>${escapeHtml(p.nom)}</b> (n°)</span>${FP.badgeChipsHTML({ scope: 'cond', numkey: p.numKey, key: d.key, placeholder: (p.type === 'peage' ? 'N° de badge…' : 'N° de carte…') })}</div>`; }).join('')}
         <p class="text-xs text-slate-400" style="line-height:1.45">🔗 <b>Le n° est rattaché au CONDUCTEUR</b> (le badge/la carte suit la personne). Tu peux l'<b>ajouter / retirer</b> ici, et c'est <b>la même donnée</b> que dans <b>Contrôle → 💳 Cartes &amp; badges</b> et sur la fiche du véhicule qu'il conduit : le modifier à un endroit le change <b>partout</b>. C'est ce numéro qui rattache la conso <b>Total Fleet / Ulys</b> au bon conducteur.</p>
+        <div class="pt-1 mt-1 border-t border-slate-100">
+          <button type="button" class="btn btn-outline text-xs" data-cartes-periodes data-key="${escapeHtml(d.key)}"><i data-lucide="history" class="w-3.5 h-3.5"></i> Changement de titulaire (périodes)</button>
+          <p class="text-xs text-slate-400 mt-1" style="line-height:1.45">Une carte/un badge a <b>changé de titulaire</b> ? Indique <b>qui l'avait et quand</b> → chaque dépense est attribuée au bon conducteur <b>à sa date</b>, sans réécrire l'historique.</p>
+        </div>
       </div>`;
     // 🌴 CONGÉS / ABSENCES — carte dédiée + saisie MINIMALE (règle « simplifier ») : une SEULE date =
     // absence d'un jour (la fin se met toute seule = le début), motif optionnel, et la touche Entrée
@@ -1895,6 +1899,13 @@
         let _reply = ''; try { _reply = ((FP.societeProfil ? FP.societeProfil() : {}) || {}).mailExpediteur || ''; } catch (er) {}
         const _objBienv = (FP.mailObjetL ? FP.mailObjetL('bienvenue', { prenom: prenom, plaque: plaque }, lang) : '') || L('Bienvenue à bord 🚗 — l\'espace véhicule', 'Welcome on board 🚗 — your vehicle space');
         FP.msg.open({ phone: tel, email: email, nom: prenom, lang: lang, title: 'Bienvenue — ' + (prenom || 'conducteur'), text: text, emailSubject: _objBienv, emailHtml: emailHtml, emailOpts: _reply ? { replyTo: _reply } : {} });
+      });
+      // Bouton « Changement de titulaire (périodes) » de la carte « Cartes & badges » → éditeur de périodes.
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-cartes-periodes]');
+        if (!b || !(window.FP && FP.cartePeriodesEditor)) return;
+        e.preventDefault();
+        FP.cartePeriodesEditor(b.getAttribute('data-key'));
       });
     }
     const blocProfil = `
