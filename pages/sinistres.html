@@ -172,6 +172,8 @@
   /* ─── Liste : sélecteur de vue + maquette B (liste + aperçu) + maquette A (tableau) ─── */
   .sin-plate-l { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; font-size: 12px; background: #eef2f8; border: 1px solid var(--fp-border); border-radius: 6px; padding: 2px 7px; white-space: nowrap; color: var(--fp-text, #111A2B); }
   body.fp-dark .sin-plate-l { background: #1b2639; color: #e6edf6; }
+  .sin-chip-prio .sin-chip-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fp-accent); margin-right: 5px; vertical-align: middle; }
+  .sin-chip-prio.active .sin-chip-dot { background: currentColor; }
   .sin-viewtoggle { display: inline-flex; gap: 2px; border: 1px solid var(--fp-border); border-radius: 9px; padding: 2px; background: var(--fp-surface); }
   .sin-viewtoggle button { border: none; background: none; color: var(--fp-muted); border-radius: 7px; padding: 6px 9px; cursor: pointer; display: grid; place-items: center; }
   .sin-viewtoggle button:hover { color: var(--fp-accent); }
@@ -544,11 +546,13 @@
     <div>
       <h3 class="font-bold text-slate-900 mb-4">Sinistres</h3>
       <!-- Filtres par suivi de remboursement : « En attente » d'abord pour voir ce qui reste à traiter -->
+      <!-- Suivi : « Action requise » (priorité, ce qui attend une action de toi) d'abord, puis le suivi financier du remboursement. -->
       <div class="flex flex-wrap gap-2 mb-4" id="sin-filters">
-        <button type="button" class="sin-chip" data-remb="attente">En attente <span class="n" id="sin-n-attente">0</span></button>
+        <button type="button" class="sin-chip sin-chip-prio" data-remb="action" title="Dossiers qui attendent une action de ta part"><span class="sin-chip-dot" aria-hidden="true"></span>Action requise <span class="n" id="sin-n-action">0</span></button>
         <button type="button" class="sin-chip active" data-remb="all">Tous</button>
-        <button type="button" class="sin-chip" data-remb="regles">Réglés <span class="n" id="sin-n-regles">0</span></button>
-        <button type="button" class="sin-chip" data-remb="clotures">Clôturés <span class="n" id="sin-n-clotures">0</span></button>
+        <button type="button" class="sin-chip" data-remb="attente" title="Suivi financier : remboursement attendu de l'assureur">Remb. en attente <span class="n" id="sin-n-attente">0</span></button>
+        <button type="button" class="sin-chip" data-remb="regles" title="Suivi financier : pris en charge, remboursé ou refusé">Réglés <span class="n" id="sin-n-regles">0</span></button>
+        <button type="button" class="sin-chip" data-remb="clotures" title="Dossiers terminés (date de clôture renseignée)">Clôturés <span class="n" id="sin-n-clotures">0</span></button>
       </div>
       <!-- Sélection multiple (barre injectée par FP.bulkSelect) -->
       <div id="sin-bulk-mount"></div>
@@ -602,6 +606,19 @@
   const state = { search: '', annee: 'all', vehicule: 'all', remb: 'all', dateFrom: '', dateTo: '', sortKey: 'date', sortDir: 'desc' };
   const REGLES = ['rembourse', 'pec', 'refuse'];
   const rembOf = (g) => { try { return (FP.settings.get().sinistreStatut || {})[g.key] || ''; } catch (e) { return ''; } };
+  // Dossier clôturé = date de clôture renseignée (source unique : sinistreAssurance).
+  const clotOf = (g) => { try { return !!(((FP.settings.get().sinistreAssurance || {})[g.key]) || {}).dateCloture; } catch (e) { return false; } };
+  // « Action requise » = le parcours du dossier attend une action de TA part (même source
+  // que la pastille orange de la liste : sinFinParcours → next.tone === 'do', via sinRowInfo).
+  const actionRequiseOf = (g) => { try { return sinRowInfo(g).parc.next.tone === 'do'; } catch (e) { return false; } };
+  // Filtre « suivi » unique (priorité / financier / clôturé), partagé par la liste ET la sélection multiple.
+  function filterByTab(groups) {
+    if (state.remb === 'action') return groups.filter(actionRequiseOf);
+    if (state.remb === 'attente') return groups.filter(g => rembOf(g) === 'attente');
+    if (state.remb === 'regles') return groups.filter(g => REGLES.includes(rembOf(g)));
+    if (state.remb === 'clotures') return groups.filter(clotOf);
+    return groups;
+  }
 
   // Init filtres dynamiques — reconstruits aussi au chargement Supabase (sinon les nouvelles
   // années / nouveaux véhicules n'apparaissent pas dans les filtres).
@@ -1348,12 +1365,8 @@
     }
     sinSetChrome(true);   // mode liste : on réaffiche le chrome (filtres, sélection) masqué par la fiche détail
     let groups = visibleGroups();
-    const _doss = (FP.settings.get().sinistreAssurance) || {};
-    const clotOf = g => !!(_doss[g.key] || {}).dateCloture;
-    // Onglet de suivi : filtre par statut de remboursement (+ « Clôturés » = dossiers terminés)
-    if (state.remb === 'attente') groups = groups.filter(g => rembOf(g) === 'attente');
-    else if (state.remb === 'regles') groups = groups.filter(g => REGLES.includes(rembOf(g)));
-    else if (state.remb === 'clotures') groups = groups.filter(clotOf);
+    // Onglet de suivi : Action requise (priorité) · Remb. en attente / Réglés (financier) · Clôturés (source unique : filterByTab).
+    groups = filterByTab(groups);
     // TRI : « en attente » toujours EN HAUT, puis non suivis, puis réglés ; par date dans chaque groupe.
     const prio = g => { const s = rembOf(g); if (s === 'attente') return 0; if (s === '') return 1; if (s === 'pec') return 2; return 3; };
     // Tri utilisateur (colonne + sens) appliqué DANS chaque niveau de priorité : on trie d'abord
@@ -1361,6 +1374,7 @@
     groups = sortRowsSin(groups).sort((a, b) => prio(a) - prio(b));
     // Compteurs + onglet actif
     { const all = allGroups();
+      const nac = $('sin-n-action'); if (nac) nac.textContent = all.filter(actionRequiseOf).length;
       const na = $('sin-n-attente'); if (na) na.textContent = all.filter(g => rembOf(g) === 'attente').length;
       const nr = $('sin-n-regles'); if (nr) nr.textContent = all.filter(g => REGLES.includes(rembOf(g))).length;
       const nc = $('sin-n-clotures'); if (nc) nc.textContent = all.filter(clotOf).length;
@@ -2569,12 +2583,7 @@
   // Sélection multiple d'incidents (supprime toutes les factures/lignes de chaque incident coché)
   if (FP.bulkSelect) sinBulk = FP.bulkSelect({
     mount: 'sin-bulk-mount', tbody: 'timeline', noun: 'incident', nounPlural: 'incidents',
-    getFilteredIds: () => {
-      let gs = visibleGroups();
-      if (state.remb === 'attente') gs = gs.filter(g => rembOf(g) === 'attente');
-      else if (state.remb === 'regles') gs = gs.filter(g => REGLES.includes(rembOf(g)));
-      return gs.map(g => g.key);
-    },
+    getFilteredIds: () => filterByTab(visibleGroups()).map(g => g.key),
     onDelete: async (keys) => {
       const keySet = new Set(keys.map(String));
       const removed = sinistres.filter(s => keySet.has(String(groupKeyOf(s.id))));
