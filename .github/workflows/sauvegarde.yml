@@ -115,8 +115,13 @@ jobs:
           mkdir -p sauvegarde/base
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/roles.sql --role-only
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/schema.sql
+          # Tables INTERNES du stockage Supabase (gérées par storage-api, pas des données métier) exclues du
+          # dump : elles n'existent que dans les versions récentes de storage-api. La restauration d'essai
+          # démarre un Supabase local figé (plus ancien) → sans ces exclusions, l'insertion échoue sur une
+          # « relation inexistante ». (bucket_lifecycle_states ajoutée ici le 05/11/2026 : cause de l'échec
+          # de la restauration d'essai en prod.) Les fichiers, storage.objects et les règles d'accès restent sauvegardés.
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/data.sql --use-copy --data-only \
-            -x 'storage.buckets_vectors' -x 'storage.vectors'
+            -x 'storage.buckets_vectors' -x 'storage.vectors' -x 'storage.bucket_lifecycle_states'
           # Le dump officiel ignore le schéma storage : ses règles d'accès sont exportées à part.
           psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/regles-stockage.sql > sauvegarde/base/regles-stockage.sql
           psql "$DB_URL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/compter.sql > sauvegarde/base/comptes-source.txt
