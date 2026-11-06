@@ -4597,8 +4597,38 @@ FP._cartePeriodeKey = function (mapKey, carte) {
   if (mapKey === 'condBadgeUlys') c = c.replace(/^ULYS[-_\s]*/i, '');
   return FP.normCarte(c);
 };
+// Deux clés de carte « collent » si l'une se termine par l'autre (≥ 4 caractères communs) — même règle que
+// FP.carteMatch. Nécessaire pour TotalEnergies : le relevé n'affiche souvent que les DERNIERS chiffres du n°
+// (ex. « 9572 ») alors que la fiche peut porter le n° physique COMPLET. Les deux côtés passent par
+// _cartePeriodeKey (strip « ULYS » pour les badges) avant comparaison.
+FP._cartePeriodeSameCard = function (mapKey, a, b) {
+  const ka = FP._cartePeriodeKey(mapKey, a), kb = FP._cartePeriodeKey(mapKey, b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  if (Math.min(ka.length, kb.length) < 4) return false;
+  return ka.endsWith(kb) || kb.endsWith(ka);
+};
+// Clé de STOCKAGE réellement présente pour une carte/badge. Match EXACT d'abord ; sinon, comme le
+// rapprochement par n° (_condParNumero), un UNIQUE match par SUFFIXE (abrégé ↔ complet) ; ambigu (≥2) →
+// aucun (on ne devine pas → pas de fausse attribution). Renvoie la clé trouvée dans le store, ou null.
+// ⚠️ LECTURE tolérante ; l'ÉCRITURE (setCartePeriode/removeCartePeriode/reattribuerCarte) reste sur la clé
+// EXACTE (le n° saisi sur la fiche) — on lit souple, on écrit canonique (même modèle que _condParNumero).
+FP._cartePeriodeResolveKey = function (mapKey, carte) {
+  try {
+    const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {};
+    const exact = FP._cartePeriodeKey(mapKey, carte);
+    if (Array.isArray(m[exact]) && m[exact].length) return exact;        // exact prioritaire
+    if (!exact || exact.length < 4) return null;                          // trop court pour un suffixe fiable
+    const hits = [];
+    for (const k of Object.keys(m)) {
+      if (!Array.isArray(m[k]) || !m[k].length) continue;
+      if (k === exact || k.endsWith(exact) || exact.endsWith(k)) { if (Math.min(k.length, exact.length) >= 4) hits.push(k); }
+    }
+    return hits.length === 1 ? hits[0] : null;                            // 0 ou ≥2 (ambigu) → aucun
+  } catch (e) { return null; }
+};
 FP.cartePeriodesGet = function (mapKey, carte) {
-  try { const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {}; const a = m[FP._cartePeriodeKey(mapKey, carte)]; return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  try { const m = (FP.settings.get().cartePeriodes || {})[mapKey] || {}; const k = FP._cartePeriodeResolveKey(mapKey, carte); const a = k ? m[k] : null; return Array.isArray(a) ? a : []; } catch (e) { return []; }
 };
 // Toutes les périodes d'un conducteur (pour l'UI) : [{mapKey, carte, from, to, idx}].
 FP.cartePeriodesDuConducteur = function (condKey) {
@@ -4825,10 +4855,9 @@ FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
       const cols = 'id,date_tx,montant_ttc,carte,produit,facnum,plaque,conducteur';
       let r; try { r = FP.selectAllPaged ? await FP.selectAllPaged('total_conso_tx', null, 'id', cols) : await FP.supabase.from('total_conso_tx').select(cols); } catch (e) { r = null; }
       const rows = (r && r.data) || [];
-      // Clé canonique (strip « ULYS » pour les badges) des DEUX côtés → l'aperçu retrouve bien les conso Ulys
-      // (stockées « ULYS-<n°> ») alors que la carte sélectionnée est le n° de badge nu.
-      const nk = FP._cartePeriodeKey(mapKey, carte);
-      let list = rows.filter(x => FP._cartePeriodeKey(mapKey, x.carte) === nk);
+      // Rapprochement tolérant (strip « ULYS » pour les badges + suffixe abrégé↔complet pour Total) → l'aperçu
+      // retrouve les conso Ulys (« ULYS-<n°> ») ET Total (relevé abrégé « 9572 » vs n° complet de la fiche).
+      let list = rows.filter(x => FP._cartePeriodeSameCard(mapKey, x.carte, carte));
       if (FP.dedupeConsoTx) list = FP.dedupeConsoTx(list);
       return (txCache = list);
     } catch (e) { return (txCache = null); }
