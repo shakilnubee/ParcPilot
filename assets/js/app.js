@@ -20922,70 +20922,19 @@ FP.calendarBtnHtml = function (ev, opts) {
   const url = (FP.ics && FP.ics.googleUrl) ? FP.ics.googleUrl(ev) : '';
   if (!url) return '';
   return '<div style="text-align:center;margin:18px 0 2px">'
-    + '<a href="' + url + '" style="display:inline-block;background:#0B1220;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">📅 Ajouter à mon agenda</a>'
+    + '<a href="' + url + '" style="display:inline-block;background:#F97316;color:#0B1220;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">📅 Ajouter à mon agenda</a>'
     + '</div>'
     + (opts.ics === false ? '' : '<p style="font-size:12px;color:#94A3B8;text-align:center;margin:6px 0 0">Ou ouvre le fichier agenda joint (Apple / Outlook).</p>');
 };
 
-FP.mailBrand = function (o) {
-  o = o || {};
-  const esc = FP.esc || (x => String(x == null ? '' : x));
-  // Libellés de l'ossature (en-tête sombre) selon la langue de l'e-mail (fr/en).
-  const _en = (String(o.lang) === 'en');
-  const LBL = _en
-    ? { dest: 'Recipient', montant: 'Amount', avis: 'Notice no.' }
-    : { dest: 'Destinataire', montant: 'Montant', avis: "N° d'avis" };
-  const nomSoc = o.nomSoc || '';
-  const logoUrl = /^https?:\/\//.test(String(o.logoUrl || '')) ? String(o.logoUrl) : '';
-  // Prénom SEUL (jamais le nom de famille dans l'e-mail au conducteur — consigne).
-  const prenom = String(o.prenom || '').trim().split(/\s+/)[0] || '';
-  // Marque expéditeur : LOGO hébergé si dispo, sinon le NOM DE LA SOCIÉTÉ (l'expéditeur réel) —
-  // JAMAIS « Parc Pilot » ici (Parc Pilot = la plateforme, cf. pied de page).
-  const brand = logoUrl
-    ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || 'Logo') + '" style="max-height:38px;max-width:170px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:inline-block">'
-    : '<span style="font-weight:900;font-size:18px;color:#ffffff;letter-spacing:.02em">' + esc(nomSoc || '') + '</span>';
-  // Vraie plaque FR (bande UE bleue ★★★ + F, puis n°) — grand format « héros », centrée.
-  const plate = o.plaque
-    ? '<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;margin:0 auto;white-space:nowrap"><tr>'
-      + '<td style="background:#1B48C4;padding:5px 9px;border:2px solid #0b0b0b;border-right:none;border-radius:8px 0 0 8px;text-align:center;vertical-align:middle">'
-      +   '<div style="color:#FFD24D;font-size:8px;line-height:1;letter-spacing:1px">★★★</div>'
-      +   '<div style="color:#ffffff;font-family:Arial,sans-serif;font-weight:800;font-size:13px;line-height:1;margin-top:2px">F</div>'
-      + '</td>'
-      + '<td style="background:#ffffff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:24px;letter-spacing:3px;padding:8px 20px;border:2px solid #0b0b0b;border-radius:0 8px 8px 0">' + esc(o.plaque) + '</td></tr></table>'
-    : '';
-  // Montant + N° d'avis (2 colonnes, seulement si fournis) — mis « proprement » dans le bloc sombre.
-  const eur = (n) => { try { return (FP.euro ? FP.euro(n) : (Number(n).toFixed(2).replace('.', ',') + ' €')); } catch (e) { return String(n); } };
-  const hasMontant = (o.montant != null && o.montant !== '' && !isNaN(Number(o.montant)));
-  const hasAvis = !!(o.numeroAvis && String(o.numeroAvis).trim());
-  let infoBlock = '';
-  if (hasMontant || hasAvis) {
-    const cells = [];
-    if (hasMontant) cells.push('<td width="' + (hasAvis ? '50%' : '100%') + '" style="text-align:center;padding:2px 10px;vertical-align:top"><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;font-weight:700">' + esc(LBL.montant) + '</div><div style="font-size:18px;font-weight:800;color:#ffffff;margin-top:4px">' + esc(eur(o.montant)) + '</div></td>');
-    if (hasAvis) cells.push('<td width="' + (hasMontant ? '50%' : '100%') + '" style="text-align:center;padding:2px 10px;vertical-align:top"><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;font-weight:700">' + esc(LBL.avis) + '</div><div style="font-size:14px;font-weight:800;color:#ffffff;margin-top:6px;font-family:Consolas,monospace">' + esc(o.numeroAvis) + '</div></td>');
-    infoBlock = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr><td style="border-top:1px solid rgba(255,255,255,.14);padding-top:14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' + cells.join('') + '</tr></table></td></tr></table>';
-  }
-  return FP.mailDocument(''
-    + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
-    // ── EN-TÊTE SOMBRE, CENTRÉ (marque · titre · plaque héros · destinataire · montant/n° d'avis) ──
-    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:24px 22px 22px;border-radius:16px 16px 0 0;text-align:center">'
-    +   '<div>' + brand + '</div>'
-    +   (o.title ? '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
-    +   (plate ? '<div style="margin-top:16px">' + plate + '</div>' : '')
-    +   (o.vehicule ? '<div style="font-size:13px;color:#CBD5E1;margin-top:8px;font-weight:600">' + esc(o.vehicule) + '</div>' : '')
-    +   (prenom ? '<div style="margin-top:16px"><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;font-weight:700">' + esc(LBL.dest) + '</div><div style="font-size:16px;font-weight:700;color:#ffffff;margin-top:3px">' + esc(prenom) + '</div></div>' : '')
-    +   infoBlock
-    + '</div>'
-    // ── LIGNE ORANGE ──
-    + '<div style="height:4px;background:#F97316;line-height:4px;font-size:0">&nbsp;</div>'
-    // ── CORPS BLANC (message, sans emoji) ──
-    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:24px 22px;color:#0F1E3D">'
-    +   (o.bodyHtml || '')
-    +   (o.buttonHtml ? '<p style="text-align:center;margin:22px 0">' + o.buttonHtml + '</p>' : '')
-    + '</div>'
-    // ── PIED SOMBRE avec le vrai logo Parc Pilot (source unique) ──
-    + FP.mailFooterHtml(nomSoc)
-    + '</div>');
-};
+// ⚠️ SOURCE UNIQUE DU DESIGN E-MAIL (validé « Lueur orange », généralisé à toute la plateforme le
+// 06/11/2026) : FP.mailBrand délègue à FP.mailAmende (défini juste en dessous), le gabarit canonique
+// (en-tête sombre + lueur orange douce en arrière-plan + plaque héros si fournie + résumé 3 colonnes
+// + corps sombre lisible + pied Parc Pilot + fond extérieur blanc). Tous les champs restent optionnels
+// (prenom/plaque/vehicule/montant/numeroAvis/bodyHtml/buttonHtml) → compatible avec TOUS les appelants
+// existants (amendes, bienvenue conducteur, relances, message groupé, EDL, msg.open…) sans rien changer
+// à leurs textes/variables. Pour un e-mail SANS plaque/héros, utiliser FP.mailShell (même habillage).
+FP.mailBrand = function (o) { return FP.mailAmende(o || {}); };
 
 // ===== Gabarit d'e-mail « AMENDE / CONTRAVENTION » — design « Lueur orange » (validé par l'utilisateur) =====
 // Même SIGNATURE que FP.mailBrand (lang, title, prenom, plaque, vehicule, montant, numeroAvis, nomSoc,
@@ -21077,23 +21026,26 @@ FP.mailShell = function (o) {
         ? '<span style="font-weight:900;font-size:18px;color:#ffffff;letter-spacing:.02em">' + esc(o.brand) + '</span>'
         : FP.ppLogoMail());
   return FP.mailDocument(''
-    // Même ossature visuelle que FP.mailBrand (e-mail d'amende = référence #26) : en-tête sombre dégradé,
-    // ligne orange d'accent, corps blanc, pied Parc Pilot. Seul le contenu de l'en-tête diffère (pas de
-    // plaque « héros » / montant pour un e-mail système) — la présentation, elle, est IDENTIQUE partout.
-    + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
-    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:24px 22px 22px;border-radius:16px 16px 0 0">'
+    // Même habillage « Lueur orange » que FP.mailAmende/FP.mailBrand (source unique du design), MAIS sans
+    // plaque « héros » (e-mail système) : fond extérieur blanc, en-tête sombre + lueur orange douce en
+    // ARRIÈRE-PLAN (aucun filtre/ombre sur le texte → net ; repli couleur unie pour Outlook), ligne orange,
+    // corps sombre lisible, pied Parc Pilot. Le bouton d'action est orange (visible sur fond sombre).
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
+    + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
+    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(220px 150px at 50% 56px, rgba(249,115,22,.34), rgba(249,115,22,.08) 50%, rgba(249,115,22,0) 76%);padding:22px 22px;text-align:center">'
     +   '<div>' + brand + '</div>'
-    +   (o.title ? '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
+    +   (o.title ? '<div style="font-size:20px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     + '</div>'
-    // ── LIGNE ORANGE (accent de marque, identique à l'e-mail d'amende) ──
-    + '<div style="height:4px;background:#F97316;line-height:4px;font-size:0">&nbsp;</div>'
-    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:24px 22px;color:#0F1E3D">'
+    // ── FINE LIGNE ORANGE ──
+    + '<div style="height:3px;background:#F97316;line-height:3px;font-size:0">&nbsp;</div>'
+    + '<div style="background:#0F1626;padding:20px 22px;color:#E6EDF8;font-size:14px;line-height:1.6;text-align:left">'
     +   (o.bodyHtml || '')
-    +   (o.buttonHtml ? '<p style="text-align:center;margin:22px 0">' + o.buttonHtml + '</p>' : '')
+    +   (o.buttonHtml ? '<p style="text-align:center;margin:20px 0 0">' + o.buttonHtml + '</p>' : '')
     + '</div>'
     // Pied de page Parc Pilot — même logo que tous les autres e-mails (source unique).
     + FP.mailFooterHtml(o.nomSoc || (o.brand && o.brand !== 'Parc Pilot' ? o.brand : ''))
-    + '</div>');
+    + '</div>'
+    + '</td></tr></table>');
 };
 
 // ===== E-MAILS D'AMENDE — SOURCE UNIQUE (résolution modèle + balises + rendu) =====
@@ -21187,7 +21139,7 @@ FP.sendMailTest = async function (key, to, lang) {
 (function registerCoreMails() {
   if (!FP.registerMail) return;
   const esc = FP.esc || (x => String(x == null ? '' : x));
-  const btn = (href, label) => '<a href="' + esc(href || '#') + '" style="display:inline-block;background:#0B1220;color:#ffffff;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">' + esc(label) + '</a>';
+  const btn = (href, label) => '<a href="' + esc(href || '#') + '" style="display:inline-block;background:#F97316;color:#0B1220;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">' + esc(label) + '</a>';
   // Corps = message ÉDITABLE (texte simple, sauts de ligne conservés). La mise en page reste fixe.
   const bodyText = (t) => '<div style="white-space:pre-wrap;line-height:1.55">' + esc(t).replace(/\n/g, '<br>') + '</div>';
   const tpl = (profilKey, defKey, tags, lang) => FP.fillTags(FP.mailModeleProfilL(profilKey, defKey, lang || 'fr'), tags || {});
