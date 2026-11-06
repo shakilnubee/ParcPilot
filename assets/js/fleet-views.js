@@ -1652,6 +1652,40 @@
         + '<thead><tr><th>Conducteur</th><th style="text-align:center">Type</th><th style="text-align:right">Carburant</th><th style="text-align:right">Litres</th><th style="text-align:right">Boutique</th><th style="text-align:right">Peage</th><th style="text-align:right">Total</th></tr></thead>'
         + '<tbody>' + consoLines + '</tbody></table></div>') : '';
 
+      // ── ASSOCIATION DES CARTES (promotion du n° vers la fiche, AVEC validation) ──
+      // Chaque n° de carte détecté sur le relevé est rapproché d'un conducteur. S'il est DÉJÀ relié (par n°)
+      // → on l'indique. Sinon → un sélecteur propose la bonne personne (préremplie quand on l'a reconnue par
+      // le nom) : au clic sur « Enregistrer », le n° est écrit sur la fiche (FP.addCondNum, multi-safe) →
+      // l'attribution devient FIABLE par numéro (passée ET future). On NE propose PAS de « déplacer » un n°
+      // déjà relié à quelqu'un d'autre (ça, c'est l'assistant « Réattribuer » → jamais de doublon ici).
+      const cardAssoc = [];
+      (function(){
+        const seen = {};
+        (conso || []).forEach(c => {
+          const num = String(c.carte || '').trim(); if (!num || seen[num]) return; seen[num] = 1;
+          let linked = null; try { linked = (window.FP && FP.conducteurParCarteTotal) ? FP.conducteurParCarteTotal(num) : null; } catch(e){}
+          let proposedKey = ''; const nm = c.conducteur || '';
+          if (!linked && nm && !isPlaque(nm)) { try { const f = FP.conducteurs && FP.conducteurs.find ? FP.conducteurs.find(nm) : null; if (f && f.key) proposedKey = f.key; } catch(e){} }
+          cardAssoc.push({ carte: num, nomReleve: nm, linkedKey: linked && linked.key || '', linkedName: linked && linked.name || '', proposedKey });
+        });
+      })();
+      const toLink = cardAssoc.filter(c => !c.linkedKey);
+      const assocBlock = cardAssoc.length ? (() => {
+        const opts = (sel) => (FP.conducteursTous ? FP.conducteursTous() : (FP.conducteurs && FP.conducteurs.list ? FP.conducteurs.list() : []))
+          .map(c => '<option value="' + esc(c.key) + '"' + (c.key === sel ? ' selected' : '') + '>' + esc(FP.conducteurs.displayName(c) || c.key) + (c.masque ? ' (masqué)' : '') + '</option>').join('');
+        const rows = cardAssoc.map(c => {
+          const left = '<td style="font-family:monospace;white-space:nowrap">' + esc(c.carte) + '</td>'
+            + '<td style="color:#64748B">' + esc(c.nomReleve || '—') + '</td>';
+          if (c.linkedKey) return '<tr style="border-top:1px solid var(--fp-border)">' + left + '<td><span style="color:#047857;font-weight:700">✓ reliée à ' + esc(c.linkedName || c.linkedKey) + '</span></td></tr>';
+          return '<tr style="border-top:1px solid var(--fp-border)">' + left
+            + '<td><select class="tf-assoc-sel field-input" data-carte="' + esc(c.carte) + '" style="width:230px"><option value="">— Ne pas relier maintenant —</option>' + opts(c.proposedKey) + '</select></td></tr>';
+        }).join('');
+        return '<div class="text-sm font-semibold mt-4 mb-1">Cartes détectées : ' + cardAssoc.length
+          + (toLink.length ? ' <span style="font-weight:400;color:#B45309">· ' + toLink.length + ' à relier (facultatif, améliore l\'attribution par n°)</span>' : ' <span style="font-weight:400;color:#047857">· toutes déjà reliées</span>')
+          + '</div><div class="scrollable" style="max-height:200px"><table class="fp-table" style="font-size:13px">'
+          + '<thead><tr><th>N° carte</th><th>Nom sur le relevé</th><th>Conducteur (fiche)</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      })() : '';
+
       const willDo = [];
       if (freshF.length) willDo.push(freshF.length + ' facture(s)');
       if (toAttach.length) willDo.push(toAttach.length + ' PDF à rattacher');
@@ -1663,12 +1697,13 @@
         tfImpStatus('✓ Ces <b>' + factures.length + ' facture(s)</b> sont <b>déjà enregistrées</b>' + (toAttach.length ? (' — je vais juste <b>rattacher le PDF</b> à ' + toAttach.length + ' d\'entre elles.') : ' — rien de nouveau à ajouter (elles sont déjà dans le tableau ci-dessous).'), 'ok');
       }
       $('tf-import-preview').classList.remove('hidden');
-      $('tf-import-preview').innerHTML = facBlock + consoBlock
+      $('tf-import-preview').innerHTML = facBlock + consoBlock + assocBlock
         + '<div class="flex gap-2 mt-3">'
         + '<button type="button" class="btn btn-outline text-sm" id="tf-import-cancel">Annuler</button>'
         + '<button type="button" class="btn btn-dark text-sm" id="tf-import-confirm"' + (willDo.length?'':' disabled style="opacity:.5;cursor:not-allowed"') + '>'
         + '<i data-lucide="check" class="w-4 h-4"></i> Enregistrer ' + (willDo.join(' + ') || '—') + '</button></div>';
       if (window.lucide) lucide.createIcons();
+      try { if (FP.searchSelect) $('tf-import-preview').querySelectorAll('.tf-assoc-sel').forEach(s => FP.searchSelect(s, { placeholder: 'Chercher un conducteur…' })); } catch (e) {}
       $('tf-import-cancel').addEventListener('click', tfImpReset);
       $('tf-import-confirm').addEventListener('click', commitPending);
       try { ($('tf-import-status').classList.contains('hidden') ? $('tf-import-preview') : $('tf-import-status')).scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
@@ -1677,6 +1712,19 @@
     async function commitPending(){
       if (!_pending) return;
       const freshF = _pending.freshF, conso = _pending.conso, toAttach = _pending.toAttach || [];
+      // Association carte → fiche choisie À L'IMPORT (avant toute modif du DOM) : on écrit le n° sur la fiche
+      // via FP.addCondNum (multi-safe, n'écrase pas les autres n°). Seulement les n° NON reliés (le sélecteur
+      // n'existe que pour ceux-là) → jamais de doublon ni de déplacement silencieux. Idempotent (addCondNum
+      // ignore un n° déjà présent sur la fiche). Best-effort : n'empêche jamais l'enregistrement du relevé.
+      let okLinks = 0;
+      try {
+        const sels = $('tf-import-preview') ? $('tf-import-preview').querySelectorAll('.tf-assoc-sel') : [];
+        sels.forEach(s => {
+          const carte = s.getAttribute('data-carte'), key = s.value;
+          if (carte && key && FP.addCondNum) { try { FP.addCondNum(key, 'condCarteTotal', carte); okLinks++; } catch (e) {} }
+        });
+        if (okLinks && FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
+      } catch (e) { console.warn('[tf-assoc]', e); }
       $('tf-import-confirm').disabled = true;
       // Détail de CE qu'on enregistre, montré dans l'overlay.
       const _nF = freshF.length, _nC = conso.length, _nTx = (_pendingTx || []).length, _nA = toAttach.length;
@@ -1746,8 +1794,8 @@
           + '<br>Le détail des dépenses fonctionne quand même. Pour l\'aperçu PDF, il faut débloquer le stockage Supabase (bucket « scans »). <b>Copie-moi cette erreur</b> et je te donne le réglage exact.', 'error');
         if (_busy) _busy.fail('⚠️ PDF non stocké (le détail est enregistré) — voir l\'écran');
       } else {
-        tfImpStatus('<b>✓ Enregistré</b> : ' + okF + ' facture(s)' + (okA ? ' + ' + okA + ' PDF rattaché(s)' : '') + ' + conso de ' + okC + ' carte(s). Sauvegardé dans la base (visible sur tous les postes).', 'ok');
-        if (_busy) _busy.done('✓ Relevé TotalEnergies enregistré — ' + okF + ' facture(s), conso de ' + okC + ' carte(s)');
+        tfImpStatus('<b>✓ Enregistré</b> : ' + okF + ' facture(s)' + (okA ? ' + ' + okA + ' PDF rattaché(s)' : '') + ' + conso de ' + okC + ' carte(s)' + (okLinks ? ' + ' + okLinks + ' carte(s) reliée(s) à un conducteur' : '') + '. Sauvegardé dans la base (visible sur tous les postes).', 'ok');
+        if (_busy) _busy.done('✓ Relevé TotalEnergies enregistré — ' + okF + ' facture(s), conso de ' + okC + ' carte(s)' + (okLinks ? ', ' + okLinks + ' reliée(s)' : ''));
       }
       _pending = null;
       render();
