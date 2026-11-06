@@ -21008,7 +21008,7 @@ FP.mailAmende = function (o) {
   // ici (Parc Pilot = la plateforme, cf. pied de page). Identique à FP.mailBrand (multi-sociétés).
   const brand = logoUrl
     ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || 'Logo') + '" style="max-height:34px;max-width:160px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:inline-block">'
-    : '<span style="font-weight:900;font-size:17px;color:#ffffff;letter-spacing:.02em">' + esc(nomSoc || '') + '</span>';
+    : '<span style="font-weight:700;font-size:17px;color:#ffffff;letter-spacing:.02em">' + esc(nomSoc || '') + '</span>';
   // Plaque FR « héros » (bande UE bleue ★★★ + F) — identique à FP.mailBrand.
   const plate = o.plaque
     ? '<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;margin:0 auto;white-space:nowrap"><tr>'
@@ -21025,7 +21025,7 @@ FP.mailAmende = function (o) {
   // séparées par de fins traits verticaux.
   const cell = (l, v, mono, orange) => '<td style="padding:0 14px;text-align:center;vertical-align:top">'
     + '<div style="font-size:10px;color:#7E8FA8;text-transform:uppercase;letter-spacing:.06em;font-weight:700">' + esc(l) + '</div>'
-    + '<div style="font-size:15px;color:' + (orange ? '#FDBA74' : '#ffffff') + ';font-weight:800;margin-top:4px;' + (mono ? 'font-family:Consolas,monospace;font-size:13px;letter-spacing:.5px' : '') + '">' + v + '</div></td>';
+    + '<div style="font-size:15px;color:' + (orange ? '#FDBA74' : '#ffffff') + ';font-weight:700;margin-top:4px;' + (mono ? 'font-family:Consolas,monospace;font-size:13px;letter-spacing:.5px' : '') + '">' + v + '</div></td>';
   const cells = [];
   if (prenom) cells.push(cell(LBL.dest, esc(prenom)));
   if (hasMontant) cells.push(cell(LBL.montant, esc(eur(o.montant)), false, true));
@@ -21039,10 +21039,10 @@ FP.mailAmende = function (o) {
     // ── FOND EXTÉRIEUR BLANC PUR (wrapper pleine largeur ; ne touche PAS le body partagé de FP.mailDocument) ──
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
-    // ── EN-TÊTE SOMBRE + LUEUR ORANGE accentuée (repli couleur unie pour Outlook) ──
-    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(210px 165px at 50% 88px, rgba(249,115,22,.55), rgba(249,115,22,.12) 45%, rgba(249,115,22,0) 74%);padding:22px 22px;text-align:center">'
+    // ── EN-TÊTE SOMBRE UNIFORME (aucun halo/dégradé/ombre → texte net) ──
+    + '<div style="background-color:#0A0E1A;padding:22px 22px;text-align:center">'
     +   '<div>' + brand + '</div>'
-    +   (o.title ? '<div style="font-size:18px;font-weight:800;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
+    +   (o.title ? '<div style="font-size:18px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     +   (plate ? '<div style="margin-top:18px">' + plate + '</div>' : '')
     +   (o.vehicule ? '<div style="font-size:12px;color:#AEBBD2;margin-top:9px;font-weight:600">' + esc(o.vehicule) + '</div>' : '')
     +   infoRow
