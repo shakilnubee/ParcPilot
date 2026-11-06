@@ -25,6 +25,11 @@
 <link rel="stylesheet" href="../assets/css/styles.css?v=20261106o">
 <style>
   .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+  /* Pipeline « À vendre » = 5 étapes fixes (… → Vendu) : toujours sur UNE ligne, dans l'ordre, pour que la
+     colonne « Vendu » reste visible (défilement horizontal si l'écran est trop étroit, jamais de retour à la
+     ligne qui « cache » la dernière colonne). Le pipeline « Acheter » (#achat-pipeline, 10 étapes) garde, lui,
+     l'enroulement auto via .pipeline. */
+  #pipeline { grid-template-columns: repeat(5, minmax(200px, 1fr)); overflow-x: auto; padding-bottom: 4px; }
   .pipeline-col { background: #F8FAFC; border-radius: .85rem; padding: 1rem; min-height: 200px; }
   .pipeline-col h3 { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fp-muted); margin-bottom: .85rem; display: flex; align-items: center; justify-content: space-between; }
   .pipeline-col .count { background: white; padding: .1rem .55rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; color: var(--fp-text); }
