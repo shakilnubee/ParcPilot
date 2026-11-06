@@ -20115,10 +20115,10 @@ FP.msg = {
         + (opts.email
             ? '<div id="fp-msg-att" style="display:flex;flex-direction:column;gap:6px">'
               + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-                + '<button type="button" id="fp-msg-attach" style="font-size:.78rem;font-weight:700;padding:6px 11px;border-radius:9999px;border:1px dashed var(--fp-border,#e5e7eb);background:var(--fp-bg,#fff);color:inherit;cursor:pointer">📎 Joindre un PDF</button>'
-                + '<span style="font-size:.7rem;color:var(--fp-muted,#64748b)">joint à l\'e-mail envoyé</span>'
+                + '<button type="button" id="fp-msg-attach" style="font-size:.78rem;font-weight:700;padding:6px 11px;border-radius:9999px;border:1px dashed var(--fp-border,#e5e7eb);background:var(--fp-bg,#fff);color:inherit;cursor:pointer">📎 Ajouter une pièce jointe</button>'
+                + '<span style="font-size:.7rem;color:var(--fp-muted,#64748b)">PDF, JPG, PNG, DOCX, XLSX · jointe à l\'e-mail</span>'
               + '</div>'
-              + '<input id="fp-msg-attach-file" type="file" accept="application/pdf,image/*" class="hidden" style="display:none">'
+              + '<input id="fp-msg-attach-file" type="file" multiple accept="application/pdf,image/jpeg,image/png,.doc,.docx,.xls,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.ms-excel" class="hidden" style="display:none">'
               + '<div id="fp-msg-att-list" style="display:flex;flex-direction:column;gap:4px"></div>'
             + '</div>'
             : '')
@@ -20196,13 +20196,19 @@ FP.msg = {
     // Texte enrichi du lien du/des document(s) pour SMS / WhatsApp / Copier (vide si aucun document).
     const txFull = () => { const base = tx(); if (!_attLinks.length) return base; const lbl = (String(opts.lang) === 'en' ? 'Document(s):' : 'Document(s) :'); return base + '\n\n📄 ' + lbl + '\n' + _attLinks.join('\n'); };
     const attList = () => q('#fp-msg-att-list');
+    // Taille lisible + plafonds (Resend ≈ 40 Mo/message : on reste prudent). Formats autorisés (sécurité).
+    const _fmtSize = (n) => { n = Number(n) || 0; if (n < 1024) return n + ' o'; if (n < 1048576) return (n / 1024).toFixed(0) + ' Ko'; return (n / 1048576).toFixed(1) + ' Mo'; };
+    const ATT_MAX_FILE = 15 * 1048576;   // 15 Mo par fichier
+    const ATT_MAX_TOTAL = 25 * 1048576;  // 25 Mo au total (marge sous la limite Resend ~40 Mo)
+    const ATT_OK_EXT = /\.(pdf|jpe?g|png|docx?|xlsx?)$/i;
+    const _attTotal = () => atts.reduce((s, a) => s + (Number(a.size) || 0), 0);
     function renderAtts() {
       const box = attList(); if (!box) return;
       box.innerHTML = atts.map((a, i) => '<div style="display:flex;align-items:center;gap:6px;font-size:.76rem;background:var(--fp-bg,#f8fafc);border:1px solid var(--fp-border,#e5e7eb);border-radius:8px;padding:5px 8px">'
-        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ' + esc(a.filename) + (a._auto ? ' <span style="color:var(--fp-muted,#64748b)">(garage)</span>' : '') + '</span>'
+        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ' + esc(a.filename) + (a._auto ? ' <span style="color:var(--fp-muted,#64748b)">(garage)</span>' : '') + (a.size ? ' <span style="color:var(--fp-muted,#64748b)">· ' + _fmtSize(a.size) + '</span>' : '') + '</span>'
         + '<button type="button" class="fp-att-del" data-i="' + i + '" title="Retirer" style="background:none;border:none;cursor:pointer;color:#dc2626;font-weight:800;font-size:.9rem;line-height:1">×</button>'
         + '</div>').join('');
-      box.querySelectorAll('.fp-att-del').forEach(b => b.addEventListener('click', () => { atts.splice(+b.getAttribute('data-i'), 1); renderAtts(); }));
+      box.querySelectorAll('.fp-att-del').forEach(b => b.addEventListener('click', () => { atts.splice(+b.getAttribute('data-i'), 1); renderAtts(); refreshAttLinks(); }));
     }
     if (opts.email) {
       renderAtts();
@@ -20210,14 +20216,26 @@ FP.msg = {
       if (attBtn && attFile) {
         attBtn.addEventListener('click', () => attFile.click());
         attFile.addEventListener('change', async (e) => {
-          const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-          const old = attBtn.textContent; attBtn.disabled = true; attBtn.textContent = 'Envoi du fichier…';
-          try {
-            const url = await FP.uploadScan(f, 'emails', { name: (f.name || 'piece-jointe').replace(/\.[^.]+$/, '') });
-            if (url) { atts.push({ filename: f.name || 'piece-jointe.pdf', path: url }); renderAtts(); refreshAttLinks(); }
-            else throw new Error('upload vide');
-          } catch (err) { if (FP.notifyError) FP.notifyError('Échec de la pièce jointe'); else alert('Échec de la pièce jointe : ' + (err && err.message || err)); }
+          const files = Array.prototype.slice.call(e.target.files || []); e.target.value = ''; if (!files.length) return;
+          const old = attBtn.textContent; attBtn.disabled = true;
+          let done = 0; const errs = [];
+          for (const f of files) {
+            // Garde-fous AVANT upload : format + taille fichier + taille totale (on n'envoie jamais un fichier
+            // refusé en silence — message clair, et la PJ n'est pas ajoutée).
+            if (!ATT_OK_EXT.test(f.name || '')) { errs.push((f.name || 'fichier') + ' : format non accepté (PDF, JPG, PNG, DOCX, XLSX)'); continue; }
+            if ((Number(f.size) || 0) > ATT_MAX_FILE) { errs.push((f.name || 'fichier') + ' : trop volumineux (' + _fmtSize(f.size) + ', max ' + _fmtSize(ATT_MAX_FILE) + ')'); continue; }
+            if (_attTotal() + (Number(f.size) || 0) > ATT_MAX_TOTAL) { errs.push((f.name || 'fichier') + ' : dépasse la taille totale autorisée (' + _fmtSize(ATT_MAX_TOTAL) + ')'); continue; }
+            attBtn.textContent = 'Envoi ' + (done + 1) + '/' + files.length + '…';
+            try {
+              const url = await FP.uploadScan(f, 'emails', { name: (f.name || 'piece-jointe').replace(/\.[^.]+$/, '') });
+              if (!url) throw new Error('upload vide');
+              atts.push({ filename: f.name || 'piece-jointe', path: url, size: Number(f.size) || 0 }); done++;
+              renderAtts(); refreshAttLinks();
+            } catch (err) { errs.push((f.name || 'fichier') + ' : échec du transfert'); }
+          }
           attBtn.disabled = false; attBtn.textContent = old;
+          if (errs.length) { const m = 'Pièce(s) jointe(s) non ajoutée(s) :\n• ' + errs.join('\n• '); if (FP.notifyError) FP.notifyError(m); else alert(m); }
+          else if (done && FP.toast) FP.toast('✓ ' + done + ' pièce(s) jointe(s) ajoutée(s)');
         });
       }
     }
