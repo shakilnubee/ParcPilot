@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261106g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261106h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261106g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261106h">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -661,7 +661,16 @@
         <label class="field-label">Objet</label>
         <input id="msgveh-subject" type="text" class="field-input w-full mb-3" placeholder="Ex. Information importante · consigne · rappel…">
         <label class="field-label">Message</label>
-        <textarea id="msgveh-body" rows="5" class="field-input w-full mb-3" placeholder="Écris ici le message que tu veux envoyer aux conducteurs…"></textarea>
+        <div id="msgveh-editor" class="mb-2"></div>
+        <!-- Pièces jointes (PDF, JPG, PNG, DOCX, XLSX) — mêmes règles que le reste de la plateforme. -->
+        <div class="mb-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" id="msgveh-attach" class="text-xs font-semibold px-3 py-1.5 rounded-full border border-dashed border-slate-300 bg-white text-slate-600 hover:bg-slate-50"><i data-lucide="paperclip" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> Ajouter une pièce jointe</button>
+            <span class="text-[11px] text-slate-400">PDF, JPG, PNG, DOCX, XLSX · jointe à chaque e-mail</span>
+          </div>
+          <input id="msgveh-attach-file" type="file" multiple accept="application/pdf,image/jpeg,image/png,.doc,.docx,.xls,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.ms-excel" class="hidden">
+          <div id="msgveh-attach-list" class="flex flex-col gap-1 mt-1.5"></div>
+        </div>
         <div class="flex items-center justify-between mb-1.5">
           <div class="text-sm font-semibold text-slate-700">Destinataires <span id="msgveh-count" class="text-slate-400 font-normal"></span></div>
           <label class="text-xs flex items-center gap-1.5 cursor-pointer text-slate-600"><input type="checkbox" id="msgveh-all" checked class="w-4 h-4 accent-orange-500"> Tout cocher</label>
@@ -1203,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261106g"></script>
-<script src="../assets/js/supabase-client.js?v=20261106g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261106h"></script>
+<script src="../assets/js/supabase-client.js?v=20261106h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1220,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261106g"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261106g"></script>
+<script src="../assets/js/fleet-docs.js?v=20261106h"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261106h"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261106g"></script><script>
+<script src="../assets/js/app.min.js?v=20261106h"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -7150,10 +7159,22 @@
     }).join('');
     msgVehSyncCount();
   }
+  let _msgVehEd = null, msgVehAtts = [];
+  const msgVehAttTotal = () => msgVehAtts.reduce((s, a) => s + (Number(a.size) || 0), 0);
+  function msgVehRenderAtts() {
+    const box = $('msgveh-attach-list'); if (!box) return;
+    box.innerHTML = msgVehAtts.map((a, i) => '<div class="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">'
+      + '<span class="flex-1 min-w-0 truncate">📄 ' + FP.esc(a.filename) + (a.size ? ' <span class="text-slate-400">· ' + FP.fmtFileSize(a.size) + '</span>' : '') + '</span>'
+      + '<button type="button" class="msgveh-att-del text-red-600 font-extrabold" data-i="' + i + '" title="Retirer">×</button></div>').join('');
+    box.querySelectorAll('.msgveh-att-del').forEach(b => b.addEventListener('click', () => { msgVehAtts.splice(+b.getAttribute('data-i'), 1); msgVehRenderAtts(); }));
+  }
   function openMsgVeh() {
     msgVehChecked = new Set(msgVehTargets().filter(v => msgVehEmailOf(v)).map(v => String(v.id))); // tous cochés par défaut
     const s = $('msgveh-search'); if (s) s.value = '';
     const st = $('msgveh-status'); if (st) st.textContent = '';
+    msgVehAtts = []; msgVehRenderAtts();
+    const mnt = $('msgveh-editor');
+    if (mnt && FP.richMailEditor) { _msgVehEd = FP.richMailEditor(mnt, { initialText: '', minHeight: 130 }); }
     msgVehRenderList();
     const ov = $('msgveh-ov'); if (ov) ov.classList.add('open');
     try { if (window.lucide) lucide.createIcons(); } catch (e) {}
@@ -7171,17 +7192,52 @@
   { const c = $('msgveh-cancel'); if (c) c.addEventListener('click', () => $('msgveh-ov').classList.remove('open')); }
   { const ov = $('msgveh-ov'); if (ov) ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('open'); }); }
   { const b = $('msgveh-send'); if (b) b.addEventListener('click', () => sendMsgVeh().catch(e => { console.error(e); alert('Erreur pendant l\'envoi.'); const btn = $('msgveh-send'); if (btn) btn.disabled = false; })); }
+  // Pièces jointes : plusieurs fichiers (PDF/JPG/PNG/DOCX/XLSX), nom+taille, retrait ; règles partagées (FP.mailAttachCheck).
+  { const ab = $('msgveh-attach'), af = $('msgveh-attach-file');
+    if (ab && af) {
+      ab.addEventListener('click', () => af.click());
+      af.addEventListener('change', async (e) => {
+        const files = Array.prototype.slice.call(e.target.files || []); e.target.value = ''; if (!files.length) return;
+        const old = ab.innerHTML; ab.disabled = true; let done = 0; const errs = [];
+        for (const f of files) {
+          const chk = FP.mailAttachCheck ? FP.mailAttachCheck(f, msgVehAttTotal()) : { ok: true };
+          if (!chk.ok) { errs.push(chk.error); continue; }
+          ab.textContent = 'Envoi ' + (done + 1) + '/' + files.length + '…';
+          try { const url = await FP.uploadScan(f, 'emails', { name: (f.name || 'piece-jointe').replace(/\.[^.]+$/, '') }); if (!url) throw new Error('upload vide'); msgVehAtts.push({ filename: f.name || 'piece-jointe', path: url, size: Number(f.size) || 0 }); done++; msgVehRenderAtts(); }
+          catch (err) { errs.push((f.name || 'fichier') + ' : échec du transfert'); }
+        }
+        ab.disabled = false; ab.innerHTML = old; try { if (window.lucide) lucide.createIcons(); } catch (e2) {}
+        if (errs.length) alert('Pièce(s) jointe(s) non ajoutée(s) :\n• ' + errs.join('\n• '));
+        else if (done && FP.toast) FP.toast('✓ ' + done + ' pièce(s) jointe(s) ajoutée(s)');
+      });
+    }
+  }
+  // Ouverture directe depuis le raccourci du tableau de bord (vehicules.html?msg=1).
+  try {
+    if (/[?&]msg=1\b/.test(location.search)) {
+      let _opened = false;
+      const _openWhenReady = () => { if (_opened) return; const b = $('btn-msg-veh'); if (b && b.style.display !== 'none') { _opened = true; openMsgVeh(); try { history.replaceState(null, '', location.pathname); } catch (e) {} } };
+      document.addEventListener('fp:data-ready', _openWhenReady);
+      setTimeout(_openWhenReady, 500); setTimeout(_openWhenReady, 1500);
+    }
+  } catch (e) {}
   async function sendMsgVeh() {
     const subject = (($('msgveh-subject') || {}).value || '').trim();
-    const body = (($('msgveh-body') || {}).value || '').trim();
+    // Corps RICHE depuis l'éditeur : HTML sûr (gras/puces/liens) via FP.mailBodyHtml + version texte brut.
+    const body = (_msgVehEd ? _msgVehEd.text() : '').trim();
+    const bodyHtml = _msgVehEd ? _msgVehEd.html() : ('<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(body).replace(/\n/g, '<br>') + '</div>');
     if (!subject) { alert('Ajoute un objet à ton message.'); try { $('msgveh-subject').focus(); } catch (e) {} return; }
-    if (!body) { alert('Écris ton message.'); try { $('msgveh-body').focus(); } catch (e) {} return; }
+    if (!body) { alert('Écris ton message.'); try { if (_msgVehEd) _msgVehEd.focus(); } catch (e) {} return; }
     const targets = msgVehTargets().filter(v => msgVehChecked.has(String(v.id)) && msgVehEmailOf(v));
     if (!targets.length) { alert('Coche au moins un conducteur (avec e-mail enregistré).'); return; }
     if (FP.confirm && !(await FP.confirm('Envoyer ce message à ' + targets.length + ' conducteur(s) ?'))) return;
     let logoUrl = ''; try { if (FP.hostSocieteLogo) logoUrl = await FP.hostSocieteLogo(); } catch (e) {}
     let nomSoc = ''; try { nomSoc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
-    const bodyHtml = '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(body).replace(/\n/g, '<br>') + '</div>';
+    // Pièces jointes : signées (bucket privé scans) AVANT envoi. Si la préparation échoue, on ARRÊTE (pas d'envoi incomplet).
+    let attachments = [];
+    try { attachments = (FP.prepareMailAttachments && msgVehAtts.length) ? await FP.prepareMailAttachments(msgVehAtts) : []; }
+    catch (e) { alert('Une pièce jointe n\'a pas pu être préparée — envoi annulé.'); return; }
+    if (msgVehAtts.length && attachments.length !== msgVehAtts.length) { alert('Une pièce jointe n\'a pas pu être préparée — envoi annulé.'); return; }
     const btnSend = $('msgveh-send'); if (btnSend) btnSend.disabled = true;
     const bz = FP.busy ? FP.busy('Envoi… 0/' + targets.length) : null;
     let ok = 0, ko = 0;
@@ -7192,7 +7248,9 @@
         const email = msgVehEmailOf(v);
         const prenom = String(v.chauffeur).trim().split(/\s+/)[0];
         const html = FP.mailBrand({ title: subject, prenom, plaque: v.immat || '', nomSoc, logoUrl, bodyHtml });
-        await FP.sendEmail({ to: email, subject, html, text: body });
+        const payload = { to: email, subject, html, text: body };
+        if (attachments.length) payload.attachments = attachments;
+        await FP.sendEmail(payload);
         ok++;
       } catch (e) { console.error('[msg veh]', e); ko++; }
     }

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="assets/css/tailwind.css?v=20261106g">
+<link rel="stylesheet" href="assets/css/tailwind.css?v=20261106h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="assets/js/lucide.min.js?v=20261106g"></script>
+  <script defer src="assets/js/lucide.min.js?v=20261106h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="assets/css/styles.css?v=20261106g">
+<link rel="stylesheet" href="assets/css/styles.css?v=20261106h">
 <script>
 (function(){
   // Si "Se souvenir de moi" décoché ET nouvelle session browser : on nettoie le token
@@ -619,8 +619,8 @@
   </main>
 </div>
 
-<script src="assets/js/vendor/supabase.js?v=20261106g"></script>
-<script src="assets/js/supabase-client.js?v=20261106g"></script>
+<script src="assets/js/vendor/supabase.js?v=20261106h"></script>
+<script src="assets/js/supabase-client.js?v=20261106h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -636,10 +636,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261106g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="assets/js/data.js?v=20261106h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="assets/js/app.min.js?v=20261106g"></script>
+<script src="assets/js/app.min.js?v=20261106h"></script>
 <!-- Upsell gestion déléguée : visible uniquement pour les ADMINS clients (ni CEO, ni gestionnaire, ni salarié), masquable -->
 <script>
 (function(){
@@ -669,7 +669,7 @@
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(initUpsell, 500); });
 })();
 </script>
-<script src="assets/js/vendor/chart.umd.min.js?v=20261106g" defer></script>
+<script src="assets/js/vendor/chart.umd.min.js?v=20261106h" defer></script>
 <script>
   lucide.createIcons();
 
@@ -2053,12 +2053,13 @@
     { k: 'echeances',     i: 'calendar-clock',t:'Échéances de la semaine',   run: () => go('pages/notifications.html') },
     { k: 'a-completer',   i: 'clipboard-list',t:'À compléter (infos manquantes)', run: () => go('pages/notifications.html#completer') },
     { k: 'relance-amendes',i:'mail',         t: 'Relancer les amendes impayées', run: () => go('pages/amendes.html') },
+    { k: 'msg-cond',      i: 'mail-plus',    t: 'Envoyer un message',        run: () => go('pages/vehicules.html?msg=1') },
     { k: 'rapport',       i: 'file-text',    t: 'Rapport direction (PDF)',   run: () => { if (window.FP && FP.rapportDirection) FP.rapportDirection(); else go('pages/statistiques.html'); } },
     { k: 'sauvegarde',    i: 'download',     t: 'Sauvegarde / export',       run: () => go('pages/parametres.html') },
     { k: 'recherche',     i: 'search',       t: 'Rechercher une plaque',     run: () => { const inp = document.querySelector('.fp-dash-search .fp-search-input'); if (inp) { inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus(); } } },
     { k: 'mode-ecran',    i: 'monitor',      t: 'Mode écran (TV agence)',    run: () => go('pages/ecran.html') },
   ];
-  const DEFAULTS = ['km-lot', 'km-photo', 'immobilise', 'scan-doc', 'new-amende', 'new-note-frais', 'new-conge', 'echeances', 'a-completer', 'relance-amendes'];
+  const DEFAULTS = ['km-lot', 'km-photo', 'immobilise', 'scan-doc', 'new-amende', 'new-note-frais', 'new-conge', 'echeances', 'a-completer', 'relance-amendes', 'msg-cond'];
   const getEnabled = () => { try { const s = FP.settings.get(); return Array.isArray(s.dashShortcuts) ? s.dashShortcuts : DEFAULTS.slice(); } catch (e) { return DEFAULTS.slice(); } };
   const setEnabled = (arr) => { try { const s = FP.settings.get(); s.dashShortcuts = arr; FP.settings.save(s); } catch (e) {} };
   const go = (href) => { location.href = href; };
