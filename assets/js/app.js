@@ -19993,8 +19993,8 @@ FP._mdToSafeHtml = function (src) {
   for (const raw of lines) {
     const ln = raw.replace(/\s+$/, '');
     const mUl = ln.match(/^\s*[-*•]\s+(.+)$/), mOl = ln.match(/^\s*\d+[.)]\s+(.+)$/);
-    if (mUl) { flushPara(); if (list !== 'ul') { closeList(); html += '<ul style="margin:0 0 10px;padding-left:22px;line-height:1.55">'; list = 'ul'; } html += '<li>' + FP._mdInlineOnly(mUl[1]) + '</li>'; continue; }
-    if (mOl) { flushPara(); if (list !== 'ol') { closeList(); html += '<ol style="margin:0 0 10px;padding-left:22px;line-height:1.55">'; list = 'ol'; } html += '<li>' + FP._mdInlineOnly(mOl[1]) + '</li>'; continue; }
+    if (mUl) { flushPara(); if (list !== 'ul') { closeList(); html += '<ul style="margin:0 0 10px;padding-left:22px;line-height:1.55;list-style-position:outside;list-style-type:disc">'; list = 'ul'; } html += '<li style="margin:2px 0">' + FP._mdInlineOnly(mUl[1]) + '</li>'; continue; }
+    if (mOl) { flushPara(); if (list !== 'ol') { closeList(); html += '<ol style="margin:0 0 10px;padding-left:22px;line-height:1.55;list-style-position:outside;list-style-type:decimal">'; list = 'ol'; } html += '<li style="margin:2px 0">' + FP._mdInlineOnly(mOl[1]) + '</li>'; continue; }
     if (ln.trim() === '') { flushPara(); closeList(); continue; }
     para.push(ln);
   }
@@ -20024,7 +20024,13 @@ FP._sanitizeMailHtml = function (dirty) {
         if (FP._mailAllowedTags[tag]) {
           const el = document.createElement(tag.toLowerCase());
           if (tag === 'P') el.setAttribute('style', 'margin:0 0 10px;line-height:1.55');
-          else if (tag === 'UL' || tag === 'OL') el.setAttribute('style', 'margin:0 0 10px;padding-left:22px;line-height:1.55');
+          // ⚠️ APERÇU in-app : le reset Tailwind (ol,ul{list-style:none}) masque les puces/numéros
+          // dans la prévisualisation (l'e-mail reçu, lui, n'a pas ce reset → puces OK). On force donc
+          // la puce/numéro en style INLINE (prioritaire sur la feuille de style) pour que l'aperçu
+          // affiche exactement ce que le destinataire verra.
+          else if (tag === 'UL') el.setAttribute('style', 'margin:0 0 10px;padding-left:22px;line-height:1.55;list-style-position:outside;list-style-type:disc');
+          else if (tag === 'OL') el.setAttribute('style', 'margin:0 0 10px;padding-left:22px;line-height:1.55;list-style-position:outside;list-style-type:decimal');
+          else if (tag === 'LI') el.setAttribute('style', 'margin:2px 0');
           walk(node, el); dstNode.appendChild(el);
           return;
         }
@@ -20043,11 +20049,30 @@ FP.mailBodyHtml = function (input) {
   return inner || '<p style="margin:0;line-height:1.55"></p>';
 };
 
+// ⚠️ APERÇU/ÉDITEUR in-app : le reset Tailwind (ol,ul{list-style:none}) masque les puces/numéros
+// quand on TAPE une liste dans la zone contenteditable (le navigateur insère un <ul>/<ol> nu sans
+// style inline). On ré-active donc la puce/numéro UNIQUEMENT dans les zones d'édition/aperçu d'e-mail
+// (sélecteurs ciblés), sans toucher au reste du site. Injecté une seule fois. Le CORPS envoyé, lui,
+// porte déjà ses styles inline (FP.mailBodyHtml) → identique dans l'e-mail reçu.
+FP._ensureMailListStyle = function () {
+  try {
+    if (document.getElementById('fp-mail-list-style')) return;
+    const st = document.createElement('style');
+    st.id = 'fp-mail-list-style';
+    st.textContent =
+      '.fp-rme-edit ul,.fp-rme-pv ul,#fp-msg-edit ul,#fp-msg-preview ul{list-style:disc outside;margin:0 0 10px;padding-left:22px}'
+      + '.fp-rme-edit ol,.fp-rme-pv ol,#fp-msg-edit ol,#fp-msg-preview ol{list-style:decimal outside;margin:0 0 10px;padding-left:22px}'
+      + '.fp-rme-edit li,.fp-rme-pv li,#fp-msg-edit li,#fp-msg-preview li{margin:2px 0}';
+    document.head.appendChild(st);
+  } catch (e) {}
+};
+
 // ─── ÉDITEUR DE CORPS D'E-MAIL réutilisable (barre d'outils + collage riche + markdown + aperçu) ───
 // Monté dans un conteneur ; renvoie une petite API { html(), text(), setText(), focus(), el }. Le HTML sort
 // TOUJOURS via FP.mailBodyHtml (sanitisé). Source unique pour TOUS les composeurs à corps libre.
 FP.richMailEditor = function (mount, opts) {
   opts = opts || {}; if (!mount) return null;
+  FP._ensureMailListStyle();
   const TB = [['bold', '<b>G</b>', 'Gras'], ['italic', '<i>I</i>', 'Italique'], ['underline', '<u>S</u>', 'Souligné'], ['insertUnorderedList', '• ', 'Liste à puces'], ['insertOrderedList', '1.', 'Liste numérotée'], ['createLink', '🔗', 'Lien'], ['undo', '↶', 'Annuler'], ['redo', '↷', 'Rétablir']];
   mount.innerHTML =
     '<div class="fp-rme-tb" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
@@ -20123,6 +20148,7 @@ FP.msg = {
   // Sélecteur SMS / WhatsApp / Copier. phone/nom/text pré-remplis et modifiables avant envoi.
   open(opts) {
     opts = opts || {};
+    if (FP._ensureMailListStyle) FP._ensureMailListStyle();
     const esc = FP.esc || (x => String(x == null ? '' : x));
     const nom = opts.nom || '';
     const title = opts.title || ('Prévenir' + (nom ? ' ' + nom : ' le conducteur'));
