@@ -4895,7 +4895,7 @@ FP.cartePeriodesEditor = function (condKey) {
 // réelle, voir l'APERÇU des dépenses avant/après (depuis total_conso_tx, dédoublonné), puis confirmer.
 // Confirmer = crée les périodes (FP.reattribuerCarte) ET déplace le n° vers le nouveau (futur → nouveau).
 // Ne touche AUCUNE transaction (total société invariant). mapKey ∈ condCarteTotal|condBadgeUlys|condNum_*.
-FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
+FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone, preNouveauKey) {
   if (!mapKey || !carte) return;
   const esc = FP.esc || (x => String(x == null ? '' : x));
   const all = (FP.conducteursTous ? FP.conducteursTous() : []) || [];
@@ -4916,6 +4916,9 @@ FP.reattribuerAssistant = function (mapKey, carte, ancienKey, onDone) {
     + '</div>';
   const sel = back.querySelector('.fp-ra-who'), dateI = back.querySelector('.fp-ra-date');
   const prev = back.querySelector('#fp-ra-prev'), okBtn = back.querySelector('[data-ra-ok]');
+  // Pré-sélection du NOUVEAU titulaire (ex. depuis le sélecteur de carte, on est sur SA fiche) : pratique,
+  // non imposée (l'utilisateur peut changer). Ne pré-sélectionne pas si c'est l'ancien (rien à réattribuer).
+  if (preNouveauKey && preNouveauKey !== ancienKey) { try { sel.value = preNouveauKey; } catch (e) {} }
   try { if (FP.searchSelect) FP.searchSelect(sel, { placeholder: 'Chercher un conducteur…' }); } catch (e) {}
   let txCache = null, txLoaded = false;
   const loadTx = async () => {
@@ -5096,9 +5099,13 @@ FP.badgeChipsHTML = function (o) {
   const attrs = 'data-bc-scope="' + esc(o.scope) + '" data-bc-numkey="' + esc(o.numkey) + '"'
     + (o.key ? (' data-bc-key="' + esc(o.key) + '"') : '')
     + (o.vehid != null ? (' data-bc-vehid="' + esc(o.vehid) + '"') : '');
+  // Carte TotalEnergies sur une FICHE (scope 'cond') : sélecteur des cartes connues (depuis les factures)
+  // comme méthode PRINCIPALE ; la saisie libre « + Ajouter » reste en repli contrôlé (consigne utilisateur).
+  const isTotalCond = o.scope === 'cond' && o.numkey === 'condCarteTotal';
+  const pickBtn = isTotalCond ? '<button type="button" class="fp-bc-addbtn fp-bc-pickbtn" data-bc-pick>📇 Choisir une carte…</button>' : '';
   return '<div class="fp-badgechips" ' + attrs + '>'
     + '<div class="fp-bc-chips">' + chips + empty + '</div>'
-    + '<div class="fp-bc-add"><input class="fp-bc-input" type="text" inputmode="numeric" placeholder="' + esc(o.placeholder || 'N° de badge…') + '">'
+    + '<div class="fp-bc-add">' + pickBtn + '<input class="fp-bc-input" type="text" inputmode="numeric" placeholder="' + esc(o.placeholder || 'N° de badge…') + '">'
     + '<button type="button" class="fp-bc-addbtn" data-bc-add>+ Ajouter</button></div>'
     + '</div>';
 };
@@ -5148,6 +5155,10 @@ FP.wireBadgeChips = function (root, opts) {
   root.addEventListener('click', (e) => {
     const rm = e.target.closest('[data-bc-rm]');
     if (rm) { const cont = rm.closest('.fp-badgechips'); doRemove(cont, rm.getAttribute('data-bc-rm')); rerender(cont); if (FP.toast) FP.toast('Numéro retiré'); return; }
+    // Sélecteur de carte Total (puce « 📇 Choisir une carte… ») → associe sans ressaisie ; repli « saisir
+    // manuellement » = focus le champ texte existant. Réutilise FP.cartePicker (lecture seule + réattribution).
+    const pick = e.target.closest('[data-bc-pick]');
+    if (pick) { const cont = pick.closest('.fp-badgechips'); if (cont && FP.cartePicker) FP.cartePicker({ condKey: cont.getAttribute('data-bc-key'), numKey: cont.getAttribute('data-bc-numkey'), onPick: () => rerender(cont), onManual: () => { const inp = cont.querySelector('.fp-bc-input'); if (inp) { try { inp.focus(); } catch (e2) {} } } }); return; }
     const add = e.target.closest('[data-bc-add]');
     if (add) { const cont = add.closest('.fp-badgechips'); const inp = cont && cont.querySelector('.fp-bc-input'); if (inp) addFrom(inp); return; }
   });
@@ -5319,6 +5330,112 @@ FP.conducteurPicker = function (input, opts) {
     window.addEventListener('scroll', () => { if (menu.style.display !== 'none') place(); }, true);
     window.addEventListener('resize', () => { if (menu.style.display !== 'none') place(); });
   } catch (e) { /* en cas de souci, l'input reste un champ texte normal */ }
+};
+
+// ─── SÉLECTEUR DE CARTE TotalEnergies (comme les badges Ulys arrivent de l'API, mais ici depuis les
+//     factures déjà importées) ─────────────────────────────────────────────────────────────────────
+// Liste des cartes Total CONNUES = reconstruite depuis total_conso_tx via FP.cartesRegistre (lecture seule),
+// mise en cache (invalidée après une association). Chaque carte : n° (le + complet connu), nom sur la
+// DERNIÈRE facture, titulaire actuel (par n°), statut picker (disponible / attribuée / à vérifier=homonyme),
+// dernière transaction. Ne crée/charge aucun nouveau moteur : réutilise l'existant.
+FP._cartesConnuesCache = null;
+FP.invalidateCartesConnues = function () { FP._cartesConnuesCache = null; };
+FP.cartesConnues = async function (force) {
+  if (!force && FP._cartesConnuesCache) return FP._cartesConnuesCache;
+  let rows = [];
+  try {
+    const soc = FP.activeSociete ? FP.activeSociete() : null;
+    const inSoc = x => !soc || soc === '__all__' || (x && (x.societe ? String(x.societe) === soc : soc === 'PXP'));
+    const cols = 'carte,date_tx,montant_ttc,facnum,conducteur,societe';
+    if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', cols); rows = ((r && r.data) || []).filter(inSoc); }
+    else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select(cols); rows = ((r && r.data) || []).filter(inSoc); }
+  } catch (e) { rows = []; }
+  const last = {};
+  rows.forEach(t => { const c = t && t.carte; if (!c || /^ULYS/i.test(String(c))) return; const k = FP._cartePeriodeKey('condCarteTotal', c); const d = String(t.date_tx || ''); if (!last[k] || d > last[k].d) last[k] = { d, nom: t.conducteur || '' }; });
+  const reg = (FP.cartesRegistre ? FP.cartesRegistre(rows) : []).filter(c => c.mapKey === 'condCarteTotal');
+  const prenomPartage = (nom) => { try { const np = FP.normPrenom ? FP.normPrenom(nom) : String(nom || '').toLowerCase().trim(); if (!np) return false; const all = FP.conducteursTous ? FP.conducteursTous() : []; let n = 0; all.forEach(c => { const dn = FP.conducteurs.displayName(c) || ''; const p = FP.normPrenom ? FP.normPrenom(dn) : dn.toLowerCase(); if (p === np) n++; }); return n >= 2; } catch (e) { return false; } };
+  reg.forEach(c => { const ln = last[c.key]; c.nomFacture = ln ? ln.nom : ''; c.statutPicker = c.titulaireKey ? 'attribuee' : (prenomPartage(c.nomFacture) ? 'averifier' : 'disponible'); });
+  reg.sort((a, b) => String(a.statutPicker).localeCompare(String(b.statutPicker)) || String(b.dernier).localeCompare(String(a.dernier)));
+  FP._cartesConnuesCache = reg;
+  return reg;
+};
+// Overlay « Choisir une carte TotalEnergies ». opts = { condKey, numKey, onPick, onManual }. Associe sans
+// ressaisie (FP.addCondNum) ; si la carte est déjà à QUELQU'UN D'AUTRE → assistant de réattribution (date +
+// aperçu, anciennes conso conservées). « Saisir manuellement » = repli contrôlé (onManual).
+FP.cartePicker = function (opts) {
+  opts = opts || {};
+  const condKey = opts.condKey, numKey = opts.numKey || 'condCarteTotal';
+  if (!condKey) return;
+  const esc = FP.esc || (x => String(x == null ? '' : x));
+  const nameOfKey = (k) => { try { const all = FP.conducteursTous ? FP.conducteursTous() : []; const c = all.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : k; } catch (e) { return k; } };
+  if (!document.getElementById('fp-cp2-style')) {
+    const st = document.createElement('style'); st.id = 'fp-cp2-style';
+    st.textContent = [
+      '.fp-cp2-back{position:fixed;inset:0;z-index:2147483500;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;padding-top:7vh;overflow-y:auto;background:rgba(11,18,32,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}',
+      '.fp-cp2-card{width:100%;max-width:560px;background:var(--fp-surface,#fff);color:var(--fp-text,#0F1E3D);border:1px solid var(--fp-border,#E3E8F0);border-radius:16px;box-shadow:0 30px 70px -20px rgba(11,18,32,.5);padding:1.1rem 1.1rem .9rem}',
+      '.fp-cp2-h{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.5rem}',
+      '.fp-cp2-h h3{font-size:1.02rem;font-weight:800;margin:0}',
+      '.fp-cp2-x{all:unset;cursor:pointer;color:#94A3B8;font-size:1.1rem;padding:.1rem .4rem}',
+      '.fp-cp2-search{width:100%;box-sizing:border-box;border:1px solid var(--fp-border,#E3E8F0);border-radius:10px;padding:.5rem .7rem;font-size:.9rem;margin-bottom:.6rem;background:var(--fp-surface,#fff);color:var(--fp-text,#0F1E3D)}',
+      '.fp-cp2-list{max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:.3rem}',
+      '.fp-cp2-it{all:unset;cursor:pointer;display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;border:1px solid var(--fp-border,#E3E8F0);border-radius:10px;padding:.5rem .65rem}',
+      '.fp-cp2-it:hover{border-color:var(--fp-accent,#F97316);background:rgba(249,115,22,.06)}',
+      '.fp-cp2-num{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800}',
+      '.fp-cp2-nom{color:#64748B;font-size:.85rem;flex:1;min-width:80px}',
+      '.fp-cp2-st{font-size:.72rem;font-weight:800;border-radius:9999px;padding:1px 9px}',
+      '.fp-cp2-st.di{color:#047857;background:#ECFDF5}.fp-cp2-st.at{color:#B45309;background:#FFFBEB}.fp-cp2-st.av{color:#B91C1C;background:#FEF2F2}',
+      '.fp-cp2-d{font-size:.74rem;color:#94A3B8;white-space:nowrap}',
+      '.fp-cp2-foot{margin-top:.7rem;display:flex;justify-content:flex-end}',
+      '.fp-cp2-manual{all:unset;cursor:pointer;color:var(--fp-accent,#F97316);font-weight:700;font-size:.84rem;padding:.3rem .2rem}'
+    ].join('');
+    document.head.appendChild(st);
+  }
+  const back = document.createElement('div'); back.className = 'fp-cp2-back';
+  back.innerHTML = '<div class="fp-cp2-card" role="dialog" aria-modal="true">'
+    + '<div class="fp-cp2-h"><h3>Choisir une carte TotalEnergies</h3><button type="button" class="fp-cp2-x" data-cp-close title="Fermer">✕</button></div>'
+    + '<input type="text" class="fp-cp2-search" placeholder="🔍 Chercher par n° ou nom…">'
+    + '<div class="fp-cp2-list"><div style="padding:1rem;color:#94A3B8">Chargement des cartes…</div></div>'
+    + '<div class="fp-cp2-foot"><button type="button" class="fp-cp2-manual" data-cp-manual>✎ Saisir manuellement</button></div>'
+    + '</div>';
+  const close = () => { try { document.removeEventListener('keydown', onKey, true); } catch (e) {} try { back.remove(); } catch (e) {} };
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  document.body.appendChild(back); document.addEventListener('keydown', onKey, true);
+  const listEl = back.querySelector('.fp-cp2-list'), searchEl = back.querySelector('.fp-cp2-search');
+  let cards = [];
+  const render = (q) => {
+    const nq = String(q || '').trim().toLowerCase();
+    let items = cards;
+    if (nq) items = cards.filter(c => String(c.numAffiche).toLowerCase().includes(nq) || String(c.nomFacture || '').toLowerCase().includes(nq) || String(c.titulaireName || '').toLowerCase().includes(nq));
+    if (!items.length) { listEl.innerHTML = '<div style="padding:1rem;color:#94A3B8">Aucune carte connue' + (nq ? ' pour « ' + esc(q) + ' »' : '') + '. Importe un relevé TotalEnergies, ou clique « Saisir manuellement ».</div>'; return; }
+    listEl.innerHTML = items.map(c => {
+      const chip = c.statutPicker === 'attribuee' ? '<span class="fp-cp2-st at">attribuée' + (c.titulaireName ? ' · ' + esc(c.titulaireName) : '') + '</span>'
+        : c.statutPicker === 'averifier' ? '<span class="fp-cp2-st av">à vérifier</span>'
+        : '<span class="fp-cp2-st di">disponible</span>';
+      const d = c.dernier ? '<span class="fp-cp2-d">' + esc(FP.date ? FP.date(String(c.dernier).slice(0, 10)) : String(c.dernier).slice(0, 10)) + '</span>' : '';
+      return '<button type="button" class="fp-cp2-it" data-num="' + esc(c.numAffiche) + '" data-titu="' + esc(c.titulaireKey || '') + '">'
+        + '<span class="fp-cp2-num">' + esc(c.numAffiche) + '</span>'
+        + '<span class="fp-cp2-nom">' + esc(c.nomFacture || c.titulaireName || '—') + '</span>' + chip + d + '</button>';
+    }).join('');
+  };
+  FP.cartesConnues().then(list => { cards = list || []; render(''); }).catch(() => { listEl.innerHTML = '<div style="padding:1rem;color:#B91C1C">Impossible de charger les cartes.</div>'; });
+  searchEl.addEventListener('input', () => render(searchEl.value));
+  back.addEventListener('click', (e) => {
+    if (e.target === back || e.target.closest('[data-cp-close]')) { close(); return; }
+    if (e.target.closest('[data-cp-manual]')) { close(); if (typeof opts.onManual === 'function') { try { opts.onManual(); } catch (e2) {} } return; }
+    const it = e.target.closest('.fp-cp2-it'); if (!it) return;
+    const num = it.getAttribute('data-num'), titu = it.getAttribute('data-titu');
+    if (titu && titu !== condKey) {
+      // Conflit : la carte est déjà à quelqu'un d'autre → assistant de réattribution (date + aperçu).
+      close();
+      if (FP.reattribuerAssistant) FP.reattribuerAssistant(numKey, num, titu, () => { FP.invalidateCartesConnues(); if (opts.onPick) try { opts.onPick(); } catch (e2) {} }, condKey);
+      return;
+    }
+    try { if (FP.addCondNum) FP.addCondNum(condKey, numKey, num); } catch (e2) {}
+    FP.invalidateCartesConnues();
+    if (FP.toast) FP.toast('✓ Carte ' + num + ' reliée à ' + nameOfKey(condKey));
+    close(); if (opts.onPick) try { opts.onPick(); } catch (e2) {}
+  });
+  setTimeout(() => { try { searchEl.focus(); } catch (e) {} }, 40);
 };
 
 // === Multi-sociétés (vue admin) ===
