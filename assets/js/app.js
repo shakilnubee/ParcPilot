@@ -4638,6 +4638,30 @@ FP.cartePeriodesDuConducteur = function (condKey) {
   } catch (e) {}
   return out;
 };
+// INVENTAIRE (LECTURE SEULE) des relevés TotalEnergies — section 9 du cahier des charges. Pour chaque facture
+// Total, dit si son DÉTAIL par carte (lignes total_conso_tx) est présent (→ n° de carte exploités, attribution
+// fiable) ou absent, et si un PDF re-lisible existe (→ la reconstruction AUTOMATIQUE du détail peut/va le
+// repeupler). Ne modifie RIEN, ne déclenche RIEN : c'est un état des lieux. txRows = total_conso_tx [{facnum, carte}].
+FP.totalInventaire = function (txRows) {
+  const facs = (window.FP_DATA && FP_DATA.factures) || [];
+  const byFac = {};
+  (txRows || []).forEach(t => {
+    const fn = String((t && t.facnum) || '').trim().toUpperCase(); if (!fn) return;
+    const g = byFac[fn] || (byFac[fn] = { nb: 0, cartes: {} });
+    g.nb++; const c = t && t.carte; if (c) g.cartes[FP.normCarte(c)] = 1;
+  });
+  const items = facs.filter(f => FP.estTotalFleet && FP.estTotalFleet(f)).map(f => {
+    const num = String(f.numeroFacture || '').trim();
+    const g = byFac[num.toUpperCase()] || null;
+    const hasPdf = !!(f.fileId && /^https?:\/\//.test(String(f.fileId)));
+    const nbTx = g ? g.nb : 0, nbCartes = g ? Object.keys(g.cartes).length : 0;
+    const statut = nbTx > 0 ? 'detail' : (hasPdf ? 'reconstruisible' : 'sanspdf');
+    return { id: f.id, num, date: String(f.date || '').slice(0, 10), ttc: Number(f.montantTTC) || 0, hasPdf, nbTx, nbCartes, statut };
+  }).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const sum = { total: items.length, detail: 0, reconstruisible: 0, sanspdf: 0 };
+  items.forEach(i => { sum[i.statut]++; });
+  return { items, sum };
+};
 // REGISTRE CARTE-CENTRÉ (vue « Par carte » de Contrôle → Cartes & badges, section 11 du cahier des charges).
 // Agrège PAR CARTE/BADGE : fournisseur, n° (abrégé affiché), titulaire ACTUEL (par n°, tolérant abrégé↔complet
 // + strip ULYS), HISTORIQUE des titulaires (cartePeriodes), nb de transactions + total €, dernier mouvement,

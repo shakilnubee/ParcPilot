@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261106c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261106d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261106c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261106d">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -313,8 +313,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261106c"></script>
-<script src="../assets/js/supabase-client.js?v=20261106c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261106d"></script>
+<script src="../assets/js/supabase-client.js?v=20261106d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -330,11 +330,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261106c"></script>
+<script src="../assets/js/app.min.js?v=20261106d"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -365,7 +365,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261106c';
+        s.src = '../assets/js/fleet-views.min.js?v=20261106d';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -1246,15 +1246,15 @@
   try { const v = FP.settings.get().cbView; if (v === 'table' || v === 'cards' || v === 'parcarte') _cbView = v; } catch (e) {}
   function setCbView(v){ _cbView = (v === 'table') ? 'table' : (v === 'parcarte' ? 'parcarte' : 'cards'); try { const s = FP.settings.get(); s.cbView = _cbView; FP.settings.save(s); } catch (e) {} renderCartes(); }
   // Vue « Par carte » : conso chargée UNE fois (total_conso_tx, scopée société) puis mise en cache.
-  let _cbTxRows = null, _cbTxLoading = false, _cbHistOpen = {};
+  let _cbTxRows = null, _cbTxLoading = false, _cbHistOpen = {}, _cbInvOpen = false;
   async function loadCbTx(){
     if (_cbTxLoading) return; _cbTxLoading = true;
     try {
       const soc = FP.activeSociete ? FP.activeSociete() : null;
       const inSoc = x => !soc || soc === '__all__' || (x.societe ? String(x.societe) === soc : soc === 'PXP'); // NULL société → PXP
       let rows = [];
-      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', 'carte,date_tx,montant_ttc,societe'); rows = (r && r.data) || []; }
-      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select('carte,date_tx,montant_ttc,societe'); rows = (r && r.data) || []; }
+      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', 'carte,date_tx,montant_ttc,facnum,societe'); rows = (r && r.data) || []; }
+      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select('carte,date_tx,montant_ttc,facnum,societe'); rows = (r && r.data) || []; }
       _cbTxRows = (rows || []).filter(inSoc);
     } catch (e) { console.warn('[cb-parcarte] conso indisponible', e); _cbTxRows = []; }
     _cbTxLoading = false;
@@ -1297,9 +1297,33 @@
       }
       return tr;
     }).join('');
-    box.innerHTML = '<table class="ctrl-tbl"><thead><tr>'
+    // ── INVENTAIRE des relevés TotalEnergies (Lot T3, section 9) — ÉTAT DES LIEUX, lecture seule ──
+    let invHtml = '';
+    try {
+      const inv = (window.FP && FP.totalInventaire) ? FP.totalInventaire(_cbTxRows) : null;
+      if (inv && inv.sum.total) {
+        const s = inv.sum;
+        const actionnables = inv.items.filter(x => x.statut !== 'detail');
+        invHtml = '<div style="border:1px solid var(--fp-border);border-radius:.75rem;padding:10px 12px;margin-bottom:12px;background:#F8FAFC">'
+          + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:.84rem">'
+          + '<b>Relevés TotalEnergies : ' + s.total + '</b>'
+          + '<span style="color:#047857;font-weight:700">✓ ' + s.detail + ' avec détail</span>'
+          + (s.reconstruisible ? '<span style="color:#B45309;font-weight:700">⟳ ' + s.reconstruisible + ' à reconstruire (PDF dispo)</span>' : '')
+          + (s.sanspdf ? '<span style="color:#B91C1C;font-weight:700">⛔ ' + s.sanspdf + ' sans PDF</span>' : '')
+          + (actionnables.length ? '<button type="button" id="cb-inv-toggle" style="all:unset;cursor:pointer;color:#2563EB;font-weight:700">' + (_cbInvOpen ? '▾ Masquer' : '▸ Voir le détail') + '</button>' : '')
+          + '</div>';
+        if (_cbInvOpen && actionnables.length) {
+          const lignes = actionnables.map(x => '<tr style="border-top:1px solid var(--fp-border)"><td style="font-family:monospace">' + esc(x.num) + '</td><td style="white-space:nowrap">' + dFR(x.date) + '</td><td style="text-align:right">' + euro(x.ttc) + '</td><td>' + (x.statut === 'reconstruisible' ? '<span style="color:#B45309;font-weight:700">⟳ détail à reconstruire</span>' : '<span style="color:#B91C1C;font-weight:700">⛔ pas de PDF</span>') + '</td></tr>').join('');
+          invHtml += '<div class="scrollable" style="max-height:200px;margin-top:8px"><table class="ctrl-tbl" style="font-size:12px"><thead><tr><th>N° facture</th><th>Date</th><th style="text-align:right">TTC</th><th>État du détail</th></tr></thead><tbody>' + lignes + '</tbody></table></div>';
+        }
+        invHtml += '<div style="font-size:.76rem;color:#64748B;margin-top:6px">La reconstruction du détail (depuis les PDF stockés) est <b>automatique</b> à l\'ouverture — rien à cliquer. « Sans PDF » = ré-importe le relevé (onglet Total Fleet) pour récupérer son détail. <b>Aucune facture n\'est supprimée.</b></div>'
+          + '</div>';
+      }
+    } catch (e) { console.warn('[cb-inventaire]', e); }
+    box.innerHTML = invHtml + '<table class="ctrl-tbl"><thead><tr>'
       + '<th>Fournisseur</th><th>N° carte</th><th>Titulaire actuel</th><th style="text-align:right">Nb op.</th><th style="text-align:right">Total conso</th><th>Dernier mvt</th><th>Statut</th><th>Historique</th>'
       + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    const invT = document.getElementById('cb-inv-toggle'); if (invT) invT.addEventListener('click', () => { _cbInvOpen = !_cbInvOpen; renderCartes(); });
     box.querySelectorAll('.cb-hist-btn').forEach(b => b.addEventListener('click', () => { const k = b.getAttribute('data-hist'); _cbHistOpen[k] = !_cbHistOpen[k]; renderCartes(); }));
   }
   // ⚠️ DÉFINIS AVANT renderCartes : la mémoire du dernier onglet peut appeler renderCartes DÈS l'init
