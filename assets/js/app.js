@@ -21039,8 +21039,8 @@ FP.mailAmende = function (o) {
     // ── FOND EXTÉRIEUR BLANC PUR (wrapper pleine largeur ; ne touche PAS le body partagé de FP.mailDocument) ──
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
-    // ── EN-TÊTE SOMBRE uni et net (pas de halo/dégradé/ombre) ──
-    + '<div style="background-color:#0A0E1A;padding:22px 22px;text-align:center">'
+    // ── EN-TÊTE SOMBRE + LUEUR ORANGE accentuée (repli couleur unie pour Outlook) ──
+    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(210px 165px at 50% 88px, rgba(249,115,22,.55), rgba(249,115,22,.12) 45%, rgba(249,115,22,0) 74%);padding:22px 22px;text-align:center">'
     +   '<div>' + brand + '</div>'
     +   (o.title ? '<div style="font-size:18px;font-weight:800;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     +   (plate ? '<div style="margin-top:18px">' + plate + '</div>' : '')
@@ -21049,8 +21049,8 @@ FP.mailAmende = function (o) {
     + '</div>'
     // ── FINE LIGNE ORANGE ──
     + '<div style="height:3px;background:#F97316;line-height:3px;font-size:0">&nbsp;</div>'
-    // ── CORPS SOMBRE lisible (le message, inchangé) ──
-    + '<div style="background:#0F1626;padding:20px 22px;color:#E6EDF8;font-size:14px;line-height:1.6">'
+    // ── CORPS SOMBRE lisible (le message, aligné à GAUCHE comme avant) ──
+    + '<div style="background:#0F1626;padding:20px 22px;color:#E6EDF8;font-size:14px;line-height:1.6;text-align:left">'
     +   (o.bodyHtml || '')
     +   (o.buttonHtml ? '<p style="text-align:center;margin:20px 0 0">' + o.buttonHtml + '</p>' : '')
     + '</div>'
