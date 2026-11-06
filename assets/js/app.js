@@ -21023,13 +21023,13 @@ FP.mailAmende = function (o) {
   const hasAvis = !!(o.numeroAvis && String(o.numeroAvis).trim());
   // Résumé en 3 colonnes (destinataire · montant · n° d'avis), chacune affichée seulement si fournie,
   // séparées par de fins traits verticaux.
-  const cell = (l, v, mono, orange) => '<td style="padding:0 14px;text-align:center;vertical-align:top">'
-    + '<div style="font-size:10px;color:#7E8FA8;text-transform:uppercase;letter-spacing:.06em;font-weight:700">' + esc(l) + '</div>'
-    + '<div style="font-size:15px;color:' + (orange ? '#FDBA74' : '#ffffff') + ';font-weight:700;margin-top:4px;' + (mono ? 'font-family:Consolas,monospace;font-size:13px;letter-spacing:.5px' : '') + '">' + v + '</div></td>';
+  const cell = (l, v, mono, orange, size) => '<td style="padding:0 12px;text-align:center;vertical-align:top">'
+    + '<div style="font-size:11px;color:#7E8FA8;text-transform:uppercase;letter-spacing:.05em;font-weight:700">' + esc(l) + '</div>'
+    + '<div style="font-size:' + (size || 16) + 'px;color:' + (orange ? '#FDBA74' : '#ffffff') + ';font-weight:700;margin-top:5px;' + (mono ? 'font-family:Consolas,monospace;letter-spacing:.5px' : '') + '">' + v + '</div></td>';
   const cells = [];
-  if (prenom) cells.push(cell(LBL.dest, esc(prenom)));
-  if (hasMontant) cells.push(cell(LBL.montant, esc(eur(o.montant)), false, true));
-  if (hasAvis) cells.push(cell(LBL.avis, esc(o.numeroAvis), true));
+  if (prenom) cells.push(cell(LBL.dest, esc(prenom), false, false, 16));
+  if (hasMontant) cells.push(cell(LBL.montant, esc(eur(o.montant)), false, true, 17));
+  if (hasAvis) cells.push(cell(LBL.avis, esc(o.numeroAvis), true, false, 14));
   let infoRow = '';
   if (cells.length) {
     const sep = '<td style="width:1px;background:rgba(255,255,255,.14)">&nbsp;</td>';
@@ -21039,12 +21039,13 @@ FP.mailAmende = function (o) {
     // ── FOND EXTÉRIEUR BLANC PUR (wrapper pleine largeur ; ne touche PAS le body partagé de FP.mailDocument) ──
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
-    // ── EN-TÊTE SOMBRE UNIFORME (aucun halo/dégradé/ombre → texte net) ──
-    + '<div style="background-color:#0A0E1A;padding:22px 22px;text-align:center">'
+    // ── EN-TÊTE SOMBRE + LUEUR ORANGE DOUCE (dégradé en ARRIÈRE-PLAN derrière logo/titre ; aucun
+    //    filtre/flou/ombre sur le texte → texte net ; repli couleur unie #0A0E1A pour Outlook) ──
+    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(220px 150px at 50% 64px, rgba(249,115,22,.34), rgba(249,115,22,.08) 50%, rgba(249,115,22,0) 76%);padding:22px 22px;text-align:center">'
     +   '<div>' + brand + '</div>'
-    +   (o.title ? '<div style="font-size:18px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
+    +   (o.title ? '<div style="font-size:20px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     +   (plate ? '<div style="margin-top:18px">' + plate + '</div>' : '')
-    +   (o.vehicule ? '<div style="font-size:12px;color:#AEBBD2;margin-top:9px;font-weight:600">' + esc(o.vehicule) + '</div>' : '')
+    +   (o.vehicule ? '<div style="font-size:13px;color:#AEBBD2;margin-top:9px;font-weight:600">' + esc(o.vehicule) + '</div>' : '')
     +   infoRow
     + '</div>'
     // ── FINE LIGNE ORANGE ──
