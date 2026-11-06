@@ -19963,6 +19963,86 @@ FP.shortenUrl = async function (url) {
   const s = (await tryOne('https://is.gd/create.php?format=simple&url=')) || (await tryOne('https://v.gd/create.php?format=simple&url='));
   const out = s || u; FP._shortCache[u] = out; return out;
 };
+// ===== CORPS D'E-MAIL — conversion SÛRE de la mise en forme (gras / puces / listes / liens) =====
+// Un e-mail « corps libre » (composeur FP.msg.open) vient soit d'un champ ÉDITABLE (HTML riche collé/tapé),
+// soit d'un collage markdown/texte. On produit un HTML e-mail SÛR et on l'insère tel quel dans le CORPS du
+// modèle existant (FP.mailBrand) — AUCUN changement de design/logo/bandeau/pied. MÊME sortie pour l'aperçu
+// ET l'envoi. Sécurité : liste BLANCHE de balises, liens http/https/mailto seulement, tout le reste échappé.
+FP._mailAllowedTags = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, P: 1, BR: 1, A: 1, DIV: 1, SPAN: 1 };
+FP._mailSafeHref = function (href) { const h = String(href == null ? '' : href).trim(); return /^(https?:|mailto:)/i.test(h) ? h : ''; };
+// Markdown INLINE → HTML sûr (échappe d'abord TOUT le texte, puis lien [t](u), gras ** / __, italique * / _,
+// URL nue). Ne gère PAS les blocs (paragraphes/listes) : utilisé sur un fragment de texte.
+FP._mdInlineOnly = function (text) {
+  const esc = FP.esc || (x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+  let s = esc(text);
+  const A = '<a href="$U" style="color:#0EA5A0;font-weight:700;text-decoration:underline" target="_blank" rel="noopener noreferrer">$T</a>';
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g, (m, t, u) => A.replace('$U', u).replace('$T', t));
+  s = s.replace(/(\*\*|__)(?=\S)([\s\S]+?\S)\1/g, '<strong>$2</strong>');
+  s = s.replace(/(^|[^*\w])\*(?=\S)([^*\n]+?\S)\*(?!\w)/g, '$1<em>$2</em>');
+  s = s.replace(/(^|[^_\w])_(?=\S)([^_\n]+?\S)_(?!\w)/g, '$1<em>$2</em>');
+  // URL nue pas déjà dans un href="…"
+  s = s.replace(/(^|[\s(>])((https?:\/\/)[^\s<)]+)/g, (m, pre, url) => pre + A.replace('$U', url).replace('$T', url));
+  return s;
+};
+// Markdown/texte brut → HTML e-mail sûr (gras/italique, puces - * •, listes 1. , paragraphes, retours à la ligne).
+FP._mdToSafeHtml = function (src) {
+  const lines = String(src == null ? '' : src).replace(/\r\n?/g, '\n').split('\n');
+  let html = '', list = null, para = [];
+  const closeList = () => { if (list) { html += '</' + list + '>'; list = null; } };
+  const flushPara = () => { if (para.length) { html += '<p style="margin:0 0 10px;line-height:1.55">' + para.map(FP._mdInlineOnly).join('<br>') + '</p>'; para = []; } };
+  for (const raw of lines) {
+    const ln = raw.replace(/\s+$/, '');
+    const mUl = ln.match(/^\s*[-*•]\s+(.+)$/), mOl = ln.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (mUl) { flushPara(); if (list !== 'ul') { closeList(); html += '<ul style="margin:0 0 10px;padding-left:22px;line-height:1.55">'; list = 'ul'; } html += '<li>' + FP._mdInlineOnly(mUl[1]) + '</li>'; continue; }
+    if (mOl) { flushPara(); if (list !== 'ol') { closeList(); html += '<ol style="margin:0 0 10px;padding-left:22px;line-height:1.55">'; list = 'ol'; } html += '<li>' + FP._mdInlineOnly(mOl[1]) + '</li>'; continue; }
+    if (ln.trim() === '') { flushPara(); closeList(); continue; }
+    para.push(ln);
+  }
+  flushPara(); closeList();
+  return html;
+};
+// HTML riche (éditeur / collage Word-Gmail-ChatGPT) → HTML e-mail SÛR : parcourt le DOM (jamais de regex sur
+// le HTML), ne garde que les balises de la liste blanche, réécrit les liens (schéma sûr + target/rel), et
+// applique le markdown INLINE présent dans le texte. Les balises interdites (script, style, img, table…) sont
+// retirées en gardant leur CONTENU texte.
+FP._sanitizeMailHtml = function (dirty) {
+  try {
+    if (typeof document === 'undefined') return FP._mdToSafeHtml(String(dirty == null ? '' : dirty).replace(/<[^>]+>/g, ''));
+    const host = document.createElement('div'); host.innerHTML = String(dirty == null ? '' : dirty);
+    const out = document.createElement('div');
+    const walk = (srcNode, dstNode) => {
+      srcNode.childNodes.forEach(node => {
+        if (node.nodeType === 3) { const sp = document.createElement('span'); sp.innerHTML = FP._mdInlineOnly(node.nodeValue || ''); while (sp.firstChild) dstNode.appendChild(sp.firstChild); return; }
+        if (node.nodeType !== 1) return;
+        const tag = node.tagName;
+        if (tag === 'A') {
+          const href = FP._mailSafeHref(node.getAttribute('href'));
+          if (href) { const a = document.createElement('a'); a.setAttribute('href', href); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer'); a.setAttribute('style', 'color:#0EA5A0;font-weight:700;text-decoration:underline'); walk(node, a); dstNode.appendChild(a); }
+          else walk(node, dstNode);
+          return;
+        }
+        if (FP._mailAllowedTags[tag]) {
+          const el = document.createElement(tag.toLowerCase());
+          if (tag === 'P') el.setAttribute('style', 'margin:0 0 10px;line-height:1.55');
+          else if (tag === 'UL' || tag === 'OL') el.setAttribute('style', 'margin:0 0 10px;padding-left:22px;line-height:1.55');
+          walk(node, el); dstNode.appendChild(el);
+          return;
+        }
+        walk(node, dstNode); // balise interdite → on garde seulement le contenu
+      });
+    };
+    walk(host, out);
+    return out.innerHTML;
+  } catch (e) { return FP._mdToSafeHtml(String(dirty == null ? '' : dirty).replace(/<[^>]+>/g, '')); }
+};
+// Point d'entrée : construit le HTML SÛR du CORPS d'un e-mail (à mettre dans bodyHtml de FP.mailBrand).
+FP.mailBodyHtml = function (input) {
+  const s = String(input == null ? '' : input);
+  const looksHtml = /<(b|strong|i|em|u|ul|ol|li|p|br|a|div|span)\b/i.test(s) || /<\/(p|div|li|ul|ol)>/i.test(s);
+  const inner = looksHtml ? FP._sanitizeMailHtml(s) : FP._mdToSafeHtml(s);
+  return inner || '<p style="margin:0;line-height:1.55"></p>';
+};
+
 // ===== Envoi manuel SMS / WhatsApp (clic-pour-envoyer, GRATUIT) — SOURCE UNIQUE =====
 // Ouvre l'appli SMS/WhatsApp du téléphone de l'utilisateur avec le message DÉJÀ ÉCRIT. Aucun
 // prestataire, aucun coût : c'est l'utilisateur qui appuie sur « Envoyer », depuis SON numéro.
@@ -20010,7 +20090,19 @@ FP.msg = {
               + '</div>'
             : '')
         + '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Message'
-          + '<textarea id="fp-msg-text" rows="5" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.92rem;resize:vertical">' + esc(opts.text || '') + '</textarea>'
+          // Champ ÉDITABLE (gras/puces/liens conservés au collage) pour l'e-mail ; repli textarea pur si pas
+          // d'e-mail (SMS/WhatsApp = texte brut de toute façon). La barre d'outils ne s'affiche que si on peut
+          // envoyer un e-mail. Un textarea CACHÉ #fp-msg-text garde le TEXTE BRUT (SMS/WhatsApp/Copier/aperçu).
+          + (opts.email
+              ? '<div id="fp-msg-tb" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'
+                + [['bold', '<b>G</b>', 'Gras'], ['italic', '<i>I</i>', 'Italique'], ['underline', '<u>S</u>', 'Souligné'], ['insertUnorderedList', '• ', 'Liste à puces'], ['insertOrderedList', '1.', 'Liste numérotée'], ['createLink', '🔗', 'Lien'], ['undo', '↶', 'Annuler'], ['redo', '↷', 'Rétablir']]
+                    .map(b => '<button type="button" class="fp-md-b" data-cmd="' + b[0] + '" title="' + b[2] + '" style="min-width:30px;padding:4px 7px;border:1px solid var(--fp-border,#e5e7eb);border-radius:7px;background:var(--fp-bg,#fff);color:inherit;cursor:pointer;font-size:.82rem;line-height:1">' + b[1] + '</button>').join('')
+                + '</div>'
+                + '<div id="fp-msg-edit" contenteditable="true" role="textbox" aria-multiline="true" style="width:100%;box-sizing:border-box;margin-top:3px;padding:9px 11px;min-height:120px;max-height:40vh;overflow:auto;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.92rem;line-height:1.5"></div>'
+                + '<textarea id="fp-msg-text" style="display:none"></textarea>'
+                + '<button type="button" id="fp-msg-preview-btn" style="align-self:flex-start;margin-top:4px;font-size:.74rem;font-weight:700;color:var(--fp-accent,#0EA5A0);background:none;border:none;cursor:pointer;padding:2px 0;text-decoration:underline">👁 Aperçu de l\'e-mail</button>'
+                + '<div id="fp-msg-preview" style="display:none;margin-top:4px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;padding:11px;background:var(--fp-bg,#fff)"></div>'
+              : '<textarea id="fp-msg-text" rows="5" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.92rem;resize:vertical">' + esc(opts.text || '') + '</textarea>')
         + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">'
           + '<button type="button" id="fp-msg-sms" style="flex:1;min-width:120px;justify-content:center;display:inline-flex;align-items:center;gap:6px;padding:11px;border-radius:10px;border:none;background:#0EA5A0;color:#fff;font-weight:800;cursor:pointer">📱 SMS</button>'
           + '<button type="button" id="fp-msg-wa" style="flex:1;min-width:120px;justify-content:center;display:inline-flex;align-items:center;gap:6px;padding:11px;border-radius:10px;border:none;background:#25D366;color:#0b3d1f;font-weight:800;cursor:pointer">🟢 WhatsApp</button>'
@@ -20039,6 +20131,51 @@ FP.msg = {
     const ph = () => (q('#fp-msg-phone').value || '').trim();
     const tx = () => q('#fp-msg-text').value || '';
     const close = () => ov.remove();
+    // ─── Éditeur riche (e-mail) : collage Word/Gmail/ChatGPT conservé, markdown converti, barre d'outils
+    //     simple. Le textarea CACHÉ #fp-msg-text garde le TEXTE BRUT (SMS/WhatsApp/Copier). L'e-mail, lui,
+    //     part en HTML sûr via FP.mailBodyHtml(editor). ───
+    const _editor = q('#fp-msg-edit');
+    const _syncPlain = () => { try { if (_editor) q('#fp-msg-text').value = _editor.innerText.replace(/ /g, ' '); } catch (e) {} };
+    // CORPS HTML sûr de l'e-mail = éditeur si présent, sinon texte brut du textarea.
+    const _emailBodyHtml = () => _editor ? FP.mailBodyHtml(_editor.innerHTML) : null;
+    if (_editor) {
+      // Contenu initial : texte brut (template/opts.text) rendu proprement (markdown éventuel converti).
+      try { _editor.innerHTML = FP.mailBodyHtml(String(opts.text || '')); } catch (e) { _editor.textContent = String(opts.text || ''); }
+      _syncPlain();
+      _editor.addEventListener('input', _syncPlain);
+      // Barre d'outils (execCommand : léger, sans librairie).
+      const tb = q('#fp-msg-tb');
+      if (tb) tb.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-cmd]'); if (!b) return; e.preventDefault();
+        const cmd = b.getAttribute('data-cmd'); _editor.focus();
+        try {
+          if (cmd === 'createLink') { const u = prompt('Adresse du lien (https://…) :', 'https://'); if (u && /^(https?:|mailto:)/i.test(u.trim())) document.execCommand('createLink', false, u.trim()); }
+          else document.execCommand(cmd, false, null);
+        } catch (e2) {}
+        _syncPlain();
+      });
+      // Collage : on NETTOIE le HTML collé (Word/Gmail) via la liste blanche, ou on convertit le markdown collé.
+      _editor.addEventListener('paste', (e) => {
+        try {
+          const cd = e.clipboardData || window.clipboardData; if (!cd) return;
+          const html = cd.getData('text/html'), txt = cd.getData('text/plain');
+          e.preventDefault();
+          let safe;
+          if (html && html.trim()) safe = FP._sanitizeMailHtml(html);
+          else safe = FP.mailBodyHtml(txt || '');   // texte/markdown collé → converti
+          document.execCommand('insertHTML', false, safe);
+          _syncPlain();
+        } catch (e2) { /* repli : collage navigateur par défaut */ }
+      });
+      // Aperçu (même HTML que l'envoi — corps seul, design du modèle inchangé).
+      const pvBtn = q('#fp-msg-preview-btn'), pv = q('#fp-msg-preview');
+      if (pvBtn && pv) pvBtn.addEventListener('click', () => {
+        const open = pv.style.display !== 'none';
+        if (open) { pv.style.display = 'none'; pvBtn.textContent = '👁 Aperçu de l\'e-mail'; return; }
+        pv.innerHTML = FP.mailBodyHtml(_editor.innerHTML);
+        pv.style.display = ''; pvBtn.textContent = '✕ Masquer l\'aperçu';
+      });
+    }
     // --- Pièces jointes e-mail (format Resend { filename, path|content }) : pré-attachées (PDF du garage)
     //     + ajouts manuels. On les envoie telles quelles à FP.sendEmail (le serveur send-email les gère).
     let atts = Array.isArray(opts.attachments) ? opts.attachments.filter(a => a && a.filename && (a.path || a.content)) : [];
@@ -20128,8 +20265,12 @@ FP.msg = {
       const _mlang = (String(opts.lang) === 'en') ? 'en' : 'fr';
       const _clic = (_mlang === 'en') ? 'click here' : 'cliquez ici';
       const _linkify = (s) => esc(s).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#0EA5A0;font-weight:700;text-decoration:underline">' + _clic + '</a>');
+      // CORPS libre : désormais HTML SÛR issu de l'éditeur (gras/puces/liens conservés) via FP.mailBodyHtml.
+      // Repli (pas d'éditeur) : ancien rendu texte pré-formaté + linkify. Les modèles (opts.emailHtml) : intacts.
+      const _freeBody = (typeof FP.mailBodyHtml === 'function' && _emailBodyHtml) ? _emailBodyHtml() : null;
+      const _bodyHtml = (_freeBody != null) ? _freeBody : ('<div style="white-space:pre-wrap;line-height:1.5">' + _linkify(tx()) + '</div>');
       const html = (typeof opts.emailHtml === 'function') ? opts.emailHtml(tx())
-        : (opts.emailHtml || (FP.mailBrand ? FP.mailBrand({ title: opts.emailSubject || opts.title || '', prenom: opts.nom || '', nomSoc: opts.emailNomSoc || '', logoUrl: opts.emailLogo || '', lang: _mlang, bodyHtml: '<div style="white-space:pre-wrap;line-height:1.5">' + _linkify(tx()) + '</div>' }) : ('<div style="white-space:pre-wrap">' + _linkify(tx()) + '</div>')));
+        : (opts.emailHtml || (FP.mailBrand ? FP.mailBrand({ title: opts.emailSubject || opts.title || '', prenom: opts.nom || '', nomSoc: opts.emailNomSoc || '', logoUrl: opts.emailLogo || '', lang: _mlang, bodyHtml: _bodyHtml }) : _bodyHtml));
       const oldTxt = eb.textContent; eb.disabled = true; eb.textContent = 'Envoi…';
       try {
         const payload = Object.assign({ to: opts.email, subject: opts.emailSubject || opts.title || 'Message', html: html, text: tx() }, opts.emailOpts || {});
@@ -20158,7 +20299,9 @@ FP.msg = {
     // Modèles rapides (chips) : remplissent le message d'un tap.
     const tpls = Array.isArray(opts.templates) ? opts.templates : [];
     ov.querySelectorAll('.fp-msg-tpl').forEach(btn => btn.addEventListener('click', () => {
-      const t = tpls[+btn.getAttribute('data-i')]; if (t) { q('#fp-msg-text').value = t.text || ''; q('#fp-msg-text').focus(); }
+      const t = tpls[+btn.getAttribute('data-i')]; if (!t) return;
+      if (_editor) { try { _editor.innerHTML = FP.mailBodyHtml(String(t.text || '')); } catch (e) { _editor.textContent = String(t.text || ''); } _syncPlain(); _editor.focus(); }
+      else { q('#fp-msg-text').value = t.text || ''; q('#fp-msg-text').focus(); }
     }));
     // ⚠️ RÈGLE PERMANENTE « pas de lien géant dans un message » : on RACCOURCIT toute URL longue
     // présente dans le TEXTE du message (message initial ET modèles), pas seulement les pièces jointes.

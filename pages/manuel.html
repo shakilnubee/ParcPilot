@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261106e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261106f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261106e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261106f">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -324,6 +324,7 @@
         <div class="man-item"><b>⏰ Rappel automatique la veille</b> — chaque matin, le site envoie <b>tout seul</b> un e-mail de rappel <b>la veille</b> d'un rendez-vous garage — le <b>contrôle technique</b> (date « Prochain CT ») <b>ou</b> un <b>rendez-vous garage saisi</b> (CT / révision / entretien) — <b>au conducteur ET à toi (gestionnaire) en copie</b>. Aucun réglage à faire : ça marche avec la même relance automatique que les relevés km. Un CT marqué « ignoré » n'envoie pas de rappel. <i>(La « prochaine révision » <u>estimée</u> reste indicative dans la liste Relances ; pour un rappel auto sur une révision, pose un rendez-vous garage avec sa vraie date.)</i></div>
         <div class="man-item" style="color:var(--fp-muted)"><b>Bon à savoir</b> — WhatsApp/SMS <b>ne peuvent pas partir automatiquement tout seuls</b> (ce serait payant, via l'API WhatsApp Business) : le site te prépare tout, tu appuies sur Envoyer. Les <b>e-mails</b>, eux, peuvent être <b>automatiques</b> (rappel CT ci-dessus + relances km).</div>
         <div class="man-item"><b>📎 Joindre un document (PDF du garage, etc.) par TOUS les canaux</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fenêtre <b>« Prévenir »</b>, un document joint (ex. le PDF du garage, ou un fichier que tu ajoutes avec « 📎 Joindre un PDF ») part maintenant sur <b>les trois canaux</b> : en <b>vraie pièce jointe</b> par <b>e-mail</b>, et en <b>lien à ouvrir</b> (ajouté au message) par <b>SMS</b> et <b>WhatsApp</b> — car ces apps ne permettent pas d'attacher un fichier via un lien. Sur <b>mobile</b>, un bouton <b>« 📤 Partager le fichier (WhatsApp…) »</b> apparaît en plus pour l'envoyer en <b>vraie pièce jointe</b> via le partage du téléphone. <i>(Correctif au passage : l'e-mail avec pièce jointe partait parfois « en échec » côté serveur quand le fichier venait du stockage privé — le lien est désormais signé, l'e-mail part correctement.)</i></div>
+        <div class="man-item"><b>✍️ Mise en forme du message e-mail (gras, puces, liens) conservée</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fenêtre <b>« Prévenir / Email »</b>, le champ message est maintenant un <b>petit éditeur</b> : une barre d'outils (<b>Gras</b>, <i>Italique</i>, Souligné, <b>liste à puces</b>, <b>liste numérotée</b>, <b>lien</b>, annuler/rétablir). Surtout, quand tu <b>colles</b> un texte depuis <b>Word, Gmail, Outlook ou ChatGPT</b>, la mise en forme est <b>conservée</b> (fini les puces qui disparaissent et les titres qui perdent leur gras) ; si tu colles du <b>markdown</b> (<code>**gras**</code>, <code>- puce</code>), il est <b>converti</b> tout seul (plus de <code>**</code> visibles). Le bouton <b>« 👁 Aperçu de l'e-mail »</b> montre le corps <b>exactement</b> tel qu'il partira. <i>Cela ne change rien au design des e-mails (logo, bandeau, pied de page, signatures) ni aux e-mails automatiques (amendes, rappels, états des lieux…) : seule la mise en forme de <b>ton texte</b> est désormais fidèle.</i> Le SMS et le WhatsApp, eux, partent en texte simple (normal, ces apps n'ont pas de gras).</div>
         <div class="man-zone">Onglet « 📝 À compléter »</div>
         <div class="man-item">Recense <b>toutes les infos manquantes</b> de la plateforme, chaque ligne cliquable vers le champ à remplir : <b>Véhicules</b> (immat, carburant, km, CT, VIN, CO₂, masse, assurance, <b>valeur d'achat</b>, forfait leasing…), <b>Conducteurs</b> (nom, permis…), <b>Amendes</b> (conducteur, montant, motif, <b>date limite du tarif minoré</b>…), <b>Contrats de leasing</b> (date de début, forfait km, durée, loyer), <b>Configuration société</b> (assurance, loueur, e-mail d'amende, domaine Resend, nom/SIRET/adresse, n° d'assistance du portail). La <b>valeur d'achat</b> sert à l'avantage en nature, au TCO et à l'estimation de revente (inutile en leasing). La <b>date limite du tarif minoré</b> alimente l'alerte « payer avant ».</div>
         <div class="man-item">📄 <b>Documents / PDF à compléter</b> — signale les <b>PDF manquants</b> : chaque véhicule en <b>leasing</b> (quel que soit le loueur) dont le <b>contrat n'a pas encore de PDF joint</b>, et chaque <b>prime d'assurance</b> saisie (montant) mais <b>sans PDF</b>. Chaque ligne mène à <b>Contrats</b> pour déposer le fichier en un clic. Comme le reste de la checklist, chaque ligne a une petite <b>croix ✕ « non concerné »</b> pour <b>ignorer durablement</b> l'alerte (ex. un contrat que vous ne comptez pas numériser) — elle se retrouve dans le volet « infos marquées non concerné » et se réaffiche d'un clic si besoin.</div>
@@ -1107,8 +1108,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261106e"></script>
-<script src="../assets/js/supabase-client.js?v=20261106e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261106f"></script>
+<script src="../assets/js/supabase-client.js?v=20261106f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1124,10 +1125,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261106e"></script>
+<script src="../assets/js/app.min.js?v=20261106f"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
