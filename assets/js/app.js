@@ -21036,9 +21036,11 @@ FP.mailAmende = function (o) {
     infoRow = '<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:16px auto 0"><tr>' + cells.join(sep) + '</tr></table>';
   }
   return FP.mailDocument(''
+    // ── FOND EXTÉRIEUR BLANC PUR (wrapper pleine largeur ; ne touche PAS le body partagé de FP.mailDocument) ──
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
-    // ── EN-TÊTE SOMBRE + « lueur » orange derrière la plaque (repli couleur unie pour Outlook) ──
-    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(160px 120px at 50% ' + (plate ? '98px' : '60px') + ', rgba(249,115,22,.30), rgba(249,115,22,0) 70%);padding:22px 22px;text-align:center">'
+    // ── EN-TÊTE SOMBRE uni et net (pas de halo/dégradé/ombre) ──
+    + '<div style="background-color:#0A0E1A;padding:22px 22px;text-align:center">'
     +   '<div>' + brand + '</div>'
     +   (o.title ? '<div style="font-size:18px;font-weight:800;margin-top:14px;line-height:1.25;color:#ffffff">' + esc(o.title) + '</div>' : '')
     +   (plate ? '<div style="margin-top:18px">' + plate + '</div>' : '')
@@ -21054,7 +21056,8 @@ FP.mailAmende = function (o) {
     + '</div>'
     // ── PIED SOMBRE avec le logo Parc Pilot (source unique, inchangé) ──
     + FP.mailFooterHtml(nomSoc)
-    + '</div>');
+    + '</div>'
+    + '</td></tr></table>');
 };
 
 // ===== Gabarit d'e-mail SIMPLE (en-tête sombre + corps blanc) — pour les e-mails « système » =====
