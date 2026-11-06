@@ -4638,6 +4638,52 @@ FP.cartePeriodesDuConducteur = function (condKey) {
   } catch (e) {}
   return out;
 };
+// REGISTRE CARTE-CENTRÉ (vue « Par carte » de Contrôle → Cartes & badges, section 11 du cahier des charges).
+// Agrège PAR CARTE/BADGE : fournisseur, n° (abrégé affiché), titulaire ACTUEL (par n°, tolérant abrégé↔complet
+// + strip ULYS), HISTORIQUE des titulaires (cartePeriodes), nb de transactions + total €, dernier mouvement,
+// statut de rapprochement (reliée / vue sur relevés mais non reliée). Source UNIQUE pour cette vue — lecture
+// seule, ne modifie rien. txRows = lignes total_conso_tx [{carte|badge, date_tx|dateTx|mois, montant_ttc|montantTtc}].
+FP.cartesRegistre = function (txRows) {
+  const pres = (FP.prestataires ? FP.prestataires() : []) || [];
+  const provByNumKey = {}; pres.forEach(p => { if (p && p.numKey) provByNumKey[p.numKey] = p; });
+  const all = (FP.conducteursTous ? FP.conducteursTous() : (FP.conducteurs && FP.conducteurs.list ? FP.conducteurs.list() : [])) || [];
+  const nameOf = (k) => { const c = all.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : k; };
+  const cards = {};
+  const ensure = (mapKey, sampleCarte) => {
+    const key = FP._cartePeriodeKey(mapKey, sampleCarte);
+    if (!key) return null;
+    const numNu = String(sampleCarte).replace(/^ULYS[-_\s]*/i, '');
+    if (cards[key]) { if (numNu.length > String(cards[key].numAffiche).length) cards[key].numAffiche = numNu; return cards[key]; }
+    // Fusion abrégé↔complet : si une carte EXISTE déjà (même fournisseur) dont la clé « colle » par suffixe
+    // (relevé abrégé « 9572 » vs n° complet de la fiche), on la RÉUTILISE au lieu d'en créer un doublon.
+    // Ambigu (≥2 cartes collent) → on ne fusionne pas (on ne devine pas).
+    const near = Object.keys(cards).filter(k => cards[k].mapKey === mapKey && FP._cartePeriodeSameCard(mapKey, k, key));
+    if (near.length === 1) { const c = cards[near[0]]; if (numNu.length > String(c.numAffiche).length) c.numAffiche = numNu; return c; }
+    const p = provByNumKey[mapKey] || null;
+    cards[key] = { key, mapKey, numAffiche: numNu,
+      provider: p ? p.nom : (mapKey === 'condBadgeUlys' ? 'Ulys' : 'Total'),
+      type: p ? p.type : (mapKey === 'condBadgeUlys' ? 'peage' : 'carburant'),
+      nb: 0, total: 0, dernier: '', titulaireKey: '', titulaireName: '', historique: [], declaree: false };
+    return cards[key];
+  };
+  // 1) Transactions (total_conso_tx) → nb / total / dernier mouvement.
+  (txRows || []).forEach(t => {
+    const carte = (t && (t.carte || t.badge)) || ''; if (!carte) return;
+    const mapKey = /^ULYS/i.test(String(carte)) ? 'condBadgeUlys' : 'condCarteTotal';
+    const c = ensure(mapKey, carte); if (!c) return;
+    c.nb++; c.total += (Number(t.montant_ttc != null ? t.montant_ttc : t.montantTtc) || 0);
+    const d = String((t.date_tx || t.dateTx || t.mois) || ''); if (d > c.dernier) c.dernier = d;
+  });
+  // 2) Cartes DÉCLARÉES sur les fiches (titulaire actuel, + cartes sans aucune conso encore).
+  all.forEach(cond => { pres.forEach(p => { const raw = FP.condNum ? FP.condNum(cond.key, p.numKey) : ''; FP.carteParts(raw).forEach(nn => { const c = ensure(p.numKey, nn); if (c) c.declaree = true; }); }); });
+  // 3) Titulaire actuel (par n°, tolérant) + historique (périodes) + statut, par carte.
+  return Object.values(cards).map(c => {
+    try { const cur = FP._condParNumero(c.mapKey, c.numAffiche); if (cur) { c.titulaireKey = cur.key; c.titulaireName = cur.name; } } catch (e) {}
+    try { c.historique = (FP.cartePeriodesGet(c.mapKey, c.numAffiche) || []).map(pr => ({ key: pr.key, name: nameOf(pr.key), from: pr.from || '', to: pr.to || '' })).sort((a, b) => String(a.from).localeCompare(String(b.from))); } catch (e) {}
+    c.statut = c.titulaireKey ? 'reliee' : 'nonreliee';
+    return c;
+  }).sort((a, b) => (b.total - a.total) || String(a.numAffiche).localeCompare(String(b.numAffiche)));
+};
 // Titulaire d'une carte/badge À UNE DATE donnée → { key, name, dated } (ou null). Repli : titulaire courant.
 FP.titulaireCarteALaDate = function (mapKey, carte, dateISO) {
   const d = String(dateISO || '').slice(0, 10);

@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261106b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261106c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261106b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261106c">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -303,6 +303,7 @@
         <span class="cbview-toggle" id="cb-view">
           <button type="button" data-cbv="cards"><i data-lucide="layout-grid" class="w-4 h-4"></i> Cartes</button>
           <button type="button" data-cbv="table"><i data-lucide="table" class="w-4 h-4"></i> Tableau</button>
+          <button type="button" data-cbv="parcarte"><i data-lucide="credit-card" class="w-4 h-4"></i> Par carte</button>
         </span>
         <button type="button" id="cb-add-presta" class="btn btn-dark text-sm"><i data-lucide="plus" class="w-4 h-4"></i> Prestataire</button>
       </div>
@@ -312,8 +313,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261106b"></script>
-<script src="../assets/js/supabase-client.js?v=20261106b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261106c"></script>
+<script src="../assets/js/supabase-client.js?v=20261106c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -329,11 +330,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261106b"></script>
+<script src="../assets/js/app.min.js?v=20261106c"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -364,7 +365,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261106b';
+        s.src = '../assets/js/fleet-views.min.js?v=20261106c';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -1242,8 +1243,65 @@
 
   // ===== Sous-onglet « Cartes & badges » : n° carte carburant / badge péage de TOUS les conducteurs =====
   let _cbSearch = '', _cbOnlyNum = false, _cbView = 'cards';
-  try { const v = FP.settings.get().cbView; if (v === 'table' || v === 'cards') _cbView = v; } catch (e) {}
-  function setCbView(v){ _cbView = (v === 'table') ? 'table' : 'cards'; try { const s = FP.settings.get(); s.cbView = _cbView; FP.settings.save(s); } catch (e) {} renderCartes(); }
+  try { const v = FP.settings.get().cbView; if (v === 'table' || v === 'cards' || v === 'parcarte') _cbView = v; } catch (e) {}
+  function setCbView(v){ _cbView = (v === 'table') ? 'table' : (v === 'parcarte' ? 'parcarte' : 'cards'); try { const s = FP.settings.get(); s.cbView = _cbView; FP.settings.save(s); } catch (e) {} renderCartes(); }
+  // Vue « Par carte » : conso chargée UNE fois (total_conso_tx, scopée société) puis mise en cache.
+  let _cbTxRows = null, _cbTxLoading = false, _cbHistOpen = {};
+  async function loadCbTx(){
+    if (_cbTxLoading) return; _cbTxLoading = true;
+    try {
+      const soc = FP.activeSociete ? FP.activeSociete() : null;
+      const inSoc = x => !soc || soc === '__all__' || (x.societe ? String(x.societe) === soc : soc === 'PXP'); // NULL société → PXP
+      let rows = [];
+      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', 'carte,date_tx,montant_ttc,societe'); rows = (r && r.data) || []; }
+      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select('carte,date_tx,montant_ttc,societe'); rows = (r && r.data) || []; }
+      _cbTxRows = (rows || []).filter(inSoc);
+    } catch (e) { console.warn('[cb-parcarte] conso indisponible', e); _cbTxRows = []; }
+    _cbTxLoading = false;
+    if (_cbView === 'parcarte') renderCartes();
+  }
+  function renderCartesParCarte(box){
+    document.querySelectorAll('#cb-view button').forEach(b => b.classList.toggle('active', b.dataset.cbv === _cbView));
+    if (_cbTxRows === null) { box.innerHTML = '<p class="text-sm text-slate-400 p-3">Chargement des cartes…</p>'; $('cb-count').textContent = ''; loadCbTx(); return; }
+    if (!(window.FP && FP.cartesRegistre)) { box.innerHTML = '<p class="text-sm text-slate-400 p-3">Indisponible.</p>'; return; }
+    let regs = FP.cartesRegistre(_cbTxRows) || [];
+    const q = _cbSearch.trim().toLowerCase();
+    if (q) regs = regs.filter(c => (String(c.numAffiche).toLowerCase().includes(q) || String(c.titulaireName || '').toLowerCase().includes(q) || String(c.provider || '').toLowerCase().includes(q) || (c.historique || []).some(h => String(h.name || '').toLowerCase().includes(q))));
+    if (_cbOnlyNum) regs = regs.filter(c => c.statut === 'reliee');
+    $('cb-count').textContent = regs.length + ' carte(s)' + (_cbOnlyNum ? ' reliée(s)' : '');
+    if (!regs.length) { box.innerHTML = '<p class="text-sm text-slate-400 p-3">Aucune carte détectée (importe un relevé TotalEnergies/Ulys, ou renseigne un n° sur une fiche).</p>'; return; }
+    const euro = (n) => FP.euro ? FP.euro(n) : (Math.round((Number(n) || 0) * 100) / 100) + ' €';
+    const dFR = (iso) => { const s = String(iso || '').slice(0, 10); if (!s) return '—'; try { return FP.date ? FP.date(s) : s; } catch (e) { return s; } };
+    const ico = (t) => t === 'peage' ? '🛣️' : (t === 'carburant' ? '⛽' : '💳');
+    const rows = regs.map((c, i) => {
+      const histN = (c.historique || []).length;
+      const titul = c.titulaireKey
+        ? '<a href="conducteurs.html?key=' + encodeURIComponent(c.titulaireKey) + '" style="font-weight:700;color:var(--fp-primary);text-decoration:none">' + esc(c.titulaireName) + '</a>'
+        : '<span style="color:#B45309;font-weight:700">non reliée</span>';
+      const statut = c.statut === 'reliee'
+        ? '<span style="color:#047857;font-weight:700;font-size:.8rem">✓ reliée</span>'
+        : '<span style="color:#B45309;font-weight:700;font-size:.8rem">⚠️ vue sur relevés</span>';
+      const histBtn = histN ? '<button type="button" class="cb-hist-btn" data-hist="' + c.key + '" style="all:unset;cursor:pointer;color:#2563EB;font-weight:700;font-size:.78rem">' + (_cbHistOpen[c.key] ? '▾ Historique (' + histN + ')' : '▸ Historique (' + histN + ')') + '</button>' : '<span style="color:#94A3B8;font-size:.78rem">—</span>';
+      let tr = '<tr style="border-top:1px solid var(--fp-border)">'
+        + '<td>' + ico(c.type) + ' ' + esc(c.provider) + '</td>'
+        + '<td style="font-family:monospace;font-weight:700">' + esc(c.numAffiche) + '</td>'
+        + '<td>' + titul + '</td>'
+        + '<td style="text-align:right">' + (c.nb || '—') + '</td>'
+        + '<td style="text-align:right;font-weight:700">' + euro(c.total) + '</td>'
+        + '<td style="white-space:nowrap">' + dFR(c.dernier) + '</td>'
+        + '<td>' + statut + '</td>'
+        + '<td>' + histBtn + '</td></tr>';
+      if (histN && _cbHistOpen[c.key]) {
+        const lignes = c.historique.map(h => '<div style="display:flex;gap:.6rem;flex-wrap:wrap;padding:2px 0"><span style="font-weight:700">' + esc(h.name) + '</span><span style="color:#64748B">' + (h.from ? ('du ' + dFR(h.from)) : 'depuis toujours') + (h.to ? (' au ' + dFR(h.to)) : (h.from ? ' (en cours)' : '')) + '</span></div>').join('');
+        tr += '<tr class="cb-hist-row"><td colspan="8" style="background:#F8FAFC;padding:.5rem .8rem"><div style="font-size:.8rem;color:#334155"><b>Historique des titulaires</b>' + lignes + '</div></td></tr>';
+      }
+      return tr;
+    }).join('');
+    box.innerHTML = '<table class="ctrl-tbl"><thead><tr>'
+      + '<th>Fournisseur</th><th>N° carte</th><th>Titulaire actuel</th><th style="text-align:right">Nb op.</th><th style="text-align:right">Total conso</th><th>Dernier mvt</th><th>Statut</th><th>Historique</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table>';
+    box.querySelectorAll('.cb-hist-btn').forEach(b => b.addEventListener('click', () => { const k = b.getAttribute('data-hist'); _cbHistOpen[k] = !_cbHistOpen[k]; renderCartes(); }));
+  }
   // ⚠️ DÉFINIS AVANT renderCartes : la mémoire du dernier onglet peut appeler renderCartes DÈS l'init
   // (avant la fin du script) → si ces const étaient déclarées plus bas, TDZ = ReferenceError = page
   // bloquée sur « Chargement… ». (Bug corrigé : c'était la cause du blocage de Cartes & badges.)
@@ -1253,6 +1311,7 @@
   function _cbHasNum(c, pres){ return pres.some(p => String((FP.condNum ? FP.condNum(c.key, p.numKey) : '') || '').trim()); }
   function renderCartes(){
     const box = $('cb-body'); if (!box) return;
+    if (_cbView === 'parcarte') { renderCartesParCarte(box); return; }   // vue carte-centrée (registre)
     // Une COLONNE par prestataire (Total, Ulys + tout prestataire perso créé dans Contrôle).
     const pres = (FP.prestataires ? FP.prestataires() : []);
     let conds = (FP.conducteurs && FP.conducteurs.list) ? FP.conducteurs.list() : [];
