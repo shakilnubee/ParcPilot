@@ -20043,6 +20043,61 @@ FP.mailBodyHtml = function (input) {
   return inner || '<p style="margin:0;line-height:1.55"></p>';
 };
 
+// ─── ÉDITEUR DE CORPS D'E-MAIL réutilisable (barre d'outils + collage riche + markdown + aperçu) ───
+// Monté dans un conteneur ; renvoie une petite API { html(), text(), setText(), focus(), el }. Le HTML sort
+// TOUJOURS via FP.mailBodyHtml (sanitisé). Source unique pour TOUS les composeurs à corps libre.
+FP.richMailEditor = function (mount, opts) {
+  opts = opts || {}; if (!mount) return null;
+  const TB = [['bold', '<b>G</b>', 'Gras'], ['italic', '<i>I</i>', 'Italique'], ['underline', '<u>S</u>', 'Souligné'], ['insertUnorderedList', '• ', 'Liste à puces'], ['insertOrderedList', '1.', 'Liste numérotée'], ['createLink', '🔗', 'Lien'], ['undo', '↶', 'Annuler'], ['redo', '↷', 'Rétablir']];
+  mount.innerHTML =
+    '<div class="fp-rme-tb" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
+    + TB.map(b => '<button type="button" class="fp-rme-b" data-cmd="' + b[0] + '" title="' + b[2] + '" style="min-width:30px;padding:4px 7px;border:1px solid var(--fp-border,#e5e7eb);border-radius:7px;background:var(--fp-bg,#fff);color:inherit;cursor:pointer;font-size:.82rem;line-height:1">' + b[1] + '</button>').join('')
+    + '</div>'
+    + '<div class="fp-rme-edit" contenteditable="true" role="textbox" aria-multiline="true" style="width:100%;box-sizing:border-box;padding:9px 11px;min-height:' + (opts.minHeight || 120) + 'px;max-height:40vh;overflow:auto;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.92rem;line-height:1.5"></div>'
+    + (opts.preview === false ? '' : '<button type="button" class="fp-rme-pvb" style="margin-top:4px;font-size:.74rem;font-weight:700;color:var(--fp-accent,#0EA5A0);background:none;border:none;cursor:pointer;padding:2px 0;text-decoration:underline">👁 Aperçu de l\'e-mail</button>'
+      + '<div class="fp-rme-pv" style="display:none;margin-top:4px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;padding:11px;background:var(--fp-bg,#fff)"></div>');
+  const ed = mount.querySelector('.fp-rme-edit'), tb = mount.querySelector('.fp-rme-tb');
+  const pvb = mount.querySelector('.fp-rme-pvb'), pv = mount.querySelector('.fp-rme-pv');
+  try { ed.innerHTML = FP.mailBodyHtml(String(opts.initialText || '')); } catch (e) { ed.textContent = String(opts.initialText || ''); }
+  tb.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cmd]'); if (!b) return; e.preventDefault(); const cmd = b.getAttribute('data-cmd'); ed.focus();
+    try { if (cmd === 'createLink') { const u = prompt('Adresse du lien (https://…) :', 'https://'); if (u && /^(https?:|mailto:)/i.test(u.trim())) document.execCommand('createLink', false, u.trim()); } else document.execCommand(cmd, false, null); } catch (e2) {}
+  });
+  ed.addEventListener('paste', (e) => {
+    try { const cd = e.clipboardData || window.clipboardData; if (!cd) return; const html = cd.getData('text/html'), txt = cd.getData('text/plain'); e.preventDefault(); const safe = (html && html.trim()) ? FP._sanitizeMailHtml(html) : FP.mailBodyHtml(txt || ''); document.execCommand('insertHTML', false, safe); } catch (e2) {}
+  });
+  if (pvb && pv) pvb.addEventListener('click', () => { const open = pv.style.display !== 'none'; if (open) { pv.style.display = 'none'; pvb.textContent = '👁 Aperçu de l\'e-mail'; return; } pv.innerHTML = FP.mailBodyHtml(ed.innerHTML); pv.style.display = ''; pvb.textContent = '✕ Masquer l\'aperçu'; });
+  return {
+    html: () => FP.mailBodyHtml(ed.innerHTML),
+    text: () => { try { return ed.innerText.replace(/ /g, ' '); } catch (e) { return ''; } },
+    setText: (t) => { try { ed.innerHTML = FP.mailBodyHtml(String(t || '')); } catch (e) { ed.textContent = String(t || ''); } },
+    focus: () => { try { ed.focus(); } catch (e) {} }, el: ed
+  };
+};
+// ─── PIÈCES JOINTES E-MAIL : règles + préparation (sign) partagées par tous les composeurs ───
+FP.MAIL_ATT_MAX_FILE = 15 * 1048576;   // 15 Mo / fichier
+FP.MAIL_ATT_MAX_TOTAL = 25 * 1048576;  // 25 Mo / message (marge sous la limite Resend ~40 Mo)
+FP.fmtFileSize = (n) => { n = Number(n) || 0; if (n < 1024) return n + ' o'; if (n < 1048576) return (n / 1024).toFixed(0) + ' Ko'; return (n / 1048576).toFixed(1) + ' Mo'; };
+// Garde-fou AVANT upload : format autorisé + taille/fichier + taille totale. Renvoie { ok } ou { ok:false, error }.
+FP.mailAttachCheck = (file, currentTotal) => {
+  if (!file) return { ok: false, error: 'fichier vide' };
+  if (!/\.(pdf|jpe?g|png|docx?|xlsx?)$/i.test(file.name || '')) return { ok: false, error: (file.name || 'fichier') + ' : format non accepté (PDF, JPG, PNG, DOCX, XLSX)' };
+  if ((Number(file.size) || 0) > FP.MAIL_ATT_MAX_FILE) return { ok: false, error: (file.name || 'fichier') + ' : trop volumineux (' + FP.fmtFileSize(file.size) + ', max ' + FP.fmtFileSize(FP.MAIL_ATT_MAX_FILE) + ')' };
+  if ((Number(currentTotal) || 0) + (Number(file.size) || 0) > FP.MAIL_ATT_MAX_TOTAL) return { ok: false, error: (file.name || 'fichier') + ' : dépasse la taille totale (' + FP.fmtFileSize(FP.MAIL_ATT_MAX_TOTAL) + ')' };
+  return { ok: true };
+};
+// Prépare les pièces jointes pour Resend : signe tout chemin du bucket PRIVÉ `scans` (sinon Resend 403 → échec).
+// Les pièces en `content` (base64) passent telles quelles. Renvoie un tableau prêt pour FP.sendEmail.
+FP.prepareMailAttachments = async (atts) => {
+  const out = [];
+  for (const a of (atts || [])) {
+    if (!a) continue;
+    if (a.content) { out.push({ filename: a.filename, content: a.content }); }
+    else if (a.path) { let p = a.path; try { if (FP.signedScanUrl && /\/scans\//.test(p)) p = await FP.signedScanUrl(a.path, 604800); } catch (e) {} out.push({ filename: a.filename, path: p }); }
+  }
+  return out;
+};
+
 // ===== Envoi manuel SMS / WhatsApp (clic-pour-envoyer, GRATUIT) — SOURCE UNIQUE =====
 // Ouvre l'appli SMS/WhatsApp du téléphone de l'utilisateur avec le message DÉJÀ ÉCRIT. Aucun
 // prestataire, aucun coût : c'est l'utilisateur qui appuie sur « Envoyer », depuis SON numéro.
