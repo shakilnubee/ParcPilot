@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261109a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261109b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261109a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261109b">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -685,6 +685,22 @@
         </div>
         <label class="block"><span class="field-label">Malus écologique (€ TTC) <span class="text-slate-400">— opt., s'il figure sur l'offre</span></span>
           <input id="lease-malus" type="number" min="0" step="1" class="field-input w-full mt-1" placeholder="ex. 2240"></label>
+        <div style="border-top:1px solid var(--fp-border);padding-top:10px">
+          <div class="text-sm font-medium text-slate-700 mb-2">Fiscalité &amp; fin de contrat <span class="text-slate-400 text-xs">— optionnel</span></div>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block"><span class="field-label">1ᵉʳ loyer majoré / apport (€ TTC)</span>
+              <input id="lease-loyermajore" type="number" min="0" step="0.01" class="field-input w-full mt-1" placeholder="ex. 3000"></label>
+            <label class="block"><span class="field-label">Dépôt de garantie (€)</span>
+              <input id="lease-depot" type="number" min="0" step="0.01" class="field-input w-full mt-1" placeholder="ex. 1500"></label>
+            <label class="block"><span class="field-label">Valeur résiduelle (€)</span>
+              <input id="lease-residuelle" type="number" min="0" step="0.01" class="field-input w-full mt-1" placeholder="ex. 12000"></label>
+            <label class="block"><span class="field-label">Option d'achat (€ — LOA)</span>
+              <input id="lease-optionachat" type="number" min="0" step="0.01" class="field-input w-full mt-1" placeholder="ex. 12000"></label>
+          </div>
+          <label class="block mt-3"><span class="field-label">Part de loyer NON déductible / an (€) <span class="text-slate-400">— indiquée par le loueur sur le relevé fiscalité</span></span>
+            <input id="lease-loyernondeduct" type="number" min="0" step="0.01" class="field-input w-full mt-1" placeholder="ex. 1180"></label>
+          <p class="text-xs text-slate-400 mt-1">Ces champs alimentent la rubrique <b>Fiscalité &amp; TCO</b> de la fiche véhicule et le simulateur. Ils ne changent pas le loyer.</p>
+        </div>
         <div>
           <div class="flex items-center justify-between gap-3"><span class="text-sm font-medium text-slate-700 min-w-0">Avenants (changement de loyer)</span>
             <button id="lease-avenant-add" type="button" class="text-xs font-semibold flex-shrink-0 whitespace-nowrap" style="color:var(--fp-accent)">+ Ajouter un avenant</button></div>
@@ -809,8 +825,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261109a"></script>
-<script src="../assets/js/supabase-client.js?v=20261109a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261109b"></script>
+<script src="../assets/js/supabase-client.js?v=20261109b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -826,11 +842,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261109a"></script>
+<script src="../assets/js/app.min.js?v=20261109b"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2261,6 +2277,12 @@
     $('lease-tol').value = (c.kmTolerance != null) ? c.kmTolerance : '';
     $('lease-loyer').value = (c.loyer != null && c.loyer !== '') ? c.loyer : '';
     if ($('lease-malus')) $('lease-malus').value = (c.malus != null && c.malus !== '') ? c.malus : '';
+    const _setv = (id, val) => { const el = $(id); if (el) el.value = (val != null && val !== '') ? val : ''; };
+    _setv('lease-loyermajore', c.loyerMajore);
+    _setv('lease-depot', c.depotGarantie);
+    _setv('lease-residuelle', c.valeurResiduelle);
+    _setv('lease-optionachat', c.optionAchat);
+    _setv('lease-loyernondeduct', c.loyerNonDeductible);
     renderAvenantRows(Array.isArray(c.avenants) ? c.avenants : []);
     if ($('lease-scan-status')) { $('lease-scan-status').textContent = "Dépose le PDF de l'offre du loueur → malus, loyer, forfait km et durée lus automatiquement (à vérifier)."; $('lease-scan-status').style.color = ''; }
     const m = $('lease-modal'); m.classList.remove('hidden'); m.classList.add('flex');
@@ -2548,8 +2570,14 @@
     const tol = $('lease-tol').value !== '' ? parseInt($('lease-tol').value, 10) : null;
     const loyer = $('lease-loyer').value !== '' ? parseFloat($('lease-loyer').value) : null;
     const malus = ($('lease-malus') && $('lease-malus').value !== '') ? parseFloat($('lease-malus').value) : null;
+    const _numf = (id) => { const el = $(id); const val = el && el.value !== '' ? parseFloat(el.value) : null; return (val != null && !isNaN(val)) ? val : null; };
+    const loyerMajore = _numf('lease-loyermajore');
+    const depotGarantie = _numf('lease-depot');
+    const valeurResiduelle = _numf('lease-residuelle');
+    const optionAchat = _numf('lease-optionachat');
+    const loyerNonDeductible = _numf('lease-loyernondeduct');
     if (!km || !debut) { alert('Renseigne au moins le forfait km et la date de début.'); return; }
-    FP.saveLeasingOverride(leaseEditImmat, { kmContrat: km, dureeMois: duree, debut, kmSupp: kmsupp, kmTolerance: (tol != null && !isNaN(tol)) ? tol : null, loyer: (loyer != null && !isNaN(loyer)) ? loyer : null, malus: (malus != null && !isNaN(malus)) ? malus : null, avenants: collectAvenants() });
+    FP.saveLeasingOverride(leaseEditImmat, { kmContrat: km, dureeMois: duree, debut, kmSupp: kmsupp, kmTolerance: (tol != null && !isNaN(tol)) ? tol : null, loyer: (loyer != null && !isNaN(loyer)) ? loyer : null, malus: (malus != null && !isNaN(malus)) ? malus : null, loyerMajore: loyerMajore, depotGarantie: depotGarantie, valeurResiduelle: valeurResiduelle, optionAchat: optionAchat, loyerNonDeductible: loyerNonDeductible, avenants: collectAvenants() });
     closeLeaseModal(); renderKPIs(); renderLeasing();
   });
   if ($('lease-avenant-add')) $('lease-avenant-add').addEventListener('click', () => { $('lease-avenants').insertAdjacentHTML('beforeend', avenantRowHTML('', '')); });

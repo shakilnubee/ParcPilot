@@ -1565,9 +1565,14 @@ FP.amortissement = function (v) {
   if (estLeasing || (loyerMois != null && loyerMois > 0)) {
     let lnd = null;
     try {
-      const m = (FP.settings && FP.settings.get) ? (FP.settings.get().loyerNonDeductible || {}) : {};
-      const k = (FP.normImmat && v) ? FP.normImmat(v.immat) : (v && v.immat);
-      for (const key in m) { if ((FP.normImmat ? FP.normImmat(key) : key) === k) { lnd = Number(m[key]); break; } }
+      // 1) champ du contrat (saisi/importé du loueur, onglet Contrats) ; 2) repli sur une map de réglages.
+      const ct = (FP.leasingContrat && v) ? FP.leasingContrat(v.immat) : null;
+      if (ct && ct.loyerNonDeductible != null && ct.loyerNonDeductible !== '') lnd = Number(ct.loyerNonDeductible);
+      if (lnd == null) {
+        const m = (FP.settings && FP.settings.get) ? (FP.settings.get().loyerNonDeductible || {}) : {};
+        const k = (FP.normImmat && v) ? FP.normImmat(v.immat) : (v && v.immat);
+        for (const key in m) { if ((FP.normImmat ? FP.normImmat(key) : key) === k) { lnd = Number(m[key]); break; } }
+      }
     } catch (e) {}
     return { mode: 'location', loyerMois: loyerMois, loyerAnnuel: (loyerMois != null ? loyerMois * 12 : null), loyerNonDeductibleAnnuel: (lnd != null && isFinite(lnd)) ? lnd : null };
   }
