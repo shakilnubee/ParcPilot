@@ -916,7 +916,12 @@
       { n: 6, label: 'Soldé', done: solde },
     ];
     let next;
-    if (solde) next = { tone: 'done', tab: 'fin', text: 'Dossier financièrement soldé.' + (fin.resteChargeDef != null ? (' Reste à charge définitif : ' + eur(fin.resteChargeDef) + '.') : '') };
+    // ⚠️ RÈGLE PRIORITAIRE : un dossier CLÔTURÉ (date de clôture renseignée) n'a PLUS d'action requise,
+    // quelles que soient les étapes amont manquantes (déclaration, réponse, remboursement…). Il sort donc
+    // d'« Action requise » (actionRequiseOf lit next.tone) et le panneau n'affiche plus d'action opérationnelle.
+    // Les étapes du parcours, montants, documents et historique restent intacts (steps inchangés ci-dessus).
+    if (dv.dateCloture) next = { tone: 'done', tab: 'fin', text: 'Dossier clôturé — aucune action requise.' };
+    else if (solde) next = { tone: 'done', tab: 'fin', text: 'Dossier financièrement soldé.' + (fin.resteChargeDef != null ? (' Reste à charge définitif : ' + eur(fin.resteChargeDef) + '.') : '') };
     else if (!coutKnown) next = { tone: 'do', tab: 'fin', text: 'Chiffre le sinistre : saisis le coût estimé, ou dépose la facture de réparation (le coût facturé se lit tout seul).' };
     else if (!declared) next = { tone: 'do', tab: 'assurance', text: 'Déclare le sinistre à l’assurance : renseigne le n° de dossier et la date de déclaration (ou dépose le courrier de l’assureur).' };
     else if (!answered) next = { tone: 'wait', tab: 'docs', text: 'En attente de la réponse de l’assureur : renseigne la responsabilité / la date de réponse, ou dépose le courrier (lu par l’IA).' };
@@ -1674,7 +1679,9 @@
         const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
         const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
         let oldUrl = ''; try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).constatUrl || ''; } catch (_) {}
-        const url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`);
+        let url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`);
+        // Vérifie que le fichier EST réellement déposé (sinon on n'enregistre pas une URL morte).
+        if (url && FP.signedScanUrlStrict) { try { if ((await FP.signedScanUrlStrict(url, 60)) == null) url = ''; } catch (_) {} }
         if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; o.constatUrl = url; FP.settings.save(s); constatSaved = true; if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); } }
         else constatFail = true;   // upload échoué → à signaler (ne pas faire croire que le constat est classé)
       } catch (_) { constatFail = true; }
@@ -1722,8 +1729,23 @@
   // Voir : lien signé (bucket privé) ; repli Drive pour un identifiant hérité.
   function sinDocView(u) {
     if (!u) return;
-    if (/^https?:\/\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); }
-    else window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener');
+    if (!/^https?:\/\//.test(u)) { window.open('https://drive.google.com/file/d/' + u + '/view', '_blank', 'noopener'); return; }
+    if (!/\/scans\//.test(u)) { if (FP.openScan) FP.openScan(u); else window.open(u, '_blank', 'noopener'); return; }
+    // Fichier du bucket PRIVÉ « scans » : on OUVRE l'onglet dans le geste de clic (sinon bloqué), puis on
+    // SIGNE en mode STRICT. Si l'objet est INTROUVABLE (upload jamais abouti) → message clair au lieu
+    // d'afficher le JSON brut « Bucket not found ».
+    const w = window.open('', '_blank');
+    (async () => {
+      let su = null;
+      try { su = FP.signedScanUrlStrict ? await FP.signedScanUrlStrict(u) : (FP.signedScanUrl ? await FP.signedScanUrl(u) : u); } catch (_) {}
+      if (su == null) {
+        try { if (w) w.close(); } catch (_) {}
+        const msg = 'Ce document n\'est pas disponible : le fichier n\'a pas été déposé correctement dans le stockage. Supprime la ligne (menu ⋯) puis redépose le document.';
+        if (FP.notifyError) FP.notifyError(msg); else alert(msg);
+        return;
+      }
+      if (FP._openBlobTab) FP._openBlobTab(w, su); else if (w) { try { w.location = su; } catch (_) {} }
+    })();
   }
   // Télécharger : lien signé → <a download>.
   async function sinDocDownload(u, name) {
@@ -1801,7 +1823,15 @@
     try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).courrierUrl || ''; } catch (_) {}
     const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
     const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
-    try { if (FP.uploadScan) { url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`) || ''; if (!url) courrierFail = true; } } catch (_) { courrierFail = true; }
+    try {
+      if (FP.uploadScan) {
+        url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`) || '';
+        // Vérifie que le fichier EST réellement déposé dans le stockage (sinon on n'enregistre PAS une URL
+        // morte : un échec stockage silencieux ne doit pas laisser une ligne « Voir » cassée).
+        if (url && FP.signedScanUrlStrict) { try { if ((await FP.signedScanUrlStrict(url, 60)) == null) url = ''; } catch (_) {} }
+        if (!url) courrierFail = true;
+      }
+    } catch (_) { courrierFail = true; }
     if (url) {
       const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
       const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
