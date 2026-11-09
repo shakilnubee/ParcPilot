@@ -1243,6 +1243,7 @@
               <div style="min-width:0"><div class="sin-cta-k">Prochaine action</div><div class="sin-cta-t">${escapeHtml(parc.next.text)}</div></div>
               ${parc.next.tone === 'done' ? '' : `<button type="button" class="sin-cta-btn sin-dtab" data-key="${g.key}" data-tab="${parc.next.tab || 'fin'}">Y aller</button>`}
             </div>
+            <div style="margin-top:10px;display:flex;justify-content:flex-end">${sinCloturerBtnHTML(g, dv)}</div>
           </div>
           <div class="sin-kpis">
             <div class="sin-k"><div class="l">Coût</div><div class="v">${kv(coutKpi)}</div></div>
@@ -1267,7 +1268,7 @@
             ${tabBtn('histo', 'Historique')}
           </div>
           ${pane('fin', sinFinHTML(g, dv, cur, { noParcours: true }))}
-          ${pane('assurance', sinAssureFieldsHTML(g, dv, vehCh) + `<div class="mt-3">${sinCloturerBtnHTML(g, dv)}</div>`)}
+          ${pane('assurance', sinAssureFieldsHTML(g, dv, vehCh))}
           ${pane('docs', sinDocsSectionHTML(g, s, dv, true))}
           ${pane('tiers', sinTiersFieldsHTML(g, dv))}
           ${pane('histo', histoPane)}
