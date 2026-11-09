@@ -329,8 +329,7 @@
         <i data-lucide="scan-line" class="w-4 h-4"></i> Nouveau sinistre (par sa facture)
         <input type="file" id="sin-facture-file" accept="image/*,application/pdf" multiple class="hidden">
       </label>
-      <button class="btn btn-outline text-sm" id="sin-fiche-btn" title="Relevé des sinistres (PDF) — pour l'assureur"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
-      <span data-data-io></span>
+      <span data-data-io hidden></span><span id="sin-io-mount"></span>
     </div>
     <div id="sin-facture-status" class="hidden mb-6 text-sm rounded-lg px-4 py-3"></div>
 
@@ -3819,11 +3818,11 @@
     getRows: () => filtered(),
   });
 
-  // Relevé PDF des sinistres (aperçu + téléchargement) — pour l'assureur.
-  if (document.getElementById('sin-fiche-btn')) document.getElementById('sin-fiche-btn').addEventListener('click', () => {
-    if (!(FP.fiche && FP.fiche.open)) return;
+  // Relevé PDF des sinistres (aperçu + téléchargement) — pour l'assureur. Config factorisée (réutilisée
+  // par le centre unifié « Exporter »).
+  function sinFicheConfig() {
     const rows = filtered().slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    FP.fiche.open({
+    return {
       key: 'sinistres',
       title: 'Relevé des sinistres',
       rows: rows,
@@ -3838,7 +3837,14 @@
         { id: 'numeroFacture', label: 'N° facture',  def: false, mono: true, get: s => s.numeroFacture || '—' },
         { id: 'montantTTC',    label: 'Montant TTC', def: true,  align: 'right', get: s => (s.montantTTC != null && s.montantTTC !== '') ? FP.euroPrecis(s.montantTTC) : '—', sum: s => s.montantTTC, fmt: FP.euroPrecis },
       ],
-    });
+    };
+  }
+  // ── Centre unifié « Exporter » (remplace Relevé PDF + Export Excel) ──
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#sin-io-mount', sheetName: 'Sinistres',
+    baseName: () => 'sinistres-' + new Date().toISOString().slice(0, 10),
+    period: { dateOf: s => s.date || '' },
+    releve: sinFicheConfig,
   });
 </script>
 </body>
