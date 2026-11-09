@@ -107,14 +107,16 @@ async function vehInfo(db: ReturnType<typeof createClient>, vehiculeId: string |
 //  • km : km de la dernière révision + intervalle si connu ; sinon prochain palier d'odomètre.
 //  • date : dernière révision (ou mise en circulation à défaut) + intervalle en mois, avancée jusqu'à
 //    une date FUTURE si aucune révision n'est encore enregistrée. Renvoie { date, km } (valeurs ou null).
-function prochaineRevision(v: Record<string, unknown>, revKm: number, revMois: number, alerteKm: number, alerteJours: number) {
-  const km = Math.max(Number(v.km) || 0, Number(v.km_dernier_releve) || 0);   // km RÉEL (max km / dernier relevé) — MÊME source que FP.kmActuel (app.js), sinon la révision était sous-estimée
+function prochaineRevision(v: Record<string, unknown>, revKm: number, revMois: number, alerteKm: number, alerteJours: number, kmRevRef: number | null) {
+  const km = Math.max(Number(v.km) || 0, Number(v.km_dernier_releve) || 0);   // km RÉEL courant (max km / dernier relevé) — MÊME source que FP.kmActuel (app.js)
   const today = new Date();
   const dRevStr = String(v.derniere_revision || "");
   const hasRev = !!(dRevStr && dRevStr !== "—" && !isNaN(new Date(dRevStr).getTime()));
   const mecStr = String(v.date_mise_en_circulation || "");
   const mec = mecStr && !isNaN(new Date(mecStr).getTime()) ? new Date(mecStr) : null;
-  const kmRev = Number(v.km_dernier_releve) > 0 ? Number(v.km_dernier_releve) : null;
+  // ⚠️ km À LA RÉVISION (base STABLE du seuil) = réf app_settings.revisionKmRef maintenue par l'app
+  // (MÊME source que FP.kmRevision côté client). JAMAIS km_dernier_releve (odomètre → le seuil dérivait).
+  const kmRev = (kmRevRef != null && kmRevRef > 0) ? kmRevRef : null;
   let date: string | null = null;
   let joursRestant: number | null = null;
   const anchor = hasRev ? new Date(dRevStr) : mec;
@@ -126,12 +128,13 @@ function prochaineRevision(v: Record<string, unknown>, revKm: number, revMois: n
   }
   let kmDue: number | null = null;
   let kmRestant: number | null = null;
-  if (kmRev) { kmDue = kmRev + revKm; kmRestant = kmDue - km; }
+  if (kmRev != null) { kmDue = kmRev + revKm; kmRestant = kmDue - km; }
   // PREMIÈRE révision jamais faite → cible FIXE = 1 intervalle (ex. 15 000 km), jamais un multiple
-  // d'odomètre : un véhicule à 20 765 km sans révision enregistrée est EN RETARD sur sa 1ʳᵉ révision
-  // (kmRestant négatif = rouge), au lieu d'afficher « 30 000 km ». MÊME logique que FP.revisionInfo (app.js).
+  // d'odomètre : un véhicule à 20 765 km sans révision enregistrée est EN RETARD sur sa 1ʳᵉ révision.
   else if (!hasRev) { kmDue = revKm; kmRestant = kmDue - km; }
-  else { kmDue = Math.ceil(km / revKm) * revKm; if (kmDue <= km) kmDue = km + revKm; kmRestant = kmDue - km; }
+  // Révision connue (DATE) mais km de révision inconnu → « à compléter » : aucun seuil km inventé depuis
+  // l'odomètre (règle intégrité, MÊME logique que FP.revisionInfo) → seule l'échéance par DATE s'applique.
+  else { kmDue = null; kmRestant = null; }
   // Niveau d'alerte — MÊME règle que FP.revisionInfo : dépassé = danger (rouge), proche = warn (orange).
   const lvlKm = kmRestant === null ? null : (kmRestant <= 0 ? "danger" : (kmRestant <= alerteKm ? "warn" : null));
   const lvlDt = joursRestant === null ? null : (joursRestant <= 0 ? "danger" : (joursRestant <= alerteJours ? "warn" : null));
@@ -653,6 +656,7 @@ Deno.serve(async (req) => {
           let masseKg: number | null = null;
           let revKm = 15000, revMois = 12;          // défauts alignés sur FP.notifCfg (app.js)
           let revAlerteKm = 1000, revAlerteJours = 30; // seuils d'alerte révision (proche → orange)
+          let kmRevRef: number | null = null;        // km À LA RÉVISION (base stable du seuil) — app_settings.revisionKmRef
           try {
             const { data: setRow } = await db.from("app_settings").select("data").eq("id", qr.societe || "PXP").maybeSingle();
             const sd = (setRow && setRow.data) as Record<string, unknown> | undefined;
@@ -667,6 +671,10 @@ Deno.serve(async (req) => {
               if (notif.revAlerteKm != null && notif.revAlerteKm !== "") revAlerteKm = Number(notif.revAlerteKm) || revAlerteKm;
               if (notif.revAlerteJours != null && notif.revAlerteJours !== "") revAlerteJours = Number(notif.revAlerteJours) || revAlerteJours;
             }
+            // km À LA RÉVISION (base stable du seuil de prochaine révision) — posé par l'app (FP.setRevisionKmRef).
+            const rkr = (sd && sd.revisionKmRef) as Record<string, unknown> | undefined;
+            const rawRk = rkr && qr.vehicule_id ? rkr[qr.vehicule_id as string] : null;
+            if (rawRk != null && rawRk !== "" && Number(rawRk) > 0) kmRevRef = Number(rawRk);
           } catch (_) { /* pas de masse / config réglée → défauts */ }
           // Table MASSE_CG = masses relevées sur les cartes grises de la flotte PXP → repli réservé à PXP
           // (les autres sociétés renseignent leur masse via vehMasse, prioritaire ci-dessus).
@@ -676,7 +684,7 @@ Deno.serve(async (req) => {
             const KNOWN: Record<string, number> = { "SEAL U": 2102, "ATTO 3": 1750 };
             for (const k in KNOWN) { if (mod.includes(k)) { masseKg = KNOWN[k]; break; } }
           }
-          const rev = veh ? prochaineRevision(veh as Record<string, unknown>, revKm, revMois, revAlerteKm, revAlerteJours) : { date: null, km: null, niveau: null };
+          const rev = veh ? prochaineRevision(veh as Record<string, unknown>, revKm, revMois, revAlerteKm, revAlerteJours, kmRevRef) : { date: null, km: null, niveau: null };
           const info = veh ? {
             marque: veh.marque || "", modele: veh.modele || "", carburant: veh.carburant || "",
             co2: veh.co2 != null && veh.co2 !== "" ? Number(veh.co2) : null,

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106o">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261106p">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261106o"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261106p"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261106o">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261106p">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -719,7 +719,7 @@
 
         <div class="man-zone">Sous-onglets « Fournisseurs » &amp; « Entretiens »</div>
         <div class="man-item"><b>Fournisseurs</b> = nettoyer les doublons de noms (Renommer/fusionner, ou Supprimer le nom). <b>Entretiens</b> = la page dédiée aux <b>révisions &amp; à la maintenance</b>.</div>
-        <div class="man-item"><b>🛠️ Révisions à venir</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en haut, un tableau liste les véhicules dont la <b>révision est due</b> (au <b>km</b> ou à la <b>date</b>, selon la dernière révision et l'intervalle préconisé), du plus urgent au plus lointain. Pour chacun, deux boutons : <b>« ✓ Révision faite »</b> — enregistre en un clic la <b>date (aujourd'hui) + le kilométrage</b> (pré-rempli au km actuel, modifiable) → la <b>prochaine révision se recalcule automatiquement partout</b> (fiche, tâches, alertes) ; et <b>« 📣 Prévenir »</b> — écrit au conducteur par <b>SMS / WhatsApp / e-mail</b> (avec le <b>PDF du garage</b> rattaché joint automatiquement). Juste en dessous, les <b>échéances de contrôle technique</b> (inchangées).</div>
+        <div class="man-item"><b>🛠️ Révisions à venir</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en haut, un tableau liste les véhicules dont la <b>révision est due</b> (au <b>km</b> ou à la <b>date</b>, selon la dernière révision et l'intervalle préconisé), du plus urgent au plus lointain. Pour chacun, deux boutons : <b>« ✓ Révision faite »</b> — enregistre en un clic la <b>date (aujourd'hui) + le kilométrage</b> (pré-rempli au km actuel, modifiable) → la <b>prochaine révision se recalcule automatiquement partout</b> (fiche, tâches, alertes) ; et <b>« 📣 Prévenir »</b> — écrit au conducteur par <b>SMS / WhatsApp / e-mail</b> (avec le <b>PDF du garage</b> rattaché joint automatiquement). Juste en dessous, les <b>échéances de contrôle technique</b> (inchangées). <b>Comment le seuil km est calculé</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> : la prochaine révision est due au <b>km DE la dernière révision + l'intervalle</b> (ex. 28 043 + 15 000 = <b>43 043 km</b>) <b>OU</b> à la <b>date</b> de la dernière révision + l'intervalle en mois (ex. +12 mois) — au <b>premier des deux atteint</b>. Le seuil ne « monte » plus avec le compteur : il reste <b>fixe</b> jusqu'à la prochaine révision. Si le <b>km de la dernière révision est inconnu</b>, le km s'affiche « à compléter » (on ne devine jamais depuis le compteur) et seule l'échéance par date s'applique. L'intervalle est celui réglé dans <b>Paramètres</b> (ou par véhicule). Un <b>pneu / CT / réparation</b> ne compte pas comme une révision.</div>
         <div class="man-item"><b>📅 Filtrer par période</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en plus du filtre par <b>année</b>, la barre de filtres propose un <b>mois</b> (menu rapide) et un <b>intervalle « Du → Au »</b> (dates précises). Le tableau, l'analyse des coûts <b>et l'export</b> suivent la période choisie — comme sur Total Fleet / Ulys. Le bouton <b>« ↺ Réinitialiser »</b> remet tout à zéro.</div>
 
         <div class="man-zone">Le scan &amp; les exports</div>
@@ -1110,8 +1110,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261106o"></script>
-<script src="../assets/js/supabase-client.js?v=20261106o"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261106p"></script>
+<script src="../assets/js/supabase-client.js?v=20261106p"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1127,10 +1127,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106o"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261106p"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261106o"></script>
+<script src="../assets/js/app.min.js?v=20261106p"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

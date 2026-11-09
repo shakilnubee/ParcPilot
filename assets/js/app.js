@@ -2150,9 +2150,39 @@ FP.derniereRevision = (v, factures) => {
     else date = stored || fdate;
     const fac = (fdate && date === fdate) ? info.facture : null;
     const facKm = (fac && Number(fac.km) > 0) ? Number(fac.km) : null;
-    const km = (facKm != null) ? facKm : ((Number(v.kmDernierReleve) > 0) ? Number(v.kmDernierReleve) : null);
+    // km AFFICHÉ « à la dernière révision » : source unique FP.kmRevision (réf stable = saisie manuelle
+    // OU km de la facture de révision) ; repli historique kmDernierReleve si rien d'autre (affichage only).
+    const kmRef = FP.kmRevision ? FP.kmRevision(v, factures) : null;
+    const km = (kmRef != null) ? kmRef : ((facKm != null) ? facKm : ((Number(v.kmDernierReleve) > 0) ? Number(v.kmDernierReleve) : null));
     return { date: date || null, facture: fac, km };
   } catch (e) { return { date: null, facture: null, km: null }; }
+};
+// ⚠️ SOURCE UNIQUE — « km À LA DERNIÈRE RÉVISION » = base du SEUIL KILOMÉTRIQUE de la prochaine révision.
+// JAMAIS l'odomètre courant ni `kmDernierReleve` (qui suit l'odomètre et « dérive » à chaque relevé/facture,
+// d'où le bug « prochaine révision = compteur + intervalle »). Priorité :
+//   1) réf stable maintenue par le client : `settings.revisionKmRef[v.id]` — saisie manuelle (« ✓ Révision
+//      faite » / fiche) OU km de la facture de révision retenue (posé au recompute) ;
+//   2) repli LIVE : km de la facture de révision retenue (si la réf n'est pas encore calculée) ;
+//   3) inconnu → null (« à compléter » : on n'invente pas, on garde l'échéance par DATE — règle intégrité).
+FP.kmRevision = (v, factures) => {
+  if (!v) return null;
+  try { const r = (FP.settings.get().revisionKmRef || {})[v.id]; if (r != null && Number(r) > 0) return Number(r); } catch (e) {}
+  try { const info = FP.derniereRevisionInfo ? FP.derniereRevisionInfo(v, factures) : null; if (info && info.facture && Number(info.facture.km) > 0) return Number(info.facture.km); } catch (e) {}
+  return null;
+};
+// Écrit/efface la réf « km à la révision » (persistée + synchronisée ; dans COLLECTION_KEYS + _PRECIOUS).
+// km > 0 → pose la réf ; km nul/0/invalide → efface (revient au repli facture/live). N'écrit que si ça change.
+FP.setRevisionKmRef = (vehId, km) => {
+  try {
+    if (vehId == null) return;
+    const s = FP.settings.get();
+    s.revisionKmRef = (s.revisionKmRef && typeof s.revisionKmRef === 'object') ? s.revisionKmRef : {};
+    const n = Number(km);
+    const cur = s.revisionKmRef[vehId];
+    if (Number.isFinite(n) && n > 0) { if (Number(cur) === n) return; s.revisionKmRef[vehId] = n; }
+    else { if (cur == null) return; delete s.revisionKmRef[vehId]; }
+    FP.settings.save(s);
+  } catch (e) {}
 };
 // Corrige manuellement le statut « révision » d'une facture, persiste le choix (multi-appareils) et
 // recale la « dernière révision » du véhicule (source unique = FP.recomputeVehiculeFromFactures).
@@ -2214,6 +2244,34 @@ FP._fixRevisionsUneFois = function () {
   } catch (e) {}
 };
 try { document.addEventListener('fp:data-ready', () => { setTimeout(() => { try { FP._fixRevisionsUneFois(); } catch (e) {} }, 1200); }); } catch (e) {}
+// ⚠️ BACKFILL UNIQUE — peuple settings.revisionKmRef (km À LA RÉVISION, base stable du seuil) depuis la
+// FACTURE de révision de chaque véhicule. Indispensable pour le PORTAIL conducteur (Edge km-collect) qui
+// n'a pas accès aux factures : il lit uniquement revisionKmRef dans app_settings. Côté app, FP.kmRevision
+// a déjà un repli live sur la facture → la correction est immédiate même avant ce backfill. Idempotent,
+// une seule fois (drapeau revisionKmRefInit), n'écrase JAMAIS une réf déjà présente (saisie manuelle).
+FP._initRevisionKmRef = function () {
+  try {
+    const s = FP.settings.get();
+    if (s.revisionKmRefInit) return;
+    const vehs = (typeof window !== 'undefined' && window.FP_DATA && window.FP_DATA.vehicules) || [];
+    const factures = (typeof window !== 'undefined' && window.FP_DATA && window.FP_DATA.factures) || [];
+    s.revisionKmRef = (s.revisionKmRef && typeof s.revisionKmRef === 'object') ? s.revisionKmRef : {};
+    let n = 0;
+    vehs.forEach(v => {
+      if (!v || v.id == null) return;
+      if (s.revisionKmRef[v.id] != null) return;               // déjà renseigné (ex. saisie manuelle) → on respecte
+      try {
+        const info = FP.derniereRevisionInfo ? FP.derniereRevisionInfo(v, factures) : null;
+        const rk = (info && info.facture && Number(info.facture.km) > 0) ? Number(info.facture.km) : null;
+        if (rk != null) { s.revisionKmRef[v.id] = rk; n++; }
+      } catch (e) {}
+    });
+    s.revisionKmRefInit = true;
+    FP.settings.save(s);
+    if (n) { try { console.warn('[révisions] km de référence posé pour ' + n + ' véhicule(s)'); } catch (e) {} }
+  } catch (e) {}
+};
+try { document.addEventListener('fp:data-ready', () => { setTimeout(() => { try { FP._initRevisionKmRef(); } catch (e) {} }, 1600); }); } catch (e) {}
 // ⚠️ SOURCE UNIQUE — « Dépensé {année} » d'un véhicule = entretien/réparation (factures DÉDOUBLONNÉES)
 // + sinistres à charge (FP.coutSinistre). Utilisé par la fiche véhicule À L'ÉCRAN et dans son PDF pour
 // afficher EXACTEMENT le même montant (sinon le PDF sur-comptait les doublons et ignorait les sinistres).
@@ -2419,6 +2477,17 @@ FP.recomputeVehiculeFromFactures = function (v, factures) {
     const kms = allMine.map(f => Number(f.km)).filter(n => Number.isFinite(n) && n > 0);
     const kmRev = kms.length ? Math.max(...kms) : null;
     if ((Number(v.kmDernierReleve) || null) !== (kmRev || null)) { v.kmDernierReleve = kmRev; patch.kmDernierReleve = kmRev; }
+    // ⚠️ km À LA RÉVISION (base STABLE du seuil de prochaine révision) = km de la FACTURE de révision
+    // retenue (celle de `derniere`), JAMAIS l'odomètre (kmDernierReleve). Posé dans settings.revisionKmRef
+    // (source unique FP.kmRevision, lue aussi par l'Edge km-collect). N'écrit que si ça change.
+    try {
+      if (derniere && FP.setRevisionKmRef) {
+        const revFac = mine.filter(f => FP.compteCommeRevision(f) && f.date === derniere)
+          .sort((a, b) => (Number(b.km) || 0) - (Number(a.km) || 0))[0];
+        const rk = (revFac && Number(revFac.km) > 0) ? Number(revFac.km) : null;
+        if (rk != null) FP.setRevisionKmRef(v.id, rk);   // ne touche pas une réf saisie à la main si pas de km facture
+      }
+    } catch (e) {}
     // Date pneus = date la plus récente parmi les factures d'entretien « pneu » restantes (sinon vide).
     const pneuDates = mine.filter(f => /pneu/i.test(String(f.description || ''))).map(f => f.date).filter(Boolean).sort();
     const pneu = pneuDates.length ? pneuDates[pneuDates.length - 1] : null;
@@ -7255,7 +7324,7 @@ FP.settings = {
   // utilisateur normale (on ne supprime pas 12 congés d'un coup) → on le BLOQUE et on RESTAURE la clé
   // depuis la dernière valeur connue (snapshot serveur, sinon cache local). Une édition normale
   // (12 → 11 congés) n'est pas concernée (11 > 0).
-  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements', 'condDocs',
+  _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements', 'condDocs', 'revisionKmRef',
     'affectations', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
     'leasingContrats', 'localeaseContrats', 'loueurs', 'prestatairesPerso', 'prestataires',
     'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'kmMajDates', 'antiPollDates',
@@ -7419,7 +7488,7 @@ FP.settings = {
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
       'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements',
       // — Historique & données par VÉHICULE :
-      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage',
+      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef',
       // — Données par SINISTRE :
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
@@ -9468,8 +9537,9 @@ FP.revisionInfo = (v) => {
   const _drev = (FP.derniereRevision ? FP.derniereRevision(v).date : (v.derniereRevision || null));
   const dRev = (_drev && _drev !== '—') ? new Date(_drev) : null;
   const hasRev = dRev && !isNaN(dRev);
-  // Km RÉEL à la dernière révision (colonne « KM revision » du Drive → kmDernierReleve)
-  const kmRev = (Number(v.kmDernierReleve) > 0) ? Number(v.kmDernierReleve) : null;
+  // ⚠️ SOURCE UNIQUE du km À LA RÉVISION = FP.kmRevision (réf stable : saisie manuelle OU km de la facture
+  // de révision). JAMAIS kmDernierReleve (qui suit l'odomètre → le seuil « montait » avec le compteur).
+  const kmRev = FP.kmRevision ? FP.kmRevision(v) : ((Number(v.kmDernierReleve) > 0) ? Number(v.kmDernierReleve) : null);
 
   let prochaineKm = null, kmRestant = null, prochaineDate = null, joursRestant = null;
 
@@ -9488,29 +9558,22 @@ FP.revisionInfo = (v) => {
     joursRestant = Math.ceil((prochaineDate - today) / 86400000);
   }
 
-  // Échéance kilométrique — par ordre de fiabilité :
-  if (kmRev) {
-    // 1) EXACT : km de la dernière révision + intervalle préconisé
+  // Échéance kilométrique — RÈGLE : seuil = km À LA RÉVISION + intervalle (STABLE, ne dérive PAS avec
+  // l'odomètre). La date et le km sont deux échéances INDÉPENDANTES (« au premier des deux atteint »).
+  if (kmRev != null) {
+    // 1) Révision connue avec son km → seuil EXACT = km de la révision + intervalle préconisé.
     prochaineKm = kmRev + intervalle.km;
     kmRestant = prochaineKm - km;
-  } else if (hasRev && pace !== null) {
-    // 2) Estimé : km parcourus depuis la révision (rythme × jours écoulés)
-    const joursDepuisRev = Math.max(0, (today - dRev) / 86400000);
-    kmRestant = Math.round(intervalle.km - pace * joursDepuisRev);
-    prochaineKm = Math.round(km + kmRestant);
   } else if (!hasRev) {
-    // 3) PREMIÈRE révision jamais faite → cible FIXE = 1 intervalle (ex. 15 000 km),
-    //    JAMAIS un multiple d'odomètre. Un véhicule à 20 765 km sans révision enregistrée
-    //    est donc EN RETARD sur sa 1ʳᵉ révision (kmRestant négatif = rouge), au lieu d'afficher
-    //    « 30 000 km » comme s'il avait déjà fait celle des 15 000. Une fois la 1ʳᵉ révision
-    //    saisie (fiche ou facture), la suivante repart de (km réel de la révision + intervalle).
+    // 2) PREMIÈRE révision jamais faite → cible FIXE = 1 intervalle (ex. 15 000 km), jamais un multiple
+    //    d'odomètre. Un véhicule à 20 765 km sans révision enregistrée est EN RETARD sur sa 1ʳᵉ révision.
     prochaineKm = intervalle.km;
     kmRestant = intervalle.km - km;
   } else {
-    // 4) Révision déjà faite mais km inconnu → repli palier d'odomètre
-    prochaineKm = Math.ceil(km / intervalle.km) * intervalle.km;
-    if (prochaineKm <= km) prochaineKm = km + intervalle.km;
-    kmRestant = prochaineKm - km;
+    // 3) Révision connue (DATE) mais km de révision inconnu → « À COMPLÉTER » : on n'invente AUCUN seuil
+    //    km (jamais à partir de l'odomètre courant — règle intégrité). Seule l'échéance par DATE s'applique.
+    prochaineKm = null;
+    kmRestant = null;
   }
 
   // Alerte SEULEMENT quand l'échéance est proche : dépassée = danger, sinon ≤ seuil = warn.
