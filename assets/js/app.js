@@ -19956,11 +19956,13 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-body{display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
     .fp-xc-pane{padding:15px 18px;overflow:auto;min-width:0}
     .fp-xc-pane.l{border-right:1px solid #eef2f7}
-    /* MOBILE : un SEUL conteneur qui défile (les 2 panes empilés) — sinon les panes
-       n'ont pas de hauteur bornée et rien ne scrolle (contenu tronqué). */
-    @media(max-width:760px){
-      #fp-xc-ov{padding:10px 8px}
-      .fp-xc-modal{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px)}
+    /* MOBILE (portrait ≤760px de large OU paysage téléphone ≤600px de haut) : un SEUL
+       conteneur qui défile (les 2 panes empilés). Le critère de HAUTEUR est indispensable :
+       en paysage le téléphone dépasse 760px de large → sans lui, la modale repasserait en
+       2 colonnes (aperçu à côté) sur un écran très bas, et le scroll/boutons recassent. */
+    @media(max-width:760px),(max-height:600px){
+      #fp-xc-ov{padding:8px 8px}
+      .fp-xc-modal{max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px)}
       .fp-xc-body{display:block;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
       .fp-xc-pane{overflow:visible}
       .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
