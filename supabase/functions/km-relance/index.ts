@@ -160,7 +160,7 @@ function mailDoc(inner: string): string {
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
     + '<meta name="color-scheme" content="only light">'
     + '<meta name="supported-color-schemes" content="only light">'
-    + '</head><body style="margin:0;padding:0;background:#EEF2F7;color:#0F1E3D">' + mailNoWrap(inner) + '</body></html>';
+    + '</head><body style="margin:0;padding:0;background:#FFFFFF;color:#0F1E3D">' + mailNoWrap(inner) + '</body></html>';
 }
 function ppLogoMail(): string {
   return '<span style="display:inline-block;vertical-align:middle;line-height:0;margin-right:9px">'
@@ -180,10 +180,32 @@ function ppFooter(_nomSoc: string): string {
 }
 function mailHead(nomSoc: string, logoUrl: string): string {
   return logoUrl
-    ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || "Logo") + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:block">'
+    ? '<img src="' + esc(logoUrl) + '" alt="' + esc(nomSoc || "Logo") + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:inline-block">'
     : (nomSoc
         ? '<span style="font-weight:900;font-size:17px;color:#ffffff;letter-spacing:.02em">' + esc(nomSoc) + '</span>'
         : ppLogoMail());
+}
+// ── CARTE BRANDÉE (design unique, identique au site FP.mailShell) : en-tête sombre + lueur orange douce
+//    en arrière-plan, fine ligne orange, corps SOMBRE lisible, pied Parc Pilot. Source unique de mise en
+//    forme des e-mails serveur (relevé km + rappel garage) → plus de gabarit « clair » divergent.
+//    `title` est déjà échappé par l'appelant (littéral sûr, ou esc(motif)). `prenom`/`plate` déjà fournis.
+function brandedCard(o: { title: string; prenom?: string; plate?: string; bodyInner: string; nomSoc: string; logoUrl: string }): string {
+  return ''
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
+    + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:460px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
+    + '<div style="background-color:#0A0E1A;background-image:radial-gradient(220px 150px at 50% 56px, rgba(249,115,22,.34), rgba(249,115,22,.08) 50%, rgba(249,115,22,0) 76%);padding:22px 22px;text-align:center">'
+    +   '<div>' + mailHead(o.nomSoc, o.logoUrl) + '</div>'
+    +   '<div style="font-size:20px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + o.title + '</div>'
+    +   (o.prenom ? '<div style="font-size:15px;font-weight:700;margin-top:10px;color:#E6EDF8">' + esc(o.prenom) + '</div>' : '')
+    +   (o.plate ? '<div style="margin-top:14px;white-space:nowrap">' + o.plate + '</div>' : '')
+    + '</div>'
+    + '<div style="height:3px;background:#F97316;line-height:3px;font-size:0">&#160;</div>'
+    + '<div style="background:#0F1626;padding:20px 22px;color:#E6EDF8;font-size:14px;line-height:1.6;text-align:left">'
+    +   o.bodyInner
+    + '</div>'
+    + ppFooter(o.nomSoc)
+    + '</div>'
+    + '</td></tr></table>';
 }
 
 // Remplissage des balises d'un modèle e-mail éditable (identique à FP.fillTags côté site).
@@ -300,23 +322,13 @@ function buildMail(opts: { prenom: string; immat: string; marque: string; link: 
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + esc(immat) + "</td></tr></table>"
     : "";
-  const html = ''
-    + '<div style="font-family:Inter,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
-    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:20px 22px;border-radius:16px 16px 0 0">'
-    + '<div>' + mailHead(nomSoc, logoUrl) + "</div>"
-    + '<div style="font-size:19px;font-weight:800;font-style:italic;margin-top:14px;line-height:1.25;color:#ffffff">' + title + "</div>"
-    + (prenom ? '<div style="font-size:16px;font-weight:700;margin-top:14px;color:#fff">' + esc(prenom) + "</div>" : "")
-    + (plate ? '<div style="margin-top:14px;white-space:nowrap">' + plate + "</div>" : "")
-    + "</div>"
-    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 22px">'
+  const bodyInner = ''
     + bodyText(msg)
-    + '<p style="text-align:center;margin:24px 0 6px">'
-    + '<a href="' + esc(link) + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px -8px rgba(11,18,32,.6)">' + btnTxt + '</a>'
+    + '<p style="text-align:center;margin:22px 0 6px">'
+    + '<a href="' + esc(link) + '" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px">' + btnTxt + '</a>'
     + "</p>"
-    + '<p style="margin:10px 0 0;font-size:12px;color:#94A3B8;text-align:center">' + helpTxt + '<a href="' + esc(link) + '" style="color:#94A3B8;text-decoration:underline">' + helpLink + '</a></p>'
-    + "</div>"
-    + ppFooter(nomSoc)
-    + "</div>";
+    + '<p style="margin:10px 0 0;font-size:12px;color:#8A93A3;text-align:center">' + helpTxt + '<a href="' + esc(link) + '" style="color:#8A93A3;text-decoration:underline">' + helpLink + '</a></p>';
+  const html = brandedCard({ title, prenom, plate, bodyInner, nomSoc, logoUrl });
   const text = msg + "\n\n" + linkTxt + link + "\n\n" + (nomSoc || "Parc Pilot");
   return { subject, html: mailDoc(html), text };
 }
@@ -365,29 +377,16 @@ function buildCtMail(opts: { prenom: string; immat: string; marque: string; date
   const gUrl = gcalUrl({ title: motif + (immat ? " · " + immat : ""), dateIso: String(opts.dateIso || ""), description: immat ? ("Véhicule : " + immat) : "" });
   const calBlock = (gUrl || icsB64)
     ? '<div style="text-align:center;margin:18px 0 2px">'
-      + (gUrl ? '<a href="' + gUrl + '" style="display:inline-block;background:#0B1220;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">' + (en ? "📅 Add to my calendar" : "📅 Ajouter à mon agenda") + '</a>' : '')
+      + (gUrl ? '<a href="' + gUrl + '" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:800;font-size:14px">' + (en ? "📅 Add to my calendar" : "📅 Ajouter à mon agenda") + '</a>' : '')
       + '</div>'
-      + (icsB64 ? '<p style="font-size:12px;color:#94A3B8;text-align:center;margin:6px 0 0">' + (en ? "Or open the attached calendar file (Apple / Outlook)." : "Ou ouvre le fichier agenda joint (Apple / Outlook).") + '</p>' : '')
+      + (icsB64 ? '<p style="font-size:12px;color:#8A93A3;text-align:center;margin:6px 0 0">' + (en ? "Or open the attached calendar file (Apple / Outlook)." : "Ou ouvre le fichier agenda joint (Apple / Outlook).") + '</p>' : '')
     : "";
   const plate = immat
     ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + esc(immat) + "</td></tr></table>"
     : "";
-  const html = ''
-    + '<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">'
-    + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:22px 24px;border-radius:14px 14px 0 0">'
-    + '<div>' + mailHead(nomSoc, logoUrl) + "</div>"
-    + '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + esc(motif) + (en ? ' tomorrow' : ' demain') + '</div>'
-    + (prenom ? '<div style="font-size:16px;font-weight:700;margin-top:14px;color:#fff">' + esc(prenom) + "</div>" : "")
-    + (plate ? '<div style="margin-top:14px">' + plate + "</div>" : "")
-    + "</div>"
-    + '<div style="border:1px solid #E7EBF0;border-top:none;padding:22px">'
-    + bodyText(msg)
-    + calBlock
-    + "</div>"
-    + ppFooter(nomSoc)
-    + "</div>";
+  const html = brandedCard({ title: esc(motif) + (en ? ' tomorrow' : ' demain'), prenom, plate, bodyInner: bodyText(msg) + calBlock, nomSoc, logoUrl });
   const text = msg + "\n\n" + (nomSoc || "Parc Pilot");
   return { subject, html: mailDoc(html), text, ics: icsB64 };
 }
