@@ -131,8 +131,7 @@
       <p class="text-sm mt-1" style="color:#8598B4">Qui a pris quel véhicule, quand, et quand il l'a rendu.</p>
     </div>
     <div class="mb-8 flex justify-end items-start gap-3 flex-wrap">
-      <div class="flex items-center gap-3 flex-wrap"><span data-data-io></span>
-        <button class="btn btn-outline text-sm" id="btn-releve-emp" title="Relevé PDF / Excel des emprunts — colonnes au choix, réordonnables, filtrable par période"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+      <div class="flex items-center gap-3 flex-wrap"><span data-data-io hidden></span><span id="emp-io-mount"></span>
         <button class="btn btn-outline text-sm" id="btn-dispo" title="Choisir quels véhicules sont disponibles pour l'emprunt (par groupe ou un par un)"><i data-lucide="list-checks" class="w-4 h-4"></i> Véhicules disponibles</button>
         <button class="btn btn-outline text-sm" id="btn-reserve" title="Planifier un véhicule pour une date à venir"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Réserver un véhicule</button>
         <button class="btn btn-primary text-sm" id="btn-new"><i data-lucide="plus" class="w-4 h-4"></i> Nouvel emprunt</button>
@@ -1282,6 +1281,17 @@
       sortCache(); render();
       alert(`Import terminé ✓\n${added} ajout(s), ${updated} mise(s) à jour.`);
     },
+  });
+
+  // ── Centre unifié « Importer / Exporter » (remplace Relevé PDF + les boutons Import/Export Excel) ──
+  // Relevé PDF (colonnes/aperçu via FP.fiche) + Excel/CSV/mail (dérivés des mêmes colonnes) + Import (coller
+  // Excel/CSV via le lecteur EXISTANT injectDataIO, anti-doublon préservé). Bouton « Nouvel emprunt » conservé.
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#emp-io-mount', sheetName: 'Emprunts',
+    baseName: () => 'emprunts-' + new Date().toISOString().slice(0, 10),
+    period: { dateOf: e => e.dateEmprunt || '' },
+    releve: () => ({ key: 'emprunts', title: 'Relevé des emprunts', cols: EMP_FICHE_COLS, rows: filteredEmprunts(), date: e => e.dateEmprunt }),
+    imports: [{ label: 'Importer (coller Excel / CSV)', icon: 'clipboard-paste', run: () => { const bs = document.querySelectorAll('[data-data-io] button'); const b = Array.from(bs).find(x => /import/i.test(x.textContent)) || bs[bs.length - 1]; if (b) b.click(); } }],
   });
 
   document.addEventListener('fp:data-ready', () => { fillVehSelect(); render(); renderResas(); loadDemandes(); });
