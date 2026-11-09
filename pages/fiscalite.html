@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261109c",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261109d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Fiscalité & TCO — Parc Pilot</title>
@@ -16,11 +16,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109d">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="../assets/js/lucide.min.js?v=20261109c"></script>
+<script defer src="../assets/js/lucide.min.js?v=20261109d"></script>
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261109c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261109d">
 <style>
   .stat-card{background:var(--fp-card,#fff);border:1px solid var(--fp-border);border-radius:.85rem;padding:1.1rem}
   .fx-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
@@ -174,11 +174,11 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261109c"></script>
-<script src="../assets/js/supabase-client.js?v=20261109c"></script>
-<script>(function(){try{var soc=localStorage.getItem('fp_societe')||'PXP';var c=JSON.parse(localStorage.getItem('fp_data_cache_v4_'+soc)||'null');var full=c&&['vehicules','amendes','factures','conducteurs'].every(function(k){return Array.isArray(c[k])&&c[k].length;});if(full){window.FP_DATA={vehicules:c.vehicules,amendes:c.amendes,factures:c.factures,conducteurs:c.conducteurs};window.__fpSeeded=1;return;}}catch(e){}document.write('<scr'+'ipt src="../assets/js/data.js?v=20261109c"><\/scr'+'ipt>');})();</script>
+<script src="../assets/js/vendor/supabase.js?v=20261109d"></script>
+<script src="../assets/js/supabase-client.js?v=20261109d"></script>
+<script>(function(){try{var soc=localStorage.getItem('fp_societe')||'PXP';var c=JSON.parse(localStorage.getItem('fp_data_cache_v4_'+soc)||'null');var full=c&&['vehicules','amendes','factures','conducteurs'].every(function(k){return Array.isArray(c[k])&&c[k].length;});if(full){window.FP_DATA={vehicules:c.vehicules,amendes:c.amendes,factures:c.factures,conducteurs:c.conducteurs};window.__fpSeeded=1;return;}}catch(e){}document.write('<scr'+'ipt src="../assets/js/data.js?v=20261109d"><\/scr'+'ipt>');})();</script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261109c"></script>
+<script src="../assets/js/app.min.js?v=20261109d"></script>
 
 <script>
 (function(){
@@ -209,6 +209,7 @@
   function renderDash(){
     var rows = dashRows();
     $('fx-scope').textContent = socFilter()+' · '+rows.length+' véhicule'+(rows.length>1?'s':'');
+    (function(){ var el=$('fx-scope'); if(!el) return; var n=dashRows().map(tcoOf).filter(function(t){return t&&(t.aCompleter||t.categorieAVerifier);}).length; el.textContent += (n? ' · ⚠️ '+n+' à compléter/vérifier':''); })();
     $('fx-readdesc').textContent = READ[curRead]||'';
     var sum = { eco:0, tres:0, comp:0, taxes:0, cotis:0, nonded:0, is:0 };
     var data = rows.map(function(v){ var t=tcoOf(v); if(t){ sum.eco+=t.economique; sum.tres+=t.tresorerie; sum.comp+=t.comptable; sum.taxes+=t.composantes.taxes; sum.cotis+=t.composantes.cotisationsAEN; sum.nonded+=t.fiscal.nonDeductible; sum.is+=t.fiscal.effetISEstime; } return {v:v,t:t}; });
@@ -222,8 +223,10 @@
     ];
     $('fx-kpis').innerHTML = kpis.map(function(k){ return '<div class="stat-card fx-kpi"><div class="l">'+esc(k[0])+'</div><div class="v">'+k[1]+'</div><div class="s">'+esc(k[2])+'</div></div>'; }).join('');
     var th='<thead><tr><th>Véhicule</th><th>Énergie</th><th>Mode</th><th class="fx-num">'+({economique:'TCO/an',tresorerie:'Décaissé/an',comptable:'Comptable/an',fiscal:'TCO/an'}[curRead])+'</th><th class="fx-num">Taxes</th><th class="fx-num">AEN empl.</th><th class="fx-num">Non déduct.</th></tr></thead>';
+    var nbCompleter = data.filter(function(d){return d.t&&(d.t.aCompleter||d.t.categorieAVerifier);}).length;
     var body = data.map(function(d){ var v=d.v,t=d.t; var mode=(t&&t.mode==='location')?'Location':(t&&t.mode==='achat'?'Achat':'—');
-      return '<tr><td><b>'+esc(v.immat||'—')+'</b> '+esc(((v.marque||'')+' '+(v.modele||'')).trim())+'</td><td>'+esc(v.carburant||'—')+'</td><td>'+mode+'</td><td class="fx-num">'+(t?euro(readVal(t)):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.taxes):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.cotisationsAEN):'—')+'</td><td class="fx-num">'+(t?euro(t.fiscal.nonDeductible):'—')+'</td></tr>'; }).join('');
+      var flag=''; if(t&&t.aCompleter) flag=' <span class="fx-badge" style="background:#FEF3C7;color:#92400E" title="'+esc((t.manques||[]).join(', ')||'donnée de coût manquante')+'">à compléter</span>'; else if(t&&t.categorieAVerifier) flag=' <span class="fx-badge" style="background:#FEF3C7;color:#92400E" title="genre fiscal non déterminé">à vérifier</span>';
+      return '<tr><td><b>'+esc(v.immat||'—')+'</b> '+esc(((v.marque||'')+' '+(v.modele||'')).trim())+flag+'</td><td>'+esc(v.carburant||'—')+'</td><td>'+mode+'</td><td class="fx-num">'+(t?euro(readVal(t)):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.taxes):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.cotisationsAEN):'—')+'</td><td class="fx-num">'+(t?euro(t.fiscal.nonDeductible):'—')+'</td></tr>'; }).join('');
     var tf='<tfoot><tr><td colspan="3">Total</td><td class="fx-num">'+euro(curRead==='tresorerie'?sum.tres:(curRead==='comptable'?sum.comp:sum.eco))+'</td><td class="fx-num">'+euro(sum.taxes)+'</td><td class="fx-num">'+euro(sum.cotis)+'</td><td class="fx-num">'+euro(sum.nonded)+'</td></tr></tfoot>';
     $('fx-dash-tbl').innerHTML = th+'<tbody>'+body+'</tbody>'+tf;
     if(window.lucide)try{lucide.createIcons();}catch(e){}
@@ -233,20 +236,134 @@
     var opts='<option>Toutes</option>'+Object.keys(socs).filter(function(x){return x&&x!=='—';}).sort().map(function(s){return '<option>'+esc(s)+'</option>';}).join('');
     var sel=$('fx-soc'); if(sel && sel.innerHTML!==opts){ sel.innerHTML=opts; }
   }
+  // Libellé lisible du genre fiscal réel (source unique = FP.categorieFiscale).
+  function genreLabel(v){ var g=(window.FP&&FP.categorieFiscale)?FP.categorieFiscale(v):'inconnu'; return {VP:'VP (tourisme)',VU:'Utilitaire',moto:'Moto',inconnu:'à vérifier'}[g]||g; }
+  function chauffeurOf(v){ return (v.chauffeur!=null?String(v.chauffeur):'').trim(); }
+  // ⚠️ EXPORT RAPPORT FISCAL COMPLET — 7 feuilles dans UN classeur .xlsx (moteur unique FP.xlsx.downloadMulti).
+  // Chaque feuille lit les MÊMES helpers que l'écran (FP.tco/amortissement/aenDetail/aenCoutEmployeur/
+  // tvsDetail/fiscalConfig) → aucun recalcul divergent. Jamais un montant « deviné » : les anomalies
+  // (TCO partiel, genre à vérifier) sont listées à part, pas masquées derrière un faux 0.
   function dashExport(){
-    if(!(window.FP&&FP.fiche&&FP.fiche.open)){ alert('Export indisponible.'); return; }
-    var rows = dashRows().map(function(v){ return {v:v,t:tcoOf(v)}; });
-    FP.fiche.open({ key:'fiscalite-tco', title:'Fiscalité & TCO — '+socFilter(), rows:rows, cols:[
-      {id:'immat',label:'Immatriculation',def:true,get:function(r){return r.v.immat||'';}},
-      {id:'veh',label:'Véhicule',def:true,get:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},
-      {id:'energie',label:'Énergie',def:true,get:function(r){return r.v.carburant||'';}},
-      {id:'mode',label:'Mode',def:true,get:function(r){return r.t?(r.t.mode==='location'?'Location':'Achat'):'';}},
-      {id:'tco',label:'TCO/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.economique):'';},num:function(r){return r.t?Math.round(r.t.economique):null;},sum:function(r){return r.t?r.t.economique:0;},fmt:euro},
-      {id:'tres',label:'Décaissé/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.tresorerie):'';},num:function(r){return r.t?Math.round(r.t.tresorerie):null;},sum:function(r){return r.t?r.t.tresorerie:0;},fmt:euro},
-      {id:'taxes',label:'Taxes/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.composantes.taxes):'';},num:function(r){return r.t?Math.round(r.t.composantes.taxes):null;},sum:function(r){return r.t?r.t.composantes.taxes:0;},fmt:euro},
-      {id:'cotis',label:'Surcoût AEN/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.composantes.cotisationsAEN):'';},num:function(r){return r.t?Math.round(r.t.composantes.cotisationsAEN):null;},sum:function(r){return r.t?r.t.composantes.cotisationsAEN:0;},fmt:euro},
-      {id:'nonded',label:'Non déductible/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.fiscal.nonDeductible):'';},num:function(r){return r.t?Math.round(r.t.fiscal.nonDeductible):null;},sum:function(r){return r.t?r.t.fiscal.nonDeductible:0;},fmt:euro}
-    ]});
+    if(!(window.FP&&FP.xlsx&&FP.xlsx.downloadMulti)){
+      if(window.FP&&FP.fiche&&FP.fiche.open){ var rs=dashRows().map(function(v){return {v:v,t:tcoOf(v)};}); FP.fiche.open({key:'fiscalite-tco',title:'Fiscalité & TCO — '+socFilter(),rows:rs,cols:[{id:'immat',label:'Immatriculation',def:true,get:function(r){return r.v.immat||'';}},{id:'veh',label:'Véhicule',def:true,get:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},{id:'tco',label:'TCO/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.economique):'';},num:function(r){return r.t?Math.round(r.t.economique):null;},sum:function(r){return r.t?r.t.economique:0;},fmt:euro}]}); return; }
+      alert('Export indisponible.'); return;
+    }
+    var cfg=(window.FP&&FP.fiscalConfig)?FP.fiscalConfig():{};
+    var rows = dashRows().map(function(v){
+      var t=tcoOf(v);
+      var am=(FP.amortissement)?FP.amortissement(v):null;
+      var aen=(FP.aenDetail)?FP.aenDetail(v):null;
+      var emp=(FP.aenCoutEmployeur)?FP.aenCoutEmployeur(v):null;
+      var tvs=(FP.tvsDetail)?FP.tvsDetail(v):null;
+      return {v:v,t:t,am:am,aen:aen,emp:emp,tvs:tvs};
+    });
+    var pct=function(x){ return (x==null)?'':(Math.round(x*100)+' %'); };
+    var oui=function(b){ return b?'Oui':'Non'; };
+    // 1) SYNTHÈSE
+    var sSynth={ name:'Synthèse', opts:{total:true}, columns:[
+      {label:'Immat',value:function(r){return r.v.immat||'';}},
+      {label:'Véhicule',value:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},
+      {label:'Énergie',value:function(r){return r.v.carburant||'';}},
+      {label:'Genre fiscal',value:function(r){return genreLabel(r.v);}},
+      {label:'Mode',value:function(r){return r.t?(r.t.mode==='location'?'Location':'Achat'):'';}},
+      {label:'TCO éco/an',value:function(r){return r.t?Math.round(r.t.economique):null;},number:true},
+      {label:'Décaissé/an',value:function(r){return r.t?Math.round(r.t.tresorerie):null;},number:true},
+      {label:'Comptable/an',value:function(r){return r.t?Math.round(r.t.comptable):null;},number:true},
+      {label:'Taxes/an',value:function(r){return r.t?Math.round(r.t.composantes.taxes):null;},number:true},
+      {label:'Surcoût AEN/an',value:function(r){return r.t?Math.round(r.t.composantes.cotisationsAEN):null;},number:true},
+      {label:'Non déduct./an',value:function(r){return r.t?Math.round(r.t.fiscal.nonDeductible):null;},number:true},
+      {label:'Éco IS/an',value:function(r){return r.t?Math.round(r.t.fiscal.effetISEstime):null;},number:true},
+      {label:'Fiabilité',value:function(r){return r.t?(r.t.aCompleter?'à compléter':(r.t.categorieAVerifier?'à vérifier':'estimé')):'';},noTotal:true}
+    ]};
+    // 2) DÉTAIL FISCAL (TVS + TVA récup)
+    var sFisc={ name:'Détail fiscal', columns:[
+      {label:'Immat',value:function(r){return r.v.immat||'';}},
+      {label:'Genre fiscal',value:function(r){return genreLabel(r.v);}},
+      {label:'Soumis TVS',value:function(r){return oui(r.tvs&&r.tvs.applicable);}},
+      {label:'Raison si non soumis',value:function(r){return (r.tvs&&!r.tvs.applicable)?(r.tvs.raison||''):'';}},
+      {label:'Taxe CO₂/an',value:function(r){return (r.tvs&&r.tvs.applicable&&r.tvs.co2!=null)?r.tvs.co2:null;},number:true},
+      {label:'Taxe polluants/an',value:function(r){return (r.tvs&&r.tvs.applicable&&r.tvs.polluant!=null)?r.tvs.polluant:null;},number:true},
+      {label:'TVA récup. énergie',value:function(r){ var vu=(FP.estUtilitaire&&FP.estUtilitaire(r.v)); var el=/lectri|hydrog/i.test(r.v.carburant||''); return el?'100 %':pct(vu?cfg.tva.carburantVU:cfg.tva.carburantVP); }},
+      {label:'TVA récup. achat',value:function(r){ var vu=(FP.estUtilitaire&&FP.estUtilitaire(r.v)); return pct(vu?cfg.tva.achatVU:cfg.tva.achatVP); }},
+      {label:'TVA récup. loyer',value:function(r){ var vu=(FP.estUtilitaire&&FP.estUtilitaire(r.v)); return pct(vu?cfg.tva.loyerVU:cfg.tva.loyerVP); }}
+    ]};
+    // 3) AMORTISSEMENTS
+    var sAmort={ name:'Amortissements', columns:[
+      {label:'Immat',value:function(r){return r.v.immat||'';}},
+      {label:'Genre',value:function(r){return r.am?(r.am.genre||genreLabel(r.v)):genreLabel(r.v);}},
+      {label:'Mode',value:function(r){return r.am?r.am.mode:'';}},
+      {label:'Base achat',value:function(r){return (r.am&&r.am.mode==='achat'&&r.am.base!=null)?Math.round(r.am.base):null;},number:true},
+      {label:'Loyer annuel',value:function(r){return (r.am&&r.am.mode==='location'&&r.am.loyerAnnuel!=null)?Math.round(r.am.loyerAnnuel):null;},number:true},
+      {label:'Amort/an',value:function(r){return (r.am&&r.am.mode==='achat'&&r.am.annuel!=null)?Math.round(r.am.annuel):null;},number:true},
+      {label:'Plafond art.39',value:function(r){return (r.am&&r.am.plafond!=null)?Math.round(r.am.plafond):null;},number:true,noTotal:true},
+      {label:'Non déduct./an',value:function(r){ if(!r.am)return null; var nd=(r.am.mode==='achat')?r.am.nonDeductibleAnnuel:r.am.loyerNonDeductibleAnnuel; return nd!=null?Math.round(nd):null;},number:true},
+      {label:'À compléter',value:function(r){ if(!r.am)return ''; if(r.am.mode==='achat'&&r.am.base==null)return "prix d'achat"; if(r.am.mode==='location'&&r.am.loyerAnnuel==null)return 'loyer'; if(r.am.mode==='location'&&r.am.loyerNonDeductibleAnnuel==null)return 'part non déd.'; return ''; }}
+    ]};
+    // 4) AEN
+    var sAen={ name:'AEN', columns:[
+      {label:'Immat',value:function(r){return r.v.immat||'';}},
+      {label:'Conducteur',value:function(r){return chauffeurOf(r.v)||'—';}},
+      {label:'Usage privé',value:function(r){return oui(FP.aUnConducteurPrive&&FP.aUnConducteurPrive(r.v));}},
+      {label:'AEN calculé',value:function(r){return oui(r.aen&&r.aen.applicable);}},
+      {label:'Méthode',value:function(r){return r.aen?(r.aen.method||''):'';}},
+      {label:'Base',value:function(r){return (r.aen&&r.aen.applicable&&r.aen.base!=null)?Math.round(r.aen.base):null;},number:true,noTotal:true},
+      {label:'AEN net/an',value:function(r){return (r.aen&&r.aen.applicable&&r.aen.netAnnuel!=null)?Math.round(r.aen.netAnnuel):null;},number:true},
+      {label:'Surcoût cotis./an',value:function(r){return (r.emp&&r.emp.applicable)?Math.round(r.emp.cotisationsAnnuelles):null;},number:true},
+      {label:'Raison si non calculé',value:function(r){return (r.emp&&!r.emp.applicable)?(r.emp.raison||(r.aen&&r.aen.reason)||''):'';}}
+    ]};
+    // 5) CONSTRUCTION TCO
+    var sTco={ name:'Construction TCO', columns:[
+      {label:'Immat',value:function(r){return r.v.immat||'';}},
+      {label:'Exploitation/an',value:function(r){return r.t?Math.round(r.t.composantes.exploit):null;},number:true},
+      {label:'Loyer/an',value:function(r){return r.t?Math.round(r.t.composantes.leasingAnnuel):null;},number:true},
+      {label:'Amort/an',value:function(r){return r.t?Math.round(r.t.composantes.amortAnnuel):null;},number:true},
+      {label:'Taxes/an',value:function(r){return r.t?Math.round(r.t.composantes.taxes):null;},number:true},
+      {label:'Surcoût AEN/an',value:function(r){return r.t?Math.round(r.t.composantes.cotisationsAEN):null;},number:true},
+      {label:'= TCO éco/an',value:function(r){return r.t?Math.round(r.t.economique):null;},number:true},
+      {label:'= Décaissé/an',value:function(r){return r.t?Math.round(r.t.tresorerie):null;},number:true},
+      {label:'= Comptable/an',value:function(r){return r.t?Math.round(r.t.comptable):null;},number:true}
+    ]};
+    // 6) ANOMALIES (données manquantes / à vérifier — JAMAIS un faux 0 € présenté comme certain)
+    var anomRows=[];
+    rows.forEach(function(r){
+      var veh=(r.v.immat||'')+' '+((r.v.marque||'')+' '+(r.v.modele||'')).trim();
+      if(r.t&&r.t.aCompleter) anomRows.push({veh:veh,type:'TCO partiel — à compléter',detail:(r.t.manques||[]).join(', ')});
+      else if(r.t&&r.t.categorieAVerifier) anomRows.push({veh:veh,type:'Genre fiscal à vérifier',detail:'préciser VP / utilitaire / moto'});
+      if(r.tvs&&r.tvs.applicable&&r.tvs.co2Manquant) anomRows.push({veh:veh,type:'CO₂ manquant',detail:'taxe CO₂ non calculée (polluants seuls)'});
+    });
+    if(!anomRows.length) anomRows.push({veh:'—',type:'Aucune anomalie',detail:'toutes les données de coût sont présentes'});
+    var sAnom={ name:'Anomalies', columns:[
+      {label:'Véhicule',value:function(r){return r.veh;}},
+      {label:'Type',value:function(r){return r.type;}},
+      {label:'Détail',value:function(r){return r.detail;}}
+    ]};
+    // 7) SOURCES & BARÈMES (estimations paramétrables — jamais présentées comme certaines)
+    var srcRows=[
+      ['Année du barème', String(cfg.annee||'')],
+      ['Taux de TVA', pct(cfg.tauxTVA)],
+      ['TVA récup. — achat VP / VU', pct(cfg.tva&&cfg.tva.achatVP)+' / '+pct(cfg.tva&&cfg.tva.achatVU)],
+      ['TVA récup. — loyer VP / VU', pct(cfg.tva&&cfg.tva.loyerVP)+' / '+pct(cfg.tva&&cfg.tva.loyerVU)],
+      ['TVA récup. — carburant VP / VU', pct(cfg.tva&&cfg.tva.carburantVP)+' / '+pct(cfg.tva&&cfg.tva.carburantVU)],
+      ['TVA récup. — électricité', pct(cfg.tva&&cfg.tva.electricite)],
+      ['Durée d\'amortissement', String((cfg.amort&&cfg.amort.dureeMois)||60)+' mois'],
+      ['Plafonds amort. art.39 (CO₂)', (cfg.amort&&cfg.amort.plafonds||[]).map(function(p){return (p.co2max===Infinity?'>':'≤')+(p.co2max===Infinity?(cfg.amort.plafonds[cfg.amort.plafonds.length-2]||{}).co2max:p.co2max)+' g : '+p.plafond+' €';}).join(' · ')],
+      ['Taux IS', pct(cfg.tauxIS)],
+      ['Taux cotisations patronales', pct(cfg.cotisationsPatronales)],
+      ['Règle TVS', 'VP soumis (CO₂+polluants) ; utilitaires & motos NON soumis'],
+      ['Règle amortissement', 'Plafond art.39 UNIQUEMENT pour les VP ; VU & motos intégralement déductibles'],
+      ['Règle AEN', 'Calculé seulement si conducteur en usage privé ; utilitaires exclus par défaut'],
+      ['⚠️ Avertissement', 'Estimations paramétrables (barèmes modifiables) — à valider avec votre expert-comptable. Non rétroactif.'],
+      ['Sources officielles', 'impots.gouv.fr / BOFiP (art.39 CGI, TVS) · URSSAF (AEN) · service-public.fr'],
+      ['Date d\'export', new Date().toLocaleDateString('fr-FR')]
+    ];
+    var sSrc={ name:'Sources & barèmes', opts:{brand:false}, columns:[
+      {label:'Paramètre',value:function(r){return r[0];}},
+      {label:'Valeur',value:function(r){return r[1];}}
+    ], rows:srcRows };
+    sSynth.rows=rows; sFisc.rows=rows; sAmort.rows=rows; sAen.rows=rows; sTco.rows=rows; sAnom.rows=anomRows;
+    var fname='Parc-Pilot-Fiscalite-TCO-'+socFilter().replace(/[^A-Za-z0-9]+/g,'-')+'-'+new Date().toISOString().slice(0,10)+'.xlsx';
+    try { FP.xlsx.downloadMulti(fname, [sSynth,sFisc,sAmort,sAen,sTco,sAnom,sSrc]); if(FP.toast)FP.toast('Rapport fiscal exporté (7 feuilles).'); }
+    catch(e){ console.warn('[fiscalité export]',e); alert('Export impossible.'); }
   }
 
   /* ---------- Comparateur ---------- */
