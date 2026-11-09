@@ -19944,7 +19944,7 @@ FP.ficheColsFromExport = function (cols) {
     if (document.getElementById('fp-xc-style')) return;
     const st = document.createElement('style'); st.id = 'fp-xc-style';
     st.textContent = `
-    #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto}
+    #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;overscroll-behavior:contain}
     .fp-xc-modal{background:#fff;border-radius:16px;width:100%;max-width:900px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
     .fp-xc-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid #eef2f7}
     .fp-xc-head h3{font-size:16px;font-weight:800;margin:0;color:#0f172a}
@@ -19960,8 +19960,8 @@ FP.ficheColsFromExport = function (cols) {
        n'ont pas de hauteur bornée et rien ne scrolle (contenu tronqué). */
     @media(max-width:760px){
       #fp-xc-ov{padding:10px 8px}
-      .fp-xc-modal{max-height:calc(100dvh - 20px)}
-      .fp-xc-body{display:block;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch}
+      .fp-xc-modal{max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px)}
+      .fp-xc-body{display:block;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
       .fp-xc-pane{overflow:visible}
       .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
       .fp-xc-cols{max-height:none}
@@ -20070,7 +20070,7 @@ FP.ficheColsFromExport = function (cols) {
         <div class="fp-xc-foot"><span class="fp-xc-hint">Choisis un type d'import ci-dessus.</span><span class="sp"></span><button class="btn btn-outline text-sm" id="fp-xc-cancel2">Fermer</button></div>
       </div></div>`;
     document.body.appendChild(ov); modal = ov;
-    const close = () => { ov.style.display = 'none'; };
+    const close = () => { ov.style.display = 'none'; unlockBg(); };
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     ov.querySelector('#fp-xc-close').onclick = close;
     ov.querySelector('#fp-xc-cancel').onclick = close;
@@ -20199,13 +20199,34 @@ FP.ficheColsFromExport = function (cols) {
     setFavs(favs); renderFavs(); if (FP.toast) FP.toast('Configuration « ' + name + ' » enregistrée');
   }
   function ctxFor() { return { cols: chosenCols().map(c => ({ label: c.label, get: c.get, num: c.num, align: c.align, sum: c.sum, mono: c.mono, tint: c.tint })), title: titleOf(), rows: filteredRows() }; }
+  // Verrou de défilement de la PAGE pendant que la modale est ouverte (sinon, arrivé en bas du
+  // pop-up, le geste de scroll « passe » à la page derrière et le bouton Exporter devient
+  // inatteignable). position:fixed = fiable sur iOS (overflow:hidden seul ne suffit pas).
+  let _xcScrollY = 0;
+  function lockBg() {
+    try {
+      _xcScrollY = window.scrollY || window.pageYOffset || 0;
+      const b = document.body;
+      b.style.position = 'fixed'; b.style.top = (-_xcScrollY) + 'px';
+      b.style.left = '0'; b.style.right = '0'; b.style.width = '100%';
+      b.classList.add('fp-xc-locked');
+    } catch (e) {}
+  }
+  function unlockBg() {
+    try {
+      const b = document.body;
+      b.classList.remove('fp-xc-locked');
+      b.style.position = ''; b.style.top = ''; b.style.left = ''; b.style.right = ''; b.style.width = '';
+      window.scrollTo(0, _xcScrollY);
+    } catch (e) {}
+  }
   function doExport() {
     const rows = filteredRows(), cols = chosenCols();
     if (!rows.length || !cols.length) return;
     // Persistance des colonnes (partagée avec FP.fiche) : cases + ordre.
     try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = cols.map(c => c.id); s.ficheColsOrder[cur.key] = cur.cols.map(c => c.id); FP.settings.save(s); } catch (e) {}
     const c = ctxFor(), opts = optsOf();
-    modal.style.display = 'none';
+    modal.style.display = 'none'; unlockBg();
     if (fmt === 'pdf') { if (FP.fiche && FP.fiche.pdfPreview) FP.fiche.pdfPreview(c, opts); }
     else if (FP.fiche && FP.fiche.exportFile) FP.fiche.exportFile(fmt, c);
   }
@@ -20214,7 +20235,7 @@ FP.ficheColsFromExport = function (cols) {
     modal.querySelector('#fp-xc-imp-mod').textContent = cur.title || '';
     if (!imps.length) { host.innerHTML = '<div class="fp-xc-dz"><div style="font-size:24px">📥</div><b style="display:block;margin-top:5px">Aucun import tabulaire sur cette page</b><span class="fp-xc-hint">Les documents se déposent directement sur la page (scan IA).</span></div>'; return; }
     host.innerHTML = imps.map((im, i) => `<button class="fp-xc-imp-it" data-imp="${i}"><span style="font-size:17px">📄</span> ${esc(im.label || 'Importer…')}</button>`).join('');
-    host.querySelectorAll('[data-imp]').forEach(b => b.addEventListener('click', () => { const im = imps[+b.dataset.imp]; modal.style.display = 'none'; if (im && typeof im.run === 'function') { try { im.run(); } catch (e) { console.warn('[exportCenter import]', e); } } }));
+    host.querySelectorAll('[data-imp]').forEach(b => b.addEventListener('click', () => { const im = imps[+b.dataset.imp]; modal.style.display = 'none'; unlockBg(); if (im && typeof im.run === 'function') { try { im.run(); } catch (e) { console.warn('[exportCenter import]', e); } } }));
   }
   FP.exportCenter = {
     open(cfg) {
@@ -20232,7 +20253,7 @@ FP.ficheColsFromExport = function (cols) {
       modal.querySelector('#fp-xc-tab-imp').style.display = (cur.imports && cur.imports.length) ? '' : 'none';
       showTab('exp');
       renderFilters(); renderCols(); renderFavs(); renderImports(); renderAll();
-      modal.style.display = 'flex';
+      lockBg(); modal.style.display = 'flex';
     },
   };
 })();
