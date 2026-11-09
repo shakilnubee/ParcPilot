@@ -164,8 +164,7 @@
         <p class="text-slate-500 text-sm mt-1" data-edit-key="a-vendre.subtitle">Pipeline de vente — du véhicule à publier au véhicule vendu</p>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
-        <span data-data-io></span>
-        <button type="button" class="btn btn-outline text-sm" id="btn-releve-av" title="Relevé PDF / Excel — colonnes au choix et réordonnables"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+        <span data-data-io hidden></span><span id="av-io-mount"></span>
       </div>
     </div>
 
@@ -597,6 +596,12 @@
     filename: `parc-pilot-a-vendre-${new Date().toISOString().slice(0,10)}.csv`,
     columns: AV_EXPORT_COLS,
     getRows: () => getVendreVehs(),
+  });
+  // ── Centre unifié « Exporter » (remplace Relevé PDF + Export Excel) ──
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#av-io-mount', sheetName: 'À vendre',
+    baseName: () => 'a-vendre-' + new Date().toISOString().slice(0, 10),
+    releve: () => ({ key: 'a-vendre', title: 'Véhicules à vendre', cols: FP.ficheColsFromExport(AV_EXPORT_COLS), rows: getVendreVehs() }),
   });
   // Relevé PDF / Excel / CSV (colonnes au choix + réordonnables).
   { const b = document.getElementById('btn-releve-av'); if (b) b.addEventListener('click', () => {
