@@ -372,8 +372,7 @@
       <p class="text-sm mt-1" style="color:#8598B4" data-edit-key="conducteurs.subtitle">Vue par personne — véhicule, amendes, points perdus</p>
     </div>
     <div class="mb-8 flex justify-end items-start gap-3 flex-wrap">
-      <div class="flex items-center gap-3 flex-wrap"><span data-data-io></span>
-        <button class="btn btn-outline text-sm" id="btn-releve" title="Relevé PDF / Excel — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+      <div class="flex items-center gap-3 flex-wrap"><span data-data-io hidden></span><span id="cond-io-mount"></span>
         <button class="btn btn-outline text-sm !px-2.5" data-history-undo title="Annuler (Ctrl+Z)" disabled><i data-lucide="undo-2" class="w-4 h-4"></i></button>
         <button class="btn btn-outline text-sm !px-2.5" data-history-redo title="Refaire (Ctrl+Y)" disabled><i data-lucide="redo-2" class="w-4 h-4"></i></button>
         <button class="btn btn-outline text-sm" id="btn-reread-all" title="Relit les scans de permis et corrige les dates (rubrique 4a + 15 ans)"><i data-lucide="scan-line" class="w-4 h-4"></i> Relire les permis</button>
@@ -3422,11 +3421,12 @@
       }));
     } catch (e) { return []; }
   }
-  document.getElementById('btn-releve')?.addEventListener('click', () => {
-    if (!(FP.fiche && FP.fiche.open)) { alert('Aperçu indisponible ici.'); return; }
-    const rows = (drivers || []).slice();
-    if (!rows.length) { alert('Aucun conducteur à exporter.'); return; }
-    FP.fiche.open({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows });
+  // ── Centre unifié « Importer / Exporter » (remplace Relevé PDF + Import/Export Excel) ──
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#cond-io-mount', sheetName: 'Conducteurs',
+    baseName: () => 'conducteurs-' + new Date().toISOString().slice(0, 10),
+    releve: () => ({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows: (drivers || []).slice() }),
+    imports: [{ label: 'Importer (coller Excel / CSV)', icon: 'clipboard-paste', run: () => { const bs = document.querySelectorAll('[data-data-io] button'); const b = Array.from(bs).find(x => /import/i.test(x.textContent)) || bs[bs.length - 1]; if (b) b.click(); } }],
   });
 
   // Résout un conducteur par clé/nom normalisé ; s'il n'a pas de fiche, en FABRIQUE une à la
