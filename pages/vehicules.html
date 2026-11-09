@@ -3553,6 +3553,23 @@
     const tvs = FP.tvsAnnuelle(v);
     const tvsDet = FP.tvsDetail(v);
     const aen = (window.FP && FP.aenDetail) ? FP.aenDetail(v) : null;
+    // ── Fiscalité & TCO (Lot 2) : réutilise les helpers déployés (FP.tco/amortissement/aenCoutEmployeur/
+    //    tvaDepense). Estimations paramétrables ; l'AEN lui-même reste affiché dans « Technique » (source unique). ──
+    const fiscTco = (window.FP && FP.tco) ? FP.tco(v, { factures: data.factures }) : null;
+    const fiscAmort = (window.FP && FP.amortissement) ? FP.amortissement(v) : null;
+    const fiscEmp = (window.FP && FP.aenCoutEmployeur) ? FP.aenCoutEmployeur(v) : null;
+    const fiscCfg = (window.FP && FP.fiscalConfig) ? FP.fiscalConfig() : null;
+    const fiscVU = (window.FP && FP.estUtilitaire) ? FP.estUtilitaire(v) : false;
+    const fiscElec = /lectri|hydrog/i.test(v.carburant || '');
+    const tvaCarbPct = fiscCfg ? (fiscElec ? 100 : (fiscVU ? fiscCfg.tva.carburantVU : fiscCfg.tva.carburantVP) * 100) : null;
+    const tvaAchatPct = fiscCfg ? (fiscVU ? fiscCfg.tva.achatVU : fiscCfg.tva.achatVP) * 100 : null;
+    const fiscAmortLine = !fiscAmort ? '' : (fiscAmort.mode === 'achat'
+      ? (fiscAmort.base != null
+          ? `<div class="flex justify-between"><span class="text-slate-600">Amortissement / an</span><span class="font-medium text-right">${FP.euro(Math.round(fiscAmort.annuel))}${fiscAmort.nonDeductibleAnnuel ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.nonDeductibleAnnuel)) + ' non déd.</span>' : (fiscAmort.co2Manquant ? ' <span class="text-amber-600 text-xs">CO₂ à renseigner</span>' : '')}</span></div>`
+          : `<div class="flex justify-between"><span class="text-slate-600">Amortissement</span><span class="text-amber-600 text-xs">prix d'achat à renseigner</span></div>`)
+      : `<div class="flex justify-between"><span class="text-slate-600">Loyer / an <span class="text-slate-400 text-xs">(location)</span></span><span class="font-medium text-right">${fiscAmort.loyerAnnuel != null ? FP.euro(Math.round(fiscAmort.loyerAnnuel)) : '—'}${fiscAmort.loyerNonDeductibleAnnuel != null ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.loyerNonDeductibleAnnuel)) + ' non déd.</span>' : ' <span class="text-slate-400 text-xs">part non déd. à renseigner</span>'}</span></div>`);
+    const fiscEmpLine = (fiscEmp && fiscEmp.applicable && fiscEmp.cotisationsAnnuelles > 0)
+      ? `<div class="flex justify-between"><span class="text-slate-600">Coût employeur AEN <span class="text-slate-400 text-xs">(cotisations est.)</span></span><span class="font-medium text-right">${FP.euro(Math.round(fiscEmp.cotisationsAnnuelles))}/an</span></div>` : '';
     const rev = FP.revisionInfo(v);
     // Date « dernière révision » unifiée (tuile en-tête + panneau « Entretien & échéances » + détail) :
     // SOURCE UNIQUE = FP.derniereRevision (date la plus récente entre saisie manuelle et facture).
@@ -3904,6 +3921,24 @@
           <div class="flex justify-between"><span class="text-slate-600">Valeur d'achat</span><span class="font-medium" data-df="valeurAchat" data-dt="number">${v.valeurAchat ? FP.euro(v.valeurAchat) : '<span class="text-slate-400">—</span>'}</span></div>
           <div class="flex justify-between"><span class="text-slate-600">Prix de vente <span class="text-slate-400 text-xs">(si à vendre)</span></span><span class="font-medium" data-df="prixVente" data-dt="number">${v.prixVente ? FP.euro(v.prixVente) : '<span class="text-slate-400">—</span>'}</span></div>
           ${(() => { const c = FP.decoteVehicule && FP.decoteVehicule(v); return c ? `<div class="flex justify-between"><span class="text-slate-600">Valeur estimée (revente) <span class="text-slate-400 text-xs">indicatif</span></span><span class="font-medium" style="color:var(--fp-accent)">${FP.euro(c.valeur)}</span></div>` : ''; })()}
+        </div>
+      </div>
+
+      <div class="fp-panel">
+        <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1">Fiscalité &amp; TCO <span class="text-slate-400 text-xs" style="font-weight:500">· estimations</span></div>
+        <div class="text-sm space-y-1.5 mt-3">
+          ${fiscTco ? `
+          <div class="flex justify-between"><span class="text-slate-600">Coût économique / an <span class="text-slate-400 text-xs">(TCO)</span></span><span class="font-semibold text-right">${FP.euro(Math.round(fiscTco.economique))}</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">dont décaissé / an <span class="text-slate-400 text-xs">(trésorerie)</span></span><span class="font-medium text-right">${FP.euro(Math.round(fiscTco.tresorerie))}</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">Coût / mois</span><span class="font-medium text-right">${FP.euro(Math.round(fiscTco.economique / 12))}</span></div>` : ''}
+          <div class="flex justify-between"><span class="text-slate-600">Taxes annuelles <span class="text-slate-400 text-xs">(CO₂+polluants)</span></span><span class="font-medium text-right">${tvsDet.applicable ? (tvsDet.total != null ? FP.euro(tvsDet.total) : '<span class="text-amber-600">CO₂ manquant</span>') : '<span class="text-slate-400">' + (tvsDet.raison || 'non soumis') + '</span>'}</span></div>
+          ${tvaCarbPct != null ? `<div class="flex justify-between"><span class="text-slate-600">TVA récup. — énergie</span><span class="font-medium text-right">${Math.round(tvaCarbPct)} %</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">TVA récup. — achat / loyer</span><span class="font-medium text-right">${Math.round(tvaAchatPct)} %</span></div>` : ''}
+          ${fiscAmortLine}
+          ${fiscEmpLine}
+          ${fiscTco ? `<div class="flex justify-between"><span class="text-slate-600">Charges non déductibles / an</span><span class="font-medium text-right">${FP.euro(Math.round(fiscTco.fiscal.nonDeductible))}</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">Économie d'impôt estimée <span class="text-slate-400 text-xs">(IS)</span></span><span class="font-medium text-right text-emerald-600">${FP.euro(Math.round(fiscTco.fiscal.effetISEstime))}</span></div>` : ''}
+          <div class="text-xs text-slate-400 mt-1" style="line-height:1.4">TVS &amp; AEN calculés par Parc Pilot ; amortissement, TVA et coût employeur <b>estimés</b> (barèmes paramétrables) — à valider avec votre expert-comptable. L'AEN n'est pas ajouté au coût du véhicule (seul le surcoût de cotisations l'est).</div>
         </div>
       </div>
 
