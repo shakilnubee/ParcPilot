@@ -19505,19 +19505,40 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const nameOf = () => (typeof opts.baseName === 'function' ? opts.baseName() : opts.baseName) || 'export';
     const wrap = document.createElement('div'); wrap.className = 'fp-export-wrap';
     const hasPeriod = !!(opts.period && typeof opts.period.dateOf === 'function');
+    // ── CENTRE UNIFIÉ IMPORT / EXPORT (consigne) ──
+    // opts.releve  : () => config FP.fiche ({key,title,cols:[{id,label,get,num,align}],rows,date}) → item « Relevé PDF »
+    //                + sert aussi à DÉRIVER Excel/CSV si opts.columns n'est pas fourni (source unique de colonnes).
+    // opts.imports : [{label, icon?, run()}] (ou opts.onImport = fn) → section « Importer ».
+    // Le bouton devient « Importer / Exporter » dès qu'un import est fourni. Rien n'est dupliqué : PDF = FP.fiche,
+    // Excel/CSV = FP.exportRows, import = la fonction métier EXISTANTE de la page (lecteurs, anti-doublon…).
+    const releveFn = (typeof opts.releve === 'function') ? opts.releve : null;
+    const imports = Array.isArray(opts.imports) ? opts.imports.filter(i => i && typeof i.run === 'function')
+                  : (typeof opts.onImport === 'function' ? [{ label: 'Importer…', run: opts.onImport }] : []);
+    const hasImport = imports.length > 0;
+    // Colonnes Excel/CSV : fournies explicitement, sinon dérivées de la config FP.fiche (source unique).
+    const colsFor = () => {
+      if (Array.isArray(opts.columns) && opts.columns.length) return opts.columns;
+      if (releveFn) { try { const c = releveFn(); return (c && c.cols || []).map(col => ({ label: col.label, value: col.get, number: col.align === 'right' || col.num })); } catch (e) {} }
+      return [];
+    };
+    const rowsFor = () => { if (typeof opts.getRows === 'function') return opts.getRows() || []; if (releveFn) { try { return (releveFn().rows) || []; } catch (e) {} } return []; };
+    const hasTabular = (Array.isArray(opts.columns) && opts.columns.length) || releveFn;
+    const label = opts.label || (hasImport ? 'Importer / Exporter' : 'Exporter');
     wrap.innerHTML = `
-      <button type="button" class="btn btn-outline text-sm fp-export-btn"><i data-lucide="download" class="w-4 h-4"></i> ${opts.label || 'Exporter'} <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+      <button type="button" class="btn btn-outline text-sm fp-export-btn"><i data-lucide="${hasImport ? 'arrow-down-up' : 'download'}" class="w-4 h-4"></i> ${label} <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
       <div class="fp-menu fp-export-menu hidden">
-        <div class="fp-exp-sec">Vue actuelle</div>
-        <button type="button" class="fp-exp-it" data-exp="xlsx"><i data-lucide="sheet" class="w-4 h-4" style="color:#16a34a"></i> Excel (.xlsx)</button>
+        <div class="fp-exp-sec">Exporter — vue actuelle</div>
+        ${releveFn ? `<button type="button" class="fp-exp-it" data-exp="releve"><i data-lucide="file-text" class="w-4 h-4" style="color:#f97316"></i> Relevé PDF (colonnes)</button>` : ''}
+        ${hasTabular ? `<button type="button" class="fp-exp-it" data-exp="xlsx"><i data-lucide="sheet" class="w-4 h-4" style="color:#16a34a"></i> Excel (.xlsx)</button>
         <button type="button" class="fp-exp-it" data-exp="csv"><i data-lucide="file-text" class="w-4 h-4" style="color:#64748b"></i> CSV</button>
         <div class="fp-exp-div"></div>
-        <button type="button" class="fp-exp-it" data-exp="mail"><i data-lucide="mail" class="w-4 h-4" style="color:#2563eb"></i> Envoyer par mail…</button>
+        <button type="button" class="fp-exp-it" data-exp="mail"><i data-lucide="mail" class="w-4 h-4" style="color:#2563eb"></i> Envoyer par mail…</button>` : ''}
         ${hasPeriod ? `<div class="fp-exp-div"></div>
         <div class="fp-exp-sec">Par période</div>
         <div class="fp-exp-dates"><label>Du <input type="date" class="fp-exp-from"></label><label>Au <input type="date" class="fp-exp-to"></label></div>
         <button type="button" class="fp-exp-it" data-exp="xlsx" data-period="1"><i data-lucide="sheet" class="w-4 h-4" style="color:#16a34a"></i> Excel — période</button>
         <button type="button" class="fp-exp-it" data-exp="csv" data-period="1"><i data-lucide="file-text" class="w-4 h-4" style="color:#64748b"></i> CSV — période</button>` : ''}
+        ${hasImport ? `<div class="fp-exp-div"></div><div class="fp-exp-sec">Importer</div>` + imports.map((im, i) => `<button type="button" class="fp-exp-it" data-imp="${i}"><i data-lucide="${im.icon || 'upload'}" class="w-4 h-4" style="color:#16a34a"></i> ${(FP.esc ? FP.esc(im.label || 'Importer…') : (im.label || 'Importer…'))}</button>`).join('') : ''}
       </div>`;
     mount.appendChild(wrap);
     if (window.lucide && lucide.createIcons) { try { lucide.createIcons(); } catch (e) {} }
@@ -19525,9 +19546,15 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const btn = wrap.querySelector('.fp-export-btn');
     btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
     menu.addEventListener('click', async (e) => {
+      // Importer : on lance la fonction métier EXISTANTE de la page (lecteur, anti-doublon…).
+      const imp = e.target.closest('[data-imp]');
+      if (imp) { menu.classList.add('hidden'); const im = imports[+imp.dataset.imp]; if (im && typeof im.run === 'function') { try { im.run(); } catch (x) { console.warn('[export-menu import]', x); } } return; }
       const it = e.target.closest('[data-exp]'); if (!it) return;
       const kind = it.dataset.exp;
-      let rows = (opts.getRows() || []).slice();
+      // Relevé PDF : ouvre le moteur commun FP.fiche (colonnes + aperçu + PDF), sans rien dupliquer.
+      if (kind === 'releve') { menu.classList.add('hidden'); if (releveFn && FP.fiche && FP.fiche.open) { try { FP.fiche.open(releveFn()); } catch (x) { console.warn('[export-menu releve]', x); } } return; }
+      const expCols = colsFor();
+      let rows = rowsFor().slice();
       let suffix = '';
       if (it.dataset.period) {
         const from = (wrap.querySelector('.fp-exp-from') || {}).value || '';
@@ -19552,7 +19579,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
         const addr = to.trim();
         try { localStorage.setItem('fp_export_mail', addr); } catch (e) {}
         const fname = nameOf() + suffix + '.csv';
-        FP.exportRows(nameOf() + suffix, opts.columns, rows, 'csv', { total: opts.total, sheetName: opts.sheetName });
+        FP.exportRows(nameOf() + suffix, expCols, rows, 'csv', { total: opts.total, sheetName: opts.sheetName });
         const subject = encodeURIComponent('Export ' + (opts.sheetName || nameOf()) + ' — ' + rows.length + ' ligne(s)');
         const body = encodeURIComponent(
           'Bonjour,\n\nVeuillez trouver l\'export « ' + fname + ' » (' + rows.length + ' ligne(s)).\n\n' +
@@ -19562,7 +19589,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
         if (FP.toast) FP.toast('Fichier téléchargé — joins-le à l\'e-mail qui vient de s\'ouvrir.');
         return;
       }
-      FP.exportRows(nameOf() + suffix, opts.columns, rows, kind, { total: opts.total, sheetName: opts.sheetName });
+      FP.exportRows(nameOf() + suffix, expCols, rows, kind, { total: opts.total, sheetName: opts.sheetName });
       if (FP.toast) FP.toast(`${rows.length} ligne(s) exportée(s) en ${kind === 'csv' ? 'CSV' : 'Excel'}`);
     });
     return { el: wrap };
@@ -19608,7 +19635,8 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       + '<p style="font-size:11.5px;color:#94a3b8;margin:0 0 7px">Coche pour inclure · glisse <b>⠿</b> pour changer l\'ordre.</p>'
       + '<div id="fp-fiche-cols" style="display:flex;flex-direction:column;gap:3px;max-height:46vh;overflow:auto"></div>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap">'
-      + '<button id="fp-fiche-cancel" class="btn btn-outline text-sm">Annuler</button>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button id="fp-fiche-cancel" class="btn btn-outline text-sm">Annuler</button>'
+      + '<button id="fp-fiche-import" class="btn btn-outline text-sm" style="display:none"><i data-lucide="upload" class="w-4 h-4" style="color:#16a34a"></i> Importer</button></div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
       + '<button id="fp-fiche-xlsx" class="btn btn-outline text-sm"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel</button>'
       + '<button id="fp-fiche-csv" class="btn btn-outline text-sm">CSV</button>'
@@ -19626,6 +19654,9 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     el.querySelector('#fp-fiche-csv').onclick = () => doExport('csv');
     el.querySelector('#fp-fiche-fav-save').onclick = saveFav;
     el.querySelector('#fp-fiche-favs').addEventListener('click', onFavClick);
+    // Centre unifié Import/Export : le bouton « Importer » (visible seulement si la page a fourni
+    // config.onImport) ferme la fiche et lance l'import EXISTANT de la page (lecteur métier, anti-doublon…).
+    el.querySelector('#fp-fiche-import').onclick = () => { const fn = cur && cur.onImport; close(); if (typeof fn === 'function') { try { fn(); } catch (e) { console.warn('[fiche import]', e); } } };
     // Réordonnancement des colonnes par glisser-déposer (la ligne glissée se repositionne dans la liste).
     const colsBox = el.querySelector('#fp-fiche-cols');
     let dragEl = null;
@@ -19892,8 +19923,12 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   FP.fiche = {
     open(config) {
       build();
-      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche', date: (typeof config.date === 'function') ? config.date : null };
-      if (!cur.rows.length) { alert('Aucune ligne à imprimer (vérifie les filtres / la sélection).'); return; }
+      cur = { key: config.key || 'fiche', cols: config.cols || [], rows: config.rows || [], title: config.title || 'Fiche', date: (typeof config.date === 'function') ? config.date : null, onImport: (typeof config.onImport === 'function') ? config.onImport : null };
+      // Bouton « Importer » (centre unifié) : affiché uniquement si la page fournit un import.
+      { const ib = modal.querySelector('#fp-fiche-import'); if (ib) ib.style.display = cur.onImport ? '' : 'none'; }
+      // Sans aucune ligne : on peut quand même ouvrir si un IMPORT est proposé (centre unifié) → l'utilisateur
+      // importe dans une page vide. Sinon (export seul), rien à exporter → on prévient et on s'arrête.
+      if (!cur.rows.length && !cur.onImport) { alert('Aucune ligne à imprimer (vérifie les filtres / la sélection).'); return; }
       // Bloc « Période » : affiché seulement si la page fournit une date par ligne (config.date). Remis à zéro.
       { const pb = modal.querySelector('#fp-fiche-period'); if (pb) pb.style.display = cur.date ? 'block' : 'none'; const du = modal.querySelector('#fp-fiche-du'), au = modal.querySelector('#fp-fiche-au'); if (du) du.value = ''; if (au) au.value = ''; }
       let savedChecked, savedOrder;
