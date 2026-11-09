@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script>/* pp-build */(function(){try{var B="20261109c",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<title>Fiscalité & TCO — Parc Pilot</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#0F1E3D">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Parc Pilot">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109c">
+<script>window.lucide={createIcons:function(){}};</script>
+<script defer src="../assets/js/lucide.min.js?v=20261109c"></script>
+<script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261109c">
+<style>
+  .stat-card{background:var(--fp-card,#fff);border:1px solid var(--fp-border);border-radius:.85rem;padding:1.1rem}
+  .fx-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
+  .fx-tab{font-weight:700;font-size:.82rem;border:1px solid var(--fp-border);background:var(--fp-card,#fff);color:var(--fp-muted,#5B6678);border-radius:.6rem;padding:.5rem .85rem;cursor:pointer;display:inline-flex;gap:.4rem;align-items:center}
+  .fx-tab[aria-selected="true"]{background:var(--fp-accent);border-color:var(--fp-accent);color:#fff}
+  .fx-kpi .l{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--fp-muted,#5B6678)}
+  .fx-kpi .v{font-size:1.4rem;font-weight:800;margin-top:.15rem;font-variant-numeric:tabular-nums}
+  .fx-kpi .s{font-size:.7rem;color:var(--fp-faint,#8A93A3);margin-top:.1rem}
+  .fx-seg{display:inline-flex;background:var(--fp-bg,#eef1f6);border:1px solid var(--fp-border);border-radius:.6rem;padding:3px}
+  .fx-seg button{font:inherit;font-weight:700;font-size:.76rem;border:none;background:none;color:var(--fp-muted,#5B6678);border-radius:.45rem;padding:.4rem .7rem;cursor:pointer}
+  .fx-seg button[aria-selected="true"]{background:var(--fp-card,#fff);color:var(--fp-primary,#0B1220);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .fx-tbl{width:100%;border-collapse:collapse;font-size:.8rem;font-variant-numeric:tabular-nums}
+  .fx-tbl th{text-align:left;font-size:.64rem;text-transform:uppercase;letter-spacing:.04em;color:var(--fp-faint,#8A93A3);padding:.45rem .5rem;border-bottom:1px solid var(--fp-border);white-space:nowrap}
+  .fx-tbl td{padding:.45rem .5rem;border-bottom:1px solid var(--fp-border);white-space:nowrap}
+  .fx-tbl tfoot td{font-weight:800;border-top:2px solid var(--fp-border)}
+  .fx-num{text-align:right}
+  .fx-badge{display:inline-block;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:1px 7px}
+  .fx-est{background:#F3EEFF;color:#7C3AED}.fp-dark .fx-est{background:#241A3A;color:#C4B5FD}
+  .fx-note{background:var(--fp-bg,#eef1f6);border:1px solid var(--fp-border);border-radius:.6rem;padding:.7rem .9rem;font-size:.78rem}
+  .fx-cmpcol{border:1px solid var(--fp-border);border-radius:.75rem;overflow:hidden}
+  .fx-cmpcol.best{border-color:#047857;box-shadow:0 0 0 1px #047857}
+  .fx-row{display:flex;justify-content:space-between;gap:.5rem;padding:.45rem .7rem;border-bottom:1px solid var(--fp-border);font-size:.8rem}
+  .fx-row:last-child{border-bottom:none}.fx-row .k{color:var(--fp-muted,#5B6678)}.fx-row .v{font-weight:700;font-variant-numeric:tabular-nums}
+  .fx-inp{font:inherit;font-size:.85rem;border:1px solid var(--fp-border);background:var(--fp-card,#fff);color:var(--fp-primary,#0B1220);border-radius:.5rem;padding:.4rem .5rem;width:100%}
+  .fx-gate{text-align:center;padding:3rem 1rem;color:var(--fp-muted,#5B6678)}
+</style>
+<script>
+(function(){
+  var remember = localStorage.getItem('fp_remember_me') === '1';
+  var alive = sessionStorage.getItem('fp_session_alive') === '1';
+  if (!remember && !alive) { localStorage.removeItem('sb-tzjuptlzoywjeigmyfuj-auth-token'); }
+  sessionStorage.setItem('fp_session_alive', '1');
+  var loginPath = window.location.pathname.indexOf('/pages/') !== -1 ? '../login.html' : 'login.html';
+  var t; try { t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token')); } catch(e) {}
+  if (!t || !t.access_token || (t.expires_at && t.expires_at * 1000 < Date.now() && navigator.onLine !== false)) { window.location.replace(loginPath); document.documentElement.style.display = 'none'; }
+})();
+</script>
+<script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("../sw.js").catch(function(){});});}</script>
+</head>
+<body class="bg-slate-50"><script>try{if(localStorage.getItem("fp_dark_mode")!=="0")document.body.classList.add("fp-dark")}catch(e){}</script>
+
+<div class="flex min-h-screen flex-col md:flex-row">
+  <aside class="fp-sidebar p-4 flex-shrink-0">
+    <a href="../dashboard.html" class="fp-logo text-white text-lg mb-8 px-2">
+      <svg width="132" height="30" viewBox="0 0 154 36" xmlns="http://www.w3.org/2000/svg" aria-label="Parc Pilot" style="overflow:visible"><line x1="2" y1="10" x2="24" y2="10" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/><line x1="0" y1="18" x2="28" y2="18" stroke="#F97316" stroke-width="3" stroke-linecap="round"/><line x1="6" y1="26" x2="22" y2="26" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/><text x="34" y="26" font-size="20" font-weight="900" font-style="italic"><tspan fill="currentColor">Parc</tspan><tspan fill="#F97316">Pilot</tspan></text></svg>
+    </a>
+    <nav class="space-y-1">
+      <a href="../dashboard.html" data-nav="dashboard.html"><i data-lucide="layout-dashboard"></i> Tableau de bord</a>
+      <a href="notifications.html" data-nav="notifications.html"><i data-lucide="bell"></i> Suivi &amp; alertes</a>
+      <a href="taches.html" data-nav="taches.html"><i data-lucide="list-todo"></i> Tâches</a>
+      <a href="statistiques.html" data-nav="statistiques.html"><i data-lucide="bar-chart-3"></i> Statistiques</a>
+      <a href="fiscalite.html" data-nav="fiscalite.html"><i data-lucide="calculator"></i> Fiscalité &amp; TCO</a>
+      <a href="vehicules.html"    data-nav="vehicules.html"><i data-lucide="car"></i> Véhicules</a>
+      <a href="a-vendre.html" data-nav="a-vendre.html"><i data-lucide="tag"></i> À vendre</a>
+      <a href="emprunts.html" data-nav="emprunts.html"><i data-lucide="key-round"></i> Emprunt véhicule</a>
+      <a href="conducteurs.html"  data-nav="conducteurs.html"><i data-lucide="users"></i> Conducteurs</a>
+      <a href="amendes.html"      data-nav="amendes.html"><i data-lucide="ticket"></i> Amendes</a>
+      <a href="sinistres.html"    data-nav="sinistres.html"><i data-lucide="alert-octagon"></i> Sinistres &amp; incidents</a>
+      <a href="factures.html"     data-nav="factures.html"><i data-lucide="receipt"></i> Factures</a>
+      <a href="controle.html" data-nav="controle.html"><i data-lucide="shield-alert"></i> Contrôle</a>
+      <a href="entretiens.html" data-nav="entretiens.html"><i data-lucide="wrench"></i> Entretiens</a>
+      <a href="contrats.html"     data-nav="contrats.html"><i data-lucide="file-text"></i> Contrats</a>
+      <a href="budget.html" data-nav="budget.html"><i data-lucide="piggy-bank"></i> Budget</a>
+      <a href="guide.html"   data-nav="guide.html"><i data-lucide="book-open"></i> Guide/Policy</a>
+      <a href="manuel.html" data-nav="manuel.html"><i data-lucide="book-marked"></i> Manuel</a>
+      <a href="aide.html" data-nav="aide.html"><i data-lucide="life-buoy"></i> Aide</a>
+      <a href="parametres.html"   data-nav="parametres.html"><i data-lucide="settings"></i> Paramètres</a>
+      <a href="../brochure.html"   data-nav="brochure.html" target="_blank" rel="noopener"><i data-lucide="sparkles"></i> Brochure</a>
+      <a href="../prix.html" data-nav="prix.html" target="_blank" rel="noopener"><i data-lucide="badge-euro"></i> Tarifs</a>
+    </nav>
+  </aside>
+
+  <main class="flex-1 p-6 md:p-10">
+    <div class="fp-cockpit mb-5" style="padding:1.1rem 1.4rem">
+      <div class="fp-eyebrow" style="margin-bottom:.35rem">Parc Pilot · Fiscalité</div>
+      <h1 class="text-2xl font-extrabold" style="color:#fff">Fiscalité &amp; TCO</h1>
+      <p class="text-sm" style="color:#c7d2e6;margin-top:.2rem">Coût réel des véhicules, taxes, TVA, amortissements et avantages en nature. <span class="fx-badge fx-est">Estimations</span> à barèmes paramétrables — à valider avec votre expert-comptable.</p>
+    </div>
+
+    <div class="fx-tabs" role="tablist" aria-label="Fiscalité">
+      <button class="fx-tab" role="tab" data-tab="dash" aria-selected="true"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Tableau de bord</button>
+      <button class="fx-tab" role="tab" data-tab="cmp" aria-selected="false"><i data-lucide="scale" class="w-4 h-4"></i> Comparateur</button>
+      <button class="fx-tab" role="tab" data-tab="sim" aria-selected="false"><i data-lucide="sparkles" class="w-4 h-4"></i> Simulateur</button>
+      <button class="fx-tab" role="tab" data-tab="aen" aria-selected="false"><i data-lucide="file-text" class="w-4 h-4"></i> AEN paie</button>
+    </div>
+
+    <!-- TABLEAU DE BORD -->
+    <section id="fx-dash">
+      <div class="stat-card" style="margin-bottom:1rem">
+        <div class="flex items-center gap-3 flex-wrap">
+          <div style="flex:1;min-width:0"><div class="text-xs font-bold uppercase tracking-wide" style="color:var(--fp-faint)">Vue flotte</div><div id="fx-scope" class="font-bold">—</div></div>
+          <select id="fx-soc" class="fx-inp" style="width:auto"></select>
+          <div class="fx-seg" role="tablist" aria-label="Lecture">
+            <button role="tab" data-read="economique" aria-selected="true" title="Coût global du véhicule sur l'année, sans double compte">TCO</button>
+            <button role="tab" data-read="tresorerie" aria-selected="false" title="Ce qui est réellement décaissé">Trésorerie</button>
+            <button role="tab" data-read="comptable" aria-selected="false" title="Charges + amortissements">Comptable</button>
+            <button role="tab" data-read="fiscal" aria-selected="false" title="Déductible / non déductible / effet IS">Fiscal</button>
+          </div>
+        </div>
+        <p id="fx-readdesc" class="text-xs mt-2" style="color:var(--fp-muted)"></p>
+      </div>
+      <div class="grid gap-3 mb-4" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))" id="fx-kpis"></div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between gap-2 mb-2"><div class="font-bold text-sm">Détail par véhicule</div>
+          <button id="fx-dash-export" class="btn btn-outline text-sm"><i data-lucide="download" class="w-4 h-4"></i> Exporter</button></div>
+        <div style="overflow-x:auto"><table class="fx-tbl" id="fx-dash-tbl"></table></div>
+      </div>
+    </section>
+
+    <!-- COMPARATEUR -->
+    <section id="fx-cmp" hidden>
+      <div class="stat-card" style="margin-bottom:1rem">
+        <div class="font-bold text-sm mb-1">Comparer des véhicules</div>
+        <p class="text-xs mb-3" style="color:var(--fp-muted)">Choisis 2 ou 3 véhicules de la flotte. Le TCO le plus bas est surligné. Mêmes règles pour tous (taxes, TVA non récup, amortissement non déductible, surcoût social AEN).</p>
+        <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+          <select id="fx-cmp-1" class="fx-inp"></select>
+          <select id="fx-cmp-2" class="fx-inp"></select>
+          <select id="fx-cmp-3" class="fx-inp"></select>
+        </div>
+      </div>
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))" id="fx-cmp-cols"></div>
+    </section>
+
+    <!-- SIMULATEUR -->
+    <section id="fx-sim" hidden>
+      <div class="stat-card" style="margin-bottom:1rem">
+        <div class="font-bold text-sm mb-1">Simulateur avant acquisition</div>
+        <p class="text-xs mb-3" style="color:var(--fp-muted)">Compare 3 scénarios sur une durée. Hypothèses modifiables ; aucune donnée des véhicules existants n'est touchée.</p>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <label class="text-xs" style="color:var(--fp-muted)">Durée (mois)<select id="fx-sim-duree" class="fx-inp mt-1"><option>36</option><option selected>48</option><option>60</option></select></label>
+          <label class="text-xs" style="color:var(--fp-muted)">Km / an<input id="fx-sim-km" class="fx-inp mt-1" type="number" value="25000"></label>
+          <label class="text-xs" style="color:var(--fp-muted)">Taux IS<select id="fx-sim-is" class="fx-inp mt-1"><option value="0.25" selected>25 %</option><option value="0.15">15 %</option></select></label>
+        </div>
+      </div>
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))" id="fx-sim-cols"></div>
+      <div class="fx-note mt-3"><b>Économie d'impôt = estimée, pas encaissée.</b> Elle dépend du résultat réel de la société. On affiche le coût brut ET le coût après effet fiscal estimé.</div>
+    </section>
+
+    <!-- AEN PAIE -->
+    <section id="fx-aen" hidden>
+      <div id="fx-aen-gate" class="stat-card fx-gate" hidden>🔒 Écran réservé au CEO et aux administrateurs (données de paie confidentielles).</div>
+      <div id="fx-aen-content" hidden>
+        <div class="fx-note mb-3" style="background:#FFF7ED;border-color:#FED7AA"><b>🔒 Confidentiel (RH / paie) :</b> réservé CEO + Admin. L'AEN valorisé n'est pas un coût véhicule supplémentaire ; seul le <b>surcoût de cotisations</b> l'est. Les montants sont des <b>estimations</b> (barème URSSAF selon la date de mise à disposition) — à confronter au relevé du loueur et au bulletin.</div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between gap-2 mb-2"><div class="font-bold text-sm">Avantages en nature — récapitulatif mensuel</div>
+            <button id="fx-aen-export" class="btn btn-outline text-sm"><i data-lucide="download" class="w-4 h-4"></i> Export paie (Excel/CSV)</button></div>
+          <div style="overflow-x:auto"><table class="fx-tbl" id="fx-aen-tbl"></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="../assets/js/vendor/supabase.js?v=20261109c"></script>
+<script src="../assets/js/supabase-client.js?v=20261109c"></script>
+<script>(function(){try{var soc=localStorage.getItem('fp_societe')||'PXP';var c=JSON.parse(localStorage.getItem('fp_data_cache_v4_'+soc)||'null');var full=c&&['vehicules','amendes','factures','conducteurs'].every(function(k){return Array.isArray(c[k])&&c[k].length;});if(full){window.FP_DATA={vehicules:c.vehicules,amendes:c.amendes,factures:c.factures,conducteurs:c.conducteurs};window.__fpSeeded=1;return;}}catch(e){}document.write('<scr'+'ipt src="../assets/js/data.js?v=20261109c"><\/scr'+'ipt>');})();</script>
+<script>window.FP_PDF=1;</script>
+<script src="../assets/js/app.min.js?v=20261109c"></script>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var euro = function(n){ return (window.FP && FP.euro) ? FP.euro(Math.round(n||0)) : (Math.round(n||0)+' €'); };
+  var esc = function(s){ return (window.FP && FP.esc) ? FP.esc(s) : String(s==null?'':s); };
+
+  function fleet(){
+    var vs = (window.FP_DATA && FP_DATA.vehicules) || [];
+    return vs.filter(function(v){ return window.FP && FP.horsFlotte ? !FP.horsFlotte(v) : !(FP.estVendu&&FP.estVendu(v)); });
+  }
+  function socOf(v){ return v.societe || v.soc || '—'; }
+
+  /* ---------- Tableau de bord ---------- */
+  var curRead = 'economique';
+  var READ = {
+    economique:'TCO économique : coût global du véhicule sur l\'année, sans additionner loyer + capital + amortissement. Inclut le surcoût social de l\'AEN, pas l\'AEN entier.',
+    tresorerie:'Trésorerie : ce qui sort réellement (loyers, carburant, assurance, taxes, cotisations). Pas d\'amortissement.',
+    comptable:'Comptable : charges + amortissement (acheté) + taxes + cotisations. L\'amortissement remplace le décaissement d\'achat.',
+    fiscal:'Fiscal : part non déductible (amortissement au-delà du plafond, loyer non déductible) et effet IS estimé.'
+  };
+  function socFilter(){ var s=$('fx-soc'); return s ? s.value : 'Toutes'; }
+  function dashRows(){ var f=fleet(); var s=socFilter(); return s==='Toutes'?f:f.filter(function(v){return socOf(v)===s;}); }
+  function tcoOf(v){ try { return (window.FP&&FP.tco)?FP.tco(v,{factures:(FP_DATA&&FP_DATA.factures)||[]}):null; } catch(e){ return null; } }
+  function readVal(t){ if(!t)return 0; if(curRead==='fiscal')return t.economique; return t[curRead]!=null?t[curRead]:t.economique; }
+
+  function renderDash(){
+    var rows = dashRows();
+    $('fx-scope').textContent = socFilter()+' · '+rows.length+' véhicule'+(rows.length>1?'s':'');
+    $('fx-readdesc').textContent = READ[curRead]||'';
+    var sum = { eco:0, tres:0, comp:0, taxes:0, cotis:0, nonded:0, is:0 };
+    var data = rows.map(function(v){ var t=tcoOf(v); if(t){ sum.eco+=t.economique; sum.tres+=t.tresorerie; sum.comp+=t.comptable; sum.taxes+=t.composantes.taxes; sum.cotis+=t.composantes.cotisationsAEN; sum.nonded+=t.fiscal.nonDeductible; sum.is+=t.fiscal.effetISEstime; } return {v:v,t:t}; });
+    var kpis = [
+      ['Coût flotte / an (TCO)', euro(sum.eco), rows.length+' véhicules'],
+      ['Décaissé / an', euro(sum.tres), 'trésorerie'],
+      ['Taxes annuelles', euro(sum.taxes), 'CO₂ + polluants'],
+      ['Surcoût social AEN', euro(sum.cotis), 'cotisations est.'],
+      ['Charges non déductibles', euro(sum.nonded), 'réintégration fiscale'],
+      ['Économie d\'impôt est.', euro(sum.is), 'effet IS']
+    ];
+    $('fx-kpis').innerHTML = kpis.map(function(k){ return '<div class="stat-card fx-kpi"><div class="l">'+esc(k[0])+'</div><div class="v">'+k[1]+'</div><div class="s">'+esc(k[2])+'</div></div>'; }).join('');
+    var th='<thead><tr><th>Véhicule</th><th>Énergie</th><th>Mode</th><th class="fx-num">'+({economique:'TCO/an',tresorerie:'Décaissé/an',comptable:'Comptable/an',fiscal:'TCO/an'}[curRead])+'</th><th class="fx-num">Taxes</th><th class="fx-num">AEN empl.</th><th class="fx-num">Non déduct.</th></tr></thead>';
+    var body = data.map(function(d){ var v=d.v,t=d.t; var mode=(t&&t.mode==='location')?'Location':(t&&t.mode==='achat'?'Achat':'—');
+      return '<tr><td><b>'+esc(v.immat||'—')+'</b> '+esc(((v.marque||'')+' '+(v.modele||'')).trim())+'</td><td>'+esc(v.carburant||'—')+'</td><td>'+mode+'</td><td class="fx-num">'+(t?euro(readVal(t)):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.taxes):'—')+'</td><td class="fx-num">'+(t?euro(t.composantes.cotisationsAEN):'—')+'</td><td class="fx-num">'+(t?euro(t.fiscal.nonDeductible):'—')+'</td></tr>'; }).join('');
+    var tf='<tfoot><tr><td colspan="3">Total</td><td class="fx-num">'+euro(curRead==='tresorerie'?sum.tres:(curRead==='comptable'?sum.comp:sum.eco))+'</td><td class="fx-num">'+euro(sum.taxes)+'</td><td class="fx-num">'+euro(sum.cotis)+'</td><td class="fx-num">'+euro(sum.nonded)+'</td></tr></tfoot>';
+    $('fx-dash-tbl').innerHTML = th+'<tbody>'+body+'</tbody>'+tf;
+    if(window.lucide)try{lucide.createIcons();}catch(e){}
+  }
+  function fillSoc(){
+    var f=fleet(); var socs={}; f.forEach(function(v){ socs[socOf(v)]=1; });
+    var opts='<option>Toutes</option>'+Object.keys(socs).filter(function(x){return x&&x!=='—';}).sort().map(function(s){return '<option>'+esc(s)+'</option>';}).join('');
+    var sel=$('fx-soc'); if(sel && sel.innerHTML!==opts){ sel.innerHTML=opts; }
+  }
+  function dashExport(){
+    if(!(window.FP&&FP.fiche&&FP.fiche.open)){ alert('Export indisponible.'); return; }
+    var rows = dashRows().map(function(v){ return {v:v,t:tcoOf(v)}; });
+    FP.fiche.open({ key:'fiscalite-tco', title:'Fiscalité & TCO — '+socFilter(), rows:rows, cols:[
+      {id:'immat',label:'Immatriculation',def:true,get:function(r){return r.v.immat||'';}},
+      {id:'veh',label:'Véhicule',def:true,get:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},
+      {id:'energie',label:'Énergie',def:true,get:function(r){return r.v.carburant||'';}},
+      {id:'mode',label:'Mode',def:true,get:function(r){return r.t?(r.t.mode==='location'?'Location':'Achat'):'';}},
+      {id:'tco',label:'TCO/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.economique):'';},num:function(r){return r.t?Math.round(r.t.economique):null;},sum:function(r){return r.t?r.t.economique:0;},fmt:euro},
+      {id:'tres',label:'Décaissé/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.tresorerie):'';},num:function(r){return r.t?Math.round(r.t.tresorerie):null;},sum:function(r){return r.t?r.t.tresorerie:0;},fmt:euro},
+      {id:'taxes',label:'Taxes/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.composantes.taxes):'';},num:function(r){return r.t?Math.round(r.t.composantes.taxes):null;},sum:function(r){return r.t?r.t.composantes.taxes:0;},fmt:euro},
+      {id:'cotis',label:'Surcoût AEN/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.composantes.cotisationsAEN):'';},num:function(r){return r.t?Math.round(r.t.composantes.cotisationsAEN):null;},sum:function(r){return r.t?r.t.composantes.cotisationsAEN:0;},fmt:euro},
+      {id:'nonded',label:'Non déductible/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.fiscal.nonDeductible):'';},num:function(r){return r.t?Math.round(r.t.fiscal.nonDeductible):null;},sum:function(r){return r.t?r.t.fiscal.nonDeductible:0;},fmt:euro}
+    ]});
+  }
+
+  /* ---------- Comparateur ---------- */
+  function fillCmp(){
+    var f=fleet(); var opts='<option value="">— véhicule —</option>'+f.map(function(v){return '<option value="'+esc(v.id)+'">'+esc((v.immat||'')+' · '+((v.marque||'')+' '+(v.modele||'')).trim())+'</option>';}).join('');
+    ['fx-cmp-1','fx-cmp-2','fx-cmp-3'].forEach(function(id,i){ var s=$(id); if(s && s.dataset.filled!=='1'){ s.innerHTML=opts; if(f[i]) s.value=f[i].id; s.dataset.filled='1'; if(window.FP&&FP.searchSelect){try{FP.searchSelect(s,{placeholder:'Rechercher un véhicule…'});}catch(e){}} } });
+  }
+  function renderCmp(){
+    var sel=['fx-cmp-1','fx-cmp-2','fx-cmp-3'].map(function(id){return $(id)?$(id).value:'';}).filter(Boolean);
+    var f=fleet(); var vs=sel.map(function(id){return f.find(function(v){return String(v.id)===String(id);});}).filter(Boolean);
+    if(!vs.length){ $('fx-cmp-cols').innerHTML='<div class="fx-note">Choisis au moins un véhicule.</div>'; return; }
+    var items=vs.map(function(v){return {v:v,t:tcoOf(v)};});
+    var tcos=items.map(function(i){return i.t?i.t.economique:Infinity;});
+    var best=Math.min.apply(null,tcos);
+    var row=function(k,val){return '<div class="fx-row"><span class="k">'+esc(k)+'</span><span class="v">'+val+'</span></div>';};
+    $('fx-cmp-cols').innerHTML = items.map(function(it,idx){ var v=it.v,t=it.t; var isBest=t&&t.economique===best&&isFinite(best);
+      return '<div class="fx-cmpcol'+(isBest?' best':'')+'">'
+        + '<div style="padding:.6rem .7rem;background:var(--fp-bg,#eef1f6);border-bottom:1px solid var(--fp-border)"><div class="font-bold text-sm">'+esc(((v.marque||'')+' '+(v.modele||'')).trim()||v.immat)+(isBest?' <span class="fx-badge" style="background:#ECFDF5;color:#047857">moins cher</span>':'')+'</div><div class="text-xs" style="color:var(--fp-muted)">'+esc(v.immat||'')+' · '+esc(v.carburant||'')+'</div></div>'
+        + row('Coût exploitation/an', t?euro(t.composantes.exploit):'—')
+        + row('Loyer ou amort./an', t?euro(t.mode==='location'?t.composantes.leasingAnnuel:t.composantes.amortAnnuel):'—')
+        + row('Taxes annuelles', t?euro(t.composantes.taxes):'—')
+        + row('Surcoût social AEN', t?euro(t.composantes.cotisationsAEN):'—')
+        + row('Non déductible/an', t?euro(t.fiscal.nonDeductible):'—')
+        + '<div class="fx-row" style="background:var(--fp-bg,#eef1f6)"><span class="k" style="font-weight:800;color:var(--fp-primary)">TCO économique/an</span><span class="v" style="color:'+(isBest?'#047857':'inherit')+'">'+(t?euro(t.economique):'—')+'</span></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* ---------- Simulateur ---------- */
+  function cfgF(){ try { return (window.FP&&FP.fiscalConfig)?FP.fiscalConfig():null; } catch(e){ return null; } }
+  function renderSim(){
+    var duree=+($('fx-sim-duree').value)||48, kmAn=+($('fx-sim-km').value)||25000, is=+($('fx-sim-is').value)||0.25;
+    var ans=duree/12; var cot=(cfgF()&&cfgF().cotisationsPatronales)||0.42;
+    var scen=[
+      {t:'Électrique — LLD',s:'ex. EQA 250',loyer:710,carbAn:kmAn*0.03,taxe:0,aenMois:107,nonDedAn:0},
+      {t:'Hybride — LLD',s:'ex. Q3 e-tron',loyer:620,carbAn:kmAn*0.08,taxe:192,aenMois:300,nonDedAn:1180},
+      {t:'Thermique — Achat',s:'ex. 5008 diesel',achat:42000,carbAn:kmAn*0.10,taxe:953,aenMois:135,nonDedAn:4740}
+    ];
+    var res=scen.map(function(sc){ var usage=sc.achat?sc.achat:(sc.loyer*duree); var carb=sc.carbAn*ans; var taxe=sc.taxe*ans; var social=Math.round(sc.aenMois*12*cot*ans); var brut=usage+carb+taxe+social; var nonDed=sc.nonDedAn*ans; var apres=Math.round(brut-(brut-nonDed)*is); return {brut:Math.round(brut),apres:apres,mois:Math.round(brut/duree),an:Math.round(brut/ans)}; });
+    var best=Math.min.apply(null,res.map(function(r){return r.apres;}));
+    var row=function(k,val){return '<div class="fx-row"><span class="k">'+esc(k)+'</span><span class="v">'+val+'</span></div>';};
+    $('fx-sim-cols').innerHTML = scen.map(function(sc,i){ var r=res[i]; var isBest=r.apres===best;
+      return '<div class="fx-cmpcol'+(isBest?' best':'')+'"><div style="padding:.6rem .7rem;background:var(--fp-bg,#eef1f6);border-bottom:1px solid var(--fp-border)"><div class="font-bold text-sm">'+esc(sc.t)+(isBest?' <span class="fx-badge" style="background:#ECFDF5;color:#047857">optimal</span>':'')+'</div><div class="text-xs" style="color:var(--fp-muted)">'+esc(sc.s)+'</div></div>'
+        + row('Coût mensuel', euro(r.mois)) + row('Coût annuel', euro(r.an)) + row('Coût sur '+duree+' mois', euro(r.brut))
+        + row('AEN conducteur/mois', euro(sc.aenMois)) + row('Taxes/an', euro(sc.taxe)) + row('Non déductible/an', euro(sc.nonDedAn))
+        + '<div class="fx-row" style="background:var(--fp-bg,#eef1f6)"><span class="k" style="font-weight:800;color:var(--fp-primary)">Coût après impôt est.</span><span class="v" style="color:'+(isBest?'#047857':'inherit')+'">'+euro(r.apres)+'</span></div></div>';
+    }).join('');
+  }
+
+  /* ---------- AEN paie (gated) ---------- */
+  function aenAllowed(){ try { return !(window.FP&&FP.canManageSociete) || FP.canManageSociete(); } catch(e){ return true; } }
+  function aenRows(){
+    var f=fleet().filter(function(v){ var ch=v.chauffeur&&String(v.chauffeur).trim(); var excl=['','—','x','X','Siège','Dépôt','Navette','VENDU']; return ch&&excl.indexOf(ch)<0; });
+    return f.map(function(v){ var d=null,e=null; try{ d=FP.aenDetail?FP.aenDetail(v):null; e=FP.aenCoutEmployeur?FP.aenCoutEmployeur(v):null; }catch(x){} return {v:v,d:d,e:e}; })
+      .filter(function(r){ return r.d&&r.d.applicable; });
+  }
+  function renderAen(){
+    if(!aenAllowed()){ $('fx-aen-gate').hidden=false; $('fx-aen-content').hidden=true; return; }
+    $('fx-aen-gate').hidden=true; $('fx-aen-content').hidden=false;
+    var rows=aenRows();
+    var th='<thead><tr><th>Conducteur</th><th>Véhicule</th><th>Société</th><th>Méthode</th><th class="fx-num">AEN /mois</th><th class="fx-num">AEN /an</th><th class="fx-num">Cotisations /an</th></tr></thead>';
+    var body=rows.map(function(r){ var meth=r.d.officiel?('officiel '+(r.d.source||'loueur')):(r.d.method+(r.d.bareme?' · '+(r.d.bareme==='ancien'?'ancien bar.':'nouv. bar.'):''));
+      return '<tr><td><b>'+esc((window.FP&&FP.prenomAffiche)?FP.prenomAffiche(r.v.chauffeur):r.v.chauffeur)+'</b></td><td>'+esc(r.v.immat||'')+'</td><td>'+esc(socOf(r.v))+'</td><td>'+esc(meth)+'</td><td class="fx-num">'+euro(r.d.netMensuel)+'</td><td class="fx-num">'+euro(r.d.netAnnuel)+'</td><td class="fx-num">'+(r.e&&r.e.applicable?euro(r.e.cotisationsAnnuelles):'—')+'</td></tr>'; }).join('');
+    var tM=rows.reduce(function(a,r){return a+(r.d.netMensuel||0);},0), tA=rows.reduce(function(a,r){return a+(r.d.netAnnuel||0);},0), tC=rows.reduce(function(a,r){return a+((r.e&&r.e.cotisationsAnnuelles)||0);},0);
+    var tf='<tfoot><tr><td colspan="4">Total ('+rows.length+')</td><td class="fx-num">'+euro(tM)+'</td><td class="fx-num">'+euro(tA)+'</td><td class="fx-num">'+euro(tC)+'</td></tr></tfoot>';
+    $('fx-aen-tbl').innerHTML=rows.length?(th+'<tbody>'+body+'</tbody>'+tf):'<tbody><tr><td style="padding:1.4rem;color:var(--fp-muted)">Aucun avantage en nature applicable (aucun véhicule avec usage privé détecté).</td></tr></tbody>';
+    if(window.lucide)try{lucide.createIcons();}catch(e){}
+  }
+  function aenExport(){
+    if(!aenAllowed()){ return; }
+    if(!(window.FP&&FP.fiche&&FP.fiche.open)){ alert('Export indisponible.'); return; }
+    var rows=aenRows();
+    FP.fiche.open({ key:'aen-paie', title:'AEN paie — '+(new Date()).toLocaleDateString('fr-FR'), rows:rows, cols:[
+      {id:'cond',label:'Conducteur',def:true,get:function(r){return (window.FP&&FP.prenomAffiche)?FP.prenomAffiche(r.v.chauffeur):(r.v.chauffeur||'');}},
+      {id:'veh',label:'Véhicule',def:true,get:function(r){return r.v.immat||'';}},
+      {id:'soc',label:'Société',def:true,get:function(r){return socOf(r.v);}},
+      {id:'meth',label:'Méthode',def:true,get:function(r){return r.d.officiel?('officiel '+(r.d.source||'loueur')):r.d.method;}},
+      {id:'mois',label:'AEN mensuel',def:true,align:'right',get:function(r){return euro(r.d.netMensuel);},num:function(r){return Math.round(r.d.netMensuel);},sum:function(r){return r.d.netMensuel;},fmt:euro},
+      {id:'an',label:'AEN annuel',def:true,align:'right',get:function(r){return euro(r.d.netAnnuel);},num:function(r){return Math.round(r.d.netAnnuel);},sum:function(r){return r.d.netAnnuel;},fmt:euro},
+      {id:'cotis',label:'Cotisations/an',def:false,align:'right',get:function(r){return r.e&&r.e.applicable?euro(r.e.cotisationsAnnuelles):'';},num:function(r){return r.e&&r.e.applicable?Math.round(r.e.cotisationsAnnuelles):null;},sum:function(r){return (r.e&&r.e.cotisationsAnnuelles)||0;},fmt:euro}
+    ]});
+  }
+
+  /* ---------- Onglets + init ---------- */
+  var TABS=['dash','cmp','sim','aen'];
+  function showTab(t){
+    TABS.forEach(function(x){ var el=$('fx-'+x); if(el) el.hidden=(x!==t); });
+    document.querySelectorAll('.fx-tab').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab===t); });
+    if(t==='dash'){ fillSoc(); renderDash(); } else if(t==='cmp'){ fillCmp(); renderCmp(); } else if(t==='sim'){ renderSim(); } else if(t==='aen'){ renderAen(); }
+  }
+  function wire(){
+    document.querySelectorAll('.fx-tab').forEach(function(b){ b.addEventListener('click',function(){ showTab(b.dataset.tab); }); });
+    document.querySelectorAll('[data-read]').forEach(function(b){ b.addEventListener('click',function(){ curRead=b.dataset.read; document.querySelectorAll('[data-read]').forEach(function(x){x.setAttribute('aria-selected',x===b);}); renderDash(); }); });
+    $('fx-soc').addEventListener('change', renderDash);
+    $('fx-dash-export').addEventListener('click', dashExport);
+    ['fx-cmp-1','fx-cmp-2','fx-cmp-3'].forEach(function(id){ $(id).addEventListener('change', renderCmp); });
+    ['fx-sim-duree','fx-sim-km','fx-sim-is'].forEach(function(id){ $(id).addEventListener('input', renderSim); });
+    $('fx-aen-export').addEventListener('click', aenExport);
+  }
+  function boot(){ wire(); showTab('dash'); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  // Re-render quand les vraies données Supabase arrivent (data.js = instantané, puis live).
+  window.addEventListener('fp:data-ready', function(){ var active=(document.querySelector('.fx-tab[aria-selected="true"]')||{}).dataset; showTab(active&&active.tab?active.tab:'dash'); });
+})();
+</script>
+</body>
+</html>
