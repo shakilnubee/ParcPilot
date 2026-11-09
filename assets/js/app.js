@@ -3729,33 +3729,37 @@ FP.kmCollecte = {
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px;white-space:nowrap">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + plaque + '</td>'
       + '</tr></table>') : '';
+    // ── Design SOMBRE « lueur orange » (source unique, identique à FP.mailShell/mailBrand) : fond extérieur
+    //    blanc, en-tête sombre + lueur orange, fine ligne orange, corps sombre, bouton ORANGE, pied Parc
+    //    Pilot. Conducteur = NOM SEUL (le poste n'est plus affiché, choix utilisateur). ──
     const html = ''
-      + '<div style="font-family:Inter,Arial,sans-serif;max-width:440px;margin:0 auto;color:#0F1E3D">'
-      // ── En-tête bleu : marque Parc Pilot + société, titre, puis conducteur (prénom/nom + poste) et plaque ──
-      + '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:20px 22px;border-radius:16px 16px 0 0">'
-      // En-tête = marque expéditeur : logo société hébergé, sinon nom de société, sinon logo Parc Pilot.
+      + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF;margin:0;padding:0"><tr><td align="center" style="background:#FFFFFF;padding:20px 10px">'
+      + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:440px;margin:0 auto;border-radius:18px;overflow:hidden;color:#E6EDF8">'
+      // En-tête sombre + lueur orange ; marque expéditeur (logo société hébergé, sinon nom, sinon Parc Pilot).
+      + '<div style="background-color:#0A0E1A;background-image:radial-gradient(220px 150px at 50% 56px, rgba(249,115,22,.34), rgba(249,115,22,.08) 50%, rgba(249,115,22,0) 76%);padding:22px 22px;text-align:center">'
       + '<div>' + (logoUrl
-        ? '<img src="' + FP.esc(logoUrl) + '" alt="' + (socName || 'Logo') + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:block">'
+        ? '<img src="' + FP.esc(logoUrl) + '" alt="' + (socName || 'Logo') + '" style="max-height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:8px;padding:5px 8px;display:inline-block">'
         : (socName ? '<span style="font-weight:900;font-size:17px;color:#fff;letter-spacing:.02em">' + socName + '</span>' : (FP.ppLogoMail ? FP.ppLogoMail() : 'Parc Pilot'))) + '</div>'
-      + '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + T.title + '</div>'
-      + (fullName ? '<div style="font-size:16px;font-weight:700;margin-top:14px;color:#fff">' + FP.esc(fullName) + '</div>' : '')
-      + (cPoste ? '<div style="font-size:13px;color:#94A3B8;margin-top:3px;font-weight:600">' + FP.esc(cPoste) + '</div>' : '')
+      + '<div style="font-size:20px;font-weight:700;margin-top:14px;line-height:1.25;color:#ffffff">' + T.title + '</div>'
+      + (fullName ? '<div style="font-size:15px;font-weight:700;margin-top:10px;color:#E6EDF8">' + FP.esc(fullName) + '</div>' : '')
       + (plateBadge ? '<div style="margin-top:14px;white-space:nowrap">' + plateBadge + '</div>' : '')
       + '</div>'
-      // ── Corps blanc : demande + bouton ── (FR = message ÉDITABLE Paramètres → E-mails ; EN = défaut)
-      + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px 22px">'
+      + '<div style="height:3px;background:#F97316;line-height:3px;font-size:0">&#160;</div>'
+      // ── Corps SOMBRE : demande + bouton ── (FR = message ÉDITABLE Paramètres → E-mails ; EN = défaut)
+      + '<div style="background:#0F1626;padding:20px 22px;color:#E6EDF8;font-size:14px;line-height:1.6;text-align:left">'
       + ((FP.mailModeleProfilL && FP.fillTags)
-          ? '<div style="white-space:pre-wrap;line-height:1.55">' + FP.esc(FP.fillTags(FP.mailModeleProfilL('mailModeleReleveKm', 'relevekm', L), { prenom: cPrenom, immat: v.immat })).replace(/\n/g, '<br>') + '</div>'
-          : ('<p style="margin:0 0 16px">' + T.hi + (cPrenom ? ' ' + FP.esc(cPrenom) : '') + ',</p>'
-             + '<p style="margin:0 0 16px;line-height:1.5">' + T.ask1 + (plaque ? ' <b style="white-space:nowrap">' + plaque + '</b>' : '') + (marque ? ' (' + marque + ')' : '') + T.ask2 + '</p>'))
-      + '<p style="text-align:center;margin:24px 0 6px">'
-      + '<a href="' + link + '" style="display:inline-block;background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px -8px rgba(11,18,32,.6)">' + T.btn + '</a>'
+          ? '<div style="white-space:pre-wrap;line-height:1.6">' + FP.esc(FP.fillTags(FP.mailModeleProfilL('mailModeleReleveKm', 'relevekm', L), { prenom: cPrenom, immat: v.immat })).replace(/\n/g, '<br>') + '</div>'
+          : ('<p style="margin:0 0 14px">' + T.hi + (cPrenom ? ' ' + FP.esc(cPrenom) : '') + ',</p>'
+             + '<p style="margin:0 0 14px;line-height:1.6">' + T.ask1 + (plaque ? ' <b style="white-space:nowrap">' + plaque + '</b>' : '') + (marque ? ' (' + marque + ')' : '') + T.ask2 + '</p>'))
+      + '<p style="text-align:center;margin:22px 0 6px">'
+      + '<a href="' + link + '" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px">' + T.btn + '</a>'
       + '</p>'
       // Repli PROPRE : pas d'URL brute, juste un lien discret « cliquez ici ».
-      + '<p style="margin:10px 0 0;font-size:12px;color:#94A3B8;text-align:center">' + T.fb + '<a href="' + link + '" style="color:#94A3B8;text-decoration:underline">' + T.fbLink + '</a></p>'
+      + '<p style="margin:10px 0 0;font-size:12px;color:#8A93A3;text-align:center">' + T.fb + '<a href="' + link + '" style="color:#8A93A3;text-decoration:underline">' + T.fbLink + '</a></p>'
       + '</div>'
       + (FP.mailFooterHtml ? FP.mailFooterHtml(nomSoc || '') : '')
-      + '</div>';
+      + '</div>'
+      + '</td></tr></table>';
     const text = (FP.mailModeleProfilL && FP.fillTags)
       ? (FP.fillTags(FP.mailModeleProfilL('mailModeleReleveKm', 'relevekm', L), { prenom: cPrenom, immat: v.immat }) + '\n\n' + T.clickTxt + ' ' + link + '\n\n' + (nomSoc || 'Parc Pilot'))
       : ((fullName ? T.hi + ' ' + fullName + ',\n\n' : T.hi + ',\n\n')
