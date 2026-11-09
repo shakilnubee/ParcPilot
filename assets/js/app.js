@@ -19503,6 +19503,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       + '<button id="fp-fiche-x" style="background:none;border:none;font-size:24px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button></div>'
       + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin:14px 0 4px">Titre de la fiche</label>'
       + '<input id="fp-fiche-title" type="text" style="width:100%;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;font-size:14px;color:#0f172a">'
+      + '<div style="margin-top:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:600;color:#64748b">Mes configurations</span><button id="fp-fiche-fav-save" type="button" style="background:none;border:none;color:#f97316;font-weight:600;cursor:pointer;font-size:12px">＋ Enregistrer</button></div><div id="fp-fiche-favs" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>'
       + '<div id="fp-fiche-period" style="display:none;margin-top:13px">'
       + '<label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px">Période <span style="font-weight:400;color:#94a3b8">(vide = tout)</span></label>'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
@@ -19530,6 +19531,8 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     el.querySelector('#fp-fiche-apercu').onclick = openPreview;
     el.querySelector('#fp-fiche-xlsx').onclick = () => doExport('xlsx');
     el.querySelector('#fp-fiche-csv').onclick = () => doExport('csv');
+    el.querySelector('#fp-fiche-fav-save').onclick = saveFav;
+    el.querySelector('#fp-fiche-favs').addEventListener('click', onFavClick);
     // Réordonnancement des colonnes par glisser-déposer (la ligne glissée se repositionne dans la liste).
     const colsBox = el.querySelector('#fp-fiche-cols');
     let dragEl = null;
@@ -19741,6 +19744,58 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     prev.style.display = 'flex';
   }
 
+  // ── Favoris (configurations enregistrées) — par module (cur.key), synchronisés via app_settings ──
+  function favStoreKey() { return cur ? cur.key : 'fiche'; }
+  function getFavs() { try { return ((FP.settings.get().ficheFavoris || {})[favStoreKey()]) || []; } catch (e) { return []; } }
+  function setFavs(arr) { try { const s = FP.settings.get(); s.ficheFavoris = s.ficheFavoris || {}; s.ficheFavoris[favStoreKey()] = arr; FP.settings.save(s); } catch (e) {} }
+  function renderFavs() {
+    if (!modal) return;
+    const box = modal.querySelector('#fp-fiche-favs'); if (!box) return;
+    const favs = getFavs();
+    box.innerHTML = favs.length
+      ? favs.map((f, i) => '<span class="fp-fav-chip" data-i="' + i + '" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:4px 6px 4px 11px;cursor:pointer;color:#0f172a" title="Appliquer cette configuration">⭐ ' + escH(f.name) + ' <button type="button" class="fp-fav-del" data-i="' + i + '" title="Supprimer" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1;padding:0 2px">&times;</button></span>').join('')
+      : '<span style="font-size:12px;color:#94a3b8">Aucune configuration. Règle les colonnes/la période puis « ＋ Enregistrer ».</span>';
+  }
+  function onFavClick(e) {
+    const del = e.target.closest('.fp-fav-del');
+    if (del) { e.stopPropagation(); const favs = getFavs(); favs.splice(+del.dataset.i, 1); setFavs(favs); renderFavs(); return; }
+    const chip = e.target.closest('.fp-fav-chip');
+    if (chip) { const f = getFavs()[+chip.dataset.i]; if (f) applyFav(f); }
+  }
+  function renderColRows(order, checkedSet) {
+    const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
+    modal.querySelector('#fp-fiche-cols').innerHTML = order.map(id => { const c = byId[id]; if (!c) return '';
+      return '<div class="fp-fcol-row" draggable="true" data-id="' + escH(c.id) + '" style="display:flex;align-items:center;gap:8px;font-size:14.5px;color:#334155;padding:6px 7px;border:1px solid #eef2f7;border-radius:8px;background:#fff;cursor:grab">'
+        + '<span style="color:#cbd5e1;font-size:15px;cursor:grab;user-select:none" title="Glisser pour réordonner">⠿</span>'
+        + '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;margin:0"><input type="checkbox" value="' + escH(c.id) + '"' + (checkedSet.has(c.id) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label></div>';
+    }).join('');
+  }
+  function applyFav(f) {
+    if (!cur || !modal) return;
+    if (f.title != null) modal.querySelector('#fp-fiche-title').value = f.title;
+    if (cur.date) { const du = modal.querySelector('#fp-fiche-du'), au = modal.querySelector('#fp-fiche-au'); if (du) du.value = f.du || ''; if (au) au.value = f.au || ''; }
+    const favCols = Array.isArray(f.cols) ? f.cols : [];
+    const checkedSet = new Set(favCols.filter(id => cur.cols.some(c => c.id === id)));
+    let order = favCols.filter(id => cur.cols.some(c => c.id === id));
+    cur.cols.forEach(c => { if (order.indexOf(c.id) < 0) order.push(c.id); });
+    renderColRows(order, checkedSet);
+    updateScope();
+  }
+  function saveFav() {
+    if (!cur || !modal) return;
+    const rowEls = Array.from(modal.querySelectorAll('#fp-fiche-cols .fp-fcol-row'));
+    const ids = rowEls.filter(r => { const i = r.querySelector('input'); return i && i.checked; }).map(r => r.dataset.id);
+    if (!ids.length) { alert('Coche au moins une colonne avant d\'enregistrer.'); return; }
+    const def = ((modal.querySelector('#fp-fiche-title').value || '').trim()) || cur.title || 'Config';
+    let name = def;
+    try { const p = window.prompt('Nom de la configuration :', def); if (p === null) return; if (p && p.trim()) name = p.trim(); } catch (e) {}
+    const du = cur.date ? (modal.querySelector('#fp-fiche-du').value || '') : '';
+    const au = cur.date ? (modal.querySelector('#fp-fiche-au').value || '') : '';
+    const favs = getFavs().filter(x => x.name !== name);
+    favs.push({ name: name, title: (modal.querySelector('#fp-fiche-title').value || '').trim(), du: du, au: au, cols: ids });
+    setFavs(favs); renderFavs();
+    if (FP.toast) FP.toast('Configuration « ' + name + ' » enregistrée');
+  }
   FP.fiche = {
     open(config) {
       build();
@@ -19759,12 +19814,8 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       } else order = cur.cols.map(c => c.id);
       // Cases cochées = config mémorisée, sinon les colonnes `def` (défaut d'origine).
       const checkedSet = (savedChecked && savedChecked.length) ? new Set(savedChecked) : new Set(cur.cols.filter(c => c.def).map(c => c.id));
-      const byId = {}; cur.cols.forEach(c => { byId[c.id] = c; });
-      modal.querySelector('#fp-fiche-cols').innerHTML = order.map(id => { const c = byId[id]; if (!c) return '';
-        return '<div class="fp-fcol-row" draggable="true" data-id="' + escH(c.id) + '" style="display:flex;align-items:center;gap:8px;font-size:14.5px;color:#334155;padding:6px 7px;border:1px solid #eef2f7;border-radius:8px;background:#fff;cursor:grab">'
-          + '<span style="color:#cbd5e1;font-size:15px;cursor:grab;user-select:none" title="Glisser pour réordonner">⠿</span>'
-          + '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;margin:0"><input type="checkbox" value="' + escH(c.id) + '"' + (checkedSet.has(c.id) ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#f97316"> ' + escH(c.label) + '</label></div>';
-      }).join('');
+      renderColRows(order, checkedSet);
+      renderFavs();
       modal.querySelector('#fp-fiche-scope').textContent = cur.rows.length + ' ligne(s)';
       modal.querySelector('#fp-fiche-h').textContent = cur.title;
       modal.querySelector('#fp-fiche-title').value = cur.title;
