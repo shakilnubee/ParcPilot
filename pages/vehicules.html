@@ -4597,6 +4597,10 @@
     // Masse (G.1) lue sur la carte grise → stockée dans les réglages (sert au stationnement Paris)
     const masseFromCG = (_cgExtra && Number.isFinite(_cgExtra.masse)) ? _cgExtra.masse : null;
     const saveMasse = (vehId) => { if (!masseFromCG || !vehId) return; try { const s = FP.settings.get(); s.vehMasse = s.vehMasse || {}; if (!s.vehMasse[vehId]) { s.vehMasse[vehId] = masseFromCG; FP.settings.save(s); } } catch (e) {} };
+    // Genre fiscal (J.1) lu sur la carte grise → settings.vehGenreFiscal (fiabilise taxes/amortissement/AEN).
+    // N'écrase JAMAIS un choix déjà fait à la main (même garde que la masse).
+    const genreFromCG = (_cgExtra && _cgExtra.genreFiscal) ? _cgExtra.genreFiscal : null;
+    const saveGenre = (vehId) => { if (!genreFromCG || !vehId) return; try { const s = FP.settings.get(); s.vehGenreFiscal = s.vehGenreFiscal || {}; if (!s.vehGenreFiscal[vehId]) { s.vehGenreFiscal[vehId] = genreFromCG; FP.settings.save(s); } } catch (e) {} };
     _cgFile = null;
     _cgExtra = null;
     // « Scanner un document » : on stocke le fichier déposé dans la fiche (table documents) à
@@ -4632,7 +4636,7 @@
         const _ncSuivi = (payload.chauffeur || '').trim();
         if (updated && FP.suivi && FP.suivi.resetVehicule && _ncSuivi && _ncSuivi !== '—' && _ncSuivi.toLowerCase() !== (_oldChauffeur || '').trim().toLowerCase()) FP.suivi.resetVehicule(id);
       } catch (e) {}
-      saveMasse(id);
+      saveMasse(id); saveGenre(id);
       closeModal();
       if (window.FP && FP.toast) FP.toast('✓ Véhicule enregistré');
       renderKPIs();
@@ -4660,7 +4664,7 @@
         if (g.action === 'cancel') return;
         if (g.action === 'merge') {
           // L'existant a déjà reçu les champs manquants (VIN, CO₂, CT, etc.) → on le ré-enregistre.
-          saveMasse(g.existing.id);
+          saveMasse(g.existing.id); saveGenre(g.existing.id);
           // ⚠️ Rattacher AUSSI le document scanné au véhicule fusionné (sinon il était abandonné en silence
           //    sur ce chemin — seuls « ajouter » et « éditer » l'attachaient).
           try { attachExtraDoc(g.existing.id); } catch (e) {}
@@ -4677,7 +4681,7 @@
       try { if (FP.affectations && (newV.chauffeur || '').trim() && newV.chauffeur !== '—') FP.affectations.record(newV.id, newV.chauffeur, null, null, newV.km); } catch (e) {}
       // Véhicule créé avec un conducteur → proposer l'état des lieux de remise.
       try { const _nc = (newV.chauffeur || '').trim(); if (FP.edl && _nc && _nc !== '—') setTimeout(async () => { if (await FP.confirm(`Générer l'état des lieux de remise du véhicule à « ${_nc} » ?`)) FP.edl.open(newV, { conducteur: _nc }); }, 200); } catch (e) {}
-      saveMasse(newV.id);
+      saveMasse(newV.id); saveGenre(newV.id);
       closeModal();
       if (window.FP && FP.toast) FP.toast('✓ Véhicule ajouté');
       renderKPIs();
@@ -5542,7 +5546,7 @@
           const blob = await resp.blob();
           const file = new File([blob], 'cg.' + ((blob.type || '').includes('pdf') ? 'pdf' : 'jpg'), { type: blob.type || 'application/octet-stream' });
           let p = {};
-          try { const ai = FP.scanIA ? await FP.scanIA(file, 'carte-grise', FP.CG_SCAN_PROMPT) : null; if (ai) p = { marque: ai.marque || '', modele: ai.modele || '', dateMiseEnCirculation: ai.dateMiseEnCirculation || '', prochainCT: ai.prochainCT || '', vin: ai.vin ? String(ai.vin).toUpperCase().replace(/[^A-Z0-9]/g, '') : '', co2: num(ai.co2), puissanceFiscale: num(ai.puissanceFiscale), carburant: ai.carburant || '', masse: num(ai.masse), categorie: ai.categorie || '', proprietaire: ai.proprietaire || '' }; } catch (e) {}
+          try { const ai = FP.scanIA ? await FP.scanIA(file, 'carte-grise', FP.CG_SCAN_PROMPT) : null; if (ai) p = { marque: ai.marque || '', modele: ai.modele || '', dateMiseEnCirculation: ai.dateMiseEnCirculation || '', prochainCT: ai.prochainCT || '', vin: ai.vin ? String(ai.vin).toUpperCase().replace(/[^A-Z0-9]/g, '') : '', co2: num(ai.co2), puissanceFiscale: num(ai.puissanceFiscale), carburant: ai.carburant || '', masse: num(ai.masse), categorie: ai.categorie || '', genreFiscal: ai.genreFiscal || '', proprietaire: ai.proprietaire || '' }; } catch (e) {}
           try { const txt = await FP.ocr.fileToText(file); const loc = parseCarteGrise(txt) || {}; for (const k in loc) { if ((p[k] == null || p[k] === '') && loc[k] != null && loc[k] !== '') p[k] = loc[k]; } } catch (e) {}
           if (p.carburant && FP.normCarburant) p.carburant = FP.normCarburant(p.carburant);
           results[i] = { v, p };
@@ -5566,7 +5570,9 @@
         const keys = Object.keys(upd);
         if (keys.length) await persistVehFields(v, keys);
         if (Number.isFinite(p.masse)) { const s = FP.settings.get(); s.vehMasse = s.vehMasse || {}; if (!s.vehMasse[v.id]) { s.vehMasse[v.id] = p.masse; FP.settings.save(s); } }
-        if (keys.length || Number.isFinite(p.masse)) done++;
+        let gfDone = false;
+        if (p.genreFiscal) { const gf = (FP.categorieFiscale ? FP.categorieFiscale({ genreFiscal: p.genreFiscal }) : ''); if (gf === 'VP' || gf === 'VU' || gf === 'moto') { const s = FP.settings.get(); s.vehGenreFiscal = s.vehGenreFiscal || {}; if (!s.vehGenreFiscal[v.id]) { s.vehGenreFiscal[v.id] = gf; FP.settings.save(s); gfDone = true; } } }
+        if (keys.length || Number.isFinite(p.masse) || gfDone) done++;
       } catch (e) { console.warn('[completerCG écriture]', v.immat, e); }
     }
     if (btn) { btn.disabled = false; btn.innerHTML = lbl; }
@@ -7709,6 +7715,7 @@
             carburant: ai.carburant || '',
             masse: numOrU(ai.masse),
             categorie: ai.categorie || '',
+            genreFiscal: ai.genreFiscal || '',
             proprietaire: ai.proprietaire || '',
           };
         }
@@ -7742,6 +7749,11 @@
       if (Number.isFinite(parsed.puissanceFiscale)) { _cgExtra.puissanceFiscale = parsed.puissanceFiscale; filled.push(`puissance fiscale (${parsed.puissanceFiscale} CV)`); }
       if (parsed.carburant)                         { _cgExtra.carburant = parsed.carburant;               filled.push(`carburant (${parsed.carburant})`); }
       if (Number.isFinite(parsed.masse))            { _cgExtra.masse = parsed.masse;                       filled.push(`masse (${parsed.masse} kg)`); }
+      // Genre fiscal (J.1) → on le conserve pour l'écrire à l'enregistrement (fiabilise taxes/amortissement).
+      if (parsed.genreFiscal) {
+        const gf = (FP.categorieFiscale ? FP.categorieFiscale({ genreFiscal: parsed.genreFiscal }) : '');
+        if (gf === 'VP' || gf === 'VU' || gf === 'moto') { _cgExtra.genreFiscal = gf; filled.push(`genre fiscal (${{ VP:'VP', VU:'utilitaire', moto:'moto' }[gf]})`); }
+      }
       // Titulaire C.1 → propriétaire juridique (pas de champ dans le formulaire « Nouveau véhicule » :
       // on le conserve pour l'écrire à l'enregistrement, sans écraser une saisie).
       if (parsed.proprietaire)                      { _cgExtra.proprietaire = parsed.proprietaire;         filled.push(`propriétaire juridique (${parsed.proprietaire})`); }
@@ -7886,6 +7898,7 @@
             carburant: ai.carburant || '',
             masse: numOrU(ai.masse),
             categorie: ai.categorie || '',
+            genreFiscal: ai.genreFiscal || '',
             proprietaire: ai.proprietaire || '',
           };
         } catch (e) { console.warn('[batch IA]', e); }
@@ -7952,6 +7965,7 @@
         };
         Object.keys(fill).forEach(k => { const nv = fill[k]; if (nv != null && nv !== '' && isEmptyV(existing[k])) existing[k] = nv; });
         if (Number.isFinite(p.masse)) { const s = FP.settings.get(); s.vehMasse = s.vehMasse || {}; if (isEmptyV(s.vehMasse[existing.id])) { s.vehMasse[existing.id] = p.masse; FP.settings.save(s); } }
+        if (p.genreFiscal) { const gf = (FP.categorieFiscale ? FP.categorieFiscale({ genreFiscal: p.genreFiscal }) : ''); if (gf === 'VP' || gf === 'VU' || gf === 'moto') { const s = FP.settings.get(); s.vehGenreFiscal = s.vehGenreFiscal || {}; if (isEmptyV(s.vehGenreFiscal[existing.id])) { s.vehGenreFiscal[existing.id] = gf; FP.settings.save(s); } } }
         // ⚠️ UPDATE (false) — le véhicule existe déjà ; un INSERT (true) provoquait un conflit de clé.
         //    On persiste TOUJOURS (les champs lus doivent être sauvés même si l'upload CG a échoué).
         const ok = await persistVehicleUpsert(existing, false);
@@ -7991,6 +8005,10 @@
       // Masse (G.1) lue sur la carte grise → réglages (sert au stationnement Paris) ; sinon reprise du jumeau
       const masseVal = Number.isFinite(p.masse) ? p.masse : (twin ? (FP.settings.get().vehMasse || {})[twin.id] : null);
       if (masseVal) { const s = FP.settings.get(); s.vehMasse = s.vehMasse || {}; s.vehMasse[newV.id] = masseVal; FP.settings.save(s); }
+      // Genre fiscal (J.1) lu sur la CG ; sinon repris du jumeau → fiabilise taxes/amortissement/AEN.
+      const gfCode = p.genreFiscal ? (FP.categorieFiscale ? FP.categorieFiscale({ genreFiscal: p.genreFiscal }) : '') : '';
+      const gfVal = (gfCode === 'VP' || gfCode === 'VU' || gfCode === 'moto') ? gfCode : (twin ? (FP.settings.get().vehGenreFiscal || {})[twin.id] : null);
+      if (gfVal) { const s = FP.settings.get(); s.vehGenreFiscal = s.vehGenreFiscal || {}; s.vehGenreFiscal[newV.id] = gfVal; FP.settings.save(s); }
       if (cgUrl) newV.cgUrl = cgUrl;
       data.vehicules.push(newV);
       const ok = await persistVehicleUpsert(newV, true);
