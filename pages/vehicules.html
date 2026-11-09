@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261109c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261109d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261109c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261109d">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1213,8 +1213,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261109c"></script>
-<script src="../assets/js/supabase-client.js?v=20261109c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261109d"></script>
+<script src="../assets/js/supabase-client.js?v=20261109d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1230,13 +1230,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261109c"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261109c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261109d"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261109d"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261109c"></script><script>
+<script src="../assets/js/app.min.js?v=20261109d"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -3564,11 +3564,12 @@
     const fiscElec = /lectri|hydrog/i.test(v.carburant || '');
     const tvaCarbPct = fiscCfg ? (fiscElec ? 100 : (fiscVU ? fiscCfg.tva.carburantVU : fiscCfg.tva.carburantVP) * 100) : null;
     const tvaAchatPct = fiscCfg ? (fiscVU ? fiscCfg.tva.achatVU : fiscCfg.tva.achatVP) * 100 : null;
+    const fiscVUouMoto = fiscAmort && (fiscAmort.genre === 'VU' || fiscAmort.genre === 'moto');
     const fiscAmortLine = !fiscAmort ? '' : (fiscAmort.mode === 'achat'
       ? (fiscAmort.base != null
-          ? `<div class="flex justify-between"><span class="text-slate-600">Amortissement / an</span><span class="font-medium text-right">${FP.euro(Math.round(fiscAmort.annuel))}${fiscAmort.nonDeductibleAnnuel ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.nonDeductibleAnnuel)) + ' non déd.</span>' : (fiscAmort.co2Manquant ? ' <span class="text-amber-600 text-xs">CO₂ à renseigner</span>' : '')}</span></div>`
+          ? `<div class="flex justify-between"><span class="text-slate-600">Amortissement / an</span><span class="font-medium text-right">${FP.euro(Math.round(fiscAmort.annuel))}${fiscAmort.nonDeductibleAnnuel ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.nonDeductibleAnnuel)) + ' non déd.</span>' : (fiscVUouMoto ? ' <span class="text-emerald-600 text-xs">intégralement déductible</span>' : (fiscAmort.co2Manquant ? ' <span class="text-amber-600 text-xs">CO₂ à renseigner</span>' : ''))}</span></div>`
           : `<div class="flex justify-between"><span class="text-slate-600">Amortissement</span><span class="text-amber-600 text-xs">prix d'achat à renseigner</span></div>`)
-      : `<div class="flex justify-between"><span class="text-slate-600">Loyer / an <span class="text-slate-400 text-xs">(location)</span></span><span class="font-medium text-right">${fiscAmort.loyerAnnuel != null ? FP.euro(Math.round(fiscAmort.loyerAnnuel)) : '—'}${fiscAmort.loyerNonDeductibleAnnuel != null ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.loyerNonDeductibleAnnuel)) + ' non déd.</span>' : ' <span class="text-slate-400 text-xs">part non déd. à renseigner</span>'}</span></div>`);
+      : `<div class="flex justify-between"><span class="text-slate-600">Loyer / an <span class="text-slate-400 text-xs">(location)</span></span><span class="font-medium text-right">${fiscAmort.loyerAnnuel != null ? FP.euro(Math.round(fiscAmort.loyerAnnuel)) : '—'}${fiscAmort.loyerNonDeductibleAnnuel == null ? ' <span class="text-slate-400 text-xs">part non déd. à renseigner</span>' : (fiscAmort.loyerNonDeductibleAnnuel > 0 ? ' <span class="text-amber-600 text-xs">dont ' + FP.euro(Math.round(fiscAmort.loyerNonDeductibleAnnuel)) + ' non déd.</span>' : (fiscVUouMoto ? ' <span class="text-emerald-600 text-xs">intégralement déductible</span>' : ''))}</span></div>`);
     const fiscEmpLine = (fiscEmp && fiscEmp.applicable && fiscEmp.cotisationsAnnuelles > 0)
       ? `<div class="flex justify-between"><span class="text-slate-600">Coût employeur AEN <span class="text-slate-400 text-xs">(cotisations est.)</span></span><span class="font-medium text-right">${FP.euro(Math.round(fiscEmp.cotisationsAnnuelles))}/an</span></div>` : '';
     const rev = FP.revisionInfo(v);
@@ -3928,10 +3929,13 @@
       <div class="fp-panel">
         <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1">Fiscalité &amp; TCO <span class="text-slate-400 text-xs" style="font-weight:500">· estimations</span></div>
         <div class="text-sm space-y-1.5 mt-3">
+          ${fiscTco && fiscTco.aCompleter ? `<div class="rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs px-2 py-1.5 mb-1">⚠️ TCO <b>partiel</b> — à compléter : ${(fiscTco.manques || []).join(', ') || 'donnée de coût manquante'}. Les montants ci-dessous ne comptent pas encore le coût d'usage.</div>` : ''}
+          ${fiscTco && fiscTco.categorieAVerifier ? `<div class="rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs px-2 py-1.5 mb-1">⚠️ Genre fiscal <b>à vérifier</b> (VP / utilitaire / moto non déterminé) — précisez-le ci-dessous pour fiabiliser taxes &amp; amortissement.</div>` : ''}
           ${fiscTco ? `
-          <div class="flex justify-between"><span class="text-slate-600">Coût économique / an <span class="text-slate-400 text-xs">(TCO)</span></span><span class="font-semibold text-right">${FP.euro(Math.round(fiscTco.economique))}</span></div>
+          <div class="flex justify-between"><span class="text-slate-600">Coût économique / an <span class="text-slate-400 text-xs">(TCO${fiscTco.aCompleter ? ' partiel' : ''})</span></span><span class="font-semibold text-right">${FP.euro(Math.round(fiscTco.economique))}${fiscTco.aCompleter ? ' <span class="text-amber-600 text-xs">à compléter</span>' : ''}</span></div>
           <div class="flex justify-between"><span class="text-slate-600">dont décaissé / an <span class="text-slate-400 text-xs">(trésorerie)</span></span><span class="font-medium text-right">${FP.euro(Math.round(fiscTco.tresorerie))}</span></div>
           <div class="flex justify-between"><span class="text-slate-600">Coût / mois</span><span class="font-medium text-right">${FP.euro(Math.round(fiscTco.economique / 12))}</span></div>` : ''}
+          <div class="flex justify-between items-center"><span class="text-slate-600">Genre fiscal <span class="text-slate-400 text-xs">(carte grise)</span></span><select class="veh-genrefiscal" data-id="${v.id}" title="VP = voiture particulière (taxes + plafond d'amortissement) · Utilitaire/Moto = non soumis à la TVS, amortissement intégralement déductible. « Auto » = déduit du modèle/segment." style="border:1px solid var(--fp-border);border-radius:6px;padding:2px 6px;font-size:.85rem;background:var(--fp-card)">${(function(){ const cur = (function(){ try { return (FP.settings.get().vehGenreFiscal||{})[v.id]||''; } catch(e){ return ''; } })(); const det = (FP.categorieFiscale?FP.categorieFiscale(v):'inconnu'); const lab = {VP:'VP (tourisme)',VU:'Utilitaire',moto:'Moto',inconnu:'à vérifier'}[det]||det; const opts=[['','Auto'+(cur?'':' ('+lab+')')],['VP','VP (tourisme)'],['VU','Utilitaire'],['moto','Moto']]; return opts.map(o=>`<option value="${o[0]}"${o[0]===cur?' selected':''}>${o[1]}</option>`).join(''); })()}</select></div>
           <div class="flex justify-between"><span class="text-slate-600">Taxes annuelles <span class="text-slate-400 text-xs">(CO₂+polluants)</span></span><span class="font-medium text-right">${tvsDet.applicable ? (tvsDet.total != null ? FP.euro(tvsDet.total) : '<span class="text-amber-600">CO₂ manquant</span>') : '<span class="text-slate-400">' + (tvsDet.raison || 'non soumis') + '</span>'}</span></div>
           ${tvaCarbPct != null ? `<div class="flex justify-between"><span class="text-slate-600">TVA récup. — énergie</span><span class="font-medium text-right">${Math.round(tvaCarbPct)} %</span></div>
           <div class="flex justify-between"><span class="text-slate-600">TVA récup. — achat / loyer</span><span class="font-medium text-right">${Math.round(tvaAchatPct)} %</span></div>` : ''}
@@ -6147,6 +6151,16 @@
     if (Number.isFinite(val) && val > 0) s.vehMasse[m.dataset.id] = val; else delete s.vehMasse[m.dataset.id];
     FP.settings.save(s);
     if (drawerVehId) openDrawer(drawerVehId); // recalcule le badge stationnement Paris
+  });
+  // Genre fiscal (carte grise) — fiabilise taxes + amortissement (settings.vehGenreFiscal, synchronisé)
+  $('drawer-body').addEventListener('change', (e) => {
+    const g = e.target.closest('select.veh-genrefiscal'); if (!g) return;
+    const id = g.dataset.id; if (!id) return;
+    const s = FP.settings.get(); s.vehGenreFiscal = s.vehGenreFiscal || {};
+    const val = (g.value || '').trim();
+    if (val) s.vehGenreFiscal[id] = val; else delete s.vehGenreFiscal[id];
+    FP.settings.save(s);
+    if (drawerVehId) openDrawer(drawerVehId); // recalcule TCO / taxes / amortissement
   });
   // Carte carburant / fournisseur / badge télépéage (texte, réglages PAR SOCIÉTÉ)
   $('drawer-body').addEventListener('change', (e) => {

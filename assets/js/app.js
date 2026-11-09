@@ -362,6 +362,7 @@ const FP = {
 // ⚠️ Barème OFFICIEL 2026 (source : entreprendre.service-public.gouv.fr/vosdroits/F22203).
 // Les montants changent chaque année. Ne s'applique qu'aux véhicules de tourisme (VP).
 // Vérifié : un véhicule à 100 g CO2 (WLTP) = 213 € en 2026 ; 150 g = 1 733 €.
+/*<tvs>*/
 FP.TVS_ANNEE = 2026;
 // Barème WLTP 2026 : tarif marginal par g/km (cumulatif par tranches)
 FP.TVS_CO2_BAREME = [
@@ -397,21 +398,57 @@ FP.tvsPolluant = (carburant, anneeImmat) => {
   if (Number.isFinite(y) && y > 0 && y < 2011) return 650; // essence/hybride/gaz d'avant Euro 5
   return 130;                                            // essence/hybride/gaz Euro 5/6 (ou année inconnue → flotte récente)
 };
+// ⚠️ SOURCE UNIQUE — genre FISCAL réel d'un véhicule : 'VP' (tourisme) / 'VU' (utilitaire) / 'moto' / 'inconnu'.
+// v.categorie est un SEGMENT COMMERCIAL (Citadine/SUV/Berline/Utilitaire…), PAS le genre de la carte grise
+// (champ J.1 : VP, CTTE, VASP, MTL…). Un scooter mal classé « Citadine » serait taxé à tort. On privilégie,
+// dans l'ordre : (1) le genre fiscal SAISI/SCANNÉ (v.genreFiscal — champ carte grise, fiable) ; (2) des
+// repères sûrs (mots-clés utilitaire, marques exclusivement moto) ; (3) le segment commercial ; (4) sinon
+// 'inconnu' → l'appelant affiche « à vérifier » (jamais une taxe/AEN présumés certains). Règle « LIRE, pas
+// deviner » : on ne force JAMAIS une catégorie incertaine.
+FP.MOTO_MARQUES = ['ducati', 'harley', 'harley-davidson', 'ktm', 'triumph', 'vespa', 'piaggio', 'aprilia', 'moto guzzi', 'husqvarna', 'benelli', 'royal enfield', 'zero motorcycles', 'mv agusta', 'indian motorcycle'];
+FP.categorieFiscale = (v) => {
+  if (!v) return 'inconnu';
+  // 1) Genre fiscal explicite — source la plus fiable, prime sur tout. D'abord la saisie utilisateur
+  // (settings.vehGenreFiscal[v.id], synchronisée, dans COLLECTION_KEYS), sinon le champ scanné v.genreFiscal.
+  let gfRaw = '';
+  try { const m = (FP.settings && FP.settings.get) ? (FP.settings.get().vehGenreFiscal || {}) : {}; if (v.id != null && m[v.id] != null && m[v.id] !== '') gfRaw = m[v.id]; } catch (e) {}
+  const gf = (gfRaw || v.genreFiscal || v.categorieFiscale || '').toString().trim().toLowerCase();
+  if (gf) {
+    if (/^(mt|cl|moto|cyclo|scooter|quad|l[1-7]e?)/.test(gf)) return 'moto';
+    if (/^(vu|vasp|ctte|camion|n[123]|fourgon|derive)/.test(gf) || /utilit/.test(gf)) return 'VU';
+    if (/^(vp|m1|voiture|tourisme|particuli)/.test(gf)) return 'VP';
+  }
+  const cat = (v.categorie || '').toString().toLowerCase();
+  const marque = (v.marque || '').toString().toLowerCase();
+  // 2a) Moto : mot-clé OU marque exclusivement moto (ex. Ducati mal classée « Citadine »).
+  if (/\bmoto\b|scooter|cyclo|\bmtl\b|\bmtt\b|\bquad\b/.test(cat)) return 'moto';
+  if (FP.MOTO_MARQUES.some(m => marque.includes(m))) return 'moto';
+  // 2b) Utilitaire : mots-clés sûrs (segment OU genre collé).
+  if (/utilit|engin|fourgon|\bn[123]\b|\bvu\b|\bctte\b|camion|benne|plateau|^n[123]\b/.test(cat)) return 'VU';
+  // 3) Segment commercial clairement « tourisme ».
+  if (/citadine|berline|suv|break|monospace|coup|cabriolet|compacte|routi|crossover|familiale|4x4|ludospace/.test(cat)) return 'VP';
+  // 4) Rien de fiable → à vérifier (l'appelant décide d'un repli prudent).
+  return 'inconnu';
+};
 // Détail TVS d'un véhicule : { applicable, raison?, co2, polluant, total, ... }
 FP.tvsDetail = (v) => {
-  const cat = (v.categorie || '').toLowerCase();
+  const genre = FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP';
   const carb = v.carburant || '';
-  if (/moto/.test(cat)) return { applicable: false, raison: 'Moto — non soumise' };
-  if (/utilit|engin/.test(cat)) return { applicable: false, raison: 'Utilitaire — non soumis' };
+  if (genre === 'moto') return { applicable: false, raison: 'Moto — non soumise' };
+  if (genre === 'VU') return { applicable: false, raison: 'Utilitaire — non soumis' };
+  // VP ou inconnu → soumis. Si genre inconnu, on taxe comme un VP (repli prudent = ne pas sous-taxer)
+  // mais on le SIGNALE (categorieAVerifier) pour que l'UI n'affiche pas un montant présumé certain.
+  const aVerifier = genre === 'inconnu';
   const polluant = FP.tvsPolluant(carb, (v.dateMiseEnCirculation || v.dateImmat || '').slice(0, 4));
-  if (/lectri|hydrog/i.test(carb)) return { applicable: true, elec: true, co2: 0, polluant: 0, total: 0 };
+  if (/lectri|hydrog/i.test(carb)) return { applicable: true, elec: true, co2: 0, polluant: 0, total: 0, categorieAVerifier: aVerifier };
   const co2 = Number(v.co2);
   // CO₂ inconnu : la taxe "polluants atmosphériques" reste due → on compte au moins le polluant
   // (la part CO₂ reste inconnue, signalée par co2Manquant), au lieu de tout mettre à 0.
-  if (!Number.isFinite(co2) || co2 <= 0) return { applicable: true, co2Manquant: true, co2: null, polluant, total: polluant };
+  if (!Number.isFinite(co2) || co2 <= 0) return { applicable: true, co2Manquant: true, co2: null, polluant, total: polluant, categorieAVerifier: aVerifier };
   const co2Tax = FP.tvsCo2(co2);
-  return { applicable: true, co2: co2Tax, polluant, total: co2Tax + polluant };
+  return { applicable: true, co2: co2Tax, polluant, total: co2Tax + polluant, categorieAVerifier: aVerifier };
 };
+/*</tvs>*/
 
 // ===== Périmètres véhicules — UNE seule définition, réutilisée partout =====
 // estVendu = véhicule qui ne t'appartient plus (sorti du parc). Utilisé pour la
@@ -1462,15 +1499,24 @@ FP.aenDetail = (v) => {
   const netAnnuel = Math.max(0, brutAnnuel - abattement);
   return { applicable: true, method, bareme, elec, base, taux, brutAnnuel, abattement, netAnnuel, netMensuel: netAnnuel / 12, carbFourni, loyerAnnuel };
 };
+// ⚠️ SOURCE UNIQUE — un véhicule a-t-il un conducteur en USAGE PRIVÉ possible (→ AEN) ?
+// L'avantage en nature n'existe QUE si un salarié identifié peut utiliser le véhicule à titre privé.
+// Pas de chauffeur réel (parc/dépôt/navette/pool/siège…) ou véhicule sorti de la flotte → pas d'AEN.
+// On ne « devine » JAMAIS un avantage sans usage réel (règle d'intégrité fiscale).
+/*<aenperimetre>*/
+FP.AEN_CHAUFFEUR_EXCLUS = ['', '—', '-', 'x', 'siège', 'siege', 'dépôt', 'depot', 'navette', 'vendu', 'fenwick', 'pool', 'commun', 'partagé', 'partage', 'société', 'societe', 'entreprise'];
+FP.aUnConducteurPrive = (v) => {
+  if (!v || (FP.horsFlotte && FP.horsFlotte(v))) return false;
+  const ch = (v.chauffeur != null ? String(v.chauffeur) : '').trim();
+  if (!ch) return false;
+  return !FP.AEN_CHAUFFEUR_EXCLUS.includes(ch.toLowerCase());
+};
+/*</aenperimetre>*/
 // Total AEN annuel de la flotte (véhicules AVEC conducteur affecté = usage privé possible).
 FP.aenAnnuelFlotte = (vehicules) => (vehicules || []).reduce((s, v) => {
-  // Véhicule SORTI de la flotte (vendu / cédé / restitué / HS / archivé) → pas d'avantage en nature.
-  // Avant, un véhicule au statut « vendu » mais avec un nom de chauffeur réel restait compté (bug) :
-  // on aligne l'AEN sur le même périmètre que la TVS et l'assurance (FP.horsFlotte).
-  if (!v || (FP.horsFlotte && FP.horsFlotte(v))) return s;
-  const ch = v && v.chauffeur && String(v.chauffeur).trim();
-  const excl = ['', '—', 'x', 'X', 'Siège', 'Dépôt', 'Navette', 'VENDU', 'Fenwick'];
-  if (!ch || excl.includes(String(v.chauffeur).trim())) return s;
+  // Véhicule sans conducteur en usage privé (parc/dépôt/pool…) ou sorti de la flotte → pas d'AEN.
+  // Source unique du filtre « chauffeur » = FP.aUnConducteurPrive (même règle que le TCO).
+  if (!FP.aUnConducteurPrive(v)) return s;
   const d = FP.aenDetail(v);
   return s + (d && d.applicable ? d.netAnnuel : 0);
 }, 0);
@@ -1518,10 +1564,10 @@ FP.fiscalConfig = function () {
     const c = Object.assign({}, FP.FISCAL_DEFAULTS); c.tva = Object.assign({}, FP.FISCAL_DEFAULTS.tva); c.amort = Object.assign({}, FP.FISCAL_DEFAULTS.amort); return c;
   }
 };
-// Véhicule utilitaire (VU → TVA récupérable) vs tourisme (VP) — même repère que FP.tvsDetail.
+// Véhicule utilitaire (VU → TVA récupérable) vs tourisme (VP). Source unique = FP.categorieFiscale
+// (genre carte grise si connu, sinon repères sûrs) — plus fiable que le seul segment commercial.
 FP.estUtilitaire = function (v) {
-  const cat = ((v && v.categorie) || '').toString().toLowerCase();
-  return /utilit|engin|\bn1\b|\bn2\b|\bn3\b|\bvu\b/.test(cat) || /^n[123]\b/.test(cat);
+  return (FP.categorieFiscale ? FP.categorieFiscale(v) : '') === 'VU';
 };
 // Plafond d'amortissement fiscal selon le CO2 (g/km WLTP). null = CO2 inconnu (plafond indéterminé).
 FP.amortPlafond = function (co2, cfg) {
@@ -1574,22 +1620,43 @@ FP.amortissement = function (v) {
         for (const key in m) { if ((FP.normImmat ? FP.normImmat(key) : key) === k) { lnd = Number(m[key]); break; } }
       }
     } catch (e) {}
-    return { mode: 'location', loyerMois: loyerMois, loyerAnnuel: (loyerMois != null ? loyerMois * 12 : null), loyerNonDeductibleAnnuel: (lnd != null && isFinite(lnd)) ? lnd : null };
+    // ⚠️ Utilitaire / moto : loyer INTÉGRALEMENT déductible → part non déductible = 0 (jamais « à renseigner »).
+    const genreL = FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP';
+    if (genreL === 'VU' || genreL === 'moto') lnd = 0;
+    return { mode: 'location', genre: genreL, loyerMois: loyerMois, loyerAnnuel: (loyerMois != null ? loyerMois * 12 : null), loyerNonDeductibleAnnuel: (lnd != null && isFinite(lnd)) ? lnd : null };
   }
   const base = Number(v && v.valeurAchat) || 0;
   if (!(base > 0)) return { mode: 'achat', base: null, reason: "prix d'achat inconnu" };
-  const plafond = FP.amortPlafond(v && v.co2, cfg);
+  const genre = FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP';
   const annuel = base / dureeAns;
+  // ⚠️ Plafond d'amortissement (art. 39 CGI) = UNIQUEMENT les voitures particulières (VP). Les
+  // utilitaires (VU) et les motos sont INTÉGRALEMENT déductibles : aucun plafond, part non déd. = 0.
+  if (genre === 'VU' || genre === 'moto') {
+    return { mode: 'achat', genre: genre, base: base, dureeAns: dureeAns, annuel: annuel, plafond: null, plafondAnnuel: null, nonDeductibleAnnuel: 0, co2Manquant: false };
+  }
+  // VP : plafond art. 39 selon le CO2. Un véhicule électrique/hydrogène émet 0 g → plafond le plus haut
+  // (30 000 €) MÊME si le champ CO2 n'est pas renseigné (on ne laisse pas « CO2 inconnu » priver un VE
+  // de son plafond : c'est une donnée certaine, pas une estimation).
+  const elec = /lectri|hydrog/i.test((v && v.carburant) || '');
+  const co2Eff = elec ? 0 : (v && v.co2);
+  const plafond = FP.amortPlafond(co2Eff, cfg);
   const plafondAnnuel = (plafond != null) ? plafond / dureeAns : null;
   const nonDeductibleAnnuel = (plafond != null) ? Math.max(0, base - plafond) / dureeAns : null;
-  return { mode: 'achat', base: base, dureeAns: dureeAns, annuel: annuel, plafond: plafond, plafondAnnuel: plafondAnnuel, nonDeductibleAnnuel: nonDeductibleAnnuel, co2Manquant: !Number.isFinite(Number(v && v.co2)) };
+  return { mode: 'achat', genre: genre, base: base, dureeAns: dureeAns, annuel: annuel, plafond: plafond, plafondAnnuel: plafondAnnuel, nonDeductibleAnnuel: nonDeductibleAnnuel, co2Manquant: !elec && !Number.isFinite(Number(v && v.co2)), categorieAVerifier: genre === 'inconnu' };
 };
 // Coût EMPLOYEUR de l'AEN = cotisations patronales sur l'avantage (PAS l'AEN entier ; PAS ajouté au
 // coût véhicule — loyers/carburant/assurance y sont déjà). Source AEN = FP.aenDetail (existant).
 FP.aenCoutEmployeur = function (v) {
   const cfg = FP.fiscalConfig();
+  // ⚠️ AEN = usage PRIVÉ d'un véhicule de fonction. Pas de conducteur en usage privé (parc, dépôt,
+  // pool, utilitaire sans chauffeur…) → pas d'avantage → aucun surcoût social. On ne devine jamais
+  // un AEN sans usage réel (source unique du filtre : FP.aUnConducteurPrive).
+  if (FP.aUnConducteurPrive && !FP.aUnConducteurPrive(v)) return { applicable: false, raison: 'aucun conducteur en usage privé', aenAnnuel: 0, cotisationsAnnuelles: 0, cotisationsMensuelles: 0 };
+  // Utilitaire / moto : par défaut usage professionnel → pas d'AEN (sauf usage privé explicite non géré ici).
+  const genre = FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP';
+  if (genre === 'VU') return { applicable: false, raison: 'utilitaire (usage professionnel)', aenAnnuel: 0, cotisationsAnnuelles: 0, cotisationsMensuelles: 0 };
   const d = FP.aenDetail ? FP.aenDetail(v) : null;
-  if (!d || !d.applicable) return { applicable: false, aenAnnuel: 0, cotisationsAnnuelles: 0 };
+  if (!d || !d.applicable) return { applicable: false, raison: (d && d.reason) || '', aenAnnuel: 0, cotisationsAnnuelles: 0, cotisationsMensuelles: 0 };
   const taux = Number(cfg.cotisationsPatronales) || 0;
   const cot = (Number(d.netAnnuel) || 0) * taux;
   return { applicable: true, aenAnnuel: Number(d.netAnnuel) || 0, aenMensuel: Number(d.netMensuel) || 0, tauxCotisations: taux, cotisationsAnnuelles: cot, cotisationsMensuelles: cot / 12 };
@@ -1616,12 +1683,24 @@ FP.tco = function (v, opts) {
   const deductible = Math.max(0, comptable - nonDeductible);
   const effetISEstime = deductible * (Number(cfg.tauxIS) || 0);
   const economique = exploit + usage + taxes + cotis;                         // TCO : surcoût social seulement (pas l'AEN entier)
+  // ⚠️ FIABILITÉ — ne JAMAIS présenter « 0 € » comme un coût certain quand on n'a pas la base de coût
+  // d'usage (prix d'achat OU loyer). Dans ce cas le TCO est PARTIEL (« à compléter »), pas nul. On
+  // distingue aussi un genre fiscal à vérifier. L'UI lit ce statut pour afficher « à compléter » / « à vérifier ».
+  const baseUsageConnue = (am.mode === 'achat') ? (am.base != null && am.base > 0) : (am.loyerAnnuel != null && am.loyerAnnuel > 0);
+  const aCompleter = !baseUsageConnue;
+  const categorieAVerifier = (am.categorieAVerifier === true) || !!(tvs && tvs.categorieAVerifier);
+  const fiabilite = aCompleter ? 'a_completer' : 'estime';   // 'estime' = calculé sur des barèmes estimés (jamais « certain »)
+  const manques = [];
+  if (am.mode === 'achat' && !(am.base > 0)) manques.push("prix d'achat");
+  if (am.mode === 'location' && !(am.loyerAnnuel > 0)) manques.push('loyer');
+  if (categorieAVerifier) manques.push('genre fiscal');
   return {
-    annee: annee, mode: am.mode,
+    annee: annee, mode: am.mode, genre: am.genre || (FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP'),
     composantes: { exploit: exploit, leasingAnnuel: leasingAnnuel, amortAnnuel: amortAnnuel, taxes: taxes, cotisationsAEN: cotis },
     tresorerie: tresorerie, comptable: comptable,
     fiscal: { nonDeductible: nonDeductible, deductible: deductible, effetISEstime: effetISEstime },
-    economique: economique
+    economique: economique,
+    fiabilite: fiabilite, aCompleter: aCompleter, categorieAVerifier: categorieAVerifier, manques: manques
   };
 };
 /*</fiscalite>*/
@@ -7366,6 +7445,7 @@ FP.settings = {
     docTypes: {},  // types de documents personnalisés { cle: 'Libellé' } (créés par l'utilisateur)
     docColsOrder: [], // ordre des colonnes du tableau Documents (vide = ordre par défaut)
     vehDin: {}, // puissance DIN (ch) par véhicule { vehId: nombre } — pas de colonne DB dédiée
+    vehGenreFiscal: {}, // genre fiscal carte grise par véhicule { vehId: 'VP'|'VU'|'moto' } — fiabilise la fiscalité, pas de colonne DB dédiée
     sinistreStatut: {}, // suivi remboursement sinistre { factureId: 'attente'|'rembourse'|'refuse' }
     permisMasque: {}, // permis intégré (FP_DOCS) masqué par l'utilisateur { conducteurKey: true }
     condDocs: {}, // documents perso d'un conducteur { conducteurKey: [ {id,type,label,url,date,createdAt} ] }
@@ -7428,6 +7508,7 @@ FP.settings = {
         docTypes: (stored.docTypes && typeof stored.docTypes === 'object') ? stored.docTypes : {},
         docColsOrder: Array.isArray(stored.docColsOrder) ? stored.docColsOrder : [],
         vehDin: (stored.vehDin && typeof stored.vehDin === 'object') ? stored.vehDin : {},
+        vehGenreFiscal: (stored.vehGenreFiscal && typeof stored.vehGenreFiscal === 'object') ? stored.vehGenreFiscal : {},
         sinistreStatut: (stored.sinistreStatut && typeof stored.sinistreStatut === 'object') ? stored.sinistreStatut : {},
         sinistreGroupes: (stored.sinistreGroupes && typeof stored.sinistreGroupes === 'object') ? stored.sinistreGroupes : {},
         sinistreStage: (stored.sinistreStage && typeof stored.sinistreStage === 'object') ? stored.sinistreStage : {},
@@ -7492,7 +7573,7 @@ FP.settings = {
     'garageParMarque', 'vehGarage', 'archiveDocs', 'aenOfficiel', 'vehDossierVente',
     'revisionIntervalleVeh', 'revisionOverride', 'checklistDone', 'condLangues', 'leasingDocs',
     'leasingNumero', 'restitutionChecklist', 'suiviFlotte', 'vehRdvGarage', 'vehDin',
-    'vehImmobilise', 'kmSuiviExclus', 'amendesJustifWatch', 'contratsCadre'],
+    'vehImmobilise', 'kmSuiviExclus', 'amendesJustifWatch', 'contratsCadre', 'vehGenreFiscal'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -7653,7 +7734,7 @@ FP.settings = {
       'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
       // — Saisies manuelles / historique PAR VÉHICULE : masse (champ G → stationnement Paris + checklist),
       //   notes libres (historique, irrécupérable), restitution/EDL, dates entrée/cession, budget par véh.
-      'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'budgets', 'vehDin',
+      'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'budgets', 'vehDin', 'vehGenreFiscal',
       // — « lecture auto du km EDL déjà tentée » (par véhicule) : évite de re-scanner un EDL illisible
       //   sur chaque appareil (sinon gaspillage de crédits). Map keyée par vehId → doit être synchronisée.
       'edlAutoTried',
@@ -14797,6 +14878,7 @@ FP.CG_SCAN_PROMPT = [
   "proprietaire : nom du TITULAIRE du certificat, champ C.1 (la personne morale ou physique a qui la carte grise est delivree : une societe, un loueur...). Recopie le nom EXACTEMENT comme il est ecrit. N invente rien. N utilise PAS le champ C.4 / C.4.1 (mention 'est le proprietaire du vehicule' / co-titulaire) pour en deduire une autre valeur, et ne remplis JAMAIS d entite de rattachement a partir de la carte grise (c est une notion interne saisie a la main).",
   "prochainCT : date du prochain controle technique, champ X.1 (souvent ecrit 'X.1' ou 'Visite technique avant le' / 'Visite avant le' ou 'Date limite de validite'). Format AAAA-MM-JJ (date FUTURE). Si le champ X.1 est absent (vehicule neuf jamais controle), mets null.",
   "categorie : d apres le genre national J.1 et la carrosserie, renvoie une categorie SIMPLE parmi : Citadine, Berline, Break, SUV, Monospace, Utilitaire ; sinon null.",
+  "genreFiscal : le GENRE NATIONAL exact du champ J.1 tel qu ecrit (ex VP, CTTE, CAM, VASP, MTL, MTT1, MTT2, CL, TM...). C est la mention officielle (pas la carrosserie J.2 ni J.3). Recopie le code EXACT ; si illisible, null. (Sert a la fiscalite : VP = voiture particuliere, CTTE/CAM/VASP = utilitaire, MTL/MTT/CL = moto.)",
   "IMPORTANT : ne devine ni n invente aucune valeur ; un champ illisible = null. Dates au format europeen jour/mois/annee (ex 05.11.2021 = 2021-11-05).",
 ].join("\n");
 
@@ -19255,94 +19337,104 @@ FP.xlsx = (function () {
   }
   const escX = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const colLetter = (i) => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
-  return {
-    // columns = [{ label, value(row), number?:bool }]
-    // opts = { sheetName, total?:bool }
-    build(columns, rows, opts) {
-      opts = opts || {};
-      const data = rows || [];
-      // Colonne numérique ENTIÈRE ? (ex. km) → format sans décimales ; sinon montant → 2 décimales.
-      // Auto-détection : au moins une valeur, et TOUTES entières. Évite « 90 421,00 » pour des km.
-      const isIntCol = columns.map(c => {
-        if (!c.number) return false;
-        let any = false;
-        for (const r of data) { const v = c.value(r); if (v == null || v === '' || isNaN(v)) continue; any = true; if (!Number.isInteger(Number(v))) return false; }
-        return any;
-      });
-      // Texte RÉELLEMENT affiché d'un nombre (séparateur de milliers + décimales) → sert à la largeur.
-      const fmtNum = (v, isInt) => { const n = Number(v); return isNaN(n) ? '' : n.toLocaleString('fr-FR', isInt ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
-      // Largeurs auto : selon le contenu le plus long RÉELLEMENT AFFICHÉ (nombres formatés inclus), borné.
-      // ⚠️ Avant, la largeur d'une colonne numérique venait du nombre BRUT → trop étroite pour la version
-      // formatée (« 90 421,00 ») → Excel affichait « #### ». On mesure maintenant le texte formaté.
-      const widths = columns.map((c, ci) => {
-        let w = String(c.label || '').length;
-        data.forEach(r => { const v = c.value(r); if (v == null || v === '') return; const str = (c.number && !isNaN(v)) ? fmtNum(v, isIntCol[ci]) : String(v); if (str.length > w) w = str.length; });
-        return Math.min(Math.max(w + 2, 9), 52);
-      });
-      const colsXml = '<cols>' + columns.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${widths[i]}" customWidth="1"/>`).join('') + '</cols>';
-      const cell = (ref, val, isNum, style) => {
-        const s = style ? ` s="${style}"` : '';
-        if (isNum) { if (val === null || val === undefined || val === '' || isNaN(val)) return `<c r="${ref}"${s}/>`; return `<c r="${ref}"${s}><v>${Number(val)}</v></c>`; }
-        return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${escX(val)}</t></is></c>`;
-      };
-      // Bloc « Parc Pilot » en tête (lignes de titre en colonne A) — décale l'en-tête et les données de OFF.
-      const brandLines = (opts.brand !== false && FP._exportBrandLines) ? (function () { try { return FP._exportBrandLines(opts.title || opts.sheetName) || []; } catch (e) { return []; } })() : [];
-      const OFF = brandLines.length;         // nb de lignes AVANT l'en-tête de colonnes
-      const HR = OFF + 1;                     // n° de ligne de l'en-tête de colonnes
-      let body = '';
-      // Lignes de titre (gras sur la 1re = style 1)
-      brandLines.forEach((line, i) => { body += `<row r="${i + 1}">` + cell('A' + (i + 1), line, false, i === 0 ? 1 : 0) + '</row>'; });
-      // En-tête de colonnes (gras = style 1), à la ligne HR
-      body += `<row r="${HR}">` + columns.map((c, i) => cell(colLetter(i) + HR, c.label, false, 1)).join('') + '</row>';
-      // Lignes de données
-      data.forEach((r, ri) => {
-        const rn = ri + HR + 1;
-        body += `<row r="${rn}">` + columns.map((c, i) => {
-          const v = c.value(r);
-          return cell(colLetter(i) + rn, v, !!c.number, c.number ? (isIntCol[i] ? 4 : 2) : 0);
-        }).join('') + '</row>';
-      });
-      // Ligne TOTAL
-      if (opts.total && data.length) {
-        const rn = data.length + HR + 1;
-        const sums = columns.map(c => (c.number && !c.noTotal) ? Math.round(data.reduce((s, r) => { const v = c.value(r); return s + (isNaN(v) || v == null ? 0 : Number(v)); }, 0) * 100) / 100 : null);
-        const firstNum = columns.findIndex(c => c.number);
-        body += `<row r="${rn}">` + columns.map((c, i) => {
-          if (c.number) return cell(colLetter(i) + rn, sums[i], true, isIntCol[i] ? 5 : 3);
-          if (i === Math.max(0, firstNum - 1)) return cell(colLetter(i) + rn, 'TOTAL', false, 1);
-          return cell(colLetter(i) + rn, '', false, 1);
-        }).join('') + '</row>';
-      }
-      const ref = 'A' + HR + ':' + colLetter(columns.length - 1) + (data.length + HR);
-      const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="${HR}" topLeftCell="A${HR + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${body}</sheetData><autoFilter ref="${ref}"/></worksheet>`;
-      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="4" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="3" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
-      const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escX((opts.sheetName || 'Export').slice(0, 31))}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
-      const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
-      const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
-      const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+  // SOURCE UNIQUE de génération d'une feuille (XML <worksheet>…). Utilisée par build() ET buildMulti()
+  // → aucune duplication de la logique colonnes/styles/largeurs/total. columns = [{label,value(row),number?,noTotal?}].
+  function makeSheetXml(columns, rows, opts) {
+    opts = opts || {};
+    const data = rows || [];
+    const isIntCol = columns.map(c => {
+      if (!c.number) return false;
+      let any = false;
+      for (const r of data) { const v = c.value(r); if (v == null || v === '' || isNaN(v)) continue; any = true; if (!Number.isInteger(Number(v))) return false; }
+      return any;
+    });
+    const fmtNum = (v, isInt) => { const n = Number(v); return isNaN(n) ? '' : n.toLocaleString('fr-FR', isInt ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    const widths = columns.map((c, ci) => {
+      let w = String(c.label || '').length;
+      data.forEach(r => { const v = c.value(r); if (v == null || v === '') return; const str = (c.number && !isNaN(v)) ? fmtNum(v, isIntCol[ci]) : String(v); if (str.length > w) w = str.length; });
+      return Math.min(Math.max(w + 2, 9), 60);
+    });
+    const colsXml = '<cols>' + columns.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${widths[i]}" customWidth="1"/>`).join('') + '</cols>';
+    const cell = (ref, val, isNum, style) => {
+      const s = style ? ` s="${style}"` : '';
+      if (isNum) { if (val === null || val === undefined || val === '' || isNaN(val)) return `<c r="${ref}"${s}/>`; return `<c r="${ref}"${s}><v>${Number(val)}</v></c>`; }
+      return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${escX(val)}</t></is></c>`;
+    };
+    const brandLines = (opts.brand !== false && FP._exportBrandLines) ? (function () { try { return FP._exportBrandLines(opts.title || opts.sheetName) || []; } catch (e) { return []; } })() : [];
+    const OFF = brandLines.length;
+    const HR = OFF + 1;
+    let body = '';
+    brandLines.forEach((line, i) => { body += `<row r="${i + 1}">` + cell('A' + (i + 1), line, false, i === 0 ? 1 : 0) + '</row>'; });
+    body += `<row r="${HR}">` + columns.map((c, i) => cell(colLetter(i) + HR, c.label, false, 1)).join('') + '</row>';
+    data.forEach((r, ri) => {
+      const rn = ri + HR + 1;
+      body += `<row r="${rn}">` + columns.map((c, i) => {
+        const v = c.value(r);
+        return cell(colLetter(i) + rn, v, !!c.number, c.number ? (isIntCol[i] ? 4 : 2) : 0);
+      }).join('') + '</row>';
+    });
+    if (opts.total && data.length) {
+      const rn = data.length + HR + 1;
+      const sums = columns.map(c => (c.number && !c.noTotal) ? Math.round(data.reduce((s, r) => { const v = c.value(r); return s + (isNaN(v) || v == null ? 0 : Number(v)); }, 0) * 100) / 100 : null);
+      const firstNum = columns.findIndex(c => c.number);
+      body += `<row r="${rn}">` + columns.map((c, i) => {
+        if (c.number && !c.noTotal) return cell(colLetter(i) + rn, sums[i], true, isIntCol[i] ? 5 : 3);
+        if (i === Math.max(0, firstNum - 1)) return cell(colLetter(i) + rn, 'TOTAL', false, 1);
+        return cell(colLetter(i) + rn, '', false, 1);
+      }).join('') + '</row>';
+    }
+    const ref = 'A' + HR + ':' + colLetter(Math.max(0, columns.length - 1)) + (data.length + HR);
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="${HR}" topLeftCell="A${HR + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${body}</sheetData><autoFilter ref="${ref}"/></worksheet>`;
+  }
+  // Assemble le ZIP .xlsx à partir de N feuilles déjà rendues ({name, xml}).
+  function zipWorkbook(sheets) {
+    const n = sheets.length;
+    const wbSheets = sheets.map((s, i) => `<sheet name="${escX((s.name || ('Feuille ' + (i + 1))).slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('');
+    const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${wbSheets}</sheets></workbook>`;
+    let wbRelsBody = ''; for (let i = 0; i < n; i++) wbRelsBody += `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`;
+    wbRelsBody += `<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+    const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRelsBody}</Relationships>`;
+    let ctOverrides = ''; for (let i = 0; i < n; i++) ctOverrides += `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+    const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${ctOverrides}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+    const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
-      return zip([
-        { name: '[Content_Types].xml', data: enc(ct) },
-        { name: '_rels/.rels', data: enc(rels) },
-        { name: 'xl/workbook.xml', data: enc(wb) },
-        { name: 'xl/_rels/workbook.xml.rels', data: enc(wbRels) },
-        { name: 'xl/styles.xml', data: enc(styles) },
-        { name: 'xl/worksheets/sheet1.xml', data: enc(sheet) },
-      ]);
+    const files = [
+      { name: '[Content_Types].xml', data: enc(ct) },
+      { name: '_rels/.rels', data: enc(rels) },
+      { name: 'xl/workbook.xml', data: enc(wb) },
+      { name: 'xl/_rels/workbook.xml.rels', data: enc(wbRels) },
+      { name: 'xl/styles.xml', data: enc(STYLES) },
+    ];
+    sheets.forEach((s, i) => files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: enc(s.xml) }));
+    return zip(files);
+  }
+  function triggerDownload(bytes, filename) {
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename.replace(/\.(csv|xls)$/i, '') + (filename.endsWith('.xlsx') ? '' : '.xlsx');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  return {
+    // columns = [{ label, value(row), number?:bool }] · opts = { sheetName, total?:bool }
+    build(columns, rows, opts) {
+      return zipWorkbook([{ name: (opts && opts.sheetName) || 'Export', xml: makeSheetXml(columns, rows, opts) }]);
     },
-    download(filename, columns, rows, opts) {
-      const bytes = this.build(columns, rows, opts);
-      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = filename.replace(/\.(csv|xls)$/i, '') + (filename.endsWith('.xlsx') ? '' : '.xlsx');
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    // sheets = [{ name, columns, rows, opts }] → un SEUL classeur avec N onglets. SOURCE UNIQUE (makeSheetXml).
+    buildMulti(sheets, opts) {
+      opts = opts || {};
+      const rendered = (sheets || []).filter(Boolean).map(s => ({ name: s.name, xml: makeSheetXml(s.columns || [], s.rows || [], Object.assign({ brand: false }, s.opts || {})) }));
+      if (!rendered.length) rendered.push({ name: 'Export', xml: makeSheetXml([{ label: '—', value: () => '' }], [], { brand: false }) });
+      return zipWorkbook(rendered);
     },
+    download(filename, columns, rows, opts) { triggerDownload(this.build(columns, rows, opts), filename); },
+    downloadMulti(filename, sheets, opts) { triggerDownload(this.buildMulti(sheets, opts), filename); },
   };
 })();
 
