@@ -172,16 +172,15 @@
     </div>
     <div id="fa-actionbar" class="fp-actionbar flex flex-wrap justify-end items-center gap-4 mb-8">
       <div class="flex items-center gap-3">
-        <span data-data-io></span>
+        <span data-data-io hidden></span>
         <!-- Exports SPÉCIFIQUES à l'onglet Factures → masqués sur les autres sous-onglets (Total Fleet/Ulys
              ont leurs propres exports). Évite le bug « le bouton exporte les factures alors que je suis sur Total Fleet ». -->
         <span id="fa-topexports" class="inline-flex items-center gap-3">
           <span id="fa-export-mount"></span>
-          <button class="btn btn-outline text-sm" id="fa-fiche-btn" title="Relevé de dépenses (PDF) des factures affichées"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
           <button class="btn btn-outline text-sm" id="fa-zip-btn" title="Télécharger les PDF des factures (filtrées ou cochées) dans un ZIP, rangés par véhicule"><i data-lucide="folder-down" class="w-4 h-4"></i> Télécharger les PDF</button>
           <span id="fa-recap-mount"></span>
         </span>
-        <button class="btn btn-outline text-sm" id="btn-import-lot" title="Déposer plusieurs PDF : l'IA lit chaque facture et la crée automatiquement"><i data-lucide="files" class="w-4 h-4"></i> Importer un lot (PDF)</button>
+        <button class="btn btn-outline text-sm" id="btn-import-lot" title="Déposer plusieurs PDF : l'IA lit chaque facture et la crée automatiquement" hidden><i data-lucide="files" class="w-4 h-4"></i> Importer un lot (PDF)</button>
         <input type="file" id="fa-lot-file" accept="application/pdf,image/*" multiple class="hidden" />
         <button class="btn btn-primary text-sm" id="btn-import-facture" data-quickadd><i data-lucide="file-up" class="w-4 h-4"></i> Importer une facture</button>
       </div>
@@ -1621,10 +1620,17 @@
       { label: 'Km',          value: r => num(r.km),         number: true, noTotal: true },
     ];
     FP.makeExportMenu({
-      mount: '#fa-export-mount', label: 'Export comptable', sheetName: 'Factures', total: true, columns: colDefs,
+      mount: '#fa-export-mount', label: 'Importer / Exporter', sheetName: 'Factures', total: true, columns: colDefs,
       getRows: () => filtered().slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')),
       period: { dateOf: r => r.date || '' },
       baseName: () => 'factures-comptable-' + (state.mois !== 'all' ? state.mois : (state.annee !== 'all' ? state.annee : 'tout')),
+      // Centre unifié : + Relevé PDF (colonnes/aperçu) + section Importer (lot PDF + collage Excel/CSV).
+      // « Importer une facture » (primaire) et « Télécharger les PDF » (ZIP) restent visibles à part.
+      releve: facturesFicheConfig,
+      imports: [
+        { label: 'Importer un lot (PDF)', icon: 'files', run: () => { const b = document.getElementById('btn-import-lot'); if (b) b.click(); } },
+        { label: 'Importer un tableau (Excel / CSV)', icon: 'clipboard-paste', run: () => { const bs = document.querySelectorAll('[data-data-io] button'); const b = Array.from(bs).find(x => /import/i.test(x.textContent)) || bs[bs.length - 1]; if (b) b.click(); } },
+      ],
     });
     // Relevé de dépenses PDF (aperçu + téléchargement) — factures affichées (filtres en cours).
     // Télécharger les PDF en ZIP (rangés par véhicule) — réutilise FP.facturesZipList (helper canonique).
@@ -1644,11 +1650,10 @@
       if (!ok) return;
       FP.facturesZipList(liste, { name: 'Factures_Parc_Pilot' + (per ? '_' + String(per).replace(/[^\w-]/g, '') : '') });
     });
-    if (document.getElementById('fa-fiche-btn')) document.getElementById('fa-fiche-btn').addEventListener('click', () => {
-      if (!(FP.fiche && FP.fiche.open)) return;
+    function facturesFicheConfig() {
       const rows = filtered().slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       const per = state.mois !== 'all' ? state.mois : (state.annee !== 'all' ? state.annee : '');
-      FP.fiche.open({
+      return {
         key: 'factures',
         title: 'Relevé de dépenses' + (per ? ' — ' + per : ''),
         rows: rows,
@@ -1665,8 +1670,8 @@
           { id: 'montantTTC',    label: 'TTC',         def: true,  align: 'right', get: f => (f.montantTTC != null && f.montantTTC !== '') ? FP.euro(f.montantTTC) : '—', sum: f => f.montantTTC },
           { id: 'km',            label: 'Km',          def: false, align: 'right', get: f => f.km ? FP.num(f.km) + ' km' : '—' },
         ],
-      });
-    });
+      };
+    }
     // Récap comptable PAR POSTE (ventilation HT/TVA/TTC par catégorie) — sur la vue filtrée en cours.
     FP.makeExportMenu({
       mount: '#fa-recap-mount', label: 'Récap par poste', sheetName: 'Ventilation', total: true,
