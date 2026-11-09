@@ -627,9 +627,8 @@
           </button>
           <div class="hidden-cols-popover" id="hidden-cols-popover"></div>
         </div>
-        <span data-data-io></span>
+        <span data-data-io hidden></span>
         <span id="veh-export-mount"></span>
-        <button class="btn btn-outline text-sm" id="btn-releve-veh" title="Relevé PDF / Excel — choisis et réordonne les colonnes (groupe affiché ou sélection)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-outline text-sm" id="btn-compare" title="Comparer deux véhicules côte à côte"><i data-lucide="scale" class="w-4 h-4"></i> Comparer</button>
         <input type="file" id="f-cg-top" accept="image/*,application/pdf" class="hidden" multiple />
         <button class="btn btn-primary text-sm" id="btn-new" data-quickadd><i data-lucide="plus" class="w-4 h-4"></i> Nouveau véhicule</button>
@@ -5739,14 +5738,16 @@
   }
 
   // Relevé PDF/Excel de la liste : sélection cochée en priorité, sinon le groupe/filtre affiché.
-  function openVehReleve() {
+  // Config factorisée (même sélection de lignes) → réutilisée par le centre unifié « Importer / Exporter ».
+  function vehFicheConfig() {
     const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
-    if (sel.length) { openFicheModal(sel, 'Véhicules sélectionnés'); return; }
-    const grp = state.groupe;
-    const label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp));
-    const list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp));
-    openFicheModal(list, label);
+    let list, label;
+    if (sel.length) { list = sel; label = 'Véhicules sélectionnés'; }
+    else { const grp = state.groupe; label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp)); list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp)); }
+    const rows = (list || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
+    return { key: 'vehicules', title: label, cols: FICHE_COLS.concat(cfFicheCols()), rows: rows };
   }
+  function openVehReleve() { if (window.FP && FP.fiche && FP.fiche.open) FP.fiche.open(vehFicheConfig()); }
   { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', openVehReleve); }
   { const b = $('btn-releve-veh'); if (b) b.addEventListener('click', openVehReleve); }
   // « Tous les QR (PDF) » — un PDF avec le QR de CHAQUE véhicule de la flotte (liste LIVE complète,
@@ -5765,7 +5766,16 @@
 
   // Export de la liste des véhicules affichés (filtres/groupe en cours) — Excel/CSV.
   if (FP.makeExportMenu) FP.makeExportMenu({
-    mount: '#veh-export-mount', label: 'Exporter', sheetName: 'Véhicules',
+    mount: '#veh-export-mount', label: 'Importer / Exporter', sheetName: 'Véhicules',
+    // Centre unifié : + Relevé PDF (colonnes/aperçu) + section Importer (cartes grises / cartes mémo /
+    // collage Excel). Les lecteurs métier EXISTANTS sont réutilisés (anti-doublon préservé). « Nouveau
+    // véhicule », « Comparer » et le menu « Outils » restent inchangés.
+    releve: vehFicheConfig,
+    imports: [
+      { label: 'Importer des cartes grises (lot)', icon: 'file-badge', run: () => { const b = document.getElementById('il-cg'); if (b) b.click(); } },
+      { label: 'Importer des cartes mémo (lot)', icon: 'sticky-note', run: () => { const b = document.getElementById('il-memo'); if (b) b.click(); } },
+      { label: 'Importer un tableau (Excel / CSV)', icon: 'clipboard-paste', run: () => { const bs = document.querySelectorAll('[data-data-io] button'); const b = Array.from(bs).find(x => /import/i.test(x.textContent)) || bs[bs.length - 1]; if (b) b.click(); } },
+    ],
     columns: [
       { label: 'Immatriculation', value: v => v.immat || '' },
       { label: 'Marque',          value: v => v.marque || '' },
