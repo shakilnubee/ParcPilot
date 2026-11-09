@@ -8909,6 +8909,7 @@ FP.DEFAULT_NAV_LABELS = {
   'notifications.html': 'Suivi & alertes',
   'taches.html':       'Tâches',
   'statistiques.html': 'Statistiques',
+  'fiscalite.html':    'Fiscalité & TCO',
   'vehicules.html':    'Véhicules',
   'a-vendre.html':     'Achat & vente',
   'emprunts.html':     'Emprunt véhicule',
