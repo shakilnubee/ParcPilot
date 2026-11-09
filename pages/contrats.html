@@ -204,8 +204,7 @@
     </div>
     <div class="flex flex-wrap justify-end items-center gap-4 mb-8">
       <div class="flex items-center gap-3">
-        <button id="btn-releve-contrat" type="button" class="btn btn-outline text-sm" title="Relevé PDF / Excel de l'onglet affiché — choisis et réordonne les colonnes"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
-        <span data-data-io></span>
+        <span data-data-io hidden></span><span id="contrat-io-mount"></span>
       </div>
     </div>
 
@@ -2261,7 +2260,12 @@
     if (!rows.length) { if (FP.toast) FP.toast('Aucune ligne à exporter sur cet onglet.'); else alert('Aucune ligne à exporter.'); return; }
     FP.fiche.open({ key: 'contrats-' + activeCtab(), title: ctabTitle(), cols: toFicheCols(ctabCols()), rows });
   }
-  { const b = document.getElementById('btn-releve-contrat'); if (b) b.addEventListener('click', openContratReleve); }
+  // ── Centre unifié « Exporter » (remplace Relevé PDF + Export Excel ; onglet actif) ──
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#contrat-io-mount', sheetName: 'Contrats',
+    baseName: () => (typeof activeCtab === 'function' ? activeCtab() : 'contrats') + '-' + new Date().toISOString().slice(0, 10),
+    releve: () => ({ key: 'contrats-' + activeCtab(), title: ctabTitle(), cols: toFicheCols(ctabCols()), rows: ctabRows() }),
+  });
 
   // ---------- Édition du forfait leasing ----------
   let leaseEditImmat = null;
