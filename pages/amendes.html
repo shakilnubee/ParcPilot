@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261109f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261109e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261109f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261109e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261109f">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -220,10 +220,9 @@
           <button class="btn btn-outline text-sm !px-2.5" data-history-undo title="Annuler (Ctrl+Z)" disabled><i data-lucide="undo-2" class="w-4 h-4"></i></button>
           <button class="btn btn-outline text-sm !px-2.5" data-history-redo title="Refaire (Ctrl+Y)" disabled><i data-lucide="redo-2" class="w-4 h-4"></i></button>
         </div>
-        <span data-data-io></span>
+        <span data-data-io hidden></span>
         <span id="am-export-mount"></span>
         <button class="btn btn-outline text-sm" id="am-zip-btn" title="Télécharger les avis PDF (cochés, sinon filtrés) dans un ZIP, rangés par conducteur"><i data-lucide="folder-down" class="w-4 h-4"></i> Télécharger les avis</button>
-        <button class="btn btn-outline text-sm" id="am-fiche-btn" title="Relevé PDF des amendes affichées (ou du conducteur filtré)"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
         <button class="btn btn-primary text-sm" id="btn-new" data-quickadd><i data-lucide="plus" class="w-4 h-4"></i> Nouvelle amende</button>
       </div>
     </div>
@@ -539,8 +538,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261109e"></script>
-<script src="../assets/js/supabase-client.js?v=20261109e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261109f"></script>
+<script src="../assets/js/supabase-client.js?v=20261109f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -556,12 +555,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261109f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261109e"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261109e" defer></script>
+<script src="../assets/js/app.min.js?v=20261109f"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261109f" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -3341,12 +3340,16 @@
     getRows: () => filtered().slice().sort((x, y) => (x.date || '').localeCompare(y.date || '')),
     period: { dateOf: a => a.date || '' },
     baseName: () => 'amendes-' + (state.annee === 'all' ? 'toutes' : state.annee),
+    // Centre unifié : « Relevé PDF » (colonnes/aperçu) + « Importer » dans le même bouton.
+    releve: () => { const suffix = state.conducteur ? ' — ' + state.conducteur : (state.annee !== 'all' ? ' ' + state.annee : ''); return amendesFicheConfig(sortRows(filtered()), 'Relevé d\'amendes' + suffix); },
+    imports: [
+      { label: 'Importer un avis (PDF / photo)', icon: 'scan-line', run: () => { const b = $('btn-new'); if (b) b.click(); } },
+      { label: 'Importer un tableau (Excel / CSV)', icon: 'clipboard-paste', run: () => { const b = document.querySelector('[data-data-io] button'); if (b) b.click(); } },
+    ],
   });
   // Relevé PDF des amendes — factorisé (bouton du haut = filtres en cours ; barre = sélection).
-  function openAmendesFiche(rows, title) {
-    if (!(FP.fiche && FP.fiche.open)) return;
-    if (!rows.length) { if (FP.toast) FP.toast('Aucune amende à imprimer.'); return; }
-    FP.fiche.open({
+  function amendesFicheConfig(rows, title) {
+    return {
       key: 'amendes',
       title: title,
       rows: rows,
@@ -3361,7 +3364,12 @@
         { id: 'statut',     label: 'Statut',     def: true,  get: a => a.statut || '—', tint: v => /payer|major/i.test(v) ? [220, 38, 38] : /pay/i.test(v) ? [22, 163, 74] : null },
         { id: 'numeroAvis', label: 'N° avis',    def: false, mono: true, get: a => a.numeroAvis || '—' },
       ],
-    });
+    };
+  }
+  function openAmendesFiche(rows, title) {
+    if (!(FP.fiche && FP.fiche.open)) return;
+    if (!rows.length) { if (FP.toast) FP.toast('Aucune amende à imprimer.'); return; }
+    FP.fiche.open(amendesFicheConfig(rows, title));
   }
   // Télécharger les avis PDF en ZIP (cochés sinon filtrés), rangés par conducteur — helper canonique
   // FP.bulkDownload (même sélecteur « cochés sinon filtrés » + récap que les factures, réutilisable).
