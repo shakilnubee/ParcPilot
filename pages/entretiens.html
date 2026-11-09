@@ -121,8 +121,7 @@
       <p class="text-sm mt-1" style="color:#8598B4" data-edit-key="entretiens.subtitle">Révisions & contrôles techniques à venir, historique d'entretien et coûts par véhicule</p>
     </div>
     <div class="flex flex-wrap justify-end items-center gap-3 mb-8">
-      <span data-data-io></span>
-      <button type="button" class="btn btn-outline text-sm" id="btn-releve-ent" title="Relevé PDF / Excel — colonnes au choix, réordonnables, filtrable par période"><i data-lucide="file-text" class="w-4 h-4"></i> Relevé PDF</button>
+      <span data-data-io hidden></span><span id="ent-io-mount"></span>
       <button type="button" class="btn btn-dark text-sm" onclick="document.getElementById('garage-modal').classList.add('open')"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacter le garage</button>
     </div>
 
@@ -1023,6 +1022,13 @@
     filename: `parc-pilot-entretiens-${new Date().toISOString().slice(0,10)}.csv`,
     columns: ENT_EXPORT_COLS,
     getRows: () => filtered(),
+  });
+  // ── Centre unifié « Exporter » (remplace Relevé PDF + Export Excel ; pas d'import tabulaire ici) ──
+  if (FP.makeExportMenu) FP.makeExportMenu({
+    mount: '#ent-io-mount', sheetName: 'Entretiens',
+    baseName: () => 'entretiens-' + new Date().toISOString().slice(0, 10),
+    period: { dateOf: i => i.date || '' },
+    releve: () => ({ key: 'entretiens', title: 'Relevé des entretiens & réparations', cols: FP.ficheColsFromExport(ENT_EXPORT_COLS), rows: filtered(), date: i => i.date }),
   });
   // Relevé PDF / Excel / CSV (colonnes au choix + réordonnables + filtre période sur la date).
   { const b = document.getElementById('btn-releve-ent'); if (b) b.addEventListener('click', () => {
