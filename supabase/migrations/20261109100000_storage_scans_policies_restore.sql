@@ -41,7 +41,23 @@ on conflict (id) do update set
   file_size_limit    = greatest(coalesce(storage.buckets.file_size_limit, 0), 52428800);
 
 -- 2) RLS active sur storage.objects (sinon les policies ne s'appliquent pas).
-alter table storage.objects enable row level security;
+--    ⚠️ storage.objects appartient à « supabase_storage_admin » (PAS au rôle de
+--    connexion des migrations) : un « alter table storage.objects … » lève
+--    « must be owner of table objects » (42501). Or, sur Supabase, la RLS est
+--    DÉJÀ activée par défaut sur storage.objects. On ne tente donc l'activation
+--    QUE si elle est réellement désactivée (drift), et on tolère l'absence de
+--    droit (NOTICE) pour rester rejouable par le runner de staging comme par
+--    l'éditeur SQL du dashboard (rôle propriétaire) en production.
+do $$
+begin
+  if not (select relrowsecurity from pg_class where oid = 'storage.objects'::regclass) then
+    begin
+      execute 'alter table storage.objects enable row level security';
+    exception when insufficient_privilege then
+      raise notice 'RLS storage.objects désactivée mais rôle non-propriétaire — à réactiver via le dashboard (supabase_storage_admin).';
+    end;
+  end if;
+end $$;
 
 -- 3) Fonctions de cloisonnement (IDENTIQUES à 20261017090000 — re-affirmées).
 --    Nom de dossier d'une société : minuscules, [^a-z0-9] → « - ». DOIT rester
