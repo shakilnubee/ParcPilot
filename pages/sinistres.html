@@ -1003,6 +1003,24 @@
   // url présente → le document est une IMAGE (aperçu) ou un PDF (icône) ? (détection par l'extension du
   // fichier stocké — FP.uploadScan conserve l'extension d'origine). Les liens Drive hérités (sans extension
   // image) restent sans aperçu. big = aperçu agrandi (onglet Documents de la fiche détail).
+  // ── Documents d'un type (courrier / constat) : LISTE (on garde TOUS les fichiers déposés) ──
+  // Par défaut un nouveau dépôt S'AJOUTE (jamais d'écrasement) ; seul le bouton « Remplacer » d'une ligne
+  // remplace CE fichier précis. Rétrocompatible : les anciens dossiers n'ont qu'un champ unique
+  // (courrierUrl/constatUrl) → traité comme une liste à 1 élément. On ne crée le tableau (…Urls) que s'il y
+  // a 2 documents ou plus ; sinon on garde le champ unique historique (forme identique à l'existant).
+  function sinDocUrls(dv, kind) {
+    if (!dv) return [];
+    const arr = dv[kind + 'Urls'];
+    if (Array.isArray(arr)) return arr.filter(Boolean);
+    const u = dv[kind + 'Url'];
+    return u ? [u] : [];
+  }
+  function sinSetDocUrls(o, kind, list) {
+    list = (list || []).filter(Boolean);
+    const kUrls = kind + 'Urls', kUrl = kind + 'Url';
+    if (list.length > 1) o[kUrls] = list; else delete o[kUrls];   // 1 seul doc → champ unique (compat)
+    if (list.length) o[kUrl] = list[0]; else delete o[kUrl];      // champ unique = 1er doc (lu par checklist/PDF)
+  }
   function sinDocRowHTML(g, s, kind, lbl, url, withRescan, big) {
     const safe = escapeHtml(url || ''), immat = escapeHtml(s.vehiculeImmat || '');
     if (url) {
@@ -1024,7 +1042,19 @@
       ? `<button type="button" class="fp-scan-btn sin-courrier-btn" data-key="${g.key}" data-immat="${immat}" title="Déposer le courrier de l'assureur : l'IA le lit et te propose les infos à valider"><i data-lucide="mail-search"></i> Scanner le courrier de l'assureur (IA)</button>`
       : `<button type="button" class="sin-constat-btn" data-key="${g.key}" data-immat="${immat}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:600;color:var(--fp-accent);background:#fff;border:1px solid var(--fp-border);border-radius:8px;padding:4px 8px;cursor:pointer" title="Déposer le constat amiable : l'IA lit qui est en tort et te le propose (tu confirmes)"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Lire le constat (IA)</button>`;
   }
-  // Section « Documents du dossier » complète (zone de dépôt + 2 lignes doc + inputs fichier cachés + statuts).
+  // Rend TOUTES les lignes d'un type (0, 1 ou plusieurs documents). Liste vide → bouton de dépôt initial.
+  // Liste non vide → une ligne « Voir / ⋯ » par document (numérotées s'il y en a plusieurs) + un bouton
+  // « Ajouter un autre … » qui dépose un document DE PLUS (sans rien écraser).
+  function sinDocRowsHTML(g, s, kind, lbl, urls, withRescan, big) {
+    urls = (urls || []).filter(Boolean);
+    if (!urls.length) return sinDocRowHTML(g, s, kind, lbl, '', withRescan, big);   // bouton de dépôt initial
+    const multi = urls.length > 1;
+    let html = urls.map((u, i) => sinDocRowHTML(g, s, kind, lbl + (multi ? ' (' + (i + 1) + ')' : ''), u, withRescan, big)).join('');
+    const addLbl = kind === 'courrier' ? 'Ajouter un autre courrier' : 'Ajouter un autre constat';
+    html += `<button type="button" class="sin-adddoc-btn" data-kind="${kind}" data-key="${g.key}" data-immat="${escapeHtml(s.vehiculeImmat || '')}" title="Déposer un document DE PLUS (les documents déjà présents sont conservés)" style="display:inline-flex;align-items:center;gap:.3rem;font-size:11.5px;font-weight:600;color:var(--fp-accent);background:#fff;border:1px dashed var(--fp-border);border-radius:8px;padding:4px 8px;cursor:pointer;margin-top:4px"><i data-lucide="plus" class="w-3.5 h-3.5"></i> ${addLbl}</button>`;
+    return html;
+  }
+  // Section « Documents du dossier » complète (zone de dépôt + lignes doc + inputs fichier cachés + statuts).
   function sinDocsSectionHTML(g, s, dv, big) {
     const annee = escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()));
     const immat = escapeHtml(s.vehiculeImmat || ''), sinDate = escapeHtml(String(s.date || '').slice(0, 10));
@@ -1044,8 +1074,8 @@
             </div>
           </div>
         </div>
-        ${sinDocRowHTML(g, s, 'courrier', "Courrier de l'assureur", dv.courrierUrl, true, big)}
-        ${sinDocRowHTML(g, s, 'constat', 'Constat amiable', dv.constatUrl, false, big)}
+        ${sinDocRowsHTML(g, s, 'courrier', "Courrier de l'assureur", sinDocUrls(dv, 'courrier'), true, big)}
+        ${sinDocRowsHTML(g, s, 'constat', 'Constat amiable', sinDocUrls(dv, 'constat'), false, big)}
       </div>
       <input type="file" class="sin-courrier-file hidden" data-key="${g.key}" data-immat="${immat}" data-annee="${annee}" data-sindate="${sinDate}" accept="image/*,application/pdf,.pdf">
       <input type="file" class="sin-constat-file hidden" data-key="${g.key}" data-immat="${immat}" accept="image/*,application/pdf,.pdf">
@@ -1092,7 +1122,7 @@
     const solde = !!fin.solde;
     const respLbl = dv.resp ? (RESP_LABEL[dv.resp] || dv.resp) : '';
     const immat = escapeHtml(s.vehiculeImmat || '');
-    const courrierUrl = dv.courrierUrl || '';
+    const courrierUrl = sinDocUrls(dv, 'courrier')[0] || '';
     const steps = [
       { t: 'Courrier d’assurance', done: !!courrierUrl, cur: false,
         d: courrierUrl ? ('Reçu et lu.' + (dv.numeroDossier ? ' Dossier n° ' + escapeHtml(dv.numeroDossier) + '.' : '') + (respLbl ? ' Responsabilité : ' + escapeHtml(respLbl) + '.' : '')) : 'Dépose le courrier de l’assureur : l’IA le lit et te propose les infos à valider.',
@@ -1145,7 +1175,7 @@
     const kv = v => (v == null) ? td : `<span${v === 0 ? ' style="color:#047857"' : ''}>${eur(v)}</span>`;
     const chipLbl = dv.dateCloture ? '✓ Clôturé' : (STAT_LABELS[cur] || '— à suivre');
     const chipCol = dv.dateCloture ? '#047857' : statColor(cur);
-    const nDocs = (dv.courrierUrl ? 1 : 0) + (dv.constatUrl ? 1 : 0);
+    const nDocs = sinDocUrls(dv, 'courrier').length + sinDocUrls(dv, 'constat').length;
     const toneCss = { do: 'sin-cta-do', wait: 'sin-cta-wait', done: 'sin-cta-done' };
     const tab = sinDetailTab || 'fin';
     const tabBtn = (id, label) => `<button type="button" class="sin-dtab2${tab === id ? ' on' : ''}" data-key="${g.key}" data-tab="${id}">${label}</button>`;
@@ -1282,7 +1312,10 @@
   }
   function sinPreviewDocsHTML(dv) {
     const rows = [];
-    [['courrier', "Courrier de l'assureur", dv.courrierUrl], ['constat', 'Constat amiable', dv.constatUrl]].forEach(([k, l, u]) => {
+    const specs = [];
+    sinDocUrls(dv, 'courrier').forEach((u, i, a) => specs.push(['courrier', "Courrier de l'assureur" + (a.length > 1 ? ' (' + (i + 1) + ')' : ''), u]));
+    sinDocUrls(dv, 'constat').forEach((u, i, a) => specs.push(['constat', 'Constat amiable' + (a.length > 1 ? ' (' + (i + 1) + ')' : ''), u]));
+    specs.forEach(([k, l, u]) => {
       if (!u) return;
       const isImg = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(u);
       rows.push(`<div class="pv-doc">${isImg ? `<img class="sin-doc-thumb sin-doc-view" data-url="${escapeHtml(u)}" alt="aperçu" loading="lazy">` : '<i data-lucide="file-text" class="w-4 h-4" style="color:#059669"></i>'}<span style="flex:1;min-width:0">${l}</span><button type="button" class="sin-doc-view pv-voir" data-url="${escapeHtml(u)}">Voir</button></div>`);
@@ -1661,12 +1694,13 @@
   // (ainsi le glisser-déposer peut réutiliser EXACTEMENT le même flux d'enregistrement + analyse IA).
   function handleConstatScan(input) {
     const file = (input.files || [])[0]; input.value = '';
+    const replaceUrl = input.dataset.replace || ''; delete input.dataset.replace;   // cible de « Remplacer » (sinon ajout)
     if (!file) return;
-    return ingestConstat(file, { key: input.dataset.key, immat: input.dataset.immat || '', annee: input.dataset.annee || '' });
+    return ingestConstat(file, { key: input.dataset.key, immat: input.dataset.immat || '', annee: input.dataset.annee || '', replaceUrl });
   }
   async function ingestConstat(file, ctx) {
     ctx = ctx || {};
-    const key = ctx.key, immat = ctx.immat || '';
+    const key = ctx.key, immat = ctx.immat || '', replaceUrl = ctx.replaceUrl || '';
     if (!file) return;
     const setSt = (html, color) => { const statusEl = $('timeline').querySelector(`.sin-constat-status[data-key="${key}"]`); if (statusEl) { statusEl.innerHTML = html; statusEl.style.color = color || 'var(--fp-muted)'; if (window.lucide) lucide.createIcons(); } };
     clearSinStatus('sin-constat-status', key);
@@ -1678,11 +1712,10 @@
       try {
         const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
         const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
-        let oldUrl = ''; try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).constatUrl || ''; } catch (_) {}
         let url = await FP.uploadScan(file, `sinistres/${plaqueSlug}/${annee}`);
         // Vérifie que le fichier EST réellement déposé (sinon on n'enregistre pas une URL morte).
         if (url && FP.signedScanUrlStrict) { try { if ((await FP.signedScanUrlStrict(url, 60)) == null) url = ''; } catch (_) {} }
-        if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; o.constatUrl = url; FP.settings.save(s); constatSaved = true; if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); } }
+        if (url) { const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {}; const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {}; let list = sinDocUrls(o, 'constat'); if (replaceUrl) { const i = list.indexOf(replaceUrl); if (i >= 0) list[i] = url; else list.push(url); } else list.push(url); sinSetDocUrls(o, 'constat', list); FP.settings.save(s); constatSaved = true; if (replaceUrl && replaceUrl !== url) { await sinDeleteStorageFile(replaceUrl); } }
         else constatFail = true;   // upload échoué → à signaler (ne pas faire croire que le constat est classé)
       } catch (_) { constatFail = true; }
     }
@@ -1712,7 +1745,7 @@
     try {
       if (!url) return true;
       const doss = FP.settings.get().sinistreAssurance || {};
-      let n = 0; Object.keys(doss).forEach(k => { const d = doss[k] || {}; if (d.courrierUrl === url) n++; if (d.constatUrl === url) n++; });
+      let n = 0; Object.keys(doss).forEach(k => { const d = doss[k] || {}; if (sinDocUrls(d, 'courrier').indexOf(url) >= 0) n++; if (sinDocUrls(d, 'constat').indexOf(url) >= 0) n++; });
       return n > 0;
     } catch (e) { return true; }
   }
@@ -1756,12 +1789,12 @@
   // Supprimer (confirmation nommée) : retire la RÉFÉRENCE du dossier + supprime le FICHIER seulement s'il
   // n'est plus référencé ailleurs. Les infos déjà enregistrées (n° dossier, franchise…) sont conservées.
   async function sinDocDelete(key, kind, url) {
-    const lbl = kind === 'constat' ? 'le constat amiable' : 'le courrier de l\'assureur';
-    const ok = FP.confirm ? await FP.confirm('Supprimer ' + lbl + ' de ce dossier ?\n\nLe document sera retiré. Les informations déjà enregistrées (n° dossier, franchise, responsabilité…) sont conservées.') : confirm('Supprimer ' + lbl + ' ?');
+    const lbl = kind === 'constat' ? 'ce constat amiable' : 'ce courrier de l\'assureur';
+    const ok = FP.confirm ? await FP.confirm('Supprimer ' + lbl + ' de ce dossier ?\n\nLe document sera retiré. Les autres documents du dossier et les informations déjà enregistrées (n° dossier, franchise, responsabilité…) sont conservés.') : confirm('Supprimer ' + lbl + ' ?');
     if (!ok) return;
     const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
     const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-    delete o[(kind === 'constat') ? 'constatUrl' : 'courrierUrl'];
+    sinSetDocUrls(o, kind, sinDocUrls(o, kind).filter(u => u !== url));   // retire CE document, garde les autres
     if (!Object.keys(o).length) delete s.sinistreAssurance[key];
     FP.settings.save(s);
     await sinDeleteStorageFile(url);
@@ -1781,7 +1814,7 @@
     const items = [];
     items.push({ ic: 'download', txt: 'Télécharger', fn: () => sinDocDownload(d.url || '', d.name || 'document') });
     if (d.rescan === '1') items.push({ ic: 'sparkles', txt: 'Relire (IA)', fn: () => rescanCourrier(d.key, d.immat || '', d.url || '', d.sindate || '') });
-    items.push({ ic: 'refresh-cw', txt: 'Remplacer', fn: () => openFileFn(d.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', d.key) });
+    items.push({ ic: 'refresh-cw', txt: 'Remplacer', fn: () => openFileFn(d.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', d.key, d.url || '') });
     items.push({ ic: 'trash-2', txt: 'Supprimer', danger: true, fn: () => sinDocDelete(d.key, d.kind, d.url || '') });
     items.forEach(it => {
       const b = document.createElement('button'); b.type = 'button'; if (it.danger) b.className = 'danger';
@@ -1810,17 +1843,17 @@
   // (le glisser-déposer réutilise le même flux upload → analyse IA → fenêtre de validation).
   function handleCourrierScan(input) {
     const file = (input.files || [])[0]; input.value = '';
+    const replaceUrl = input.dataset.replace || ''; delete input.dataset.replace;   // cible de « Remplacer » (sinon ajout)
     if (!file) return;
-    return ingestCourrier(file, { key: input.dataset.key, immat: input.dataset.immat || '', sinDate: input.dataset.sindate || '', annee: input.dataset.annee || '' });
+    return ingestCourrier(file, { key: input.dataset.key, immat: input.dataset.immat || '', sinDate: input.dataset.sindate || '', annee: input.dataset.annee || '', replaceUrl });
   }
   async function ingestCourrier(file, ctx) {
     ctx = ctx || {};
-    const key = ctx.key, immat = ctx.immat || '', sinDate = ctx.sinDate || '';
+    const key = ctx.key, immat = ctx.immat || '', sinDate = ctx.sinDate || '', replaceUrl = ctx.replaceUrl || '';
     if (!file) return;
     clearSinStatus('sin-courrier-status', key);
     const tp = sinProgress('Enregistrement du courrier…');
-    let url = '', courrierFail = false, oldUrl = '';
-    try { oldUrl = ((FP.settings.get().sinistreAssurance || {})[key] || {}).courrierUrl || ''; } catch (_) {}
+    let url = '', courrierFail = false;
     const plaqueSlug = String(immat || '').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'sans-plaque';
     const annee = (ctx.annee && /^\d{4}$/.test(ctx.annee)) ? ctx.annee : String(new Date().getFullYear());
     try {
@@ -1835,10 +1868,13 @@
     if (url) {
       const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
       const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-      o.courrierUrl = url; FP.settings.save(s);
-      if (oldUrl && oldUrl !== url) { await sinDeleteStorageFile(oldUrl); }   // remplacement → purge l'ancien fichier
+      let list = sinDocUrls(o, 'courrier');
+      if (replaceUrl) { const i = list.indexOf(replaceUrl); if (i >= 0) list[i] = url; else list.push(url); }
+      else list.push(url);   // dépôt par défaut = AJOUT (on garde les courriers déjà déposés)
+      sinSetDocUrls(o, 'courrier', list); FP.settings.save(s);
+      if (replaceUrl && replaceUrl !== url) { await sinDeleteStorageFile(replaceUrl); }   // remplacement ciblé → purge l'ancien
     }
-    render();   // la ligne « document » affiche désormais Voir / Télécharger / Remplacer / Supprimer / Relire
+    render();   // les lignes « document » affichent Voir / Télécharger / Remplacer / Supprimer / Relire
     if (!url) { if (tp) tp.fail('Le courrier n\'a pas pu être enregistré. Réessaie.'); else if (FP.notifyError) FP.notifyError('Le courrier n\'a pas pu être enregistré.'); return; }
     // ÉTATS DISTINCTS (consigne) : le document est enregistré même si l'analyse IA échoue ensuite.
     if (!(window.FP && FP.scanIA && FP.courrierAssureurPrompt)) { if (tp) tp.done('Courrier enregistré. (Connexion requise pour l\'analyse IA.)'); return; }
@@ -2024,7 +2060,7 @@
     }
     // Helper : ouvre le sélecteur de fichier (courrier/constat) de CE dossier (input repéré par data-key —
     // les inputs ne sont plus enfants du bouton depuis la refonte « Documents du dossier »).
-    const _openSinFile = (cls, key) => { const inp = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (inp) inp.click(); };
+    const _openSinFile = (cls, key, replaceUrl) => { const inp = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (inp) { if (replaceUrl) inp.dataset.replace = replaceUrl; else delete inp.dataset.replace; inp.click(); } };
     // Zone de glisser-déposer : clic sur la zone (hors boutons de choix) → sélecteur de fichier.
     const dz = e.target.closest('.sin-dz');
     if (dz && !e.target.closest('.sin-dz-as') && !e.target.closest('.sin-dz-cancel')) {
@@ -2042,6 +2078,9 @@
     }
     const dzCancel = e.target.closest('.sin-dz-cancel');
     if (dzCancel) { _sinDzFile = null; _sinDzReset(dzCancel.closest('.sin-dz')); return; }
+    // « Ajouter un autre courrier / constat » → dépose un document DE PLUS (aucun écrasement : pas de replaceUrl).
+    const addDoc = e.target.closest('.sin-adddoc-btn');
+    if (addDoc) { _openSinFile(addDoc.dataset.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', addDoc.dataset.key); return; }
     // Courrier assureur : « Scanner » (dépôt initial) → ouvre le sélecteur de fichier.
     const crbtn = e.target.closest('.sin-courrier-btn');
     if (crbtn) { _openSinFile('sin-courrier-file', crbtn.dataset.key); return; }
@@ -2108,7 +2147,7 @@
       // libellé contenant « constat » → rendu en premier, en page pleine.
       const attMap = new Map();
       allDocs.forEach(x => { if (x.url) attMap.set(x.url, { url: x.url, label: x.label || '', isConstat: /constat/i.test(x.label || '') }); });
-      if (dv.constatUrl) { const ex = attMap.get(dv.constatUrl); if (ex) ex.isConstat = true; else attMap.set(dv.constatUrl, { url: dv.constatUrl, label: 'Constat amiable', isConstat: true }); }
+      sinDocUrls(dv, 'constat').forEach(cu => { const ex = attMap.get(cu); if (ex) ex.isConstat = true; else attMap.set(cu, { url: cu, label: 'Constat amiable', isConstat: true }); });
       const attachments = [...attMap.values()];
       DeclCond.exportPdf({ id: s.id, type: 'sinistre', plaque: s.vehiculeImmat || '', created_at: s.date || '', date_incident: s.date ? FP.date(s.date) : '', lieu: dv.lieu || '', description: desc, tiers: tiers, conducteur: dv.conducteur || '', blesses: '', attachments: attachments }, sinPdf);
       return;
