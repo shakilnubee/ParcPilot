@@ -1123,6 +1123,16 @@
     const respLbl = dv.resp ? (RESP_LABEL[dv.resp] || dv.resp) : '';
     const immat = escapeHtml(s.vehiculeImmat || '');
     const courrierUrl = sinDocUrls(dv, 'courrier')[0] || '';
+    // ── Devis vs Facture : un DEVIS ne doit JAMAIS valider « Facture définitive » ni devenir « Coût facturé ».
+    // Sélecteur par ligne de coût (réutilise la classe .sin-stage + sinistreStage existants) → l'utilisateur
+    // peut requalifier en 1 clic. Un devis alimente le chiffrage (coût estimé via g.cost), pas le coût facturé.
+    const costLines = (g.lines || []).filter(l => l && (Number(l.montantTTC) || 0) > 0);
+    const stageCtrl = costLines.length ? ('<div style="margin-top:7px;display:flex;flex-direction:column;gap:5px">'
+      + costLines.map(l => {
+          const st = stageOf(l.id);
+          const opts = ['devis', 'facture'].map(k => `<option value="${k}" ${st === k ? 'selected' : ''}>${STAGE_LABELS[k]}</option>`).join('');
+          return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px"><span style="font-weight:700;color:#334155">${FP.euroPrecis(l.montantTTC)}</span><span style="color:#94a3b8">=</span><select class="sin-stage" data-id="${escapeHtml(l.id)}" title="Un devis alimente le coût estimé ; une facture définitive alimente le coût facturé" style="font-size:11px;border:1px solid var(--fp-border);border-radius:6px;padding:2px 6px;font-weight:700;cursor:pointer">${opts}</select><span style="color:${st === 'devis' ? '#b45309' : '#047857'}">${st === 'devis' ? '→ devis (pas une facture définitive)' : '→ facture définitive'}</span></div>`;
+        }).join('') + '</div>') : '';
     const steps = [
       { t: 'Courrier d’assurance', done: !!courrierUrl, cur: false,
         d: courrierUrl ? ('Reçu et lu.' + (dv.numeroDossier ? ' Dossier n° ' + escapeHtml(dv.numeroDossier) + '.' : '') + (respLbl ? ' Responsabilité : ' + escapeHtml(respLbl) + '.' : '')) : 'Dépose le courrier de l’assureur : l’IA le lit et te propose les infos à valider.',
@@ -1130,8 +1140,8 @@
           ? `<button type="button" class="btn sin-doc-view" data-url="${escapeHtml(courrierUrl)}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>`
           : `<button type="button" class="btn p sin-courrier-btn" data-key="${g.key}" data-immat="${immat}"><i data-lucide="mail-search" class="w-3.5 h-3.5"></i> Scanner le courrier</button>` },
       { t: 'Chiffrage (devis / coût)', done: coutKnown, cur: false,
-        d: facture ? ('Coût facturé : ' + eur(fin.coutFacture) + '.') : (fin.coutEstime != null ? ('Coût estimé : ' + eur(fin.coutEstime) + ' (devis).') : 'Dépose un devis / une facture, ou saisis le coût estimé dans « Suivi financier ».'),
-        act: `<button type="button" class="btn p" data-sin-depose="${s.id}" data-key="${g.key}"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer une facture</button>` },
+        d: (facture ? ('Coût facturé : ' + eur(fin.coutFacture) + '.') : (fin.coutEstime != null ? ('Coût estimé : ' + eur(fin.coutEstime) + '.') : ((g.cost || 0) > 0 ? ('Coût estimé (devis) : ' + eur(g.cost) + '.') : 'Dépose un devis / une facture, ou saisis le coût estimé dans « Suivi financier ».'))) + stageCtrl,
+        act: `<button type="button" class="btn p" data-sin-depose="${s.id}" data-key="${g.key}"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer un devis / une facture</button>` },
       { t: 'Décision de l’assurance', done: pecConf || !!dv.resp, cur: false,
         d: pecConf ? ('Prise en charge confirmée : ' + eur(fin.pecConfirmee) + '.') : (dv.resp ? ('Responsabilité : ' + escapeHtml(respLbl) + '. Prise en charge à confirmer.') : 'Franchise appliquée · prise en charge annoncée puis confirmée — uniquement si le document le confirme.'),
         act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Compléter</button>` },
@@ -2236,6 +2246,13 @@
       let url = ''; try { url = await FP.uploadScan(f, 'documents'); } catch (_) {}
       if (!url) { if (FP.notifyError) FP.notifyError("Le document de la facture n'a pas pu être envoyé — réessaie (vérifie ta connexion)."); else alert("Échec de l'envoi de la facture — réessaie."); return; }
       const montant = Number.isFinite(det.montantTTC) ? det.montantTTC : null;
+      // ⚠️ DEVIS ou FACTURE ? (l'IA propose, l'utilisateur confirme). Un DEVIS ne doit JAMAIS valider
+      // l'étape « Facture définitive » ni devenir « Coût facturé » — il alimente le coût estimé (chiffrage).
+      const iaDevis = /\b(devis|proforma|estimation)\b/i.test(String((det.description || '') + ' ' + (det.type || '') + ' ' + (f.name || '')));
+      const estDevis = FP.confirm
+        ? await FP.confirm('Ce document est-il un DEVIS (estimation), et non une facture définitive ?\n\n• OK = Devis → alimente le coût ESTIMÉ, ne valide pas « Facture définitive »\n• Annuler = Facture définitive → alimente le coût FACTURÉ' + (iaDevis ? '\n\n(D\'après le document, l\'IA pense que c\'est un devis.)' : ''))
+        : false;
+      const stageChoice = estDevis ? 'devis' : 'facture';
       // Document consultable (section Photos & Rapport PDF) — toujours enregistré, quel que soit le cas.
       try {
         const doc = { id: 'SDF' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: immat, type: 'sinistre-doc', label: 'Facture' + (det.fournisseur ? (' ' + det.fournisseur) : ''), url, driveId: null };
@@ -2244,26 +2261,31 @@
         try { if (groupKey) setDocSub(doc.id, 'sin:' + groupKey); } catch (e) {}   // rangé dans CE sinistre (centre de documents)
       } catch (_) {}
       const single = !g || g.lines.length <= 1;
+      let stageTargetId = null;
       if (single) {
-        // UNE ligne → on la complète (le montant de la facture REMPLACE l'estimation → pas de double comptage).
+        // UNE ligne → on la complète (le montant REMPLACE l'estimation → pas de double comptage).
         const patch = {};
         if (montant != null) { rep.montantTTC = montant; patch.montantTTC = montant; }
         if (det.fournisseur && !rep.fournisseur) { rep.fournisseur = det.fournisseur; patch.fournisseur = det.fournisseur; }
         if (det.numeroFacture && !rep.numeroFacture) { rep.numeroFacture = det.numeroFacture; patch.numeroFacture = det.numeroFacture; }
         if (det.date && !rep.date) { rep.date = det.date; patch.date = det.date; }
-        if (!rep.fileId) { rep.fileId = url; patch.fileId = url; }   // doc principal = la facture si la ligne n'en avait pas
+        if (!rep.fileId) { rep.fileId = url; patch.fileId = url; }   // doc principal = ce document si la ligne n'en avait pas
         const df = (data.factures || []).find(x => x.id === rep.id); if (df) Object.assign(df, patch);
         try { if (Object.keys(patch).length) await FP.persist.update('factures', rep.id, patch); } catch (_) {}
+        stageTargetId = rep.id;
       } else {
-        // Plusieurs lignes (déjà des factures) → on AJOUTE une ligne et on la rattache à l'incident.
+        // Plusieurs lignes (déjà des documents) → on AJOUTE une ligne et on la rattache à l'incident.
         const nid = 'F-SIN-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-        const fact = { id: nid, date: det.date || null, vehiculeImmat: immat || null, fournisseur: det.fournisseur || null, numeroFacture: det.numeroFacture || null, description: f.name || 'Facture sinistre', type: 'sinistre', montantHT: Number.isFinite(det.montantHT) ? det.montantHT : null, montantTVA: Number.isFinite(det.montantTVA) ? det.montantTVA : null, montantTTC: montant, fileId: url, fileName: f.name || null };
+        const fact = { id: nid, date: det.date || null, vehiculeImmat: immat || null, fournisseur: det.fournisseur || null, numeroFacture: det.numeroFacture || null, description: f.name || 'Document sinistre', type: 'sinistre', montantHT: Number.isFinite(det.montantHT) ? det.montantHT : null, montantTVA: Number.isFinite(det.montantTVA) ? det.montantTVA : null, montantTTC: montant, fileId: url, fileName: f.name || null };
         try { await FP.persist.insert('factures', fact); (data.factures = data.factures || []).push(fact); sinistres = (data.factures || []).filter(x => x.type === 'sinistre'); } catch (_) {}
         try { associate(groupKey, nid); } catch (_) {}
+        stageTargetId = nid;
       }
+      // Stade EXPLICITE (devis/facture) du document déposé → un devis ne valide jamais « Facture définitive ».
+      if (stageTargetId) { try { const ss = FP.settings.get(); ss.sinistreStage = ss.sinistreStage || {}; ss.sinistreStage[stageTargetId] = stageChoice; FP.settings.save(ss); } catch (_) {} }
       if (typeof loadSinDocs === 'function') loadSinDocs();
       refreshAll();
-      if (FP.toast) FP.toast('✓ Facture déposée' + (montant != null ? (' : ' + FP.euroPrecis(montant)) : '') + ' — rattachée à ce sinistre. Passe le statut sur « Remboursé » si besoin.');
+      if (FP.toast) FP.toast('✓ ' + (estDevis ? 'Devis' : 'Facture') + ' déposé' + (estDevis ? '' : 'e') + (montant != null ? ' : ' + FP.euroPrecis(montant) : '') + ' — rattaché' + (estDevis ? '' : 'e') + ' à ce sinistre.' + (estDevis ? ' (Coût estimé — ne valide pas « Facture définitive ».)' : ''));
     });
     inp.click();
   }
