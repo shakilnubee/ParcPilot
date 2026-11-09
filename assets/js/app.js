@@ -19505,93 +19505,33 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const nameOf = () => (typeof opts.baseName === 'function' ? opts.baseName() : opts.baseName) || 'export';
     const wrap = document.createElement('div'); wrap.className = 'fp-export-wrap';
     const hasPeriod = !!(opts.period && typeof opts.period.dateOf === 'function');
-    // ── CENTRE UNIFIÉ IMPORT / EXPORT (consigne) ──
-    // opts.releve  : () => config FP.fiche ({key,title,cols:[{id,label,get,num,align}],rows,date}) → item « Relevé PDF »
-    //                + sert aussi à DÉRIVER Excel/CSV si opts.columns n'est pas fourni (source unique de colonnes).
-    // opts.imports : [{label, icon?, run()}] (ou opts.onImport = fn) → section « Importer ».
-    // Le bouton devient « Importer / Exporter » dès qu'un import est fourni. Rien n'est dupliqué : PDF = FP.fiche,
-    // Excel/CSV = FP.exportRows, import = la fonction métier EXISTANTE de la page (lecteurs, anti-doublon…).
+    // ── CENTRE UNIFIÉ IMPORT / EXPORT (maquette validée) : le bouton ouvre la fenêtre riche FP.exportCenter
+    //    (cartes de format PDF/Excel/CSV, filtres, titre, colonnes glissables, options, favoris, aperçu +
+    //    onglet Importer). Aucun moteur dupliqué : PDF via FP.fiche, Excel/CSV via FP.fiche/FP.xlsx/FP.csv,
+    //    imports = lecteurs métier EXISTANTS de la page.
+    // opts.releve  : () => config FP.fiche ({key,title,cols:[{id,label,get,num,align,sum}],rows,date}).
+    // opts.columns + opts.getRows : alternative (colonnes d'export) si pas de releve.
+    // opts.imports / opts.onImport : section « Importer ».
     const releveFn = (typeof opts.releve === 'function') ? opts.releve : null;
     const imports = Array.isArray(opts.imports) ? opts.imports.filter(i => i && typeof i.run === 'function')
                   : (typeof opts.onImport === 'function' ? [{ label: 'Importer…', run: opts.onImport }] : []);
     const hasImport = imports.length > 0;
-    // Colonnes Excel/CSV : fournies explicitement, sinon dérivées de la config FP.fiche (source unique).
-    const colsFor = () => {
-      if (Array.isArray(opts.columns) && opts.columns.length) return opts.columns;
-      if (releveFn) { try { const c = releveFn(); return (c && c.cols || []).map(col => ({ label: col.label, value: col.get, number: col.align === 'right' || col.num })); } catch (e) {} }
-      return [];
-    };
-    const rowsFor = () => { if (typeof opts.getRows === 'function') return opts.getRows() || []; if (releveFn) { try { return (releveFn().rows) || []; } catch (e) {} } return []; };
-    const hasTabular = (Array.isArray(opts.columns) && opts.columns.length) || releveFn;
     const label = opts.label || (hasImport ? 'Importer / Exporter' : 'Exporter');
-    wrap.innerHTML = `
-      <button type="button" class="btn btn-outline text-sm fp-export-btn"><i data-lucide="${hasImport ? 'arrow-down-up' : 'download'}" class="w-4 h-4"></i> ${label} <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
-      <div class="fp-menu fp-export-menu hidden">
-        <div class="fp-exp-sec">Exporter — vue actuelle</div>
-        ${releveFn ? `<button type="button" class="fp-exp-it" data-exp="releve"><i data-lucide="file-text" class="w-4 h-4" style="color:#f97316"></i> Relevé PDF (colonnes)</button>` : ''}
-        ${hasTabular ? `<button type="button" class="fp-exp-it" data-exp="xlsx"><i data-lucide="sheet" class="w-4 h-4" style="color:#16a34a"></i> Excel (.xlsx)</button>
-        <button type="button" class="fp-exp-it" data-exp="csv"><i data-lucide="file-text" class="w-4 h-4" style="color:#64748b"></i> CSV</button>
-        <div class="fp-exp-div"></div>
-        <button type="button" class="fp-exp-it" data-exp="mail"><i data-lucide="mail" class="w-4 h-4" style="color:#2563eb"></i> Envoyer par mail…</button>` : ''}
-        ${hasPeriod ? `<div class="fp-exp-div"></div>
-        <div class="fp-exp-sec">Par période</div>
-        <div class="fp-exp-dates"><label>Du <input type="date" class="fp-exp-from"></label><label>Au <input type="date" class="fp-exp-to"></label></div>
-        <button type="button" class="fp-exp-it" data-exp="xlsx" data-period="1"><i data-lucide="sheet" class="w-4 h-4" style="color:#16a34a"></i> Excel — période</button>
-        <button type="button" class="fp-exp-it" data-exp="csv" data-period="1"><i data-lucide="file-text" class="w-4 h-4" style="color:#64748b"></i> CSV — période</button>` : ''}
-        ${hasImport ? `<div class="fp-exp-div"></div><div class="fp-exp-sec">Importer</div>` + imports.map((im, i) => `<button type="button" class="fp-exp-it" data-imp="${i}"><i data-lucide="${im.icon || 'upload'}" class="w-4 h-4" style="color:#16a34a"></i> ${(FP.esc ? FP.esc(im.label || 'Importer…') : (im.label || 'Importer…'))}</button>`).join('') : ''}
-      </div>`;
+    wrap.innerHTML = `<button type="button" class="btn btn-outline text-sm fp-export-btn"><i data-lucide="${hasImport ? 'arrow-down-up' : 'download'}" class="w-4 h-4"></i> ${label}</button>`;
     mount.appendChild(wrap);
     if (window.lucide && lucide.createIcons) { try { lucide.createIcons(); } catch (e) {} }
-    const menu = wrap.querySelector('.fp-export-menu');
-    const btn = wrap.querySelector('.fp-export-btn');
-    btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
-    menu.addEventListener('click', async (e) => {
-      // Importer : on lance la fonction métier EXISTANTE de la page (lecteur, anti-doublon…).
-      const imp = e.target.closest('[data-imp]');
-      if (imp) { menu.classList.add('hidden'); const im = imports[+imp.dataset.imp]; if (im && typeof im.run === 'function') { try { im.run(); } catch (x) { console.warn('[export-menu import]', x); } } return; }
-      const it = e.target.closest('[data-exp]'); if (!it) return;
-      const kind = it.dataset.exp;
-      // Relevé PDF : ouvre le moteur commun FP.fiche (colonnes + aperçu + PDF), sans rien dupliquer.
-      if (kind === 'releve') { menu.classList.add('hidden'); if (releveFn && FP.fiche && FP.fiche.open) { try { FP.fiche.open(releveFn()); } catch (x) { console.warn('[export-menu releve]', x); } } return; }
-      const expCols = colsFor();
-      let rows = rowsFor().slice();
-      let suffix = '';
-      if (it.dataset.period) {
-        const from = (wrap.querySelector('.fp-exp-from') || {}).value || '';
-        const to = (wrap.querySelector('.fp-exp-to') || {}).value || '';
-        rows = rows.filter(r => {
-          const d = opts.period.dateOf(r) || '';
-          if (from && d < from) return false;
-          if (to && d > to) return false;
-          return true;
-        });
-        suffix = '-' + (from || 'debut') + '_' + (to || 'fin');
+    // Construit la config de la fenêtre riche à partir des options de la page (source unique de colonnes).
+    function buildCfg() {
+      let cfg = null;
+      if (releveFn) { let r = null; try { r = releveFn(); } catch (e) {} if (r) cfg = { key: r.key || ('exp-' + (opts.sheetName || 'export')), title: r.title || opts.sheetName || 'Relevé', cols: (r.cols || []).slice(), getRows: () => { try { return (releveFn().rows) || []; } catch (e) { return []; } }, date: r.date || (hasPeriod ? (row => opts.period.dateOf(row)) : null) }; }
+      if (!cfg) {
+        const cols = (opts.columns || []).map((c, i) => ({ id: 'c' + i, label: c.label, def: true, get: c.value, num: !!c.number, align: c.number ? 'right' : undefined, sum: (c.number && !c.noTotal) ? c.value : undefined }));
+        cfg = { key: 'exp-' + (opts.sheetName || 'export'), title: opts.sheetName || 'Export', cols: cols, getRows: () => { try { return (typeof opts.getRows === 'function' ? opts.getRows() : []) || []; } catch (e) { return []; } }, date: hasPeriod ? (row => opts.period.dateOf(row)) : null };
       }
-      menu.classList.add('hidden');
-      if (!rows.length) { if (FP.toast) FP.toast('Aucune ligne à exporter (vérifie les filtres / la période).'); return; }
-      // Envoi par mail : un site statique ne peut pas JOINDRE un fichier tout seul (pas de serveur
-      // mail). On télécharge le CSV puis on ouvre le client mail pré-rempli — l'utilisateur joint le
-      // fichier (qui vient d'être téléchargé) et envoie. Fonctionne partout, sans backend.
-      if (kind === 'mail') {
-        const last = (function () { try { return localStorage.getItem('fp_export_mail') || ''; } catch (e) { return ''; } })();
-        const to = await FP.prompt('Envoyer l\'export à quelle adresse e-mail ?', last);
-        if (to == null || !to.trim()) return;
-        const addr = to.trim();
-        try { localStorage.setItem('fp_export_mail', addr); } catch (e) {}
-        const fname = nameOf() + suffix + '.csv';
-        FP.exportRows(nameOf() + suffix, expCols, rows, 'csv', { total: opts.total, sheetName: opts.sheetName });
-        const subject = encodeURIComponent('Export ' + (opts.sheetName || nameOf()) + ' — ' + rows.length + ' ligne(s)');
-        const body = encodeURIComponent(
-          'Bonjour,\n\nVeuillez trouver l\'export « ' + fname + ' » (' + rows.length + ' ligne(s)).\n\n' +
-          '⚠️ Le fichier vient d\'être téléchargé sur cet ordinateur : merci de le JOINDRE à cet e-mail avant l\'envoi.\n\n' +
-          'Cordialement,');
-        window.location.href = 'mailto:' + encodeURIComponent(addr) + '?subject=' + subject + '&body=' + body;
-        if (FP.toast) FP.toast('Fichier téléchargé — joins-le à l\'e-mail qui vient de s\'ouvrir.');
-        return;
-      }
-      FP.exportRows(nameOf() + suffix, expCols, rows, kind, { total: opts.total, sheetName: opts.sheetName });
-      if (FP.toast) FP.toast(`${rows.length} ligne(s) exportée(s) en ${kind === 'csv' ? 'CSV' : 'Excel'}`);
-    });
+      cfg.imports = imports; cfg.baseName = opts.baseName; cfg.filters = opts.filters;
+      return cfg;
+    }
+    wrap.querySelector('.fp-export-btn').addEventListener('click', () => { if (FP.exportCenter && FP.exportCenter.open) FP.exportCenter.open(buildCfg()); else if (releveFn && FP.fiche) FP.fiche.open(releveFn()); });
     return { el: wrap };
   };
 
@@ -19746,8 +19686,9 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   }
 
   // Export du contenu choisi (mêmes colonnes + même ordre que le PDF) en Excel ou CSV.
-  function doExport(kind) {
-    const c = ctx(); if (!c) return;
+  // `explicitC` (optionnel) = contexte déjà construit (par FP.exportCenter) au lieu de lire la modale.
+  function doExport(kind, explicitC) {
+    const c = explicitC || ctx(); if (!c) return;
     const cols = c.cols.map(col => ({ label: col.label, value: (r) => (col.num ? col.num(r) : col.get(r)), number: !!col.num }));
     const base = (clean(c.title).replace(/[^\wÀ-ÿ \-]+/g, '').trim().replace(/\s+/g, '-') || 'export') + '_' + c.today.split('/').reverse().join('-');
     try {
@@ -19761,7 +19702,8 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
   }
 
   // Construit le PDF « à la sauce Parc Pilot » (bandeau arrondi, logo, accent, statuts colorés).
-  function makeDoc(c) {
+  function makeDoc(c, opts) {
+    opts = opts || {};
     const { cols, title, rows, today } = c;
     const jsPDF = window.jspdf.jsPDF;
     // ⚠️ LARGEUR DE PAGE ADAPTÉE au nombre de colonnes : le vrai problème du repli (« le prix passe à
@@ -19769,8 +19711,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     // proportionnellement → chaque colonne a la place de tenir sur UNE seule ligne. Peu de colonnes =
     // A4 normal ; beaucoup = page large (on l'imprime « ajusté à la page » ou on la consulte à l'écran).
     const _nCol0 = cols.length + 1;
-    const _pageH = _nCol0 > 6 ? 210 : 297;                         // A4 paysage (210) sinon portrait (297)
-    const _pageW = _nCol0 <= 6 ? 210 : Math.max(297, 24 + _nCol0 * 34); // ~34 mm par colonne + marges
+    // Orientation paysage forcée (option du rapport) OU dès qu'il y a beaucoup de colonnes.
+    const _land = !!opts.paysage || _nCol0 > 6;
+    const _pageH = _land ? 210 : 297;                              // A4 paysage (210) sinon portrait (297)
+    const _pageW = (!_land) ? 210 : Math.max(297, 24 + _nCol0 * 34); // ~34 mm par colonne + marges
     const doc = new jsPDF({ orientation: _pageW >= _pageH ? 'landscape' : 'portrait', unit: 'mm', format: [_pageW, _pageH] });
     const pageW = doc.internal.pageSize.getWidth();
     const drawHeader = () => {
@@ -19779,14 +19723,17 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(clean(title), 16, 20);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(199, 210, 230);
       doc.text('Édité le ' + today + '   ·   ' + rows.length + ' ligne' + (rows.length > 1 ? 's' : ''), 16, 26);
-      doc.setFont('helvetica', 'bolditalic'); doc.setFontSize(14);
-      const pw = doc.getTextWidth('Pilot'), rw = doc.getTextWidth('Parc');
-      // Logo Parc Pilot (3 barres orange, même marque que dans l'app) à gauche du nom — source unique FP.pdfLogoBars.
-      FP.pdfLogoBars(doc, pageW - 16 - pw - rw - 3, 17.6);
-      doc.setTextColor(255, 255, 255); doc.text('Parc', pageW - 16 - pw - rw, 19);
-      doc.setTextColor(249, 115, 22); doc.text('Pilot', pageW - 16 - pw, 19);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(148, 163, 184);
-      const g = 'GESTION DE FLOTTE'; doc.text(g, pageW - 16 - doc.getTextWidth(g), 24);
+      // Logo & marque Parc Pilot à droite (option « Logo & en-tête société »).
+      if (opts.logo !== false) {
+        doc.setFont('helvetica', 'bolditalic'); doc.setFontSize(14);
+        const pw = doc.getTextWidth('Pilot'), rw = doc.getTextWidth('Parc');
+        // Logo Parc Pilot (3 barres orange, même marque que dans l'app) à gauche du nom — source unique FP.pdfLogoBars.
+        FP.pdfLogoBars(doc, pageW - 16 - pw - rw - 3, 17.6);
+        doc.setTextColor(255, 255, 255); doc.text('Parc', pageW - 16 - pw - rw, 19);
+        doc.setTextColor(249, 115, 22); doc.text('Pilot', pageW - 16 - pw, 19);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(148, 163, 184);
+        const g = 'GESTION DE FLOTTE'; doc.text(g, pageW - 16 - doc.getTextWidth(g), 24);
+      }
     };
     // Mise à l'échelle selon le NOMBRE de colonnes : avec « toutes les colonnes » (≈20), une police
     // de 9 pt se replie sur plusieurs lignes et devient illisible. On réduit progressivement police
@@ -19810,7 +19757,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     });
     // Ligne de total (si au moins une colonne a une fonction `sum`) → pied de tableau « TOTAL ».
     let foot = null;
-    if (cols.some(c => typeof c.sum === 'function')) {
+    if (opts.totaux !== false && cols.some(c => typeof c.sum === 'function')) {
       // ⚠️ Le libellé « TOTAL » ne doit PAS aller dans la colonne « # » (8 mm) : il s'y afficherait
       // à la VERTICALE (une lettre par ligne). On le met dans une cellule FUSIONNÉE (colSpan) qui
       // couvre le « # » + toutes les colonnes AVANT le 1er total, alignée à droite → il a la place.
@@ -19854,10 +19801,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     return { doc: doc, filename: safe + '_' + today.split('/').reverse().join('-') + '.pdf' };
   }
 
-  function openPreview() {
-    const c = ctx(); if (!c) return;
-    if (!(window.jspdf && window.jspdf.jsPDF)) { FP.ensureJsPDF().then(openPreview).catch(() => alert('La librairie PDF n\'a pas pu être chargée.')); return; }
-    const made = makeDoc(c);
+  function openPreview(explicitC, opts) {
+    const c = explicitC || ctx(); if (!c) return;
+    if (!(window.jspdf && window.jspdf.jsPDF)) { FP.ensureJsPDF().then(() => openPreview(c, opts)).catch(() => alert('La librairie PDF n\'a pas pu être chargée.')); return; }
+    const made = makeDoc(c, opts);
     curDoc = made.doc; curName = made.filename;
     // #view=FitH → le PDF s'ouvre ajusté à la LARGEUR (lisible d'emblée, plus le mini-aperçu à 27 %) ;
     // navpanes=0 masque le volet de vignettes à gauche → on voit le document en grand.
@@ -19950,6 +19897,14 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       modal.style.display = 'flex';
       if (window.lucide) try { lucide.createIcons(); } catch (e) {}
     },
+    // ── API publique pour FP.exportCenter (le « Centre Import/Export » riche) : génère la sortie à partir
+    //    d'un contexte EXPLICITE { cols:[{label,get,num,align,sum,...}], title, rows } — colonnes déjà
+    //    choisies/ordonnées + lignes déjà filtrées. Réutilise EXACTEMENT le même moteur (aucune duplication).
+    //    opts = { logo, paysage, totaux } pour le PDF.
+    pdfPreview(explicitCtx, opts) { build(); openPreview(Object.assign({ today: new Date().toLocaleDateString('fr-FR') }, explicitCtx), opts || {}); },
+    exportFile(kind, explicitCtx) { build(); doExport(kind, Object.assign({ today: new Date().toLocaleDateString('fr-FR') }, explicitCtx)); },
+    // Permet à exportCenter de revenir à la fenêtre « colonnes » classique si besoin.
+    _closeAll() { if (modal) modal.style.display = 'none'; if (prev) prev.style.display = 'none'; },
   };
 })();
 
@@ -19967,6 +19922,308 @@ FP.ficheColsFromExport = function (cols) {
     };
   });
 };
+
+// ============================================================
+// FP.exportCenter — « Centre Import / Export » (fenêtre riche validée en maquette) :
+//   cartes de format (PDF / Excel / CSV), période & filtres, titre, colonnes (recherche + cases +
+//   ↑↓ + glisser), options du rapport (totaux / logo / paysage), favoris, APERÇU en direct, onglet
+//   Importer. NE DUPLIQUE AUCUN MOTEUR : le PDF passe par FP.fiche.pdfPreview, l'Excel/CSV par
+//   FP.fiche.exportFile (mêmes colonnes/ordre), l'import par les lecteurs métier EXISTANTS de la page.
+//   Ouverture : FP.exportCenter.open({ key, title, cols:[{id,label,def,get,align,num,sum,mono,tint}],
+//     rows | getRows(), date?(row), filters?:[{k,label,type:'select'|'month'|'date',opts?,apply(row,val)}],
+//     imports?:[{label,icon,run}], baseName })
+// ============================================================
+(function () {
+  const esc = (s) => (FP.esc ? FP.esc(s) : String(s == null ? '' : s));
+  let modal = null, cur = null, fmt = 'pdf', dragEl = null;
+  function injectStyle() {
+    if (document.getElementById('fp-xc-style')) return;
+    const st = document.createElement('style'); st.id = 'fp-xc-style';
+    st.textContent = `
+    #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto}
+    .fp-xc-modal{background:#fff;border-radius:16px;width:100%;max-width:900px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+    .fp-xc-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid #eef2f7}
+    .fp-xc-head h3{font-size:16px;font-weight:800;margin:0;color:#0f172a}
+    .fp-xc-tabs{display:inline-flex;background:#f1f5f9;border-radius:9px;padding:3px}
+    .fp-xc-tabs button{border:none;background:none;font:inherit;font-weight:700;font-size:12.5px;color:#64748b;border-radius:7px;padding:6px 14px;cursor:pointer}
+    .fp-xc-tabs button[aria-selected="true"]{background:#fff;color:#0f172a;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+    .fp-xc-x{margin-left:auto;border:none;background:none;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:7px}
+    .fp-xc-x:hover{background:#f1f5f9;color:#0f172a}
+    .fp-xc-body{display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
+    @media(max-width:760px){.fp-xc-body{grid-template-columns:1fr}}
+    .fp-xc-pane{padding:15px 18px;overflow:auto;min-width:0}
+    .fp-xc-pane.l{border-right:1px solid #eef2f7}
+    @media(max-width:760px){.fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}}
+    .fp-xc-sec{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:0 0 7px;display:flex;align-items:center;justify-content:space-between}
+    .fp-xc-sec .r{font-weight:700;text-transform:none;letter-spacing:0;font-size:12px}
+    .fp-xc-sec .r a{color:#f97316;cursor:pointer;margin-left:7px}
+    .fp-xc-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+    .fp-xc-card{border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 8px;cursor:pointer;text-align:center;background:#fff}
+    .fp-xc-card:hover{border-color:#f97316}
+    .fp-xc-card[aria-pressed="true"]{border-color:#f97316;background:#fff7ed}
+    .fp-xc-card .i{font-size:18px}.fp-xc-card .t{font-weight:800;font-size:13px;margin-top:2px;color:#0f172a}.fp-xc-card .d{font-size:10.5px;color:#64748b;margin-top:1px}
+    .fp-xc-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .fp-xc-f{flex:1 1 130px;min-width:0}
+    .fp-xc-f label{display:block;font-size:11px;color:#64748b;font-weight:600;margin-bottom:3px}
+    .fp-xc-modal input,.fp-xc-modal select{font:inherit;font-size:13px;width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px;color:#0f172a;background:#fff}
+    .fp-xc-search{position:relative;margin-bottom:7px}.fp-xc-search input{padding-left:28px}.fp-xc-search .i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px}
+    .fp-xc-cols{border:1px solid #eef2f7;border-radius:10px;overflow:hidden;max-height:240px;overflow-y:auto}
+    .fp-xc-colrow{display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #f1f5f9;background:#fff;cursor:grab}
+    .fp-xc-colrow:last-child{border-bottom:none}.fp-xc-colrow.over{border-top:2px solid #f97316}
+    .fp-xc-colrow .g{color:#cbd5e1;cursor:grab}
+    .fp-xc-colrow input[type=checkbox]{width:15px;height:15px;accent-color:#f97316;flex:0 0 auto}
+    .fp-xc-colrow .lb{flex:1;min-width:0;font-size:13px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fp-xc-colrow .mv button{border:none;background:#f1f5f9;color:#64748b;border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;margin-left:2px}
+    .fp-xc-colrow .mv button:hover{color:#f97316}
+    .fp-xc-opts{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+    .fp-xc-opt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#0f172a}.fp-xc-opt input{width:15px;height:15px;accent-color:#f97316}
+    .fp-xc-favs{display:flex;gap:6px;flex-wrap:wrap}
+    .fp-xc-fav{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:4px 6px 4px 11px;cursor:pointer}
+    .fp-xc-fav:hover{border-color:#f97316}.fp-xc-fav .del{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1}.fp-xc-fav .del:hover{color:#ef4444}
+    .fp-xc-pvhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.fp-xc-pvhead .cnt{font-size:11.5px;color:#64748b}
+    .fp-xc-pv{border:1px solid #eef2f7;border-radius:10px;background:#f8fafc;overflow:auto;max-height:440px}
+    .fp-xc-doc{background:#fff;margin:10px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px;font-size:10px;min-width:380px}
+    .fp-xc-doc .dh{display:flex;justify-content:space-between;border-bottom:2px solid #f97316;padding-bottom:7px;margin-bottom:8px}
+    .fp-xc-doc .br{font-weight:900;font-size:12px;color:#0f1e3d}.fp-xc-doc .br .o{color:#f97316}
+    .fp-xc-doc h4{font-size:12px;margin:1px 0}.fp-xc-doc .meta{text-align:right;font-size:8.5px;color:#64748b}
+    .fp-xc-doc table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+    .fp-xc-doc th{background:#0f1e3d;color:#fff;text-align:left;font-size:8px;padding:4px 5px;white-space:nowrap}
+    .fp-xc-doc td{padding:4px 5px;border-bottom:1px solid #eef2f7;white-space:nowrap}.fp-xc-doc tr:nth-child(even) td{background:#f7f9fc}
+    .fp-xc-doc tfoot td{font-weight:800;border-top:1.5px solid #0f1e3d;background:#fafbfd}
+    .fp-xc-xls{margin:10px;min-width:380px;font-size:10px;border:1px solid #cfd8e3;border-radius:4px;overflow:hidden}
+    .fp-xc-xls table{border-collapse:collapse;width:100%}.fp-xc-xls th{background:#217346;color:#fff;font-size:9px;padding:4px 6px;text-align:left;white-space:nowrap}
+    .fp-xc-xls td{padding:3px 6px;border:1px solid #d7deea;color:#0f172a;white-space:nowrap}.fp-xc-xls tr:nth-child(even) td{background:#f3f8f4}.fp-xc-num{text-align:right}
+    .fp-xc-csv{margin:0;padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;white-space:pre;color:#0f172a;min-width:380px}.fp-xc-csv .h{color:#f97316;font-weight:700}
+    .fp-xc-foot{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid #eef2f7;background:#f8fafc;flex-wrap:wrap}
+    .fp-xc-foot .sp{margin-left:auto}.fp-xc-hint{font-size:11.5px;color:#64748b}
+    .fp-xc-dz{border:1.5px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;background:#f8fafc}
+    .fp-xc-imp-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;color:#0f172a;margin-top:8px}
+    .fp-xc-imp-it:hover{border-color:#f97316;background:#fff7ed}
+    body.fp-dark .fp-xc-modal{background:#0f1726;color:#e6edf6}
+    body.fp-dark .fp-xc-head,body.fp-dark .fp-xc-pane.l,body.fp-dark .fp-xc-foot,body.fp-dark .fp-xc-cols,body.fp-dark .fp-xc-colrow,body.fp-dark .fp-xc-pv{border-color:#26344e}
+    body.fp-dark .fp-xc-head h3,body.fp-dark .fp-xc-colrow .lb,body.fp-dark .fp-xc-opt,body.fp-dark .fp-xc-card .t{color:#e6edf6}
+    body.fp-dark .fp-xc-modal input,body.fp-dark .fp-xc-modal select,body.fp-dark .fp-xc-card,body.fp-dark .fp-xc-colrow,body.fp-dark .fp-xc-imp-it{background:#131c2e;color:#e6edf6;border-color:#26344e}
+    body.fp-dark .fp-xc-tabs,body.fp-dark .fp-xc-foot,body.fp-dark .fp-xc-pv,body.fp-dark .fp-xc-fav{background:#0b1220}
+    body.fp-dark .fp-xc-tabs button[aria-selected="true"]{background:#131c2e}
+    body.fp-dark .fp-xc-card[aria-pressed="true"]{background:#2a1c10}`;
+    document.head.appendChild(st);
+  }
+  function build() {
+    if (modal) return; injectStyle();
+    const ov = document.createElement('div'); ov.id = 'fp-xc-ov';
+    ov.innerHTML = `<div class="fp-xc-modal" role="dialog" aria-modal="true" aria-label="Importer / Exporter">
+      <div class="fp-xc-head"><h3>Importer / Exporter</h3>
+        <div class="fp-xc-tabs" role="tablist"><button id="fp-xc-tab-exp" role="tab" aria-selected="true">Exporter</button><button id="fp-xc-tab-imp" role="tab" aria-selected="false">Importer</button></div>
+        <button class="fp-xc-x" id="fp-xc-close" aria-label="Fermer">&times;</button></div>
+      <div id="fp-xc-view-exp">
+        <div class="fp-xc-body">
+          <div class="fp-xc-pane l">
+            <p class="fp-xc-sec">Format</p>
+            <div class="fp-xc-cards" id="fp-xc-cards">
+              <button class="fp-xc-card" data-fmt="pdf" aria-pressed="true"><div class="i">📄</div><div class="t">PDF</div><div class="d">Relevé mis en page</div></button>
+              <button class="fp-xc-card" data-fmt="xlsx" aria-pressed="false"><div class="i">📊</div><div class="t">Excel</div><div class="d">.xlsx exploitable</div></button>
+              <button class="fp-xc-card" data-fmt="csv" aria-pressed="false"><div class="i">🧾</div><div class="t">CSV</div><div class="d">Données brutes</div></button>
+            </div>
+            <div id="fp-xc-filters-wrap"><p class="fp-xc-sec">Période &amp; filtres</p><div class="fp-xc-row" id="fp-xc-filters"></div></div>
+            <p class="fp-xc-sec">Titre du relevé</p>
+            <input id="fp-xc-title" type="text" style="margin-bottom:12px">
+            <p class="fp-xc-sec">Colonnes <span class="r"><a id="fp-xc-all">Tout</a>·<a id="fp-xc-none">Rien</a>·<a id="fp-xc-reset">Réinitialiser</a></span></p>
+            <div class="fp-xc-search"><span class="i">🔎</span><input id="fp-xc-colsearch" placeholder="Rechercher une colonne…"></div>
+            <div class="fp-xc-cols" id="fp-xc-collist"></div>
+            <p class="fp-xc-sec" style="margin-top:14px">Options du rapport</p>
+            <div class="fp-xc-opts">
+              <label class="fp-xc-opt"><input type="checkbox" id="fp-xc-opt-totaux" checked> Ligne de totaux</label>
+              <label class="fp-xc-opt"><input type="checkbox" id="fp-xc-opt-logo" checked> Logo &amp; en-tête société</label>
+              <label class="fp-xc-opt"><input type="checkbox" id="fp-xc-opt-paysage"> Orientation paysage</label>
+            </div>
+            <p class="fp-xc-sec">Favoris <span class="r"><a id="fp-xc-fav-save">＋ Enregistrer la configuration</a></span></p>
+            <div class="fp-xc-favs" id="fp-xc-favs"></div>
+          </div>
+          <div class="fp-xc-pane">
+            <div class="fp-xc-pvhead"><p class="fp-xc-sec" style="margin:0">Aperçu</p><span class="cnt" id="fp-xc-cnt"></span></div>
+            <div class="fp-xc-pv" id="fp-xc-preview"></div>
+            <p class="fp-xc-hint" style="margin-top:7px">L'aperçu reflète les données, colonnes et filtres de l'export (échantillon des 1res lignes).</p>
+          </div>
+        </div>
+        <div class="fp-xc-foot"><span class="fp-xc-hint" id="fp-xc-info"></span><span class="sp"></span>
+          <button class="btn btn-outline text-sm" id="fp-xc-cancel">Annuler</button>
+          <button class="btn btn-dark text-sm" id="fp-xc-do">Exporter</button></div>
+      </div>
+      <div id="fp-xc-view-imp" hidden>
+        <div class="fp-xc-pane" style="border:none">
+          <p class="fp-xc-sec">Importer dans : <span id="fp-xc-imp-mod" style="color:#f97316"></span></p>
+          <div id="fp-xc-imp-list"></div>
+          <p class="fp-xc-hint" style="margin-top:12px">Les imports utilisent les lecteurs de la plateforme (cartes grises, relevés, scan IA) avec contrôle des doublons.</p>
+        </div>
+        <div class="fp-xc-foot"><span class="fp-xc-hint">Choisis un type d'import ci-dessus.</span><span class="sp"></span><button class="btn btn-outline text-sm" id="fp-xc-cancel2">Fermer</button></div>
+      </div></div>`;
+    document.body.appendChild(ov); modal = ov;
+    const close = () => { ov.style.display = 'none'; };
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('#fp-xc-close').onclick = close;
+    ov.querySelector('#fp-xc-cancel').onclick = close;
+    ov.querySelector('#fp-xc-cancel2').onclick = close;
+    ov.querySelector('#fp-xc-tab-exp').onclick = () => showTab('exp');
+    ov.querySelector('#fp-xc-tab-imp').onclick = () => showTab('imp');
+    ov.querySelector('#fp-xc-cards').addEventListener('click', e => { const c = e.target.closest('.fp-xc-card'); if (!c) return; fmt = c.dataset.fmt; ov.querySelectorAll('.fp-xc-card').forEach(b => b.setAttribute('aria-pressed', b === c)); renderAll(); });
+    ov.querySelector('#fp-xc-title').addEventListener('input', renderAll);
+    ['fp-xc-opt-totaux', 'fp-xc-opt-logo', 'fp-xc-opt-paysage'].forEach(id => ov.querySelector('#' + id).addEventListener('change', renderAll));
+    ov.querySelector('#fp-xc-colsearch').addEventListener('input', renderCols);
+    ov.querySelector('#fp-xc-all').onclick = () => { cur.cols.forEach(c => c.on = true); renderCols(); renderAll(); };
+    ov.querySelector('#fp-xc-none').onclick = () => { cur.cols.forEach(c => c.on = false); renderCols(); renderAll(); };
+    ov.querySelector('#fp-xc-reset').onclick = () => { cur.cols.forEach((c, i) => { c.on = c._def; c._ord = i; }); cur.cols.sort((a, b) => a._ord - b._ord); renderCols(); renderAll(); };
+    ov.querySelector('#fp-xc-fav-save').onclick = saveFav;
+    ov.querySelector('#fp-xc-favs').addEventListener('click', onFavClick);
+    ov.querySelector('#fp-xc-do').onclick = doExport;
+    const list = ov.querySelector('#fp-xc-collist');
+    list.addEventListener('dragstart', e => { const r = e.target.closest('.fp-xc-colrow'); if (!r) return; dragEl = r; r.style.opacity = '.4'; });
+    list.addEventListener('dragend', () => { if (dragEl) { dragEl.style.opacity = ''; dragEl = null; } list.querySelectorAll('.over').forEach(x => x.classList.remove('over')); });
+    list.addEventListener('dragover', e => { if (!dragEl) return; e.preventDefault(); const r = e.target.closest('.fp-xc-colrow'); if (!r || r === dragEl) return; const rc = r.getBoundingClientRect(); const after = (e.clientY - rc.top) / rc.height > .5; list.insertBefore(dragEl, after ? r.nextSibling : r); });
+    list.addEventListener('drop', e => { e.preventDefault(); reorderFromDom(); renderAll(); });
+  }
+  function showTab(w) { modal.querySelector('#fp-xc-view-exp').hidden = w !== 'exp'; modal.querySelector('#fp-xc-view-imp').hidden = w !== 'imp'; modal.querySelector('#fp-xc-tab-exp').setAttribute('aria-selected', w === 'exp'); modal.querySelector('#fp-xc-tab-imp').setAttribute('aria-selected', w === 'imp'); }
+  function rowsAll() { try { return (typeof cur.getRows === 'function' ? cur.getRows() : cur.rows) || []; } catch (e) { return []; } }
+  function filteredRows() {
+    let rows = rowsAll().slice();
+    const du = modal.querySelector('#fp-xc-du'), au = modal.querySelector('#fp-xc-au');
+    if (cur.date && (du || au)) { const a = du && du.value, b = au && au.value; rows = rows.filter(r => { const d = (cur.date(r) || '').slice(0, 10); if (a && d < a) return false; if (b && d > b) return false; return true; }); }
+    (cur.filters || []).forEach(f => { const el = modal.querySelector('[data-xcf="' + f.k + '"]'); if (!el) return; const v = el.value; if (v == null || v === '' || /^(all|tous|toutes)$/i.test(v)) return; if (typeof f.apply === 'function') rows = rows.filter(r => f.apply(r, v)); });
+    return rows;
+  }
+  function chosenCols() { return cur.cols.filter(c => c.on); }
+  function reorderFromDom() { const ids = Array.from(modal.querySelectorAll('#fp-xc-collist .fp-xc-colrow')).map(r => r.dataset.id); cur.cols.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); }
+  function renderFilters() {
+    const wrap = modal.querySelector('#fp-xc-filters-wrap'), host = modal.querySelector('#fp-xc-filters');
+    let html = '';
+    if (cur.date) html += '<div class="fp-xc-f"><label>Du</label><input type="date" id="fp-xc-du"></div><div class="fp-xc-f"><label>Au</label><input type="date" id="fp-xc-au"></div>';
+    (cur.filters || []).forEach(f => {
+      if (f.type === 'select') html += `<div class="fp-xc-f"><label>${esc(f.label)}</label><select data-xcf="${esc(f.k)}">${(f.opts || []).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></div>`;
+      else if (f.type === 'month') html += `<div class="fp-xc-f"><label>${esc(f.label)}</label><input type="month" data-xcf="${esc(f.k)}"></div>`;
+      else html += `<div class="fp-xc-f"><label>${esc(f.label)}</label><input type="date" data-xcf="${esc(f.k)}"></div>`;
+    });
+    host.innerHTML = html;
+    wrap.style.display = html ? '' : 'none';
+    if (cur.date) { modal.querySelector('#fp-xc-du').addEventListener('change', renderAll); modal.querySelector('#fp-xc-au').addEventListener('change', renderAll); }
+    host.querySelectorAll('[data-xcf]').forEach(el => el.addEventListener('input', renderAll));
+  }
+  function renderCols() {
+    const q = (modal.querySelector('#fp-xc-colsearch').value || '').toLowerCase(), host = modal.querySelector('#fp-xc-collist');
+    host.innerHTML = '';
+    cur.cols.forEach(c => {
+      if (q && c.label.toLowerCase().indexOf(q) < 0) return;
+      const row = document.createElement('div'); row.className = 'fp-xc-colrow'; row.draggable = true; row.dataset.id = c.id;
+      row.innerHTML = `<span class="g" aria-hidden="true">⠿</span><input type="checkbox" ${c.on ? 'checked' : ''} aria-label="${esc(c.label)}"><span class="lb">${esc(c.label)}</span><span class="mv"><button data-up aria-label="Monter">↑</button><button data-dn aria-label="Descendre">↓</button></span>`;
+      row.querySelector('input').addEventListener('change', e => { c.on = e.target.checked; renderAll(); });
+      row.querySelector('[data-up]').addEventListener('click', () => { const i = cur.cols.indexOf(c); if (i > 0) { cur.cols.splice(i, 1); cur.cols.splice(i - 1, 0, c); renderCols(); renderAll(); } });
+      row.querySelector('[data-dn]').addEventListener('click', () => { const i = cur.cols.indexOf(c); if (i < cur.cols.length - 1) { cur.cols.splice(i, 1); cur.cols.splice(i + 1, 0, c); renderCols(); renderAll(); } });
+      host.appendChild(row);
+    });
+  }
+  function optsOf() { return { totaux: modal.querySelector('#fp-xc-opt-totaux').checked, logo: modal.querySelector('#fp-xc-opt-logo').checked, paysage: modal.querySelector('#fp-xc-opt-paysage').checked }; }
+  function titleOf() { return (modal.querySelector('#fp-xc-title').value || '').trim() || cur.title; }
+  function cellTxt(r, c) { try { const v = c.get(r); return (v == null || v === '') ? '—' : String(v); } catch (e) { return '—'; } }
+  function renderAll() {
+    const rows = filteredRows(), cols = chosenCols();
+    modal.querySelector('#fp-xc-cnt').textContent = rows.length + ' ligne' + (rows.length > 1 ? 's' : '') + ' · ' + cols.length + ' colonne' + (cols.length > 1 ? 's' : '');
+    modal.querySelector('#fp-xc-info').textContent = rows.length + ' ligne' + (rows.length > 1 ? 's' : '') + ' · ' + fmt.toUpperCase();
+    const btn = modal.querySelector('#fp-xc-do'); btn.textContent = fmt === 'pdf' ? 'Exporter en PDF' : (fmt === 'xlsx' ? 'Exporter en Excel' : 'Exporter en CSV'); btn.disabled = (!rows.length || !cols.length);
+    const host = modal.querySelector('#fp-xc-preview');
+    if (!rows.length) { host.innerHTML = '<div style="padding:30px 14px;text-align:center;color:#64748b;font-size:13px">Aucune ligne pour ces filtres.</div>'; return; }
+    if (!cols.length) { host.innerHTML = '<div style="padding:30px 14px;text-align:center;color:#64748b;font-size:13px">Sélectionne au moins une colonne.</div>'; return; }
+    const sample = rows.slice(0, 8), opts = optsOf();
+    if (fmt === 'pdf') host.innerHTML = pvPdf(cols, sample, rows, opts);
+    else if (fmt === 'xlsx') host.innerHTML = pvXls(cols, sample, rows, opts);
+    else host.innerHTML = pvCsv(cols, sample, rows);
+  }
+  function totalsCells(cols, rows) { if (!cols.some(c => typeof c.sum === 'function')) return null; const first = cols.findIndex(c => typeof c.sum === 'function'); return cols.map((c, i) => { if (typeof c.sum === 'function') { const t = rows.reduce((s, r) => { const n = Number(c.sum(r)); return s + (isFinite(n) ? n : 0); }, 0); return { t: c.fmt ? c.fmt(t) : (FP.euro ? FP.euro(t) : String(t)), num: 1 }; } return { t: i === Math.max(0, first - 1) ? 'TOTAL' : '' }; }); }
+  function pvPdf(cols, sample, rows, opts) {
+    const th = cols.map(c => `<th>${esc(c.label)}</th>`).join('');
+    const body = sample.map(r => `<tr>${cols.map(c => `<td${c.align === 'right' ? ' style="text-align:right"' : ''}>${esc(cellTxt(r, c))}</td>`).join('')}</tr>`).join('');
+    let tf = ''; const tr = opts.totaux ? totalsCells(cols, rows) : null;
+    if (tr) tf = `<tfoot><tr>${tr.map(x => `<td${x.num ? ' style="text-align:right"' : ''}>${esc(x.t)}</td>`).join('')}</tr></tfoot>`;
+    const more = rows.length > sample.length ? `<div style="text-align:center;color:#94a3b8;font-size:8px;padding:4px">… +${rows.length - sample.length} lignes dans le PDF complet</div>` : '';
+    return `<div class="fp-xc-doc"><div class="dh"><div>${opts.logo ? '<div class="br">Parc<span class="o">Pilot</span></div>' : ''}<h4>${esc(titleOf())}</h4></div><div class="meta">${esc(new Date().toLocaleDateString('fr-FR'))}<br>${rows.length} ligne(s)</div></div><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody>${tf}</table>${more}</div>`;
+  }
+  function pvXls(cols, sample, rows, opts) {
+    const hdr = cols.map((c, i) => `<th>${String.fromCharCode(65 + (i % 26))}</th>`).join('');
+    const lbl = cols.map(c => `<td style="font-weight:800;background:#eaf3ec">${esc(c.label)}</td>`).join('');
+    const body = sample.map(r => `<tr>${cols.map(c => `<td class="${c.align === 'right' || c.num ? 'fp-xc-num' : ''}">${esc(cellTxt(r, c))}</td>`).join('')}</tr>`).join('');
+    let tf = ''; const tr = opts.totaux ? totalsCells(cols, rows) : null;
+    if (tr) tf = `<tr>${tr.map(x => `<td class="${x.num ? 'fp-xc-num' : ''}" style="font-weight:800;background:#e7f2ea">${esc(x.t)}</td>`).join('')}</tr>`;
+    return `<div class="fp-xc-xls"><table><thead><tr>${hdr}</tr></thead><tbody><tr>${lbl}</tr>${body}${tf}</tbody></table></div>` + (rows.length > sample.length ? `<div style="color:#94a3b8;font-size:10px;padding:0 10px 10px">… +${rows.length - sample.length} lignes</div>` : '');
+  }
+  function pvCsv(cols, sample, rows) {
+    const q = s => { s = String(s); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const head = cols.map(c => q(c.label)).join(';');
+    const lines = sample.map(r => cols.map(c => q(cellTxt(r, c))).join(';'));
+    return `<div class="fp-xc-csv"><span class="h">${esc(head)}</span>\n${esc(lines.join('\n'))}</div>` + (rows.length > sample.length ? `<div style="color:#94a3b8;font-size:10px;padding:0 10px 10px">UTF-8 · séparateur « ; » · +${rows.length - sample.length} lignes</div>` : '');
+  }
+  // ── Favoris : partagés avec FP.fiche (settings.ficheFavoris[key]) — enrichis (format + options + filtres). ──
+  function favKey() { return cur.key || 'export'; }
+  function getFavs() { try { return ((FP.settings.get().ficheFavoris || {})[favKey()]) || []; } catch (e) { return []; } }
+  function setFavs(a) { try { const s = FP.settings.get(); s.ficheFavoris = s.ficheFavoris || {}; s.ficheFavoris[favKey()] = a; FP.settings.save(s); } catch (e) {} }
+  function renderFavs() {
+    const host = modal.querySelector('#fp-xc-favs'), favs = getFavs();
+    if (!favs.length) { host.innerHTML = '<span class="fp-xc-hint">Aucune configuration enregistrée pour ce module.</span>'; return; }
+    host.innerHTML = favs.map((f, i) => `<span class="fp-xc-fav" data-i="${i}">⭐ ${esc(f.name)} <button class="del" data-del="${i}" aria-label="Supprimer">×</button></span>`).join('');
+  }
+  function onFavClick(e) {
+    const del = e.target.closest('[data-del]'); if (del) { const favs = getFavs(); favs.splice(+del.dataset.del, 1); setFavs(favs); renderFavs(); return; }
+    const chip = e.target.closest('.fp-xc-fav'); if (!chip) return; applyFav(getFavs()[+chip.dataset.i]);
+  }
+  function applyFav(f) {
+    if (!f) return;
+    if (f.fmt) { fmt = f.fmt; modal.querySelectorAll('.fp-xc-card').forEach(b => b.setAttribute('aria-pressed', b.dataset.fmt === fmt)); }
+    if (f.title != null) modal.querySelector('#fp-xc-title').value = f.title;
+    if (f.cols && f.cols.length) { const ord = {}; f.cols.forEach((id, i) => ord[id] = i); const set = new Set(f.cols); cur.cols.forEach(c => { c.on = set.has(c.id); }); cur.cols.sort((a, b) => (ord[a.id] == null ? 99 : ord[a.id]) - (ord[b.id] == null ? 99 : ord[b.id])); }
+    if (f.opts) { modal.querySelector('#fp-xc-opt-totaux').checked = f.opts.totaux !== false; modal.querySelector('#fp-xc-opt-logo').checked = f.opts.logo !== false; modal.querySelector('#fp-xc-opt-paysage').checked = !!f.opts.paysage; }
+    renderCols(); renderAll(); if (FP.toast) FP.toast('Configuration « ' + f.name + ' » appliquée');
+  }
+  function saveFav() {
+    const ids = chosenCols().map(c => c.id); if (!ids.length) { alert('Coche au moins une colonne.'); return; }
+    const def = titleOf(); let name = def; try { const p = window.prompt('Nom de la configuration :', def); if (p === null) return; if (p && p.trim()) name = p.trim(); } catch (e) {}
+    const favs = getFavs().filter(x => x.name !== name);
+    favs.push({ name, fmt, title: modal.querySelector('#fp-xc-title').value, cols: ids, opts: optsOf() });
+    setFavs(favs); renderFavs(); if (FP.toast) FP.toast('Configuration « ' + name + ' » enregistrée');
+  }
+  function ctxFor() { return { cols: chosenCols().map(c => ({ label: c.label, get: c.get, num: c.num, align: c.align, sum: c.sum, mono: c.mono, tint: c.tint })), title: titleOf(), rows: filteredRows() }; }
+  function doExport() {
+    const rows = filteredRows(), cols = chosenCols();
+    if (!rows.length || !cols.length) return;
+    // Persistance des colonnes (partagée avec FP.fiche) : cases + ordre.
+    try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = cols.map(c => c.id); s.ficheColsOrder[cur.key] = cur.cols.map(c => c.id); FP.settings.save(s); } catch (e) {}
+    const c = ctxFor(), opts = optsOf();
+    modal.style.display = 'none';
+    if (fmt === 'pdf') { if (FP.fiche && FP.fiche.pdfPreview) FP.fiche.pdfPreview(c, opts); }
+    else if (FP.fiche && FP.fiche.exportFile) FP.fiche.exportFile(fmt, c);
+  }
+  function renderImports() {
+    const host = modal.querySelector('#fp-xc-imp-list'); const imps = cur.imports || [];
+    modal.querySelector('#fp-xc-imp-mod').textContent = cur.title || '';
+    if (!imps.length) { host.innerHTML = '<div class="fp-xc-dz"><div style="font-size:24px">📥</div><b style="display:block;margin-top:5px">Aucun import tabulaire sur cette page</b><span class="fp-xc-hint">Les documents se déposent directement sur la page (scan IA).</span></div>'; return; }
+    host.innerHTML = imps.map((im, i) => `<button class="fp-xc-imp-it" data-imp="${i}"><span style="font-size:17px">📄</span> ${esc(im.label || 'Importer…')}</button>`).join('');
+    host.querySelectorAll('[data-imp]').forEach(b => b.addEventListener('click', () => { const im = imps[+b.dataset.imp]; modal.style.display = 'none'; if (im && typeof im.run === 'function') { try { im.run(); } catch (e) { console.warn('[exportCenter import]', e); } } }));
+  }
+  FP.exportCenter = {
+    open(cfg) {
+      build(); cur = cfg || {};
+      // Colonnes : copie de travail {id,label,get,num,align,sum,...,on,_def,_ord}. Ordre/sélection mémorisés
+      // (partagés avec FP.fiche via settings.ficheCols/ficheColsOrder[key]).
+      const base = (cfg.cols || []).map((c, i) => Object.assign({}, c, { on: c.def !== false, _def: c.def !== false, _ord: i }));
+      let savedOn, savedOrder; try { const s = FP.settings.get(); savedOn = (s.ficheCols || {})[cfg.key]; savedOrder = (s.ficheColsOrder || {})[cfg.key]; } catch (e) {}
+      if (savedOrder && savedOrder.length) base.sort((a, b) => { const ia = savedOrder.indexOf(a.id), ib = savedOrder.indexOf(b.id); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+      if (savedOn && savedOn.length) { const set = new Set(savedOn); base.forEach(c => c.on = set.has(c.id)); }
+      cur.cols = base;
+      modal.querySelector('#fp-xc-title').value = cfg.title || 'Relevé';
+      fmt = 'pdf'; modal.querySelectorAll('.fp-xc-card').forEach(b => b.setAttribute('aria-pressed', b.dataset.fmt === 'pdf'));
+      modal.querySelector('#fp-xc-opt-totaux').checked = true; modal.querySelector('#fp-xc-opt-logo').checked = true; modal.querySelector('#fp-xc-opt-paysage').checked = false;
+      modal.querySelector('#fp-xc-tab-imp').style.display = (cur.imports && cur.imports.length) ? '' : 'none';
+      showTab('exp');
+      renderFilters(); renderCols(); renderFavs(); renderImports(); renderAll();
+      modal.style.display = 'flex';
+    },
+  };
+})();
 
 // Aperçu PDF générique (réutilisable par n'importe quelle page) : montre un doc jsPDF dans une
 // iframe, avec Télécharger (un clic) + Imprimer + Fermer. Usage : FP.pdfPreview(doc, 'fichier.pdf', 'sous-titre').
