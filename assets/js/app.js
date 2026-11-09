@@ -1474,6 +1474,153 @@ FP.aenAnnuelFlotte = (vehicules) => (vehicules || []).reduce((s, v) => {
   const d = FP.aenDetail(v);
   return s + (d && d.applicable ? d.netAnnuel : 0);
 }, 0);
+
+/*<fiscalite>*/
+// ============================================================================
+// FISCALITÉ & TCO — fondations (Lot 1). Helpers ADDITIFS et purs, réutilisant TVS (FP.tvsDetail)
+// et AEN (FP.aenDetail) existants. Rien ne les appelle encore → aucun risque de régression.
+// ⚠️ BARÈMES PARAMÉTRABLES par société/année (settings.fiscalBareme), JAMAIS codés en dur, jamais
+// appliqués rétroactivement. ESTIMATIONS : à faire valider par un expert-comptable ; vérifier les
+// sources officielles (BOFiP / impots.gouv.fr / URSSAF) chaque année avant usage réel.
+// ----------------------------------------------------------------------------
+FP.FISCAL_DEFAULTS = {
+  annee: 2026,
+  tauxTVA: 0.20,
+  tva: {            // part de TVA RÉCUPÉRABLE (0..1) selon catégorie (VP/VU) + nature de dépense
+    achatVP: 0, achatVU: 1,
+    loyerVP: 0, loyerVU: 1,
+    carburantVP: 0.80, carburantVU: 1,     // essence / gazole
+    electricite: 1,                         // électricité : toutes catégories
+    entretienVP: 0, entretienVU: 1,
+    autreVP: 0, autreVU: 1
+  },
+  amort: {          // amortissement non déductible (art. 39 CGI) — plafonds TTC par tranche de CO2 (g/km)
+    dureeMois: 60,
+    plafonds: [      // 1er seuil co2max atteint = plafond retenu
+      { co2max: 19,       plafond: 30000 },
+      { co2max: 49,       plafond: 20300 },
+      { co2max: 160,      plafond: 18300 },
+      { co2max: Infinity, plafond: 9900 }
+    ]
+  },
+  cotisationsPatronales: 0.42,   // taux patronal estimé (surcoût social de l'AEN)
+  tauxIS: 0.25                    // IS société (effet fiscal estimé)
+};
+FP.fiscalConfig = function () {
+  try {
+    const s = (FP.settings && FP.settings.get && FP.settings.get().fiscalBareme) || {};
+    const c = Object.assign({}, FP.FISCAL_DEFAULTS, s);
+    c.tva = Object.assign({}, FP.FISCAL_DEFAULTS.tva, s.tva || {});
+    c.amort = Object.assign({}, FP.FISCAL_DEFAULTS.amort, s.amort || {});
+    if (!Array.isArray(c.amort.plafonds) || !c.amort.plafonds.length) c.amort.plafonds = FP.FISCAL_DEFAULTS.amort.plafonds;
+    return c;
+  } catch (e) {
+    const c = Object.assign({}, FP.FISCAL_DEFAULTS); c.tva = Object.assign({}, FP.FISCAL_DEFAULTS.tva); c.amort = Object.assign({}, FP.FISCAL_DEFAULTS.amort); return c;
+  }
+};
+// Véhicule utilitaire (VU → TVA récupérable) vs tourisme (VP) — même repère que FP.tvsDetail.
+FP.estUtilitaire = function (v) {
+  const cat = ((v && v.categorie) || '').toString().toLowerCase();
+  return /utilit|engin|\bn1\b|\bn2\b|\bn3\b|\bvu\b/.test(cat) || /^n[123]\b/.test(cat);
+};
+// Plafond d'amortissement fiscal selon le CO2 (g/km WLTP). null = CO2 inconnu (plafond indéterminé).
+FP.amortPlafond = function (co2, cfg) {
+  cfg = cfg || FP.fiscalConfig();
+  if (co2 == null || co2 === '') return null;   // CO2 absent (≠ 0 : un VE à 0 g garde son plafond)
+  const g = Number(co2);
+  if (!Number.isFinite(g) || g < 0) return null;
+  const list = cfg.amort.plafonds || [];
+  for (let i = 0; i < list.length; i++) { if (g <= list[i].co2max) return list[i].plafond; }
+  return list.length ? list[list.length - 1].plafond : null;
+};
+// TVA d'une dépense : TTC → HT + TVA, part récupérable / non récupérable selon catégorie + nature.
+// nature ∈ 'achat'|'loyer'|'carburant'|'electricite'|'entretien'|'autre' (tolérant).
+FP.tvaDepense = function (v, montantTTC, nature) {
+  const cfg = FP.fiscalConfig();
+  const ttc = Number(montantTTC) || 0;
+  const ht = ttc / (1 + (Number(cfg.tauxTVA) || 0.20));
+  const tva = ttc - ht;
+  const vu = FP.estUtilitaire(v);
+  const n = (nature || 'autre').toString().toLowerCase();
+  let taux;
+  if (/electric|électric/.test(n)) taux = cfg.tva.electricite;
+  else if (/carbur|essence|gazole|diesel|peage|péage|total|ulys|dkv/.test(n)) taux = vu ? cfg.tva.carburantVU : cfg.tva.carburantVP;
+  else if (/achat/.test(n)) taux = vu ? cfg.tva.achatVU : cfg.tva.achatVP;
+  else if (/loyer|leasing|location/.test(n)) taux = vu ? cfg.tva.loyerVU : cfg.tva.loyerVP;
+  else if (/entretien|repar|répar/.test(n)) taux = vu ? cfg.tva.entretienVU : cfg.tva.entretienVP;
+  else taux = vu ? cfg.tva.autreVU : cfg.tva.autreVP;
+  taux = Math.max(0, Math.min(1, Number(taux) || 0));
+  const recup = tva * taux;
+  return { ttc, ht, tvaFacturee: tva, tauxRecup: taux, recuperable: recup, nonRecuperable: tva - recup, vu };
+};
+// Amortissement / dépréciation annuel. Achat → linéaire + plafond + fraction non déductible.
+// Location (LLD/LOA) → pas d'amortissement chez le locataire ; part de loyer non déductible
+// (settings.loyerNonDeductible[immat] si saisie/importée du loueur, sinon null = à renseigner).
+FP.amortissement = function (v) {
+  const cfg = FP.fiscalConfig();
+  const dureeAns = Math.max(1, (Number(cfg.amort.dureeMois) || 60) / 12);
+  const estLeasing = (FP.estLeasing && v) ? FP.estLeasing(v) : false;
+  const cc = (FP.leasingCoutContrat && v) ? FP.leasingCoutContrat(v.immat) : null;
+  const loyerMois = (cc && cc.loyerMois != null) ? Number(cc.loyerMois) : null;
+  if (estLeasing || (loyerMois != null && loyerMois > 0)) {
+    let lnd = null;
+    try {
+      const m = (FP.settings && FP.settings.get) ? (FP.settings.get().loyerNonDeductible || {}) : {};
+      const k = (FP.normImmat && v) ? FP.normImmat(v.immat) : (v && v.immat);
+      for (const key in m) { if ((FP.normImmat ? FP.normImmat(key) : key) === k) { lnd = Number(m[key]); break; } }
+    } catch (e) {}
+    return { mode: 'location', loyerMois: loyerMois, loyerAnnuel: (loyerMois != null ? loyerMois * 12 : null), loyerNonDeductibleAnnuel: (lnd != null && isFinite(lnd)) ? lnd : null };
+  }
+  const base = Number(v && v.valeurAchat) || 0;
+  if (!(base > 0)) return { mode: 'achat', base: null, reason: "prix d'achat inconnu" };
+  const plafond = FP.amortPlafond(v && v.co2, cfg);
+  const annuel = base / dureeAns;
+  const plafondAnnuel = (plafond != null) ? plafond / dureeAns : null;
+  const nonDeductibleAnnuel = (plafond != null) ? Math.max(0, base - plafond) / dureeAns : null;
+  return { mode: 'achat', base: base, dureeAns: dureeAns, annuel: annuel, plafond: plafond, plafondAnnuel: plafondAnnuel, nonDeductibleAnnuel: nonDeductibleAnnuel, co2Manquant: !Number.isFinite(Number(v && v.co2)) };
+};
+// Coût EMPLOYEUR de l'AEN = cotisations patronales sur l'avantage (PAS l'AEN entier ; PAS ajouté au
+// coût véhicule — loyers/carburant/assurance y sont déjà). Source AEN = FP.aenDetail (existant).
+FP.aenCoutEmployeur = function (v) {
+  const cfg = FP.fiscalConfig();
+  const d = FP.aenDetail ? FP.aenDetail(v) : null;
+  if (!d || !d.applicable) return { applicable: false, aenAnnuel: 0, cotisationsAnnuelles: 0 };
+  const taux = Number(cfg.cotisationsPatronales) || 0;
+  const cot = (Number(d.netAnnuel) || 0) * taux;
+  return { applicable: true, aenAnnuel: Number(d.netAnnuel) || 0, aenMensuel: Number(d.netMensuel) || 0, tauxCotisations: taux, cotisationsAnnuelles: cot, cotisationsMensuelles: cot / 12 };
+};
+// TCO — helper UNIFIÉ (4 lectures). Compose les helpers existants ; renvoie aussi le détail des
+// composantes pour un affichage sans recalcul. annee = année civile ; factures = data.factures.
+FP.tco = function (v, opts) {
+  opts = opts || {};
+  const cfg = FP.fiscalConfig();
+  const annee = opts.annee || (new Date()).getFullYear();
+  const factures = opts.factures || ((typeof window !== 'undefined' && window.FP_DATA && window.FP_DATA.factures) || []);
+  const exploit = (typeof FP.coutExploitAnnee === 'function') ? (Number(FP.coutExploitAnnee(v, annee, factures)) || 0) : 0;
+  const am = FP.amortissement(v);
+  const leasingAnnuel = (am.mode === 'location' && am.loyerAnnuel != null) ? am.loyerAnnuel : 0;
+  const amortAnnuel = (am.mode === 'achat' && am.annuel != null) ? am.annuel : 0;
+  const tvs = FP.tvsDetail ? FP.tvsDetail(v) : null;
+  const taxes = (tvs && tvs.applicable && tvs.total != null) ? tvs.total : 0;
+  const emp = FP.aenCoutEmployeur(v);
+  const cotis = emp.cotisationsAnnuelles || 0;
+  const usage = (am.mode === 'achat') ? amortAnnuel : leasingAnnuel;          // décaissement/charge d'usage annuel
+  const tresorerie = exploit + leasingAnnuel + taxes + cotis;                 // ce qui sort réellement
+  const comptable = exploit + usage + taxes + cotis;                          // amort remplace l'achat au décaissement
+  const nonDeductible = (am.mode === 'achat') ? (am.nonDeductibleAnnuel || 0) : (am.loyerNonDeductibleAnnuel || 0);
+  const deductible = Math.max(0, comptable - nonDeductible);
+  const effetISEstime = deductible * (Number(cfg.tauxIS) || 0);
+  const economique = exploit + usage + taxes + cotis;                         // TCO : surcoût social seulement (pas l'AEN entier)
+  return {
+    annee: annee, mode: am.mode,
+    composantes: { exploit: exploit, leasingAnnuel: leasingAnnuel, amortAnnuel: amortAnnuel, taxes: taxes, cotisationsAEN: cotis },
+    tresorerie: tresorerie, comptable: comptable,
+    fiscal: { nonDeductible: nonDeductible, deductible: deductible, effetISEstime: effetISEstime },
+    economique: economique
+  };
+};
+/*</fiscalite>*/
+
 // ⚠️ HELPER CANONIQUE — loyer ANNUEL total des contrats Localease/Ayvens (LLD) enregistrés
 // (settings.localeaseContrats, synchronisé par société). Même calcul que la page Contrats (loyer courant
 // = offre + avenant, sinon loyer de base ; override loyer par plaque prioritaire) ×12. Sert à ce que le
