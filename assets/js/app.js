@@ -19954,10 +19954,18 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-x{margin-left:auto;border:none;background:none;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:7px}
     .fp-xc-x:hover{background:#f1f5f9;color:#0f172a}
     .fp-xc-body{display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
-    @media(max-width:760px){.fp-xc-body{grid-template-columns:1fr}}
     .fp-xc-pane{padding:15px 18px;overflow:auto;min-width:0}
     .fp-xc-pane.l{border-right:1px solid #eef2f7}
-    @media(max-width:760px){.fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}}
+    /* MOBILE : un SEUL conteneur qui défile (les 2 panes empilés) — sinon les panes
+       n'ont pas de hauteur bornée et rien ne scrolle (contenu tronqué). */
+    @media(max-width:760px){
+      #fp-xc-ov{padding:10px 8px}
+      .fp-xc-modal{max-height:calc(100dvh - 20px)}
+      .fp-xc-body{display:block;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch}
+      .fp-xc-pane{overflow:visible}
+      .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
+      .fp-xc-cols{max-height:none}
+    }
     .fp-xc-sec{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:0 0 7px;display:flex;align-items:center;justify-content:space-between}
     .fp-xc-sec .r{font-weight:700;text-transform:none;letter-spacing:0;font-size:12px}
     .fp-xc-sec .r a{color:#f97316;cursor:pointer;margin-left:7px}
