@@ -13734,7 +13734,7 @@ FP.ulysApi = (function () {
   async function importConsoRecent(invList) {
     const out = { fac: 0, cond: 0, tx: 0 };
     if (typeof window.__ulysImportConsoCsv !== 'function') return out; // panneau Ulys pas encore monté
-    const CUT = Date.now() - 95 * 24 * 3600 * 1000; // fenêtre API ~3 mois
+    const CUT = Date.now() - 400 * 24 * 3600 * 1000; // fenêtre élargie (~13 mois) : « Synchroniser » récupère AUTO le détail des mois passés que l'API renvoie encore (les plus anciens, sans détail API, sont réessayés 3× puis abandonnés — anti-rafale ; les mois hors API se complètent par import PDF).
     let done = {};
     try { done = JSON.parse(localStorage.getItem('fp_ulys_conso_done') || '{}') || {}; } catch (e) {}
     for (const inv of (Array.isArray(invList) ? invList : [])) {
@@ -20103,13 +20103,17 @@ FP.ficheColsFromExport = function (cols) {
        conteneur qui défile (les 2 panes empilés). Le critère de HAUTEUR est indispensable :
        en paysage le téléphone dépasse 760px de large → sans lui, la modale repasserait en
        2 colonnes (aperçu à côté) sur un écran très bas, et le scroll/boutons recassent. */
+    /* MOBILE / petit écran : schéma le plus FIABLE sur iOS → c'est l'OVERLAY (#fp-xc-ov) qui défile tout
+       le pop-up. Le pop-up GRANDIT (pas de hauteur max, pas de scroll interne) → plus de « sous-bloc »
+       bloqué, on atteint toujours le bas (bouton Exporter). Le fond reste gelé par FP.scrollLock. */
     @media(max-width:760px),(max-height:600px){
-      #fp-xc-ov{padding:8px 8px}
-      .fp-xc-modal{max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px)}
-      .fp-xc-body{display:block;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+      #fp-xc-ov{padding:8px 8px;-webkit-overflow-scrolling:touch}
+      .fp-xc-modal{max-height:none;overflow:visible}
+      .fp-xc-body{display:block;overflow:visible;overflow-x:hidden;min-width:0}
       .fp-xc-pane{overflow:visible}
       .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
       .fp-xc-cols{max-height:none}
+      .fp-xc-pv{max-height:none}
     }
     .fp-xc-sec{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:0 0 7px;display:flex;align-items:center;justify-content:space-between}
     .fp-xc-sec .r{font-weight:700;text-transform:none;letter-spacing:0;font-size:12px}
