@@ -417,33 +417,33 @@ html.fp-compact .fp-table td { padding: .32rem .7rem; font-size: .8rem; }
    la répartition (titres « Espace de travail » / « Compte » toujours au bon endroit). */
 .fp-sidebar nav { display: flex; flex-direction: column; gap: .12rem; }
 .fp-sidebar nav > * { margin-top: 0 !important; } /* neutralise l'espacement DOM (space-y-*) : ordre visuel ≠ ordre DOM */
-/* Ordre des onglets AVANT l'exécution du JS (FP.applyNavGroups) — évite le « saut » visible du menu
-   le temps que le script s'exécute (surtout sur une page lourde comme Fiscalité, où DOMContentLoaded
-   arrive plus tard, et pendant la transition de navigation). Les MÊMES valeurs sont (ré)appliquées
-   ensuite par FP.applyNavGroups : ici c'est uniquement pour que le 1er rendu soit déjà au bon ordre.
-   ⚠️ Doit rester synchronisé avec FP.NAV_FAMILIES / FP.NAV_ACCOUNT (app.js). */
-.fp-sidebar nav a[data-nav="dashboard.html"],
-.fp-sidebar nav a[data-nav="notifications.html"],
-.fp-sidebar nav a[data-nav="taches.html"],
-.fp-sidebar nav a[data-nav="statistiques.html"],
-.fp-sidebar nav a[data-nav="fiscalite.html"] { order: 1; }
-.fp-sidebar nav a[data-nav="vehicules.html"],
-.fp-sidebar nav a[data-nav="a-vendre.html"],
-.fp-sidebar nav a[data-nav="emprunts.html"],
-.fp-sidebar nav a[data-nav="conducteurs.html"] { order: 3; }
-.fp-sidebar nav a[data-nav="entretiens.html"],
-.fp-sidebar nav a[data-nav="controle.html"],
-.fp-sidebar nav a[data-nav="sinistres.html"],
-.fp-sidebar nav a[data-nav="amendes.html"] { order: 5; }
-.fp-sidebar nav a[data-nav="factures.html"],
-.fp-sidebar nav a[data-nav="contrats.html"],
-.fp-sidebar nav a[data-nav="budget.html"] { order: 7; }
-.fp-sidebar nav a[data-nav="guide.html"],
-.fp-sidebar nav a[data-nav="manuel.html"],
-.fp-sidebar nav a[data-nav="aide.html"],
-.fp-sidebar nav a[data-nav="parametres.html"],
-.fp-sidebar nav a[data-nav="brochure.html"],
-.fp-sidebar nav a[data-nav="prix.html"] { order: 9; }
+/* Ordre des onglets AVANT l'exécution du JS (FP.applyNavGroups) — ordre UNIQUE par onglet, pour que
+   le 1er rendu soit déjà exactement au bon ordre (pas de « saut » du menu), identique sur toutes les
+   pages, sans dépendre de l'ordre brut du HTML. Les MÊMES valeurs sont (ré)appliquées par
+   FP.applyNavGroups. ⚠️ Doit rester synchronisé avec FP.NAV_FAMILIES / FP.NAV_ACCOUNT (app.js) :
+   famille i → en-tête ordre i*10, liens i*10+1, i*10+2, … (Compte = famille « 4 » → base 40). */
+.fp-sidebar nav a[data-nav="dashboard.html"]     { order: 11; }
+.fp-sidebar nav a[data-nav="notifications.html"] { order: 12; }
+.fp-sidebar nav a[data-nav="statistiques.html"]  { order: 13; }
+.fp-sidebar nav a[data-nav="taches.html"]        { order: 14; }
+.fp-sidebar nav a[data-nav="fiscalite.html"]     { order: 15; }
+.fp-sidebar nav a[data-nav="conducteurs.html"]   { order: 21; }
+.fp-sidebar nav a[data-nav="vehicules.html"]     { order: 22; }
+.fp-sidebar nav a[data-nav="emprunts.html"]      { order: 23; }
+.fp-sidebar nav a[data-nav="a-vendre.html"]      { order: 24; }
+.fp-sidebar nav a[data-nav="amendes.html"]       { order: 31; }
+.fp-sidebar nav a[data-nav="sinistres.html"]     { order: 32; }
+.fp-sidebar nav a[data-nav="controle.html"]      { order: 33; }
+.fp-sidebar nav a[data-nav="entretiens.html"]    { order: 34; }
+.fp-sidebar nav a[data-nav="factures.html"]      { order: 41; }
+.fp-sidebar nav a[data-nav="contrats.html"]      { order: 42; }
+.fp-sidebar nav a[data-nav="budget.html"]        { order: 43; }
+.fp-sidebar nav a[data-nav="guide.html"]         { order: 51; }
+.fp-sidebar nav a[data-nav="manuel.html"]        { order: 52; }
+.fp-sidebar nav a[data-nav="aide.html"]          { order: 53; }
+.fp-sidebar nav a[data-nav="parametres.html"]    { order: 54; }
+.fp-sidebar nav a[data-nav="brochure.html"]      { order: 55; }
+.fp-sidebar nav a[data-nav="prix.html"]          { order: 56; }
 /* Intitulés de section dans la sidebar (« Espace de travail » / « Compte ») — façon SaaS */
 .fp-nav-group { font-size: .64rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.36); padding: .7rem 1rem .3rem; user-select: none; pointer-events: none; }
 /* Onglet privé « JIS » (CEO uniquement) : en-tête cliquable + sous-liens repliables. */
