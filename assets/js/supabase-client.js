@@ -746,11 +746,17 @@
   // On re-synchronise RÉGLAGES **et** DONNÉES (sinon une modif faite ailleurs qui vit dans une table reste
   // à l'écran jusqu'à un rechargement manuel).
   (function wireSettingsAutoRefresh() {
-    let last = 0;
-    const kick = () => { const now = Date.now(); if (now - last < 8000) return; last = now; try { FP.refreshSettings(); } catch (e) {} try { FP.refreshData(); } catch (e) {} };
-    try { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') kick(); }); } catch (e) {}
-    try { window.addEventListener('focus', kick); } catch (e) {}
-    try { window.addEventListener('online', kick); } catch (e) {}   // respecte l'anti-rafale (évite les rafales si le réseau « flappe »)
-    try { window.addEventListener('pageshow', (e) => { if (e && e.persisted) { last = 0; kick(); } }); } catch (e) {} // retour via bfcache (mobile)
+    // PERF navigation : au simple retour au 1er plan (focus / onglet redevenu visible), on ne relance QUE
+    // les RÉGLAGES (léger) — PAS un rechargement complet des données. En effet, chaque navigation fait déjà
+    // un loadAll() au chargement de la page ; un focus juste après doublait inutilement ~7-8 requêtes. Le
+    // rechargement complet des DONNÉES reste déclenché par les vrais signaux « on a pu rater des écritures
+    // ailleurs » : retour du réseau (online) et restauration via bfcache (pageshow persisted).
+    let lastS = 0, lastD = 0;
+    const settingsOnly = () => { const now = Date.now(); if (now - lastS < 8000) return; lastS = now; try { FP.refreshSettings(); } catch (e) {} };
+    const full = () => { settingsOnly(); const now = Date.now(); if (now - lastD < 8000) return; lastD = now; try { FP.refreshData(); } catch (e) {} };
+    try { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') settingsOnly(); }); } catch (e) {}
+    try { window.addEventListener('focus', settingsOnly); } catch (e) {}
+    try { window.addEventListener('online', full); } catch (e) {}   // réseau revenu → resync complet (anti-rafale 8 s)
+    try { window.addEventListener('pageshow', (e) => { if (e && e.persisted) { lastD = 0; lastS = 0; full(); } }); } catch (e) {} // retour via bfcache (mobile)
   })();
 })();

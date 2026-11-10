@@ -422,8 +422,66 @@ html.fp-compact .fp-table td { padding: .32rem .7rem; font-size: .8rem; }
 /* Onglet privé « JIS » (CEO uniquement) : en-tête cliquable + sous-liens repliables. */
 .fp-jis-group { display: flex; flex-direction: column; }
 .fp-jis-toggle { cursor: pointer; }
-.fp-jis-sub { margin: 1px 0 4px; padding-left: .35rem; border-left: 2px solid rgba(249,115,22,.35); margin-left: .55rem; }
-.fp-jis-sub a { font-size: .86rem; }
+/* JIS réutilise EXACTEMENT le gabarit des autres sous-menus (.fp-subnav) : même tiroir animé 0fr→1fr,
+   même rail, même indentation et même puce → alignement identique à « Factures - Documents ». */
+.fp-jis-sub {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .24s cubic-bezier(.4,0,.2,1);
+  margin: 2px 0 4px .55rem;
+}
+.fp-jis-sub.open { grid-template-rows: 1fr; }
+.fp-jis-sub-inner {
+  min-height: 0; overflow: hidden;
+  padding: 3px 0 3px .55rem; margin-left: .35rem;
+  border-left: 2px solid transparent;
+  border-image: linear-gradient(180deg, var(--fp-accent), rgba(249,115,22,.15)) 1;
+  background: linear-gradient(90deg, rgba(255,255,255,.05), rgba(255,255,255,0) 70%);
+  border-radius: 0 .5rem .5rem 0;
+}
+.fp-jis-link {
+  position: relative; display: flex; align-items: center; gap: .5rem;
+  padding: .4rem .7rem; margin: 2px .35rem 2px 0;
+  font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.68); text-decoration: none;
+  border-radius: .5rem; white-space: nowrap;
+  transition: background .14s, color .14s, transform .14s, box-shadow .14s;
+}
+.fp-jis-link .fp-jis-lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-jis-link::before {
+  content: ""; flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,.32); transition: background .14s, box-shadow .14s;
+}
+.fp-jis-link:hover {
+  background: linear-gradient(145deg, rgba(255,255,255,.14), rgba(255,255,255,.04));
+  color: #fff; transform: translateX(2px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 2px 6px rgba(0,0,0,.22);
+}
+.fp-jis-link:hover::before { background: var(--fp-accent); box-shadow: 0 0 6px rgba(249,115,22,.8); }
+.fp-jis-link.active {
+  background: linear-gradient(145deg, rgba(249,115,22,.30), rgba(249,115,22,.12));
+  color: #fff; font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 2px 8px rgba(249,115,22,.35);
+}
+.fp-jis-link.active::before { background: var(--fp-accent); box-shadow: 0 0 8px rgba(249,115,22,.9); }
+/* Pastilles de notification JIS (orange, discrètes) : sur l'entête « JIS » (total) et sur chaque
+   sous-onglet concerné (ex. « Prospects »). Une seule couleur = l'accent Parc Pilot. */
+.fp-jis-prospect-badge, .fp-jis-subbadge {
+  background: var(--fp-accent); color: #fff; font-size: .66rem; font-weight: 800;
+  min-width: 1.15rem; text-align: center; padding: .05rem .35rem; border-radius: 999px; line-height: 1.5;
+}
+.fp-jis-prospect-badge { margin-left: .4rem; }
+.fp-jis-subbadge { margin-left: auto; flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) { .fp-jis-sub, .fp-subnav { transition: none; } }
+
+/* ⚡ Barre de progression de navigation (retour visuel immédiat au clic d'un onglet, cf. FP._navInstantFeedback) */
+#fp-nav-progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 100000;
+  background: linear-gradient(90deg, var(--fp-accent), var(--fp-accent-2));
+  box-shadow: 0 0 8px rgba(249,115,22,.6); border-radius: 0 3px 3px 0;
+  opacity: 0; pointer-events: none;
+}
+#fp-nav-progress.run { animation: fp-navbar .9s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes fp-navbar { 0% { width: 0; opacity: 1; } 60% { width: 72%; opacity: 1; } 100% { width: 92%; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #fp-nav-progress { display: none !important; } }
 /* Icônes de la barre latérale : petite pastille en relief (3D), façon tableau de bord.
    La taille (28px) est identique avant/après le remplacement <i> -> <svg> par Lucide
    pour éviter tout décalage de la barre au chargement. */
