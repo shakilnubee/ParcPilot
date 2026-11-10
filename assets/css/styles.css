@@ -157,6 +157,7 @@ input, textarea, select, [contenteditable="true"], [contenteditable=""] {
   --fp-shadow:     0 1px 2px rgba(16,26,45,.06), 0 4px 10px -4px rgba(16,26,45,.08), 0 18px 44px -20px rgba(16,26,45,.20);
   --fp-shadow-lg:  0 28px 64px -28px rgba(16,26,45,.34);
   --fp-ease:       cubic-bezier(.22,.61,.36,1);  /* courbe douce commune aux transitions */
+  --fp-ease-out:   cubic-bezier(.16,1,.3,1);     /* sortie « premium » (entrées de fenêtres/panneaux) */
   --fp-mono:       ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   /* Identité « cockpit » (même pâte que l'accueil et la connexion) :
      --fp-title = police d'affichage des titres/gros chiffres ; --fp-label = télémétrie (petits libellés MAJ). */
@@ -1565,6 +1566,55 @@ textarea:focus, select:focus, .field-input:focus {
   .kpi:hover::after { transition: none; }
   .btn:active { transform: none; }
   .card-hover:hover, .kpi:hover { transform: none; }
+}
+
+/* ================================================================
+   SYSTÈME DE MOUVEMENT COMMUN — FENÊTRES (fluidité « premium », style B validé)
+   Lot pilote. Les fenêtres (modales/fiches) apparaissaient d'un coup : on leur
+   ajoute une ENTRÉE douce = fond assombri + léger flou qui monte en fondu, et
+   panneau qui monte légèrement + grandit de 96 % à 100 % en fondu. transform/
+   opacity UNIQUEMENT (0 recalcul de mise en page), état final = état naturel
+   (donc rien n'est cassé si le JS ne change pas). SOURCE UNIQUE : réutilise
+   --fp-ease / --fp-ease-out, s'applique aux fenêtres EXISTANTES par leurs classes
+   communes (aucune logique, aucun JS modifié). Respecte prefers-reduced-motion.
+   Entrée seulement (la fermeture reste instantanée là où le JS fait display:none).
+   ================================================================ */
+@keyframes fp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fp-win-in  { from { opacity: 0; transform: translateY(10px) scale(.965); } to { opacity: 1; transform: none; } }
+
+/* Fonds (scrims) : fondu + léger flou progressif */
+.modal-backdrop.open, .fiche-ov.open, .sc-ov.open, #fp-xc-ov {
+  animation: fp-fade-in .2s var(--fp-ease) both;
+}
+.modal-backdrop.open, .fiche-ov.open, .sc-ov.open {
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+}
+/* Panneaux (fenêtres) : montée + échelle + fondu */
+.modal-backdrop.open > .modal, .modal-backdrop.open .modal,
+.fiche-ov.open .fiche-card, .sc-ov.open .sc-card,
+#fp-xc-ov .fp-xc-modal {
+  animation: fp-win-in .24s var(--fp-ease-out) both;
+}
+/* Modales « inline » des helpers JS (motif position:fixed; inset:0; justify-content:center) */
+div[style*="position: fixed"][style*="inset: 0"][style*="justify-content: center"],
+div[style*="position:fixed"][style*="inset:0"][style*="justify-content:center"] {
+  animation: fp-fade-in .2s var(--fp-ease) both;
+}
+div[style*="position: fixed"][style*="inset: 0"][style*="justify-content: center"] > *,
+div[style*="position:fixed"][style*="inset:0"][style*="justify-content:center"] > * {
+  animation: fp-win-in .24s var(--fp-ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop.open, .fiche-ov.open, .sc-ov.open, #fp-xc-ov,
+  .modal-backdrop.open > .modal, .modal-backdrop.open .modal,
+  .fiche-ov.open .fiche-card, .sc-ov.open .sc-card, #fp-xc-ov .fp-xc-modal,
+  div[style*="position: fixed"][style*="inset: 0"][style*="justify-content: center"],
+  div[style*="position:fixed"][style*="inset:0"][style*="justify-content:center"],
+  div[style*="position: fixed"][style*="inset: 0"][style*="justify-content: center"] > *,
+  div[style*="position:fixed"][style*="inset:0"][style*="justify-content:center"] > * {
+    animation: none !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
 }
 
 /* ================================================================
