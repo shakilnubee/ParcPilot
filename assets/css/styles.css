@@ -1617,6 +1617,23 @@ div[style*="position:fixed"][style*="inset:0"][style*="justify-content:center"] 
   }
 }
 
+/* MENUS DÉROULANTS / POPOVERS : ouverture « qui grandit depuis le haut » (fondu + légère
+   échelle). transform/opacity seulement, origine en haut. S'applique aux menus EXISTANTS :
+   .fp-jsmenu (recherche-clavier véhicule/conducteur, affichés en display:block) et aux
+   popovers ouverts par .open (colonnes masquées…). Repositionnés au scroll sans relancer
+   l'anim. Respecte prefers-reduced-motion. */
+@keyframes fp-menu-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+.fp-jsmenu,
+.popover.open, .fp-popover.open,
+.hidden-cols-popover.open, .fp-hidden-cols-popover.open {
+  transform-origin: top center;
+  animation: fp-menu-in .16s var(--fp-ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-jsmenu, .popover.open, .fp-popover.open,
+  .hidden-cols-popover.open, .fp-hidden-cols-popover.open { animation: none !important; }
+}
+
 /* ================================================================
    PAGE D'ACCUEIL (index.html) — vitrine "site moderne"
    Hero aurora, révélation au défilement, compteurs, étapes.
