@@ -369,12 +369,26 @@
       // Détail par collaborateur : on n'enregistre QUE si un montant fiable a pu être lu (sinon on
       // n'écrit pas de faux « 0 € » — cf. note d'import). Sur le format Ulys entremêlé, c.ttc est null.
       if (_busy && _nC) _busy.update('Détail par conducteur : ' + _nC + ' à enregistrer…');
+      // ⚠️ Société = la société ACTIVE (jamais 'PXP' en dur) sinon le détail Ulys d'une autre
+      // société atterrit chez PXP (fuite inter-sociétés + attribution conso faussée).
+      let _soc = (FP.activeSociete?FP.activeSociete():'PXP') || 'PXP'; if (_soc === '__all__') _soc = 'PXP';   // '__all__' n'est pas une vraie société → rattacher à PXP, jamais l'écrire brut
+      // ⚠️ MULTI-BADGES : un conducteur peut porter PLUSIEURS badges Ulys (ex. « Dépôt » = GA-313-PK +
+      // Opel Vivaro). L'id ulys_conso est keyé par conducteur+mois → si on écrivait une ligne par badge,
+      // la 2e ÉCRASAIT la 1re (trajets d'un badge perdus — bug vécu : octobre « Dépôt » n'affichait qu'un
+      // badge). On AGRÈGE donc par id (mois+conducteur) en SOMMANT nb/km/ttc → un conducteur à 2 badges
+      // voit ses badges additionnés dans sa ligne, sans écrasement et sans doublon (upsert idempotent).
+      const _aggr = new Map();
       for (const c of _ulsPending.rows){
         if (c.ttc == null) continue;
-        // ⚠️ Société = la société ACTIVE (jamais 'PXP' en dur) sinon le détail Ulys d'une autre
-        // société atterrit chez PXP (fuite inter-sociétés + attribution conso faussée).
-        let _soc = (FP.activeSociete?FP.activeSociete():'PXP') || 'PXP'; if (_soc === '__all__') _soc = 'PXP';   // '__all__' n'est pas une vraie société → rattacher à PXP, jamais l'écrire brut
-        const row = { id:'ULYSC-'+c.mois+'-'+ulsSlug(c.conducteur), mois:c.mois, conducteur:c.conducteur, nbTrajets:c.nb, km:c.km, totalTtc:c.ttc, numeroFacture:c.numero, societe:_soc };
+        const id = 'ULYSC-' + c.mois + '-' + ulsSlug(c.conducteur);
+        let g = _aggr.get(id);
+        if (!g){ g = { id, mois:c.mois, conducteur:c.conducteur, nb:0, km:0, ttc:0, numero:c.numero }; _aggr.set(id, g); }
+        g.nb += Number(c.nb) || 0; g.km += Number(c.km) || 0; g.ttc += Number(c.ttc) || 0;
+        if (String(c.conducteur||'').length > String(g.conducteur||'').length) g.conducteur = c.conducteur; // garde le libellé le plus complet
+        if (!g.numero && c.numero) g.numero = c.numero;
+      }
+      for (const g of _aggr.values()){
+        const row = { id:g.id, mois:g.mois, conducteur:g.conducteur, nbTrajets:g.nb, km:g.km, totalTtc:g.ttc, numeroFacture:g.numero, societe:_soc };
         try { await FP.persist.upsert('ulys_conso', row); okC++; } catch(e){ console.error('[uls conso]', e); }
       }
       // Détail DATÉ (colonne date des consommations) → total_conso_tx (péage) pour la détection
