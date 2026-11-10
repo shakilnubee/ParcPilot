@@ -128,8 +128,10 @@
       </div>
       <div class="grid gap-3 mb-4" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))" id="fx-kpis"></div>
       <div class="stat-card">
-        <div class="flex items-center justify-between gap-2 mb-2"><div class="font-bold text-sm">Détail par véhicule</div>
-          <button id="fx-dash-export" class="btn btn-outline text-sm"><i data-lucide="download" class="w-4 h-4"></i> Exporter</button></div>
+        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap"><div class="font-bold text-sm">Détail par véhicule</div>
+          <div class="flex items-center gap-2 flex-wrap">
+          <button id="fx-dash-export" class="btn btn-outline text-sm"><i data-lucide="download" class="w-4 h-4"></i> Exporter</button>
+          <button id="fx-dash-full" class="btn btn-outline text-sm" title="Classeur Excel détaillé : synthèse, détail fiscal, amortissements, AEN, construction du TCO, anomalies, barèmes"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Rapport complet</button></div></div>
         <div style="overflow-x:auto"><table class="fx-tbl" id="fx-dash-tbl"></table></div>
       </div>
     </section>
@@ -247,6 +249,38 @@
   // Chaque feuille lit les MÊMES helpers que l'écran (FP.tco/amortissement/aenDetail/aenCoutEmployeur/
   // tvsDetail/fiscalConfig) → aucun recalcul divergent. Jamais un montant « deviné » : les anomalies
   // (TCO partiel, genre à vérifier) sont listées à part, pas masquées derrière un faux 0.
+  // EXPORT STANDARD — ouvre le CENTRE d'export commun (FP.exportCenter) : PDF mis en page + Excel + CSV,
+  // aperçu avant téléchargement, choix/ordre des colonnes, favoris, totaux. Même table « Détail par
+  // véhicule » qu'à l'écran (TCO, taxes, surcoût AEN, non déductible, éco IS…). La source des lignes et
+  // des montants = les MÊMES helpers (FP.tco) → aucun recalcul divergent.
+  function dashExportCenter(){
+    if(!(window.FP&&FP.exportCenter&&FP.exportCenter.open)){ dashExport(); return; }
+    var E=function(n){ return (window.FP&&FP.euro)?FP.euro(Math.round(n||0)):(Math.round(n||0)+' €'); };
+    var num=function(path){ return function(r){ return r.t?Math.round(path(r.t)):null; }; };
+    var money=function(path){ return { get:function(r){ return r.t?E(path(r.t)):''; }, num:num(path), sum:function(r){ return r.t?(path(r.t)||0):0; }, fmt:E }; };
+    var C=function(id,label,def,path,align){ var m=money(path); return {id:id,label:label,def:def,align:align||'right',get:m.get,num:m.num,sum:m.sum,fmt:m.fmt}; };
+    FP.exportCenter.open({
+      key:'fiscalite-tco',
+      title:'Fiscalité & TCO (estimations) — '+socFilter(),
+      getRows:function(){ return dashRows().map(function(v){ return {v:v,t:tcoOf(v)}; }); },
+      cols:[
+        {id:'immat',label:'Immatriculation',def:true,get:function(r){return r.v.immat||'';}},
+        {id:'veh',label:'Véhicule',def:true,get:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},
+        {id:'energie',label:'Énergie',def:true,get:function(r){return r.v.carburant||'';}},
+        {id:'genre',label:'Genre fiscal',def:false,get:function(r){return genreLabel(r.v);}},
+        {id:'mode',label:'Mode',def:true,get:function(r){return r.t?(r.t.mode==='location'?'Location':'Achat'):'';}},
+        C('tco','TCO éco/an',true,function(t){return t.economique;}),
+        C('tres','Décaissé/an',false,function(t){return t.tresorerie;}),
+        C('comp','Comptable/an',false,function(t){return t.comptable;}),
+        C('taxes','Taxes/an',true,function(t){return t.composantes.taxes;}),
+        C('aen','Surcoût AEN/an',true,function(t){return t.composantes.cotisationsAEN;}),
+        C('nonded','Non déduct./an',true,function(t){return t.fiscal.nonDeductible;}),
+        C('is','Éco IS/an',false,function(t){return t.fiscal.effetISEstime;}),
+        {id:'fiab',label:'Fiabilité',def:false,get:function(r){return r.t?(r.t.aCompleter?'à compléter':(r.t.categorieAVerifier?'à vérifier':'estimé')):'';}}
+      ]
+    });
+  }
+
   function dashExport(){
     if(!(window.FP&&FP.xlsx&&FP.xlsx.downloadMulti)){
       if(window.FP&&FP.fiche&&FP.fiche.open){ var rs=dashRows().map(function(v){return {v:v,t:tcoOf(v)};}); FP.fiche.open({key:'fiscalite-tco',title:'Fiscalité & TCO — '+socFilter(),rows:rs,cols:[{id:'immat',label:'Immatriculation',def:true,get:function(r){return r.v.immat||'';}},{id:'veh',label:'Véhicule',def:true,get:function(r){return ((r.v.marque||'')+' '+(r.v.modele||'')).trim();}},{id:'tco',label:'TCO/an',def:true,align:'right',get:function(r){return r.t?euro(r.t.economique):'';},num:function(r){return r.t?Math.round(r.t.economique):null;},sum:function(r){return r.t?r.t.economique:0;},fmt:euro}]}); return; }
@@ -438,9 +472,13 @@
   }
   function aenExport(){
     if(!aenAllowed()){ return; }
-    if(!(window.FP&&FP.fiche&&FP.fiche.open)){ alert('Export indisponible.'); return; }
+    // Centre d'export commun (PDF/Excel/CSV + aperçu) — remplace l'ancien FP.fiche.open (dont l'« Aperçu
+    // PDF » ne marchait pas ici). Repli sur FP.fiche si le centre est indisponible.
+    var _open = (window.FP&&FP.exportCenter&&FP.exportCenter.open) ? FP.exportCenter.open
+              : ((window.FP&&FP.fiche&&FP.fiche.open) ? FP.fiche.open : null);
+    if(!_open){ alert('Export indisponible.'); return; }
     var rows=aenRows();
-    FP.fiche.open({ key:'aen-paie', title:'AEN paie — '+(new Date()).toLocaleDateString('fr-FR'), rows:rows, cols:[
+    _open({ key:'aen-paie', title:'AEN paie (estimations) — '+(new Date()).toLocaleDateString('fr-FR'), rows:rows, cols:[
       {id:'cond',label:'Conducteur',def:true,get:function(r){return (window.FP&&FP.prenomAffiche)?FP.prenomAffiche(r.v.chauffeur):(r.v.chauffeur||'');}},
       {id:'veh',label:'Véhicule',def:true,get:function(r){return r.v.immat||'';}},
       {id:'soc',label:'Société',def:true,get:function(r){return socOf(r.v);}},
@@ -462,7 +500,8 @@
     document.querySelectorAll('.fx-tab').forEach(function(b){ b.addEventListener('click',function(){ showTab(b.dataset.tab); }); });
     document.querySelectorAll('[data-read]').forEach(function(b){ b.addEventListener('click',function(){ curRead=b.dataset.read; document.querySelectorAll('[data-read]').forEach(function(x){x.setAttribute('aria-selected',x===b);}); renderDash(); }); });
     $('fx-soc').addEventListener('change', renderDash);
-    $('fx-dash-export').addEventListener('click', dashExport);
+    $('fx-dash-export').addEventListener('click', dashExportCenter);
+    { var fb = $('fx-dash-full'); if (fb) fb.addEventListener('click', dashExport); }
     ['fx-cmp-1','fx-cmp-2','fx-cmp-3'].forEach(function(id){ $(id).addEventListener('change', renderCmp); });
     ['fx-sim-duree','fx-sim-km','fx-sim-is'].forEach(function(id){ $(id).addEventListener('input', renderSim); });
     $('fx-aen-export').addEventListener('click', aenExport);
