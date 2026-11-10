@@ -8269,9 +8269,11 @@ FP.scrollLock = (function () {
     try {
       const seen = new Set();
       Array.prototype.forEach.call(document.body.children, el => seen.add(el));
-      // Candidats élargis (la détection ne verrouille QUE si isFullOverlay passe le test strict inset:0,
-      // donc ajouter des candidats ne peut jamais provoquer un verrou à tort — ça améliore juste la portée).
-      document.querySelectorAll('[role="dialog"],[aria-modal="true"],.drawer,.modal,.viewer,.fiche-ov,.sc-ov,[class*="-ov"],[class*="-back"],[class*="-backdrop"],[id*="overlay"],[id$="-ov"]').forEach(el => seen.add(el));
+      // Candidats par CLASSES/ID EXACTS (couvre toutes les fenêtres connues). On évite les sélecteurs
+      // de sous-chaîne [class*=…]/[id*=…] : coûteux à chaque frame sur un gros DOM (perf navigation), et
+      // inutiles ici — les vraies modales ont une classe exacte OU sont enfants directs de <body> (déjà
+      // scannés ci-dessus). La détection ne verrouille de toute façon QUE si isFullOverlay passe (inset:0).
+      document.querySelectorAll('[role="dialog"],[aria-modal="true"],.drawer,.modal,.modal-backdrop,.viewer,.fiche-ov,.sc-ov,#fp-xc-ov').forEach(el => seen.add(el));
       for (const el of seen) if (isFullOverlay(el)) return true;
     } catch (e) {}
     return false;
@@ -8299,8 +8301,54 @@ FP.scrollLock = (function () {
     ['resize', 'orientationchange', 'transitionend', 'animationend', 'pageshow'].forEach(ev => { try { window.addEventListener(ev, sync, true); } catch (e) {} });
     sync();
   }
-  if (document.readyState !== 'loading') start(); else document.addEventListener('DOMContentLoaded', start);
+  // Démarrage APRÈS le 1er rendu (événement 'load') : aucune modale ne peut s'ouvrir avant une action
+  // utilisateur, donc inutile de faire tourner l'observateur pendant le rendu initial lourd (gros tableaux)
+  // → zéro coût sur l'ouverture d'un module. L'observateur est bien actif avant toute interaction.
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
   return { sync, on: sync, off: sync, reset: sync, _anyOpen: anyOpen };
+})();
+
+// ⚡ RÉACTION VISUELLE IMMÉDIATE AU CLIC DE NAVIGATION (sidebar). La View-Transition « navigation: auto »
+// gèle l'ancienne page jusqu'au 1er rendu de la nouvelle → sans retour visuel, l'onglet cliqué ne s'allume
+// qu'après chargement (impression de latence ~0,5 s). On allume l'onglet cliqué + une fine barre de
+// progression DÈS le pointerdown. On NE force AUCUNE navigation (le lien fait son travail), on NE
+// preventDefault PAS. Respecte Ctrl/Cmd/Maj/Alt + clic milieu (nouvel onglet) et prefers-reduced-motion.
+// 100 % visuel : aucune logique métier, aucune donnée touchée.
+FP._navInstantFeedback = (function () {
+  let bar = null, clearT = 0;
+  const reduced = () => { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) { return false; } };
+  function showBar() {
+    if (reduced()) return;
+    try {
+      if (!bar) { bar = document.createElement('div'); bar.id = 'fp-nav-progress'; bar.setAttribute('aria-hidden', 'true'); (document.body || document.documentElement).appendChild(bar); }
+      bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+      clearTimeout(clearT); clearT = setTimeout(() => { if (bar) bar.classList.remove('run'); }, 1600); // repli si la nav n'a pas lieu (bascule en place / lien annulé)
+    } catch (e) {}
+  }
+  function onDown(e) {
+    try {
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest && e.target.closest('.fp-sidebar a[href]');
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      if (!href || href === '#' || href.charAt(0) === '#' || /^(javascript:|mailto:|tel:)/i.test(href)) return;
+      if (a.getAttribute('target') === '_blank') return;
+      // Onglet PARENT qui déplie un sous-menu (pas une navigation) → ne rien faire.
+      const nb = a.nextElementSibling;
+      if (nb && nb.classList && (nb.classList.contains('fp-subnav') || nb.classList.contains('fp-jis-sub'))) return;
+      if (a.classList.contains('fp-jis-toggle')) return;
+      showBar();
+      // Onglet de 1er niveau (page) → on l'allume tout de suite (la page confirmera au chargement).
+      // Les sous-onglets gardent leur propre gestion d'« actif » (en place / au chargement).
+      if (!a.matches('.fp-subnav-item, .fp-jis-link')) {
+        document.querySelectorAll('.fp-sidebar a.active').forEach(x => { if (x !== a) x.classList.remove('active'); });
+        a.classList.add('active');
+      }
+    } catch (err) {}
+  }
+  try { document.addEventListener('pointerdown', onDown, true); } catch (e) {}
+  try { window.addEventListener('pagehide', () => { if (bar) bar.classList.remove('run'); }); } catch (e) {}
+  return { show: showBar };
 })();
 // ⚠️ SOURCE UNIQUE — clé de MOIS "AAAA-MM" en heure LOCALE. NE JAMAIS utiliser `date.toISOString().slice(0,7)`
 // pour une clé de mois : en France (UTC+1/2), le 1er du mois à minuit local devient le mois PRÉCÉDENT en UTC
@@ -9310,22 +9358,24 @@ FP.buildJisMenu = () => {
     // DANS UNE VUE SAFARI par-dessus l'appli → le geste « glisser pour revenir » ferme cette vue
     // et ramène au tableau de bord au lieu de faire un vrai retour. On ouvre donc les pages JIS
     // DANS l'appli (même contexte) → retour/glisser natif fonctionne, et le bouton « Retour » aussi.
+    // Sous-onglets : MÊME structure visuelle que les autres sous-menus (.fp-subnav-item) → même
+    // indentation, même puce, même ellipse sur libellés longs. `data-jis` = cible pour les pastilles.
     const subLinks = FP.JIS_PAGES.map(p =>
-      `<a href="${pfx}${p.file}" class="fp-jis-link${cur === p.file ? ' active' : ''}" style="padding-left:2.4rem;font-size:.86rem"><i data-lucide="${p.icon}"></i> ${FP.esc ? FP.esc(p.label) : p.label}</a>`
+      `<a href="${pfx}${p.file}" class="fp-jis-link${cur === p.file ? ' active' : ''}" data-jis="${p.file}"><span class="fp-jis-lb">${FP.esc ? FP.esc(p.label) : p.label}</span></a>`
     ).join('');
     grp.innerHTML =
       `<a href="#" class="fp-jis-toggle" style="display:flex;align-items:center;gap:.55rem" title="Espace privé JIS (CEO)">`
       + `<i data-lucide="crown"></i><span style="font-weight:700">JIS</span>`
       + `<span class="fp-jis-chev" style="margin-left:auto;transition:transform .2s;transform:rotate(${open ? 0 : -90}deg);font-size:.7rem;opacity:.6">▼</span></a>`
-      + `<div class="fp-jis-sub" style="display:${open ? 'block' : 'none'}">${subLinks}</div>`;
+      + `<div class="fp-jis-sub${open ? ' open' : ''}"><div class="fp-jis-sub-inner">${subLinks}</div></div>`;
     nav.appendChild(grp);
     const toggle = grp.querySelector('.fp-jis-toggle');
     const sub = grp.querySelector('.fp-jis-sub');
     const chev = grp.querySelector('.fp-jis-chev');
     toggle.addEventListener('click', (e) => {
       e.preventDefault();
-      const willOpen = sub.style.display === 'none';
-      sub.style.display = willOpen ? 'block' : 'none';
+      const willOpen = !sub.classList.contains('open');   // tiroir animé (0fr→1fr), comme les autres sous-menus
+      sub.classList.toggle('open', willOpen);
       chev.style.transform = 'rotate(' + (willOpen ? 0 : -90) + 'deg)';
       try { localStorage.setItem('fp_jis_open', willOpen ? '1' : '0'); } catch (e) {}
     });
@@ -9335,25 +9385,38 @@ FP.buildJisMenu = () => {
 };
 // Alerte prospects : badge rouge (nb de nouveaux prospects) sur l'entête « JIS » du menu.
 // Réservé au propriétaire JIS ; silencieux si la table prospects n'existe pas encore.
+// ⚠️ CADRE GÉNÉRIQUE de pastilles JIS par SOUS-ONGLET (source unique). Pose/retire une pastille sur le
+// sous-onglet `file` (data-jis) ET recalcule le total porté par l'entête « JIS » = somme des sous-pastilles.
+// → on sait tout de suite QUEL sous-onglet est concerné (et le parent affiche le total). Tout nouveau
+// signal JIS (facturation à traiter, etc.) n'a qu'à appeler FP.setJisBadge('<fichier>', n) — rien d'autre.
+FP.setJisBadge = function (file, count) {
+  try {
+    count = Math.max(0, count | 0);
+    document.querySelectorAll('.fp-jis-link[data-jis="' + file + '"]').forEach(a => {
+      let b = a.querySelector('.fp-jis-subbadge');
+      if (!count) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement('span'); b.className = 'fp-jis-subbadge'; a.appendChild(b); }
+      b.textContent = count; b.title = count + ' à traiter';
+    });
+    // Total sur l'entête de CHAQUE groupe JIS (desktop + éventuel clone mobile).
+    document.querySelectorAll('.fp-jis-group').forEach(grp => {
+      let total = 0; grp.querySelectorAll('.fp-jis-subbadge').forEach(x => { total += (parseInt(x.textContent, 10) || 0); });
+      const toggle = grp.querySelector('.fp-jis-toggle'); if (!toggle) return;
+      let b = toggle.querySelector('.fp-jis-prospect-badge');
+      if (!total) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement('span'); b.className = 'fp-jis-prospect-badge'; const chev = toggle.querySelector('.fp-jis-chev'); if (chev) toggle.insertBefore(b, chev); else toggle.appendChild(b); }
+      b.textContent = total; b.title = total + ' à traiter';
+    });
+  } catch (e) {}
+};
+// Alerte prospects : nb de nouveaux prospects → pastille sur le SOUS-ONGLET « Prospects (pipeline) »
+// (et, agrégé, sur l'entête « JIS »). Réservé au propriétaire JIS ; silencieux si la table n'existe pas.
 FP.refreshProspectsBadge = async () => {
   try {
     if (!FP.isJisOwner || !FP.isJisOwner() || !FP.supabase) return;
     const r = await FP.supabase.from('prospects').select('id', { count: 'exact', head: true }).eq('statut', 'nouveau');
     if (r.error) return; // table absente → pas de badge
-    const count = r.count || 0;
-    document.querySelectorAll('.fp-jis-toggle').forEach(t => {
-      let b = t.querySelector('.fp-jis-prospect-badge');
-      if (!count) { if (b) b.remove(); return; }
-      if (!b) {
-        b = document.createElement('span');
-        b.className = 'fp-jis-prospect-badge';
-        b.title = count + ' nouveau(x) prospect(s)';
-        b.style.cssText = 'background:#EF4444;color:#fff;font-size:.66rem;font-weight:800;min-width:1.1rem;text-align:center;padding:.05rem .35rem;border-radius:999px;margin-left:.4rem';
-        const chev = t.querySelector('.fp-jis-chev');
-        if (chev) t.insertBefore(b, chev); else t.appendChild(b);
-      }
-      b.textContent = count;
-    });
+    FP.setJisBadge('prospects.html', r.count || 0);
   } catch (e) {}
 };
 // Rafraîchit le badge quand les données Supabase sont prêtes (le menu peut être bâti avant).
