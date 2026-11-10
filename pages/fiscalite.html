@@ -46,6 +46,10 @@
   .fx-row:last-child{border-bottom:none}.fx-row .k{color:var(--fp-muted,#5B6678)}.fx-row .v{font-weight:700;font-variant-numeric:tabular-nums}
   .fx-inp{font:inherit;font-size:.85rem;border:1px solid var(--fp-border);background:var(--fp-card,#fff);color:var(--fp-primary,#0B1220);border-radius:.5rem;padding:.4rem .5rem;width:100%}
   .fx-gate{text-align:center;padding:3rem 1rem;color:var(--fp-muted,#5B6678)}
+  /* Squelette affiché le temps (très court) du calcul du tableau de bord, juste après l'ouverture. */
+  .fx-skel{height:86px;border-style:dashed;opacity:.7;animation:fx-pulse 1.1s ease-in-out infinite}
+  @keyframes fx-pulse{0%,100%{opacity:.7}50%{opacity:.32}}
+  @media (prefers-reduced-motion:reduce){.fx-skel{animation:none}}
 </style>
 <script>
 (function(){
@@ -463,7 +467,16 @@
     ['fx-sim-duree','fx-sim-km','fx-sim-is'].forEach(function(id){ $(id).addEventListener('input', renderSim); });
     $('fx-aen-export').addEventListener('click', aenExport);
   }
-  function boot(){ wire(); showTab('dash'); }
+  function boot(){
+    wire();
+    // ⚡ PERF « coquille d'abord » (pilote) : on peint la page + un squelette TOUT DE SUITE, puis on
+    // lance les gros calculs (TCO sur toute la flotte) juste APRÈS le 1er rendu → la page apparaît
+    // immédiatement au lieu de rester gelée pendant le calcul. Même code de rendu, seulement décalé
+    // d'une frame. (fp:data-ready re-rendra ensuite avec les données live.)
+    var k=$('fx-kpis'); if(k && !k.children.length){ k.innerHTML=new Array(6).fill('<div class="stat-card fx-kpi fx-skel" aria-hidden="true"></div>').join(''); }
+    var go=function(){ showTab('dash'); };
+    if(window.requestAnimationFrame){ requestAnimationFrame(function(){ requestAnimationFrame(go); }); } else { setTimeout(go,30); }
+  }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   // Re-render quand les vraies données Supabase arrivent (data.js = instantané, puis live).
   window.addEventListener('fp:data-ready', function(){ var active=(document.querySelector('.fx-tab[aria-selected="true"]')||{}).dataset; showTab(active&&active.tab?active.tab:'dash'); });
