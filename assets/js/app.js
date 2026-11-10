@@ -261,6 +261,15 @@ const FP = {
     const v = Number(n);
     return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number.isFinite(v) ? v : 0);
   },
+  // ⚡ PERF « coquille d'abord » — source unique. Exécute fn APRÈS le 1er rendu (2 frames) pour que la page
+  // (coquille + squelette) s'affiche TOUT DE SUITE, puis que les gros calculs/rendus se fassent sans geler
+  // l'ouverture. Repli setTimeout si pas de requestAnimationFrame. fn ne doit jamais casser l'init si elle jette.
+  afterPaint(fn) {
+    try {
+      if (window.requestAnimationFrame) requestAnimationFrame(() => requestAnimationFrame(() => { try { fn(); } catch (e) { console.warn('[afterPaint]', e); } }));
+      else setTimeout(() => { try { fn(); } catch (e) { console.warn('[afterPaint]', e); } }, 30);
+    } catch (e) { try { fn(); } catch (_) {} }
+  },
   // Format date FR
   date(iso) {
     if (!iso || iso === '—') return '—';

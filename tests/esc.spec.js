@@ -27,25 +27,27 @@ test('Échap ferme le centre d\'export et la fiche, mais PAS la surcouche de cha
     const vis = (id) => { const e = document.getElementById(id); return !e ? 'absent' : (getComputedStyle(e).display === 'none' ? 'hidden' : 'visible'); };
     const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Attente ROBUSTE (anti-flaky CI) : laisse jusqu'à ~2 s pour atteindre l'état voulu, en renvoyant Échap
+    // à chaque tour (si le 1er Échap part avant que la mise en page de la fenêtre soit prête).
+    const until = async (id, want, retryEsc) => { for (let i = 0; i < 40; i++) { if (vis(id) === want) return want; if (retryEsc && i % 4 === 3) esc(); await wait(50); } return vis(id); };
 
     // 1) Centre d'export (#fp-xc-ov, z-index 82, role=dialog) → Échap doit le fermer, MÊME quand un
     //    champ à l'intérieur a le focus (c'était le bug : le garde de champ mangeait Échap).
     FP.exportCenter.open({ key: 't', title: 'T', cols: [{ id: 'a', label: 'A', def: true, get: () => 'x' }], getRows: () => [{ a: 1 }] });
-    await wait(250);
+    out.xc_before = await until('fp-xc-ov', 'visible');
     const fld = document.querySelector('#fp-xc-ov input'); if (fld) fld.focus();
     out.xc_focused = document.activeElement && document.activeElement.tagName;
-    out.xc_before = vis('fp-xc-ov');
-    esc(); await wait(300); out.xc_after = vis('fp-xc-ov');
+    esc(); out.xc_after = await until('fp-xc-ov', 'hidden', true);
 
     // 2) Fiche d'impression (#fp-fiche-ov, z-index 80, bouton ×) → Échap doit la fermer.
     FP.fiche.open({ key: 'f', title: 'F', cols: [{ id: 'a', label: 'A', def: true, get: () => 'x' }], rows: [{ a: 1 }] });
-    await wait(250); out.fiche_before = vis('fp-fiche-ov');
-    esc(); await wait(300); out.fiche_after = vis('fp-fiche-ov');
+    out.fiche_before = await until('fp-fiche-ov', 'visible');
+    esc(); out.fiche_after = await until('fp-fiche-ov', 'hidden', true);
 
     // 3) Surcouche de CHARGEMENT (#fp-busy, sans bouton fermer) → Échap NE doit PAS l'interrompre.
     FP.busy('Enregistrement en cours…');
     await wait(150); out.busy_before = vis('fp-busy');
-    esc(); await wait(300); out.busy_after = vis('fp-busy');
+    esc(); await wait(350); out.busy_after = vis('fp-busy');
     try { document.getElementById('fp-busy').style.display = 'none'; } catch (e) {} // nettoyage
     return out;
   });
