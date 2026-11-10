@@ -8274,7 +8274,12 @@ FP.scrollLock = (function () {
       // inutiles ici — les vraies modales ont une classe exacte OU sont enfants directs de <body> (déjà
       // scannés ci-dessus). La détection ne verrouille de toute façon QUE si isFullOverlay passe (inset:0).
       document.querySelectorAll('[role="dialog"],[aria-modal="true"],.drawer,.modal,.modal-backdrop,.viewer,.fiche-ov,.sc-ov,#fp-xc-ov').forEach(el => seen.add(el));
-      for (const el of seen) if (isFullOverlay(el)) return true;
+      // ⚠️ iOS : une fenêtre qui gère ELLE-MÊME son défilement (l'overlay EST le conteneur scrollable,
+      // avec overscroll-behavior:contain qui empêche déjà le fond de bouger) NE doit PAS figer le <body>.
+      // Sur iOS Safari, un <body> en position:fixed CASSE le scroll d'un overlay position:fixed enfant
+      // (bug WebKit connu) → on n'atteint plus le bas du pop-up (bouton Exporter inatteignable). Ces
+      // overlays portent data-self-scroll="1" et sont donc exclus du verrou de <body>.
+      for (const el of seen) { if (el && el.getAttribute && el.getAttribute('data-self-scroll') === '1') continue; if (isFullOverlay(el)) return true; }
     } catch (e) {}
     return false;
   }
@@ -20172,6 +20177,7 @@ FP.ficheColsFromExport = function (cols) {
   function build() {
     if (modal) return; injectStyle();
     const ov = document.createElement('div'); ov.id = 'fp-xc-ov';
+    ov.setAttribute('data-self-scroll', '1'); // iOS : l'overlay gère son propre scroll → pas de verrou <body> (voir FP.scrollLock)
     ov.innerHTML = `<div class="fp-xc-modal" role="dialog" aria-modal="true" aria-label="Importer / Exporter">
       <div class="fp-xc-head"><h3>Importer / Exporter</h3>
         <div class="fp-xc-tabs" role="tablist"><button id="fp-xc-tab-exp" role="tab" aria-selected="true">Exporter</button><button id="fp-xc-tab-imp" role="tab" aria-selected="false">Importer</button></div>
