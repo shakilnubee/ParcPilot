@@ -8903,7 +8903,7 @@ FP.normNomComplet = (s) => (s || '').toString().trim().toLowerCase().normalize('
 // Conducteurs connus (fichier Drive de référence) — partagé entre pages pour un comptage cohérent
 FP.DRIVE_CONDUCTEURS = new Set(["ahmed","akram","ambre","andrea","anna","bram","charles","conu","daniel","david","diana","enguerrand","eugénie","farah","frédéric","fx","gionata","guerric","halim","ilhem","jérémie","jérémy","jimmy","jocelyn","johanna","léopold","lucie","martin","maxime","mégane","mickaël","mona","monsieur","mr","nacim","nawelle","nicolas","pauline","raphaël","romuald","samira","sergio","shakil","shaohui","sofiane","thomas","xavi","yannis","youssouf"]);
 // Étiquettes de chauffeur qui ne sont PAS des personnes
-FP.NON_CHAUFFEURS = ['Siège', 'Dépôt', 'Navette', 'VENDU', 'x', 'X', 'Fenwick'];
+FP.NON_CHAUFFEURS = ['Siège', 'Navette', 'VENDU', 'x', 'X', 'Fenwick']; // « Dépôt » retiré : c'est un VRAI conducteur (vraie fiche) → compté comme une personne partout.
 // Comptage des conducteurs ENREGISTRÉS : uniquement les personnes ayant un véhicule
 // attribué dans la flotte. On n'inclut PAS les personnes connues seulement via une amende
 // (emprunteur ponctuel, ancien conducteur…), conformément à la demande.
