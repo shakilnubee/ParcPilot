@@ -9130,10 +9130,15 @@ FP.NAV_ACCOUNT = ['guide.html', 'manuel.html', 'aide.html', 'parametres.html', '
 // un menu LISIBLE (4 petits paquets) au lieu d'un mur de 15 lignes à plat. L'ordre DANS une famille
 // suit navOrder (ordre DOM), donc la personnalisation de l'ordre reste possible à l'intérieur d'un
 // paquet. Pour déplacer un onglet d'une famille à l'autre, changer la liste ci-dessous.
+// ⚠️ ORDRE EXACT des onglets DANS chaque famille (ordre d'affichage souhaité par l'utilisateur).
+// Chaque onglet reçoit un `order` CSS UNIQUE (voir applyNavGroups) → l'ordre ne dépend donc PLUS de
+// l'ordre brut du HTML (qui pouvait différer d'une page à l'autre et faire « bouger » le menu). Pour
+// changer l'ordre d'un onglet, le déplacer ICI (et répercuter dans le bloc CSS statique de styles.css,
+// « Ordre des onglets AVANT l'exécution du JS », keyé par [data-nav]).
 FP.NAV_FAMILIES = [
-  { key: 'pilotage', label: 'Pilotage',        items: ['dashboard.html', 'notifications.html', 'taches.html', 'statistiques.html'] },
-  { key: 'parc',     label: 'Parc',            items: ['vehicules.html', 'a-vendre.html', 'emprunts.html', 'conducteurs.html'] },
-  { key: 'vie',      label: 'Vie du véhicule', items: ['entretiens.html', 'controle.html', 'sinistres.html', 'amendes.html'] },
+  { key: 'pilotage', label: 'Pilotage',        items: ['dashboard.html', 'notifications.html', 'statistiques.html', 'taches.html', 'fiscalite.html'] },
+  { key: 'parc',     label: 'Parc',            items: ['conducteurs.html', 'vehicules.html', 'emprunts.html', 'a-vendre.html'] },
+  { key: 'vie',      label: 'Vie du véhicule', items: ['amendes.html', 'sinistres.html', 'controle.html', 'entretiens.html'] },
   { key: 'finances', label: 'Finances',        items: ['factures.html', 'contrats.html', 'budget.html'] },
 ];
 // Libellés des sections (compat ; « workspace » n'est plus affiché tel quel, remplacé par les familles).
@@ -9144,31 +9149,42 @@ FP.NAV_GROUP_LABELS = { workspace: 'Espace de travail', compte: 'Compte' };
 // suivi de ses liens d'ordre IMPAIR (pilotage 0/1, parc 2/3, vie 4/5, finances 6/7, Compte 8/9). L'ordre
 // DANS une famille suit l'ordre DOM (donc navOrder). Idempotent (réutilise les en-têtes via data-grp).
 FP.applyNavGroups = () => {
-  const famOrder = {}; // dataNav -> ordre CSS du lien
-  FP.NAV_FAMILIES.forEach((f, i) => { f.items.forEach(k => { famOrder[k] = (i * 2 + 1); }); });
-  const ACC_ORDER = FP.NAV_FAMILIES.length * 2 + 1; // liens Compte
+  // Ordre CSS UNIQUE par onglet : famille i → en-tête à l'ordre i*10, puis ses liens i*10+1, i*10+2, …
+  // (dans l'ordre exact de FP.NAV_FAMILIES). Ainsi l'ordre interne d'une famille est VERROUILLÉ et ne
+  // dépend plus de l'ordre brut du HTML (qui pouvait différer d'une page à l'autre → menu qui « bouge »).
+  const famOrder = {}; // dataNav -> ordre CSS unique
+  FP.NAV_FAMILIES.forEach((f, i) => { f.items.forEach((k, j) => { famOrder[k] = i * 10 + 1 + j; }); });
+  const ACC_BASE = FP.NAV_FAMILIES.length * 10; // en-tête « Compte »
+  const accOrder = {};
+  FP.NAV_ACCOUNT.forEach((k, j) => { accOrder[k] = ACC_BASE + 1 + j; });
   document.querySelectorAll('aside nav').forEach(nav => {
     const links = Array.from(nav.querySelectorAll('a[data-nav]'));
     if (!links.length) return;
     // Nettoie l'ancien en-tête unique « Espace de travail » (data-grp="ws") s'il traîne.
     const legacy = nav.querySelector('.fp-nav-group[data-grp="ws"]'); if (legacy) legacy.remove();
-    const present = {}; let hasAc = false;
+    const present = {}; let hasAc = false; // present[indiceFamille] = au moins 1 lien visible
     links.forEach(a => {
       const k = a.dataset.nav;
-      const ord = FP.NAV_ACCOUNT.includes(k) ? ACC_ORDER : (famOrder[k] != null ? famOrder[k] : 1 /* repli : 1re famille */);
+      let ord;
+      if (accOrder[k] != null) ord = accOrder[k];
+      else if (famOrder[k] != null) ord = famOrder[k];
+      else ord = 1; // repli : début (clé inconnue d'une famille)
       a.style.order = String(ord);
       // Le sous-menu déroulant éventuel reste collé sous son parent (même ordre CSS).
       const bx = a.nextElementSibling;
       if (bx && bx.classList && bx.classList.contains('fp-subnav')) bx.style.order = String(ord);
-      if (a.style.display !== 'none') { if (ord === ACC_ORDER) hasAc = true; else present[ord] = true; }
+      if (a.style.display !== 'none') {
+        if (accOrder[k] != null) hasAc = true;
+        else present[Math.floor((ord - 1) / 10)] = true; // indice de famille
+      }
     });
     const ensure = (key, txt, ord, visible) => {
       let d = nav.querySelector('.fp-nav-group[data-grp="' + key + '"]');
       if (!d) { d = document.createElement('div'); d.className = 'fp-nav-group'; d.setAttribute('data-grp', key); nav.appendChild(d); }
       d.textContent = txt; d.style.order = String(ord); d.style.display = visible ? '' : 'none'; return d;
     };
-    FP.NAV_FAMILIES.forEach((f, i) => ensure(f.key, f.label, i * 2, !!present[i * 2 + 1]));
-    ensure('ac', FP.NAV_GROUP_LABELS.compte, FP.NAV_FAMILIES.length * 2, hasAc);
+    FP.NAV_FAMILIES.forEach((f, i) => ensure(f.key, f.label, i * 10, !!present[i]));
+    ensure('ac', FP.NAV_GROUP_LABELS.compte, ACC_BASE, hasAc);
   });
 };
 
