@@ -8238,6 +8238,70 @@ FP.searchMatch = (text, q) => {
 };
 // Échappement HTML — À UTILISER pour toute donnée saisie/OCR injectée en innerHTML (anti-XSS).
 FP.esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ⚠️ SOURCE UNIQUE — VERROU DE DÉFILEMENT DE LA PAGE quand une fenêtre plein écran est ouverte.
+// Sans lui, sur téléphone le geste de scroll « passe » à la page du fond une fois le contenu de la
+// modale arrivé en bas (scroll chaining), le fond bouge et les boutons du bas deviennent inatteignables.
+//
+// ⚙️ AUTO & AUTO-RÉPARANT (pas de câblage par modale → couvre toutes les fenêtres actuelles ET futures,
+// et ne peut jamais rester bloqué) : un MutationObserver (débouncé en rAF) + quelques événements
+// re-synchronisent en permanence. On gèle la page UNIQUEMENT tant qu'une VRAIE surface plein écran est
+// visible = élément position:fixed, visible, cliquable, ANCRÉ AUX 4 BORDS (inset:0, un « scrim » de modale).
+// Ce critère strict exclut par construction la barre latérale, les tiroirs latéraux partiels, les toasts,
+// les FAB et les fonds décoratifs (pointer-events:none) → aucun risque de figer l'app par erreur.
+// Les fenêtres NON plein écran (feuilles du bas, tiroir latéral) restent couvertes par overscroll-behavior
+// (styles.css). body.fp-scroll-locked (position:fixed) est défini dans styles.css. Compat : on()/off()
+// restent exposés (certaines modales les appellent) mais ne font que forcer une re-synchro.
+FP.scrollLock = (function () {
+  let locked = false, y = 0, raf = 0;
+  function isFullOverlay(el) {
+    if (!(el instanceof HTMLElement)) return false;
+    let cs; try { cs = getComputedStyle(el); } catch (e) { return false; }
+    if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') return false;
+    if (parseFloat(cs.opacity || '1') < 0.05 || cs.pointerEvents === 'none') return false;
+    // Garde-fou : une vraie modale a un z-index explicite élevé. Exclut tout élément de MISE EN PAGE
+    // (fond, conteneur) qui serait plein écran mais n'est pas une fenêtre → zéro risque de figer l'app.
+    if (!(parseInt(cs.zIndex, 10) >= 20)) return false;
+    const r = el.getBoundingClientRect(), iw = window.innerWidth, ih = window.innerHeight;
+    // Doit couvrir TOUT l'écran (ancré aux 4 bords) → vrai scrim de modale, jamais un panneau latéral.
+    return r.top <= 4 && r.left <= 4 && r.right >= iw - 4 && r.bottom >= ih - 4 && r.width >= iw * 0.9 && r.height >= ih * 0.9;
+  }
+  function anyOpen() {
+    try {
+      const seen = new Set();
+      Array.prototype.forEach.call(document.body.children, el => seen.add(el));
+      // Candidats élargis (la détection ne verrouille QUE si isFullOverlay passe le test strict inset:0,
+      // donc ajouter des candidats ne peut jamais provoquer un verrou à tort — ça améliore juste la portée).
+      document.querySelectorAll('[role="dialog"],[aria-modal="true"],.drawer,.modal,.viewer,.fiche-ov,.sc-ov,[class*="-ov"],[class*="-back"],[class*="-backdrop"],[id*="overlay"],[id$="-ov"]').forEach(el => seen.add(el));
+      for (const el of seen) if (isFullOverlay(el)) return true;
+    } catch (e) {}
+    return false;
+  }
+  function apply() {
+    raf = 0;
+    const open = anyOpen();
+    if (open && !locked) {
+      y = window.scrollY || window.pageYOffset || 0;
+      document.body.style.top = (-y) + 'px';
+      document.body.classList.add('fp-scroll-locked');
+      locked = true;
+    } else if (!open && locked) {
+      document.body.classList.remove('fp-scroll-locked');
+      document.body.style.top = '';
+      locked = false;
+      try { window.scrollTo(0, y); } catch (e) {}
+    }
+  }
+  function sync() { if (!raf) raf = requestAnimationFrame(apply); }
+  function start() {
+    try {
+      new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class', 'hidden', 'open'], childList: true, subtree: true });
+    } catch (e) {}
+    ['resize', 'orientationchange', 'transitionend', 'animationend', 'pageshow'].forEach(ev => { try { window.addEventListener(ev, sync, true); } catch (e) {} });
+    sync();
+  }
+  if (document.readyState !== 'loading') start(); else document.addEventListener('DOMContentLoaded', start);
+  return { sync, on: sync, off: sync, reset: sync, _anyOpen: anyOpen };
+})();
 // ⚠️ SOURCE UNIQUE — clé de MOIS "AAAA-MM" en heure LOCALE. NE JAMAIS utiliser `date.toISOString().slice(0,7)`
 // pour une clé de mois : en France (UTC+1/2), le 1er du mois à minuit local devient le mois PRÉCÉDENT en UTC
 // → le graphe affichait le mauvais mois et le rapport comptait 13 mois. (cf. audit 2026-10-23, bug H3.)
@@ -20201,27 +20265,10 @@ FP.ficheColsFromExport = function (cols) {
     setFavs(favs); renderFavs(); if (FP.toast) FP.toast('Configuration « ' + name + ' » enregistrée');
   }
   function ctxFor() { return { cols: chosenCols().map(c => ({ label: c.label, get: c.get, num: c.num, align: c.align, sum: c.sum, mono: c.mono, tint: c.tint })), title: titleOf(), rows: filteredRows() }; }
-  // Verrou de défilement de la PAGE pendant que la modale est ouverte (sinon, arrivé en bas du
-  // pop-up, le geste de scroll « passe » à la page derrière et le bouton Exporter devient
-  // inatteignable). position:fixed = fiable sur iOS (overflow:hidden seul ne suffit pas).
-  let _xcScrollY = 0;
-  function lockBg() {
-    try {
-      _xcScrollY = window.scrollY || window.pageYOffset || 0;
-      const b = document.body;
-      b.style.position = 'fixed'; b.style.top = (-_xcScrollY) + 'px';
-      b.style.left = '0'; b.style.right = '0'; b.style.width = '100%';
-      b.classList.add('fp-xc-locked');
-    } catch (e) {}
-  }
-  function unlockBg() {
-    try {
-      const b = document.body;
-      b.classList.remove('fp-xc-locked');
-      b.style.position = ''; b.style.top = ''; b.style.left = ''; b.style.right = ''; b.style.width = '';
-      window.scrollTo(0, _xcScrollY);
-    } catch (e) {}
-  }
+  // Verrou de défilement de la PAGE pendant que la modale est ouverte → helper commun FP.scrollLock
+  // (source unique, partagé par toutes les modales de la plateforme).
+  function lockBg() { try { FP.scrollLock.on(); } catch (e) {} }
+  function unlockBg() { try { FP.scrollLock.off(); } catch (e) {} }
   function doExport() {
     const rows = filteredRows(), cols = chosenCols();
     if (!rows.length || !cols.length) return;
