@@ -504,9 +504,18 @@
       // Regroupement par PERSONNE via la SOURCE UNIQUE ulsGroup (même dédoublonnage que les exports).
       const rows = ulsGroup(src, false).sort((a, b) => b.total_ttc - a.total_ttc);
       empty.classList.toggle('hidden', rows.length > 0);
-      if (!rows.length) emptyMsg.textContent = per.noDetail
-        ? "Filtre par dates : le détail des passages au jour n'est pas encore disponible (il se reconstruit à l'ouverture de l'onglet Contrôle). Choisis un mois en attendant."
-        : 'Aucun détail de consommation sur cette période (importe la facture Ulys correspondante).';
+      if (!rows.length) {
+        if (per.noDetail) {
+          emptyMsg.textContent = "Filtre par dates : le détail des passages au jour n'est pas encore disponible (il se reconstruit à l'ouverture de l'onglet Contrôle). Choisis un mois en attendant.";
+        } else {
+          // Message clair et VÉRIFIÉ : on nomme la dernière période réellement synchronisée (moisList = mois
+          // des conso adossées à une facture présente) plutôt qu'un tableau vide ambigu.
+          const last = moisList[0];
+          emptyMsg.textContent = 'Aucun trajet enregistré pour ' + (per.label || 'cette période') + '.'
+            + (last ? ' Dernière période synchronisée : ' + moisLabel(last) + '. Importe la facture Ulys du mois manquant pour l\'ajouter.'
+                    : ' Importe la facture Ulys correspondante pour reconstituer les trajets.');
+        }
+      }
       tbody.innerHTML = rows.map(c => `<tr><td>${esc(c.conducteur || '—')}</td><td style="text-align:right">${c.nb_trajets ? c.nb_trajets : '—'}</td><td style="text-align:right">${c.km ? FP.num(c.km) + ' km' : '—'}</td><td style="text-align:right;font-weight:700">${FP.euro(c.total_ttc || 0)}</td></tr>`).join('');
       const tot = rows.reduce((s,c) => s + (Number(c.total_ttc)||0), 0);
       const totKm = rows.reduce((s,c) => s + (Number(c.km)||0), 0);

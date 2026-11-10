@@ -13739,21 +13739,24 @@ FP.ulysApi = (function () {
     try { done = JSON.parse(localStorage.getItem('fp_ulys_conso_done') || '{}') || {}; } catch (e) {}
     for (const inv of (Array.isArray(invList) ? invList : [])) {
       const id = String(inv.invoiceId || '').trim(); if (!id) continue;
-      if (done[id]) continue; // déjà traité → on ne re-consomme pas le quota
+      // « Traité » = SUCCÈS réel ('ok') OU 3 tentatives infructueuses (on abandonne pour ne pas spammer le
+      // quota). ⚠️ Correctif : avant, on marquait traité dès que l'APPEL réussissait, même si le parse
+      // n'écrivait AUCUN trajet → un mois (ex. octobre) restait vide pour toujours, jamais réessayé.
+      const st = done[id];
+      if (st === 'ok' || (typeof st === 'number' && st >= 3)) continue;
       const d = String(inv.invoiceDate || '').slice(0, 10);
       const t = d ? Date.parse(d) : NaN;
       if (!isNaN(t) && t < CUT) continue; // trop ancien pour l'endpoint transactions
       let csv = null;
       try { csv = await call('transactions', { invoiceId: id }); }
       catch (e) { console.warn('[ulys tx] ' + id + ' : ' + (e && e.message || e)); continue; } // échec réseau/quota → on réessaiera
-      done[id] = 1; // appel API réussi → ne pas le refaire (même si le parse ci-dessous échoue)
       const text = (typeof csv === 'string') ? csv : '';
-      if (!text || text.replace(/\s/g, '').length < 20) continue;
+      if (!text || text.replace(/\s/g, '').length < 20) { done[id] = (typeof st === 'number' ? st : 0) + 1; continue; } // CSV vide → réessayer (max 3)
       try {
         const r = await window.__ulysImportConsoCsv(text);
-        if (r && !r.error) { out.cond += r.conducteurs || 0; out.tx += r.tx || 0; out.fac++; }
-        else if (r && r.error) console.warn('[ulys tx parse] ' + id + ' : ' + r.error);
-      } catch (e) { console.warn('[ulys conso import] ' + id, e); }
+        if (r && !r.error && ((r.tx || 0) > 0 || (r.conducteurs || 0) > 0)) { out.cond += r.conducteurs || 0; out.tx += r.tx || 0; out.fac++; done[id] = 'ok'; } // trajets réellement écrits
+        else { done[id] = (typeof st === 'number' ? st : 0) + 1; if (r && r.error) console.warn('[ulys tx parse] ' + id + ' : ' + r.error); } // rien écrit → on réessaiera (max 3)
+      } catch (e) { done[id] = (typeof st === 'number' ? st : 0) + 1; console.warn('[ulys conso import] ' + id, e); }
     }
     try { localStorage.setItem('fp_ulys_conso_done', JSON.stringify(done)); } catch (e) {}
     return out;
@@ -13784,6 +13787,11 @@ FP.ulysRenderPanel = function (el) {
   function draw() {
     const { badges, at } = FP.ulysApi.cache();
     const when = at ? (() => { try { return FP.date(at.slice(0, 10)); } catch (e) { return at.slice(0, 10); } })() : null;
+    // Récap de la dernière synchro (persisté) + nb de factures Ulys SANS PDF attaché (toujours à jour)
+    // → on sait d'un coup d'œil si tout est bien récupéré (demande client « synchro fiable »).
+    const _soc = (FP.activeSociete && FP.activeSociete()) || 'PXP';
+    let syncSum = null; try { syncSum = JSON.parse(localStorage.getItem('fp_ulys_sync_sum_' + _soc) || 'null'); } catch (e) {}
+    let pdfMiss = 0; try { pdfMiss = (window.FP_DATA && FP_DATA.factures || []).filter(f => { const t = (f.type || '').toLowerCase(); return (t === 'ulys' || /ulys/i.test(f.fournisseur || '')) && !(f.url || f.fileId); }).length; } catch (e) {}
     const anos = FP.ulysApi.anomalies(badges);
     const collapsed = isCollapsed();
     const _estRelie = (b, condKey) => { try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(b.badgeNumber); return !!(c && condKey && c.key === condKey); } catch (e) { return false; } };
@@ -13837,6 +13845,11 @@ FP.ulysRenderPanel = function (el) {
       + '<button type="button" id="uls-api-invoices" class="btn btn-outline" style="padding:5px 10px;font-size:13px" title="Importer les factures Ulys (en-tête HT/TVA/TTC) dans l\'onglet"><i data-lucide="download" class="w-3 h-3"></i> Importer les factures</button>'
       + '<button type="button" id="uls-api-sync" class="btn btn-primary" style="padding:5px 12px;font-size:13px"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Synchroniser</button>'
       + '</div></div>'
+      + (collapsed ? '' : ('<div class="text-xs text-slate-400" style="margin:-.1rem 0 .6rem;white-space:normal">'
+          + (when ? 'Dernière synchro : <b>' + esc(when) + '</b>' : 'Jamais synchronisé')
+          + (syncSum && syncSum.at ? ' · ' + (syncSum.factAdded || 0) + ' facture(s) + ' + (syncSum.txCount || 0) + ' trajet(s) au dernier passage' : '')
+          + (pdfMiss ? ' · <b style="color:var(--fp-accent)">' + pdfMiss + ' facture(s) sans PDF</b> (ouvre « Importer un relevé Ulys » pour l\'attacher)' : '')
+          + '</div>'))
       + (collapsed ? '' : (
           (anos.length ? '<div class="fp-ech warn" style="display:block;padding:.5rem .7rem;border-radius:.5rem;margin-bottom:.6rem;white-space:normal;font-size:.8rem">⚠️ ' + anos.length + ' point(s) à vérifier : ' + esc(anos.slice(0, 3).map(a => a.txt).join(' · ')) + (anos.length > 3 ? ' …' : '') + '</div>' : '')
           + (badges && badges.length
@@ -13857,7 +13870,10 @@ FP.ulysRenderPanel = function (el) {
         await FP.ulysApi.sync();
         let msg = 'Badges Ulys synchronisés ✓';
         // Synchroniser importe AUSSI les factures (un seul geste, plus besoin du bouton dédié).
-        try { const r = await FP.ulysApi.importInvoices(); const _c = r && r.conso; if (r && (r.added || (_c && (_c.cond || _c.tx)))) { if (r.added) msg += ' · ' + r.added + ' facture(s) importée(s)'; if (_c && (_c.cond || _c.tx)) msg += ' · détail conso (' + _c.cond + ' conducteur' + (_c.cond > 1 ? 's' : '') + ')'; try { if (window.renderUlys) window.renderUlys(); } catch (e) {} } } catch (e) {}
+        try { const r = await FP.ulysApi.importInvoices(); const _c = r && r.conso; if (r && (r.added || (_c && (_c.cond || _c.tx)))) { if (r.added) msg += ' · ' + r.added + ' facture(s) importée(s)'; if (_c && (_c.cond || _c.tx)) msg += ' · détail conso (' + _c.cond + ' conducteur' + (_c.cond > 1 ? 's' : '') + ')'; try { if (window.renderUlys) window.renderUlys(); } catch (e) {} }
+          // Récap persisté de la dernière synchro (affiché sous l'entête ; demande « synchro fiable »).
+          try { const soc = (FP.activeSociete && FP.activeSociete()) || 'PXP'; localStorage.setItem('fp_ulys_sync_sum_' + soc, JSON.stringify({ at: new Date().toISOString(), factAdded: (r && r.added) || 0, factSkipped: (r && r.skipped) || 0, condCount: (_c && _c.cond) || 0, txCount: (_c && _c.tx) || 0 })); } catch (e) {}
+        } catch (e) {}
         FP.toast && FP.toast(msg); draw();
       } catch (e) { (FP.alert || alert)('Ulys : ' + (e && e.message || e)); btn.disabled = false; btn.innerHTML = old; }
     });
