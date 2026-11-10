@@ -70,6 +70,11 @@ document.addEventListener('click', (e) => {
 // aperçus, pickers). Sert aux gardes globaux pour que FERMER cette couche (clic dehors, ×, Échap) ne
 // ferme JAMAIS la fiche/tiroir en dessous → fermeture « une étape en arrière » (règle utilisateur).
 // ⚠️ Retourne les overlays du plus BAS au plus HAUT (ordre DOM = ordre d'empilement pour même z-index).
+// Sélecteur COMMUN des affordances de fermeture d'une fenêtre (× / Fermer / Annuler). Il sert à DEUX
+// choses : (1) reconnaître une VRAIE fenêtre modale — une surcouche de CHARGEMENT (« Enregistrement en
+// cours… ») n'a pas de bouton fermer → elle est exclue, donc Échap ne l'interrompt jamais ; (2) fermer la
+// fenêtre via SON PROPRE bouton (respecte la logique de remise à zéro de la page). Source unique.
+const FP_MODAL_CLOSE_SEL = '[data-edl-x],[data-close],[data-modal-close],#fp-lb-x,[aria-label="Fermer"],[aria-label="Close"],[aria-label="Annuler"],[id$="-close"],[id$="-cancel"],[id$="-x"]';
 function _fpAdHocOverlays() {
   try {
     const vis = (el) => el && !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
@@ -81,11 +86,38 @@ function _fpAdHocOverlays() {
       if (!vis(el)) return false;
       const cs = getComputedStyle(el);
       if (cs.position !== 'fixed') return false;
-      const z = parseInt(cs.zIndex, 10) || 0;
+      if (parseFloat(cs.opacity || '1') < 0.05 || cs.pointerEvents === 'none') return false;
       const big = el.offsetWidth >= window.innerWidth * 0.5 && el.offsetHeight >= window.innerHeight * 0.5;
-      return z >= 1000 && big;   // couvre l'écran + au-dessus du contenu = c'est une modale
+      if (!big) return false;                       // doit COUVRIR l'écran (≥ 50 % en largeur ET hauteur)
+      // Vraie fenêtre modale = rôle de dialogue OU (au-dessus du contenu + possède un bouton de fermeture).
+      // ⚠️ Correctif structurel : avant, on exigeait z-index ≥ 1000 → le centre d'export (z=82), la fiche
+      // d'impression (z=80) et d'autres passaient entre les mailles → Échap ne les fermait pas. On accepte
+      // désormais un z-index ≥ 20 À CONDITION d'une affordance de fermeture (ce qui EXCLUT le spinner de
+      // chargement #fp-busy, qui n'a pas de bouton fermer → une opération en cours n'est jamais interrompue).
+      const z = parseInt(cs.zIndex, 10) || 0;
+      const isDialog = el.matches('[role="dialog"],[aria-modal="true"]') || !!el.querySelector('[role="dialog"],[aria-modal="true"]');
+      const hasClose = !!el.querySelector(FP_MODAL_CLOSE_SEL);
+      return isDialog || (z >= 20 && hasClose);
     });
   } catch (e) { return []; }
+}
+// Focus : on mémorise le bouton/lien qui a OUVERT une fenêtre (dernier déclencheur cliqué alors
+// qu'aucune fenêtre n'était ouverte) pour y revenir après fermeture par Échap (accessibilité clavier).
+let _fpLastTrigger = null;
+function _fpAnyLayerOpen() {
+  try {
+    if (document.querySelector('.modal-backdrop, .drawer.open, .drawer-backdrop.open, .fiche-ov.open, .sc-ov, .fp-dlg-backdrop, [id$="-modal"]')) return true;
+    return _fpAdHocOverlays().length > 0;
+  } catch (_) { return false; }
+}
+try {
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target && e.target.closest && e.target.closest('button, a[href], [role="button"], .btn');
+    if (t && !_fpAnyLayerOpen()) _fpLastTrigger = t;   // ce clic va ouvrir une fenêtre → c'est le déclencheur
+  }, true);
+} catch (_) {}
+function _fpRestoreFocus() {
+  try { const t = _fpLastTrigger; if (t && document.body.contains(t) && getComputedStyle(t).display !== 'none') t.focus({ preventScroll: true }); } catch (_) {}
 }
 
 // Garde GLOBAL (toutes les pages + futures) : ÉCHAP ferme TOUTE zone ouverte
@@ -100,9 +132,13 @@ document.addEventListener('keydown', (e) => {
     const res = document.querySelector('.fp-search-results'); if (res) { res.innerHTML = ''; res.style.display = 'none'; }
     ae.blur(); e.stopPropagation(); return;
   }
-  // Si on saisit dans un autre champ (édition inline…), ÉCHAP est géré par le champ lui-même
-  // (annule la saisie) et NE ferme PAS la zone parente.
-  if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
+  // Si on saisit dans un champ d'ÉDITION INLINE (hors fenêtre), ÉCHAP est géré par le champ lui-même
+  // (annule la saisie) et NE ferme PAS la zone parente. MAIS si le champ est DANS une fenêtre modale,
+  // ÉCHAP doit fermer la fenêtre (comportement standard d'un dialogue) → sinon le centre d'export ou une
+  // fiche ne se fermait pas quand un champ à l'intérieur avait le focus (bug réel). Les menus/calendriers
+  // déroulants gardent leur propre ÉCHAP (ils se ferment en premier via leurs écouteurs).
+  if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)
+      && !(ae.closest && ae.closest('#fp-xc-ov, #fp-fiche-ov, .modal-backdrop, .fiche-ov, .sc-ov, .fp-dlg-backdrop, [role="dialog"], [aria-modal="true"]'))) return;
   // ⚠️ ÉCHAP ferme UNE SEULE couche à la fois — la PLUS HAUTE — « une étape en arrière ».
   // Avant, ÉCHAP fermait TOUT d'un coup (ex. le QR par-dessus une fiche fermait aussi la fiche).
   // Ordre du plus haut au plus bas : menus/popovers → fenêtres modales (QR, etc.) → tiroir (fiche).
@@ -125,17 +161,22 @@ document.addEventListener('keydown', (e) => {
     if (!_vis(el)) return;
     el.classList.add('hidden'); if (el.style && el.style.display && el.style.display !== 'none') el.style.display = 'none'; el.classList.remove('open'); closed = true;
   });
-  if (closed) { try { window.__fpEscLayerClosedAt = Date.now(); } catch (_) {} e.stopPropagation(); return; }
-  // 2bis) Modales ad-hoc plein écran (créées à la volée sans classe .modal-backdrop : état des lieux,
-  // visionneuse photo, aperçus…). On ferme la PLUS HAUTE via son affordance (× / clic sur le fond),
-  // et surtout on NE laisse PAS Échap tomber sur la fiche derrière → « une étape en arrière ».
+  if (closed) { try { window.__fpEscLayerClosedAt = Date.now(); } catch (_) {} _fpRestoreFocus(); e.stopPropagation(); return; }
+  // 2bis) Modales ad-hoc plein écran (centre d'export #fp-xc-ov, fiche d'impression #fp-fiche-ov, état des
+  // lieux, visionneuse photo, aperçus…). On ferme la PLUS HAUTE via SON PROPRE bouton de fermeture (respecte
+  // la logique de la page), et on NE laisse PAS Échap tomber sur la fiche derrière → « une étape en arrière ».
   const _adhoc = _fpAdHocOverlays();
   if (_adhoc.length) {
     const ov = _adhoc[_adhoc.length - 1];   // la plus haute
-    const x = ov.querySelector('[data-edl-x],[data-close],#fp-lb-x,[aria-label="Fermer"],[aria-label="Close"]');
-    try { if (x) x.click(); else if (ov.click) ov.click(); } catch (_) {}
-    if (document.body.contains(ov)) { try { ov.remove(); } catch (_) {} }   // repli : jamais laisser la fiche se fermer
+    const x = ov.querySelector(FP_MODAL_CLOSE_SEL);
+    if (x) { try { x.click(); } catch (_) {} }   // bouton de fermeture propre (gère display:none, remove, etc.)
+    else {
+      // Aucun bouton trouvé (rare) : repli minimal — on masque/retire SANS jamais toucher la fiche derrière.
+      try { if (ov.classList.contains('open')) ov.classList.remove('open'); else ov.style.display = 'none'; } catch (_) {}
+      if (document.body.contains(ov) && getComputedStyle(ov).display !== 'none') { try { ov.remove(); } catch (_) {} }
+    }
     try { window.__fpEscLayerClosedAt = Date.now(); } catch (_) {}
+    _fpRestoreFocus();
     e.stopPropagation(); return;
   }
   // 3) Tiroir / fiche (couche la plus basse) — seulement si RIEN n'était ouvert au-dessus
@@ -20228,8 +20269,8 @@ FP.ficheColsFromExport = function (cols) {
     document.body.appendChild(ov); modal = ov;
     const close = () => { ov.style.display = 'none'; unlockBg(); };
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
-    // Échap ferme le pop-up (seulement quand il est visible) → raccourci clavier attendu.
-    document.addEventListener('keydown', e => { if ((e.key === 'Escape' || e.key === 'Esc') && ov.style.display !== 'none') { e.stopPropagation(); e.preventDefault(); close(); } }, true);
+    // Échap : géré par le garde GLOBAL unique (app.js, _fpAdHocOverlays détecte #fp-xc-ov via son
+    // rôle de dialogue + bouton de fermeture) → PAS de handler dédié ici (plus de doublon).
     ov.querySelector('#fp-xc-close').onclick = close;
     ov.querySelector('#fp-xc-cancel').onclick = close;
     ov.querySelector('#fp-xc-cancel2').onclick = close;
