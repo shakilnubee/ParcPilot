@@ -9421,10 +9421,10 @@ FP.buildJisMenu = () => {
     if (FP.JIS_PAGES.some(p => p.file === cur)) open = true; // on est sur une page JIS → ouvert
     const grp = document.createElement('div');
     grp.className = 'fp-jis-group';
-    // Rangé dans la section « Compte » (bas de la sidebar) : même ordre CSS que les liens Compte
-    // (familles de travail = ordres 0..7, en-tête Compte = 8, liens Compte + JIS = 9). Appended en
-    // dernier → JIS apparaît tout en bas, sous les entrées Compte.
-    grp.style.order = String((FP.NAV_FAMILIES ? FP.NAV_FAMILIES.length * 2 + 1 : 9));
+    // Rangé dans la section « Compte » (bas de la sidebar), JUSTE SOUS les liens Compte. Barème d'ordre
+    // CSS (cf. applyNavGroups) : famille i → en-tête i*10, liens i*10+1… ; en-tête Compte = N*10, liens
+    // Compte = N*10+1… JIS doit passer APRÈS tous les liens Compte → on prend N*10 + 99 (tout en bas).
+    grp.style.order = String((FP.NAV_FAMILIES ? FP.NAV_FAMILIES.length * 10 : 40) + 99);
     // ⚠️ PAS de target="_blank" : en PWA (iPhone « ajouté à l'accueil »), un lien _blank s'ouvre
     // DANS UNE VUE SAFARI par-dessus l'appli → le geste « glisser pour revenir » ferme cette vue
     // et ramène au tableau de bord au lieu de faire un vrai retour. On ouvre donc les pages JIS
