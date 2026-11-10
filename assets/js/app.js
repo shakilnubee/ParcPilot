@@ -20093,7 +20093,7 @@ FP.ficheColsFromExport = function (cols) {
     const st = document.createElement('style'); st.id = 'fp-xc-style';
     st.textContent = `
     #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;overscroll-behavior:contain}
-    .fp-xc-modal{background:#fff;border-radius:16px;width:100%;max-width:1240px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+    .fp-xc-modal{background:#fff;border-radius:16px;width:92vw;max-width:1600px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:92vh;overflow:hidden}
     .fp-xc-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid #eef2f7}
     .fp-xc-head h3{font-size:16px;font-weight:800;margin:0;color:#0f172a}
     .fp-xc-tabs{display:inline-flex;background:#f1f5f9;border-radius:9px;padding:3px}
@@ -20114,7 +20114,7 @@ FP.ficheColsFromExport = function (cols) {
        bloqué, on atteint toujours le bas (bouton Exporter). Le fond reste gelé par FP.scrollLock. */
     @media(max-width:760px),(max-height:600px){
       #fp-xc-ov{padding:8px 8px;-webkit-overflow-scrolling:touch}
-      .fp-xc-modal{max-height:none;overflow:visible}
+      .fp-xc-modal{width:100%;max-width:none;max-height:none;overflow:visible}
       .fp-xc-body{display:block;overflow:visible;overflow-x:hidden;min-width:0}
       .fp-xc-pane{overflow:visible}
       .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
@@ -20148,7 +20148,7 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-fav{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:4px 6px 4px 11px;cursor:pointer}
     .fp-xc-fav:hover{border-color:#f97316}.fp-xc-fav .del{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1}.fp-xc-fav .del:hover{color:#ef4444}
     .fp-xc-pvhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.fp-xc-pvhead .cnt{font-size:11.5px;color:#64748b}
-    .fp-xc-pv{border:1px solid #eef2f7;border-radius:10px;background:#f8fafc;overflow:auto;max-height:min(560px,calc(100vh - 230px))}
+    .fp-xc-pv{border:1px solid #eef2f7;border-radius:10px;background:#f8fafc;overflow:auto;max-height:min(72vh,calc(100vh - 210px))}
     .fp-xc-doc{background:#fff;margin:10px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:14px;font-size:10px;min-width:380px}
     .fp-xc-doc .dh{display:flex;justify-content:space-between;border-bottom:2px solid #f97316;padding-bottom:7px;margin-bottom:8px}
     .fp-xc-doc .br{font-weight:900;font-size:12px;color:#0f1e3d}.fp-xc-doc .br .o{color:#f97316}
