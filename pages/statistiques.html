@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261110b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261110c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261110b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261110c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261110b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261110c">
 <style>
   .chart-wrap { position: relative; height: 280px; }
   .chart-wrap-sm { position: relative; height: 220px; }
@@ -321,8 +321,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261110b"></script>
-<script src="../assets/js/supabase-client.js?v=20261110b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261110c"></script>
+<script src="../assets/js/supabase-client.js?v=20261110c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -338,11 +338,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261110b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261110c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261110b"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261110b" defer></script>
+<script src="../assets/js/app.min.js?v=20261110c"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261110c" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -984,10 +984,8 @@
     [m1, m2].forEach(el => { if (el) el.addEventListener('change', renderComparaison); });
     const rb = $('cmp-reset'); if (rb) rb.addEventListener('click', () => { if (m1) m1.value = k(now.getFullYear(), now.getMonth()); if (m2) m2.value = k(prev.getFullYear(), prev.getMonth()); renderComparaison(); });
   })();
-  renderComparaison();
   document.addEventListener('fp:data-ready', renderComparaison);
 
-  render('all');
   // Coût de la flotte par période (année + période personnalisée)
   const coutPeriode = FP.coutParPeriode({
     // Même périmètre que « Coût du mois » du dashboard : dédoublonné par n° + coût d'EXPLOITATION
@@ -995,7 +993,11 @@
     items: () => (FP.dedupeFactures ? FP.dedupeFactures(data.factures || []) : (data.factures || [])).filter(f => FP.coutFactureExploit ? FP.coutFactureExploit(f) : (f.type !== 'leasing' && f.type !== 'sinistre')),
     yearsEl: 'cp-years', fromEl: 'cp-from', toEl: 'cp-to', totalEl: 'cp-range-total', clearEl: 'cp-clear', exportEl: 'cp-export', fileLabel: 'cout-factures-par-annee',
   });
-  coutPeriode.render();
+  // ⚡ PERF « coquille d'abord » : la page s'affiche TOUT DE SUITE, puis on lance les rendus lourds
+  // (comparaison, TCO/podiums/graphiques, coût par période) juste APRÈS le 1er rendu → plus de gel à
+  // l'ouverture. Les écouteurs fp:data-ready re-rendront ensuite avec les données Supabase.
+  (function(){ var go=function(){ try{renderComparaison();}catch(e){} try{render('all');}catch(e){} try{coutPeriode.render();}catch(e){} };
+    if(window.requestAnimationFrame){ requestAnimationFrame(function(){ requestAnimationFrame(go); }); } else { setTimeout(go,30); } })();
   document.addEventListener('fp:data-ready', () => coutPeriode.render());
   // Graphiques (Chart.js en différé) dessinés dès qu'il est prêt, sans bloquer l'affichage
   if (typeof Chart === 'undefined') window.addEventListener('DOMContentLoaded', () => { try { const a = $('filter-annee'); render(a ? (a.value || 'all') : 'all'); } catch (e) {} });
