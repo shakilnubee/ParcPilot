@@ -20133,7 +20133,7 @@ FP.ficheColsFromExport = function (cols) {
     if (document.getElementById('fp-xc-style')) return;
     const st = document.createElement('style'); st.id = 'fp-xc-style';
     st.textContent = `
-    #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;overscroll-behavior:contain}
+    #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:center;justify-content:center;padding:20px 12px;overflow:auto;overscroll-behavior:contain}
     .fp-xc-modal{background:#fff;border-radius:16px;width:94vw;max-width:2200px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:94vh;overflow:hidden}
     .fp-xc-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid #eef2f7}
     .fp-xc-head h3{font-size:16px;font-weight:800;margin:0;color:#0f172a}
@@ -20154,7 +20154,7 @@ FP.ficheColsFromExport = function (cols) {
        le pop-up. Le pop-up GRANDIT (pas de hauteur max, pas de scroll interne) → plus de « sous-bloc »
        bloqué, on atteint toujours le bas (bouton Exporter). Le fond reste gelé par FP.scrollLock. */
     @media(max-width:760px),(max-height:600px){
-      #fp-xc-ov{padding:8px 8px;-webkit-overflow-scrolling:touch}
+      #fp-xc-ov{padding:8px 8px;-webkit-overflow-scrolling:touch;align-items:flex-start}
       .fp-xc-modal{width:100%;max-width:none;max-height:none;overflow:visible}
       .fp-xc-body{display:block;overflow:visible;overflow-x:hidden;min-width:0}
       .fp-xc-pane{overflow:visible}
