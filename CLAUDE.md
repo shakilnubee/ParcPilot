@@ -93,6 +93,35 @@ interdit (identité = 2 champs)**, **`<details>` « Voir tout » interdit**. **E
 **Terminer** : `check-bugs` vert · `.min.js` régénéré + `?v=` bumpé si `app.js`/`fleet-views.js`/`css`/`data.js` ont
 changé · **manuel à jour** · branche + **pull request** (jamais de push direct sur `main`).
 
+## 🔁 STANDARDS TRANSVERSAUX OBLIGATOIRES — PARC PILOT (hérités AUTOMATIQUEMENT par toute nouvelle fonctionnalité)
+
+> ⚠️ **Consigne explicite et permanente de l'utilisateur (10/11/2026)** : il ne doit **plus jamais** avoir à
+> redemander ces fonctionnalités à chaque nouvelle page/module. **Toute** nouvelle page, fenêtre, tableau,
+> module ou fonctionnalité **hérite d'office** des standards ci-dessous. Une page/fonctionnalité n'est
+> **JAMAIS « terminée »** tant qu'elle ne les respecte pas. En cas de conflit avec une demande : **le signaler
+> et demander**, ne pas contourner. Quand une de ces règles est corrigée, elle l'est **à la source** (helper/
+> composant commun) pour profiter à **tous** les modules, pas seulement à l'écran signalé.
+
+**Les 16 standards (à vérifier AVANT de livrer) :**
+1. **Réutiliser les composants partagés** (ne jamais recréer une variante) — voir le tableau « UN BESOIN → UN COMPOSANT » de la checklist ci-dessus.
+2. **Export = le CENTRE d'export standard** dès qu'un export a du sens : brancher via **`FP.makeExportMenu`** (qui ouvre **`FP.exportCenter`** : PDF/Excel/CSV + **aperçu** + choix/ordre des colonnes + favoris + filtres période). **Ne JAMAIS** recoder un export maison ni appeler `FP.fiche.open` en direct pour un nouveau module. Les 3 formats doivent **réellement** sortir les données du module ; l'**aperçu = exactement** le fichier téléchargé.
+3. **Relevé PDF professionnel** quand le contenu s'y prête (logo + société + titre + période + totaux + pagination + mention « estimations » si calculs fiscaux).
+4. **Aperçu OBLIGATOIRE avant tout export/téléchargement.**
+5. **Fermeture des fenêtres par Échap** via le **garde GLOBAL unique** (`app.js`, `_fpAdHocOverlays` + handler keydown) — **jamais** un handler Échap par page. Une fenêtre est détectée si elle couvre l'écran + (rôle `dialog` **ou** z-index ≥ 20 + bouton de fermeture). Exceptions de sécurité : ne pas fermer une **opération en cours** (surcouche sans bouton fermer, ex. `#fp-busy`). Clic sur le fond = ferme aussi ; focus rendu au déclencheur.
+6. **Navigation clavier cohérente** : Entrée = valider (`FP.enterValide`), Tab piégé dans la fenêtre, Échap ferme, focus visible.
+7. **Mode clair ET sombre** supportés.
+8. **Responsive** desktop / tablette / mobile (zéro overflow, safe-areas) — cf. section mobile de la checklist.
+9. **Recherche insensible aux accents** + tout sélecteur véhicule/conducteur via **`FP.searchSelect`** / **`FP.conducteurPicker`** ; toute barre de filtres a son **bouton « ↺ Réinitialiser »** (`FP.filterResetButton`).
+10. **Notifications homogènes** : feedback visible (`FP.busy`/`FP.toast`/`FP.notifyError`), jamais d'échec silencieux ; alerte multi-éléments = **une** alerte dépliable.
+11. **Droits & isolation multi-sociétés** : code commun à toutes les sociétés ; gardes `FP.canManageSociete`/`canManageUsers` ; rôles via `profiles` (jamais `user_metadata`).
+12. **Conservation des historiques** (affectations, km, docs…) — archiver plutôt que supprimer.
+13. **Lecture de documents via `FP.scanIA`** (moteur unique) — jamais un 2ᵉ moteur ; lire le libellé, jamais deviner, contrôler HT+TVA=TTC, anti-doublons `FP.dupe`.
+14. **Zéro doublon / zéro double comptabilisation** (une règle métier = un seul helper `FP.*`).
+15. **Préserver les automatisations existantes** (tâches auto, rappels, synchros API).
+16. **Tester les fonctionnalités communes avant livraison** (`check-bugs`, tests `tests/*.mjs` + e2e `tests/*.spec.js` — ex. `tests/esc.spec.js` pour Échap ; ajouter un test quand on touche un composant transverse).
+
+**Composants transverses de référence (source unique)** : export = `FP.makeExportMenu`/`FP.exportCenter` · fenêtres/Échap = garde global `app.js` · PDF = `FP.fiche.pdfPreview` · Excel/CSV = `FP.xlsx`/`FP.csv` · sélecteurs = `FP.searchSelect`/`FP.conducteurPicker` · filtres = `FP.filterResetButton` · messages conducteur (SMS+WhatsApp+e-mail) = `FP.msg.open` · e-mail = `FP.buildMail`/`FP.sendEmail` · échappement = `FP.esc`.
+
 ## 🏛️ CONTRAT DE DÉVELOPPEMENT — PROMPT MAÎTRE (gravé en dur, s'applique à CHAQUE demande)
 
 > ⚠️ **Consigne explicite et permanente de l'utilisateur** : ce contrat vaut pour **toute** demande sur
