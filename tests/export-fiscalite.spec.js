@@ -24,19 +24,21 @@ test('Fiscalité : « Exporter » ouvre le centre d\'export (PDF/Excel/CSV + ape
 
   const r = await page.evaluate(async () => {
     const out = {}; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const until = async (fn) => { for (let i = 0; i < 40; i++) { try { if (fn()) return true; } catch (e) {} await wait(50); } return false; };
     out.hasCenter = !!(window.FP && window.FP.exportCenter);
     out.fullBtn = !!document.getElementById('fx-dash-full');       // « Rapport complet » conservé
     const btn = document.getElementById('fx-dash-export'); out.exportBtn = !!btn;
-    if (btn) btn.click(); await wait(450);
-    const ov = document.getElementById('fp-xc-ov');
-    out.centerOpen = ov ? getComputedStyle(ov).display !== 'none' : false;
+    if (btn) btn.click();
+    // Attente ROBUSTE (anti-flaky CI) : le centre s'ouvre (display:flex) puis l'aperçu se remplit.
+    out.centerOpen = await until(() => { const ov = document.getElementById('fp-xc-ov'); return ov && getComputedStyle(ov).display !== 'none'; });
+    await until(() => document.querySelectorAll('#fp-xc-preview tr').length > 0);
     out.previewRowsPDF = document.querySelectorAll('#fp-xc-preview tr').length;
     // Excel
-    const xls = document.querySelector('.fp-xc-card[data-fmt="xlsx"]'); if (xls) xls.click(); await wait(300);
-    out.previewXls = !!document.querySelector('#fp-xc-preview .fp-xc-xls, #fp-xc-preview table');
+    const xls = document.querySelector('.fp-xc-card[data-fmt="xlsx"]'); if (xls) xls.click();
+    out.previewXls = await until(() => !!document.querySelector('#fp-xc-preview .fp-xc-xls, #fp-xc-preview table'));
     // CSV
-    const csv = document.querySelector('.fp-xc-card[data-fmt="csv"]'); if (csv) csv.click(); await wait(300);
-    out.previewCsv = !!document.querySelector('#fp-xc-preview .fp-xc-csv');
+    const csv = document.querySelector('.fp-xc-card[data-fmt="csv"]'); if (csv) csv.click();
+    out.previewCsv = await until(() => !!document.querySelector('#fp-xc-preview .fp-xc-csv'));
     return out;
   });
 
