@@ -20228,6 +20228,8 @@ FP.ficheColsFromExport = function (cols) {
     document.body.appendChild(ov); modal = ov;
     const close = () => { ov.style.display = 'none'; unlockBg(); };
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    // Échap ferme le pop-up (seulement quand il est visible) → raccourci clavier attendu.
+    document.addEventListener('keydown', e => { if ((e.key === 'Escape' || e.key === 'Esc') && ov.style.display !== 'none') { e.stopPropagation(); e.preventDefault(); close(); } }, true);
     ov.querySelector('#fp-xc-close').onclick = close;
     ov.querySelector('#fp-xc-cancel').onclick = close;
     ov.querySelector('#fp-xc-cancel2').onclick = close;
