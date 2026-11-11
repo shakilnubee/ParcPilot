@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111i">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -582,8 +582,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111h"></script>
-<script src="../assets/js/supabase-client.js?v=20261111h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111i"></script>
+<script src="../assets/js/supabase-client.js?v=20261111i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +599,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111h"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111h" defer></script>
+<script src="../assets/js/app.min.js?v=20261111i"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111i" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -887,12 +887,25 @@
     let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
     let logo = ''; try { const p = FP.societeProfil ? FP.societeProfil() : {}; logo = p.logoUrl || p.logoDataUrl || ''; } catch (e) {}
     const gAtt = (FP.garages && FP.garages.pdfAttachmentDe) ? FP.garages.pdfAttachmentDe(v) : null;
-    const text = built ? built.text : `Bonjour ${prenom},\nLe véhicule ${plaque} a un entretien à prévoir — pense à caler un passage au garage.`;
+    // RELANCE (J+5) : modèle DÉDIÉ « relanceRdv » (demande de confirmer la date) — distinct de la 1ʳᵉ demande.
+    // L'e-mail est alors brandé par FP.msg.open à partir du texte (pas de emailHtml imposé).
+    let text, subj, html;
+    if (relance) {
+      const motif = (lang === 'en') ? 'the service' : 'la révision';
+      const tpl = FP.mailModeleProfilL ? FP.mailModeleProfilL('mailModeleRelanceRdv', 'relanceRdv', lang) : (FP.MAIL_DEFAUT[lang === 'en' ? 'relanceRdv_en' : 'relanceRdv']);
+      text = FP.fillTags ? FP.fillTags(tpl, { prenom, immat: plaque, motif }) : (built ? built.text : '');
+      subj = (lang === 'en') ? ('Service reminder — ' + plaque) : ('Relance révision — ' + plaque);
+      html = undefined;
+    } else {
+      text = built ? built.text : `Bonjour ${prenom},\nLe véhicule ${plaque} a un entretien à prévoir — pense à caler un passage au garage.`;
+      subj = built ? built.subject : ('Entretien à prévoir — ' + plaque);
+      html = built ? built.emailHtml : undefined;
+    }
     FP.msg.open({
       phone: c.tel || '', email: c.email || '', nom: prenom || plaque, title: (relance ? 'Relancer — Révision ' : 'Demander un RDV — Révision ') + plaque,
       text: text, lang: lang,
-      emailSubject: built ? built.subject : ('Entretien à prévoir — ' + plaque),
-      emailHtml: built ? built.emailHtml : undefined,
+      emailSubject: subj,
+      emailHtml: html,
       emailNomSoc: soc, emailLogo: logo,
       attachments: gAtt ? [Object.assign({ _auto: true }, gAtt)] : []
     });

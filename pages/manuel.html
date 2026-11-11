@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111i">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -737,7 +737,7 @@
 
         <div class="man-zone">Sous-onglets « Fournisseurs » &amp; « Entretiens »</div>
         <div class="man-item"><b>Fournisseurs</b> = nettoyer les doublons de noms (Renommer/fusionner, ou Supprimer le nom). <b>Entretiens</b> = la page dédiée aux <b>révisions &amp; à la maintenance</b>.</div>
-        <div class="man-item"><b>🛠️ Révisions à venir</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en haut, un tableau liste les véhicules dont la <b>révision est due</b> (au <b>km</b> ou à la <b>date</b>, selon la dernière révision et l'intervalle préconisé), du plus urgent au plus lointain. <b>🔄 Suivi par statut</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque carte affiche maintenant <b>où en est la révision</b> et propose <b>la bonne action</b> : <b>À prévenir</b> → « 📣 Demander un RDV » (SMS / WhatsApp / e-mail au conducteur, avec le PDF du garage joint) → le statut passe à <b>Conducteur prévenu — RDV à confirmer</b> ; <b>Prévenu</b> → « 🗓️ Enregistrer le RDV » (une petite fenêtre : <b>date</b> du rendez-vous + <b>heure</b>, <b>garage</b> et <b>commentaire</b> optionnels ; bouton <b>« Annuler le RDV »</b>) ou « 🔁 Relancer » ; au bout de <b>5 jours sans réponse</b>, la carte passe <b>« À relancer »</b> ; une fois le RDV saisi → <b>RDV confirmé</b> (avec <b>rappel automatique la veille</b>) → « ✓ Enregistrer la révision » (fenêtre : <b>date RÉELLE modifiable</b> — tu peux mettre une <b>date passée</b> si la révision a déjà été faite — + <b>kilométrage</b> ; le <b>coût</b> s'ajoute via la page <b>Factures</b>, qui reste la source unique des dépenses). Le bouton <b>« ✓ Révision faite »</b> reste accessible à chaque étape : il enregistre la <b>date + le kilométrage</b> → la <b>prochaine révision se recalcule partout</b> et le suivi se <b>clôture tout seul</b> (le statut repart à zéro pour l'échéance suivante). Ce <b>statut est unique</b> : la même information s'affichera dans Tâches, Alertes et la fiche véhicule. Juste en dessous, les <b>échéances de contrôle technique</b> (inchangées). <b>Comment le seuil km est calculé</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> : la prochaine révision est due au <b>km DE la dernière révision + l'intervalle</b> (ex. 28 043 + 15 000 = <b>43 043 km</b>) <b>OU</b> à la <b>date</b> de la dernière révision + l'intervalle en mois (ex. +12 mois) — au <b>premier des deux atteint</b>. Le seuil ne « monte » plus avec le compteur : il reste <b>fixe</b> jusqu'à la prochaine révision. Si le <b>km de la dernière révision est inconnu</b>, le km s'affiche « à compléter » (on ne devine jamais depuis le compteur) et seule l'échéance par date s'applique. L'intervalle est celui réglé dans <b>Paramètres</b> (ou par véhicule). Un <b>pneu / CT / réparation</b> ne compte pas comme une révision.</div>
+        <div class="man-item"><b>🛠️ Révisions à venir</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en haut, un tableau liste les véhicules dont la <b>révision est due</b> (au <b>km</b> ou à la <b>date</b>, selon la dernière révision et l'intervalle préconisé), du plus urgent au plus lointain. <b>🔄 Suivi par statut</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque carte affiche maintenant <b>où en est la révision</b> et propose <b>la bonne action</b> (<b>l'alerte se déclenche à 500 km</b> ou 30 jours avant l'échéance — réglable dans Paramètres → Notifications) : <b>À prévenir</b> → « 📣 Demander un RDV » (SMS / WhatsApp / e-mail au conducteur, avec le PDF du garage joint) → le statut passe à <b>Conducteur prévenu — RDV à confirmer</b> ; <b>Prévenu</b> → « 🗓️ Enregistrer le RDV » (une petite fenêtre : <b>date</b> du rendez-vous + <b>heure</b>, <b>garage</b> et <b>commentaire</b> optionnels ; bouton <b>« Annuler le RDV »</b>) ou « 🔁 Relancer » ; au bout de <b>5 jours sans réponse</b>, la carte passe <b>« À relancer »</b> ; une fois le RDV saisi → <b>RDV confirmé</b> (avec <b>rappel automatique la veille</b>) → « ✓ Enregistrer la révision » (fenêtre : <b>date RÉELLE modifiable</b> — tu peux mettre une <b>date passée</b> si la révision a déjà été faite — + <b>kilométrage</b> ; le <b>coût</b> s'ajoute via la page <b>Factures</b>, qui reste la source unique des dépenses). Le bouton <b>« ✓ Révision faite »</b> reste accessible à chaque étape : il enregistre la <b>date + le kilométrage</b> → la <b>prochaine révision se recalcule partout</b> et le suivi se <b>clôture tout seul</b> (le statut repart à zéro pour l'échéance suivante). Ce <b>statut est unique</b> : la même information s'affichera dans Tâches, Alertes et la fiche véhicule. Juste en dessous, les <b>échéances de contrôle technique</b> (inchangées). <b>Comment le seuil km est calculé</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> : la prochaine révision est due au <b>km DE la dernière révision + l'intervalle</b> (ex. 28 043 + 15 000 = <b>43 043 km</b>) <b>OU</b> à la <b>date</b> de la dernière révision + l'intervalle en mois (ex. +12 mois) — au <b>premier des deux atteint</b>. Le seuil ne « monte » plus avec le compteur : il reste <b>fixe</b> jusqu'à la prochaine révision. Si le <b>km de la dernière révision est inconnu</b>, le km s'affiche « à compléter » (on ne devine jamais depuis le compteur) et seule l'échéance par date s'applique. L'intervalle est celui réglé dans <b>Paramètres</b> (ou par véhicule). Un <b>pneu / CT / réparation</b> ne compte pas comme une révision.</div>
         <div class="man-item"><b>📅 Filtrer par période</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> (page <b>Entretiens</b>) — en plus du filtre par <b>année</b>, la barre de filtres propose un <b>mois</b> (menu rapide) et un <b>intervalle « Du → Au »</b> (dates précises). Le tableau, l'analyse des coûts <b>et l'export</b> suivent la période choisie — comme sur Total Fleet / Ulys. Le bouton <b>« ↺ Réinitialiser »</b> remet tout à zéro.</div>
 
         <div class="man-zone">Le scan &amp; les exports</div>
@@ -1144,8 +1144,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111h"></script>
-<script src="../assets/js/supabase-client.js?v=20261111h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111i"></script>
+<script src="../assets/js/supabase-client.js?v=20261111i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1161,10 +1161,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111h"></script>
+<script src="../assets/js/app.min.js?v=20261111i"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

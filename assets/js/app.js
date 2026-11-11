@@ -5985,6 +5985,8 @@ FP.MAIL_DEFAUT = {
   // DEMANDE de rendez-vous (révision / CT « à organiser ») — PAS un RDV confirmé : on demande de PRENDRE
   // le rendez-vous et de COMMUNIQUER la date (jamais « rendez-vous est prévu le … » ni de date théorique).
   demandeRdv: `Bonjour {prenom},\n\n{motif} à prévoir pour le véhicule {immat}. 🔧\n\nPeux-tu prendre rendez-vous auprès d'un garage puis me communiquer la date prévue ? Je l'enregistrerai ensuite.\n\nMerci à toi !`,
+  // RELANCE (J+5 sans RDV) — ton de rappel courtois, demande la date prévue.
+  relanceRdv: `Bonjour {prenom},\n\nJe reviens vers toi concernant {motif} du véhicule {immat}. 🔧\n\nAs-tu pu prendre rendez-vous auprès d'un garage ? Peux-tu me confirmer la date prévue, s'il te plaît ?\n\nMerci à toi !`,
   // Rappel automatique la VEILLE (reprend les infos du rendez-vous).
   rappelgarage: `Bonjour {prenom},\n\nPetit rappel : un rendez-vous est prévu demain pour le véhicule {immat}. 🗓️\nMotif : {motif}\n\nBelle journée, et à très vite ! 🙂`,
   invitation: `Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗`,
@@ -6006,6 +6008,7 @@ FP.MAIL_DEFAUT = {
   prevCt_en:        `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
   prevRevision_en:  `Hello {prenom},\n🛠️ Vehicle {immat} will soon need a trip to the garage 🚗 (service / maintenance due).`,
   demandeRdv_en:    `Hello {prenom},\n\n{motif} due for vehicle {immat}. 🔧\n\nCould you book an appointment at a garage and let me know the planned date? I'll record it afterwards.\n\nThank you!`,
+  relanceRdv_en:    `Hello {prenom},\n\nFollowing up about {motif} for vehicle {immat}. 🔧\n\nWere you able to book a garage appointment? Could you confirm the planned date, please?\n\nThank you!`,
   prevAnnonce_en:   `Hello,\n🏷️ Good deal ahead! Vehicle {immat} is for sale. Photos and details here 👇\n{lien}`,
   rdvgarage_en: `Hello {prenom},\n\nAn appointment is scheduled for vehicle {immat} on {date}. 🗓️\nReason: {motif}\n\nYou'll get a quick reminder the day before, no worries 🙂\nAnd feel free to ask if you have any question!`,
   rappelgarage_en: `Hello {prenom},\n\nQuick reminder: an appointment is scheduled tomorrow for vehicle {immat}. 🗓️\nReason: {motif}\n\nHave a great day, and see you soon! 🙂`,
@@ -9771,8 +9774,9 @@ FP.notifCfg = () => {
     revKm:   num(n.revKm, 15000),   // intervalle de révision (km)
     revMois: num(n.revMois, 12),    // intervalle de révision (mois)
     ctJours: num(n.ctJours, 90),    // anticipation d'alerte du contrôle technique (jours)
-    revAlerteKm:   num(n.revAlerteKm, 1000),   // alerte révision quand il reste ≤ X km
+    revAlerteKm:   num(n.revAlerteKm, 500),    // alerte révision quand il reste ≤ X km (défaut 500 — consigne)
     revAlerteJours: num(n.revAlerteJours, 30), // alerte révision quand il reste ≤ X jours (avant l'échéance mois)
+    revRelanceJours: num(n.revRelanceJours, 5), // relance du conducteur si pas de RDV après X jours (défaut 5 — consigne)
     releveKmJours: num(n.releveKmJours, 45),   // rappel « relevé km » : tous les X jours (défaut 45 = 1 mois et demi)
     releveKmDebut: (typeof n.releveKmDebut === 'string' && n.releveKmDebut.trim()) ? n.releveKmDebut.trim() : '', // date d'ancrage du cycle (optionnelle)
     releveKmRelanceJours: num(n.releveKmRelanceJours, 7), // demande de km envoyée par mail sans réponse : relancer après X jours (défaut 7)
