@@ -1931,8 +1931,8 @@
     let section = ''; try { section = edlSectionHTML(v); } catch (e) {}
     if (!histo && !section) return '';
     // <details open> : repliable, ouvert par défaut (comme la bulle « affectation »). Le résumé sert de titre.
-    return `<details class="fp-edl-details" open>
-      <summary class="font-semibold text-slate-900 border-b border-slate-200 pb-1 cursor-pointer">États des lieux <span class="text-xs font-normal text-slate-400">· cliquer pour replier</span></summary>
+    return `<details class="fp-edl-details">
+      <summary class="font-semibold text-slate-900 border-b border-slate-200 pb-1 cursor-pointer">Relevés km &amp; inspections <span class="text-xs font-normal text-slate-400">· lire le km, ajouter un relevé — cliquer pour déplier</span></summary>
       ${histo}${section}
     </details>`;
   }
@@ -1986,16 +1986,16 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${signBtn(p)}${impBtn(p, 'remise', 'Importer une remise (PDF)')}${impBtn(p, 'restitution', 'Importer une restitution (PDF)')}</div>
       </div>`;
     };
-    const periodsHtml = h.periodes.map(period).join('');
+    // ⚠️ AFFICHAGE UNIFIÉ : les états des lieux PAR CONDUCTEUR sont désormais repliés DANS la carte de
+    // chaque affectation (« Conducteurs — historique »). Ici on ne garde QUE les EDL « orphelins » (non
+    // rattachés à une période connue) → rien n'est perdu, et on ne duplique plus ce qui est dans les cartes.
+    // (La fonction `period`/`signBtn`/`impBtn` plus haut reste disponible mais n'est plus appelée ici.)
     const orphR = h.orphelins.filter(d => FP.edlHisto.sensDe(d) === 'remise');
     const orphS = h.orphelins.filter(d => FP.edlHisto.sensDe(d) === 'restitution');
-    const orph = h.orphelins.length ? `<div style="border:1px dashed var(--fp-border);border-radius:10px;padding:9px 11px;margin-bottom:8px"><div class="text-xs text-slate-500 mb-1">Non rattaché à une période d'affectation</div>${grp('Remise', '📥', orphR)}${grp('Restitution', '📤', orphS)}</div>` : '';
-    if (!periodsHtml && !orph) return '';
-    // Contenu INTERNE (sans titre de bulle) : la bulle fusionnée « 📋 États des lieux » (edlBubbleHTML)
-    // fournit le titre repliable. On garde juste un sous-titre « Par conducteur ».
+    if (!h.orphelins.length) return '';
     return `<div class="mt-1">
-      <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Par conducteur</div>
-      ${periodsHtml}${orph}
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">États des lieux non rattachés à une période</div>
+      <div style="border:1px dashed var(--fp-border);border-radius:10px;padding:9px 11px;margin-bottom:8px">${grp('Remise', '📥', orphR)}${grp('Restitution', '📤', orphS)}</div>
     </div>`;
   }
 
@@ -2155,6 +2155,12 @@
     try { return (FP.affectations && FP.affectations.kmPeriode) ? FP.affectations.kmPeriode(v, a) : null; }
     catch (e) { return null; }
   }
+  // ⚠️ AFFICHAGE UNIFIÉ « 1 carte = 1 affectation » (refonte UX validée sur maquette, 2026-11-11).
+  // Chaque période = UNE carte dépliable, themée pour la fiche (clair ET sombre) : en-tête (pastille d'état,
+  // nom, période, km, puces EDL entrée/sortie + nb photos), corps replié (bouton « Corriger », états des
+  // lieux de CETTE période — remise/restitution — avec import / restitution signée / suppression). AFFICHAGE
+  // SEUL : aucune donnée n'est modifiée ni supprimée. Le mode ÉDITION (crayon) et toutes les actions sont
+  // inchangés (mêmes attributs data-affect-* / data-edl-* / data-doc-del → mêmes gestionnaires délégués).
   function affectRowsHTML(vehId, editIdx) {
     // On garde l'INDEX d'origine (position dans le tableau stocké) pour l'édition,
     // puis on trie une copie par date décroissante pour l'affichage.
@@ -2165,6 +2171,25 @@
     if (!items.length && editIdx == null) {
       return '<p class="text-sm text-slate-400 py-2">Aucune affectation enregistrée pour l’instant. Dès que tu attribues (ou retires) un conducteur, l’historique se construit ici avec les dates. Tu peux aussi en ajouter une à la main ci-dessous.</p>';
     }
+    // États des lieux repliés DANS la bonne carte (source unique FP.edlHisto, jointure par date → période).
+    const _docs = (typeof getVehDocs === 'function') ? getVehDocs(vehId) : [];
+    const _edl = (window.FP && FP.edlHisto) ? FP.edlHisto.parVehicule(_vAff || { id: vehId }, _docs) : { periodes: [], orphelins: [] };
+    const _edlFor = (a) => (_edl.periodes || []).find(p =>
+      String(p.conducteur || '') === String(a.conducteur || '') && (p.debut || null) === (a.debut || null) && (p.fin || null) === (a.fin || null)
+    ) || { remise: [], restitution: [] };
+    const _isPhoto = (d) => !!(FP.edlHisto && FP.edlHisto.isPhoto(d));
+    const _docTile = (d) => {
+      let dt = ''; try { const iso = FP.edlHisto.dateDe(d); if (iso) dt = FP.dateNum(iso); } catch (e) {}
+      const media = _isPhoto(d)
+        ? `<img src="${escapeHtml(sanitizeUrl(d.url))}" loading="lazy" alt="État des lieux" style="width:100%;height:64px;object-fit:cover;border-radius:7px;border:1px solid var(--fp-border);display:block"/>`
+        : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:100%;height:64px;border-radius:7px;border:1px solid var(--fp-border);background:var(--fp-bg,#f0f9ff);color:#0e7490;padding:3px;text-align:center"><i data-lucide="clipboard-list" style="width:18px;height:18px"></i>${dt ? `<span style="font-size:8px;font-weight:600;color:var(--fp-faint,#64748b)">${escapeHtml(dt)}</span>` : ''}</div>`;
+      return `<div style="position:relative"><a href="${escapeHtml(sanitizeUrl(d.url))}" target="_blank" rel="noopener" title="Ouvrir">${media}</a><button type="button" data-doc-del="${escapeHtml(d.id)}" title="Supprimer cet état des lieux" style="position:absolute;top:3px;right:3px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:20px;text-align:center;padding:0">✕</button></div>`;
+    };
+    const _gallery = (label, emo, arr) => arr.length ? `<div style="margin-top:7px"><div class="text-xs font-semibold" style="color:var(--fp-muted,#475569)">${emo} ${label} <span class="text-slate-400">(${arr.length})</span></div><div class="fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:4px">${arr.map(_docTile).join('')}</div></div>` : '';
+    const _isoIn = (p, sens) => { const today = new Date().toISOString().slice(0, 10); const deb = (p.debut || '').slice(0, 10), fin = (p.fin || '').slice(0, 10); let d = sens === 'restitution' ? (fin || today) : (deb || today); if (deb && d < deb) d = deb; if (fin && d > fin) d = fin; return d; };
+    const _impBtn = (p, sens, txt) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-import data-veh="${escapeHtml(vehId)}" data-sens="${sens}" data-date="${_isoIn(p, sens)}"><i data-lucide="paperclip" class="w-3.5 h-3.5"></i> ${txt}</button>`;
+    const _signBtn = (p) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-signplace data-veh="${escapeHtml(vehId)}" data-cond="${escapeHtml(p.conducteur || '')}" data-sens="restitution" data-date="${_isoIn(p, 'restitution')}"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i> ✍️ Restitution signée sur place</button>`;
+    const _chip = (ok, txt) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.74rem;color:${ok ? 'var(--fp-muted,#475569)' : 'var(--fp-faint,#94a3b8)'}"><span style="width:15px;height:15px;border-radius:4px;display:inline-grid;place-items:center;font-size:10px;font-weight:800;background:${ok ? 'rgba(22,163,74,.15)' : 'rgba(148,163,184,.18)'};color:${ok ? '#16a34a' : '#94a3b8'}">${ok ? '✓' : '—'}</span>${txt}</span>`;
     return items.map(({ a, i }) => {
       if (i === editIdx) {
         return `<div class="py-2 border-b border-slate-100" data-affect-row="${i}">
@@ -2181,30 +2206,36 @@
         </div>`;
       }
       const enCours = !a.fin;
-      const debut = a.debut ? FP.dateNum(a.debut) : '<span class="text-slate-400">depuis l’origine</span>';
-      const periode = enCours ? `depuis ${a.debut ? FP.dateNum(a.debut) : '—'}` : `${debut} → ${FP.dateNum(a.fin)}`;
-      // Km parcourus pendant cette période — km SAISIS (kmFin−kmDébut) en priorité, sinon estimation
-      // par états des lieux (prise → restitution). Une seule source via kmParcouruAffect.
+      const periode = enCours ? `depuis ${a.debut ? FP.dateNum(a.debut) : '—'}` : `${a.debut ? FP.dateNum(a.debut) : 'origine'} → ${FP.dateNum(a.fin)}`;
+      // Km parcourus (source unique kmParcouruAffect) + km compteur début→fin.
       const kmP = _vAff ? kmParcouruAffect(_vAff, a) : null;
-      const kmManuel = (FP.affectations && FP.affectations.kmParcouru) ? FP.affectations.kmParcouru(a) : null;
-      const kmBadge = (kmP != null && kmP > 0) ? `<span class="text-xs" style="font-weight:700;color:var(--fp-primary)" title="${kmManuel != null ? 'Kilomètres parcourus (km à la fin − km au début saisis)' : "Kilomètres parcourus estimés d'après les états des lieux (restitution − prise)"}">${FP.num(kmP)} km parcourus</span>` : '';
-      // Km au compteur début → fin de l'affectation (s'ils sont saisis).
-      const kmRange = (a.kmDebut != null || a.kmFin != null)
-        ? `<span class="text-xs text-slate-400" title="Km au compteur au début et à la fin de l'affectation">${a.kmDebut != null ? FP.num(a.kmDebut) : '—'} → ${a.kmFin != null ? FP.num(a.kmFin) : '…'} km</span>`
-        : '';
-      return `<div class="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100" data-affect-row="${i}">
-        <div class="flex items-center gap-2 min-w-0">
-          <span style="width:9px;height:9px;border-radius:50%;flex:none;background:${enCours ? '#16a34a' : '#94a3b8'}"></span>
-          <span class="font-semibold text-slate-800 truncate">${escapeHtml(a.conducteur || '—')}</span>
-          ${enCours ? '<span style="font-size:.66rem;font-weight:700;color:#fff;background:#16a34a;border-radius:9999px;padding:1px 8px">actuel</span>' : ''}
+      const kmRange = (a.kmDebut != null || a.kmFin != null) ? `${a.kmDebut != null ? FP.num(a.kmDebut) : '—'} → ${a.kmFin != null ? FP.num(a.kmFin) : '…'} km` : '';
+      const kmParc = (kmP != null && kmP > 0) ? `${FP.num(kmP)} km parcourus` : '';
+      const ep = _edlFor(a);
+      const hasIn = ep.remise.length > 0, hasOut = ep.restitution.length > 0;
+      const nbPhotos = ep.remise.concat(ep.restitution).filter(_isPhoto).length;
+      const dot = enCours ? '#16a34a' : '#94a3b8';
+      const pill = enCours
+        ? '<span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 8px;background:rgba(22,163,74,.15);color:#16a34a">en cours</span>'
+        : '<span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 8px;background:rgba(148,163,184,.2);color:#64748b">terminée</span>';
+      const metaLine = `${escapeHtml(periode)}${kmRange ? ` · ${kmRange}` : ''}${kmParc ? ` · ${kmParc}` : ''}`;
+      const edlBlock = `${_gallery('Remise', '📥', ep.remise)}${_gallery('Restitution', '📤', ep.restitution)}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${_signBtn(a)}${_impBtn(a, 'remise', 'Importer une remise (PDF)')}${_impBtn(a, 'restitution', 'Importer une restitution (PDF)')}</div>`;
+      return `<details class="fp-aff-card" ${enCours ? 'open' : ''} data-affect-row="${i}" style="border:1px solid ${enCours ? 'rgba(22,163,74,.45)' : 'var(--fp-border)'};border-radius:12px;margin-bottom:10px;background:var(--fp-card,#fff);overflow:hidden">
+        <summary class="fp-aff-sum" style="cursor:pointer;display:flex;gap:11px;align-items:flex-start;padding:12px 13px">
+          <span style="width:9px;height:9px;border-radius:50%;flex:none;margin-top:6px;background:${dot}"></span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="font-semibold text-slate-800" style="font-size:1rem">${escapeHtml(a.conducteur || '—')}</span>${pill}</div>
+            <div class="text-slate-500" style="font-size:.84rem;margin-top:2px;font-variant-numeric:tabular-nums">${metaLine}</div>
+            <div style="display:flex;gap:13px;flex-wrap:wrap;margin-top:7px">${_chip(hasIn, "EDL d'entrée")}${_chip(hasOut, 'EDL de sortie')}${nbPhotos ? _chip(true, nbPhotos + ' photo' + (nbPhotos > 1 ? 's' : '')) : ''}</div>
+          </div>
+          <span class="fp-aff-chev text-slate-400" style="flex:none;margin-top:3px;transition:transform .2s">▾</span>
+        </summary>
+        <div style="padding:2px 13px 13px;border-top:1px solid var(--fp-border)">
+          <div style="margin-top:10px"><button type="button" class="btn btn-outline text-xs" data-affect-edit="${i}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Corriger les dates / km</button></div>
+          <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-faint,#94a3b8);margin:13px 0 0">États des lieux</div>
+          ${edlBlock}
         </div>
-        <div class="flex items-center gap-2 whitespace-nowrap flex-wrap justify-end">
-          ${kmRange}
-          ${kmBadge}
-          <span class="text-xs text-slate-500">${periode}</span>
-          <button type="button" class="text-slate-400 hover:text-slate-700" data-affect-edit="${i}" title="Corriger les dates"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
-        </div>
-      </div>`;
+      </details>`;
     }).join('');
   }
 
@@ -2214,6 +2245,7 @@
     if (FP.affectations && FP.affectations.ensureCourante) { try { FP.affectations.ensureCourante(v); } catch (e) {} }
     const n = (FP.affectations ? FP.affectations.forVeh(v.id) : []).length;
     return `
+      <style>.fp-aff-card>summary{list-style:none}.fp-aff-card>summary::-webkit-details-marker{display:none}.fp-aff-card>summary:focus-visible{outline:2px solid var(--fp-accent);outline-offset:2px}.fp-aff-card[open] .fp-aff-chev{transform:rotate(180deg)}</style>
       <details class="mt-4" open>
         <summary class="font-semibold text-slate-900 border-b border-slate-200 pb-1" style="cursor:pointer">
           Conducteurs — historique <span class="text-xs font-normal text-slate-400">${n ? n + ' au total' : ''}</span>
