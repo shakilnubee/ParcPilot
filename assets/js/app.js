@@ -10918,6 +10918,18 @@ FP.affectations = {
     if (this._sinceCourante(veh.id)) return null;
     return veh.dateMiseEnCirculation || null;
   },
+  // Périodes reliées à un conducteur par sa CLÉ unique (identité fiable, homonyme-safe). Ne renvoie que
+  // les enregistrements qui PORTENT une clé (nouveaux / migrés) → un homonyme ne « vole » jamais ceux-ci.
+  forConducteurKey(key) {
+    const k = this._norm(key); if (!k) return [];
+    const out = []; const map = this.all();
+    Object.keys(map).forEach(vehId => (Array.isArray(map[vehId]) ? map[vehId] : []).forEach(a => {
+      if (a && a.conducteurKey != null && String(a.conducteurKey) === k) out.push(Object.assign({ vehId }, a));
+    }));
+    return out.sort((x, y) => String(y.debut || '').localeCompare(String(x.debut || '')));
+  },
+  // Clé d'identité portée par une période (null si l'affectation est encore reliée par nom seul).
+  condKeyOf(a) { return (a && a.conducteurKey != null && String(a.conducteurKey).trim() !== '') ? String(a.conducteurKey) : null; },
   // Véhicules conduits par un conducteur (par nom, tolérant casse/espaces).
   forConducteur(nom) {
     const cible = this._norm(nom).toLowerCase(); if (!cible) return [];
@@ -11057,7 +11069,12 @@ FP.affectations = {
     // `opts.debutManuel` = la DATE de début vient d'une saisie manuelle (ajout de période à la main) →
     // on la verrouille aussi. Les créations AUTO (ensureCourante : date d'EDL ou mise en circulation)
     // ne passent PAS ce drapeau → leur date reste raccordable à l'état des lieux de remise.
-    list.push({ conducteur: nom, debut: debut || null, fin: fin || null, kmDebut: this._km(kmDebut), kmFin: this._km(kmFin), kmDebutManuel: this._km(kmDebut) != null, kmFinManuel: this._km(kmFin) != null, debutManuel: !!(opts && opts.debutManuel) && !!debut });
+    const _per = { conducteur: nom, debut: debut || null, fin: fin || null, kmDebut: this._km(kmDebut), kmFin: this._km(kmFin), kmDebutManuel: this._km(kmDebut) != null, kmFinManuel: this._km(kmFin) != null, debutManuel: !!(opts && opts.debutManuel) && !!debut };
+    // IDENTITÉ : on stocke aussi la CLÉ unique du conducteur quand on la connaît (assistant, picker) →
+    // l'historique est relié par identifiant, pas par le nom (à l'épreuve des homonymes). Conservé dans
+    // `extra` côté table (fp_affectations_remplacer : `e.a - cles`), donc round-trip garanti, sans casse.
+    if (opts && opts.conducteurKey) _per.conducteurKey = String(opts.conducteurKey);
+    list.push(_per);
     s.affectations[vehId] = list;
     this._sauver(s, [vehId]);
     // 🔗 le km saisi (début/fin de période) remonte au compteur du véhicule (raise-only). On NE propage PAS
@@ -11397,8 +11414,9 @@ FP.changeConducteur = (function () {
       if (idx >= 0) FP.affectations.setEntry(vid, idx, { fin: D.restDate || today(), kmFin: D.restKm });
       // 2) Inspection de SORTIE (trace le km/date de restitution) — non destructif.
       if (D.oldName && (D.restKm != null || D.restDate)) { try { FP.affectations.ensureInspection(vid, { sens: 'Sortie', date: D.restDate || today(), km: D.restKm }); } catch (e) {} }
-      // 3) Ouvrir la NOUVELLE période — date SAISIE (debutManuel) → jamais héritée/écrasée.
-      FP.affectations.addEntry(vid, D.newName, D.startDate || today(), null, D.startKm, null, { debutManuel: true });
+      // 3) Ouvrir la NOUVELLE période — date SAISIE (debutManuel) → jamais héritée/écrasée. On stocke la
+      //    CLÉ du conducteur choisi (identité fiable, homonyme-safe) en plus du nom complet.
+      FP.affectations.addEntry(vid, D.newName, D.startDate || today(), null, D.startKm, null, { debutManuel: true, conducteurKey: (D.newCond && D.newCond.key) || null });
       // 4) Inspection d'ENTRÉE (km/date de prise en main).
       if (D.startKm != null || D.startDate) { try { FP.affectations.ensureInspection(vid, { sens: 'Entrée', date: D.startDate || today(), km: D.startKm }); } catch (e) {} }
       // 5) Conducteur actuel du véhicule → persistance par le chemin de la page (onDone).
