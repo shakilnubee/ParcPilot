@@ -11245,6 +11245,191 @@ FP.affectations = {
   },
 };
 
+// ============================================================================
+// ASSISTANT « CHANGEMENT DE CONDUCTEUR » (parcours guidé en 5 étapes) — FP.changeConducteur
+// ----------------------------------------------------------------------------
+// Orchestre les helpers EXISTANTS (ne recode rien) : FP.conducteurPicker (choisir OU créer, identité
+// par fiche), FP.affectations (clôture de l'ancienne période + ouverture de la nouvelle), FP.edl
+// (état des lieux signé, optionnel). Étapes : 1) Restitution de l'ancien · 2) Choix du nouveau ·
+// 3) Nouvelle affectation (date RÉELLE saisie, jamais héritée) · 4) État des lieux d'entrée · 5) Confirmation.
+// Rien n'est écrit tant que l'utilisateur n'a pas validé l'étape 5. Appelé depuis la fiche véhicule :
+//   FP.changeConducteur.open(veh, { onDone: async (veh) => { /* persiste veh.chauffeur + re-render */ } })
+// ============================================================================
+FP.changeConducteur = (function () {
+  const STEPS = ['Restitution', 'Nouveau conducteur', 'Nouvelle affectation', 'État des lieux', 'Confirmation'];
+  const esc = (s) => (FP.esc ? FP.esc(s) : String(s == null ? '' : s));
+  const today = () => new Date().toISOString().slice(0, 10);
+  const dnum = (d) => (d && FP.dateNum ? FP.dateNum(d) : (d || ''));
+  const kmOf = (v) => { try { return (FP.kmActuel ? FP.kmActuel(v) : (v && v.km)) || null; } catch (e) { return (v && v.km) || null; } };
+  const fullName = (c) => {
+    if (!c) return '';
+    const pn = ((c.prenom || '') + ' ' + (c.nom || '')).trim();
+    return pn || c.name || (FP.conducteurs && FP.conducteurs.displayName ? FP.conducteurs.displayName(c) : '') || '';
+  };
+  let veh = null, opts = null, step = 0, D = null, ov = null;
+
+  function ensureOv() {
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'fp-cc-ov';
+    ov.setAttribute('data-self-scroll', '1'); // iOS : l'overlay gère son scroll (cf. FP.scrollLock)
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10002;display:none;align-items:center;justify-content:center;background:rgba(4,8,16,.62);padding:16px;overflow:auto';
+    ov.innerHTML = '<div class="fp-cc-modal" role="dialog" aria-modal="true" aria-label="Changement de conducteur"'
+      + ' style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border:1px solid var(--fp-border,#e5e7eb);border-radius:16px;width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px -20px rgba(4,8,16,.6)">'
+      + '<div style="padding:14px 16px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;gap:10px">'
+      + '<span style="font-weight:800;font-size:1.02rem">🔄 Changement de conducteur</span>'
+      + '<button type="button" data-cc-x aria-label="Fermer" style="margin-left:auto;background:none;border:none;color:var(--fp-muted,#64748b);font-size:1.4rem;line-height:1;cursor:pointer">✕</button></div>'
+      + '<div data-cc-steps style="display:flex;gap:6px;padding:12px 16px 0"></div>'
+      + '<div data-cc-body style="padding:14px 16px;overflow:auto"></div>'
+      + '<div style="padding:12px 16px;border-top:1px solid var(--fp-border,#e5e7eb);display:flex;gap:10px;justify-content:space-between">'
+      + '<button type="button" data-cc-prev class="btn btn-outline">← Retour</button>'
+      + '<button type="button" data-cc-next class="btn btn-dark">Continuer →</button></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov || (e.target.closest && e.target.closest('[data-cc-x]'))) close(); });
+    ov.querySelector('[data-cc-prev]').addEventListener('click', () => { if (step > 0) { step--; render(); } });
+    ov.querySelector('[data-cc-next]').addEventListener('click', onNext);
+    return ov;
+  }
+
+  function close() { if (ov) ov.style.display = 'none'; try { FP.scrollLock && FP.scrollLock.off(); } catch (e) {} }
+
+  function fieldDate(label, key, val, hint) {
+    return `<label style="display:block;font-size:.76rem;color:var(--fp-muted,#64748b);font-weight:600;margin:12px 0 4px">${esc(label)}</label>`
+      + `<input type="date" data-cc="${key}" value="${esc(val || '')}" style="width:100%;background:var(--fp-bg,#f8fafc);border:1px solid var(--fp-border,#e5e7eb);color:inherit;border-radius:9px;padding:9px 11px;font:inherit">`
+      + (hint ? `<div style="font-size:.73rem;color:var(--fp-faint,#94a3b8);margin-top:4px">${esc(hint)}</div>` : '');
+  }
+  function fieldNum(label, key, val, ph) {
+    return `<label style="display:block;font-size:.76rem;color:var(--fp-muted,#64748b);font-weight:600;margin:12px 0 4px">${esc(label)}</label>`
+      + `<input type="number" min="0" inputmode="numeric" data-cc="${key}" value="${val != null ? esc(val) : ''}" placeholder="${esc(ph || '')}" style="width:100%;background:var(--fp-bg,#f8fafc);border:1px solid var(--fp-border,#e5e7eb);color:inherit;border-radius:9px;padding:9px 11px;font:inherit">`;
+  }
+  const warnBox = (h) => `<div style="background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.4);color:var(--fp-text,#7c5300);border-radius:9px;padding:8px 11px;font-size:.8rem;margin-top:10px">${h}</div>`;
+
+  function bodyHTML() {
+    if (step === 0) {
+      if (!D.oldName) return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">1 · Restitution</p>`
+        + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0">Ce véhicule est <b>actuellement sans conducteur</b> — rien à restituer. Passe à l'étape suivante pour l'attribuer.</p>`;
+      return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">1 · Restituer le véhicule</p>`
+        + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0 0 6px">On clôt l'affectation de <b>${esc(D.oldName)}</b>.</p>`
+        + fieldDate('Date de restitution', 'restDate', D.restDate)
+        + fieldNum('Km au compteur à la restitution', 'restKm', D.restKm, 'km')
+        + warnBox('📸 La <b>signature</b> et les <b>photos</b> de l\'état des lieux de sortie se font à la dernière étape (ou depuis la carte du conducteur).');
+    }
+    if (step === 1) {
+      return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">2 · Choisir le nouveau conducteur</p>`
+        + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0 0 6px">Tape un nom. Chaque personne est distincte (même à prénom identique) ; tu peux aussi en créer un.</p>`
+        + `<input type="text" data-cc-pick placeholder="Rechercher ou créer un conducteur…" value="${esc(D.newName || '')}" style="width:100%;background:var(--fp-bg,#f8fafc);border:1px solid var(--fp-border,#e5e7eb);color:inherit;border-radius:9px;padding:9px 11px;font:inherit">`
+        + (D.newCond ? `<div style="margin-top:10px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#f8fafc)"><b>${esc(D.newName)}</b>${D.newSoc ? ` <span style="color:var(--fp-muted,#64748b);font-size:.8rem">· ${esc(D.newSoc)}</span>` : ''}</div>` : '')
+        + warnBox('On enregistre la <b>personne choisie</b> (prénom + nom), jamais le prénom seul.');
+    }
+    if (step === 2) {
+      const overlap = (D.oldName && D.restDate && D.startDate && D.startDate < D.restDate);
+      return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">3 · Nouvelle affectation</p>`
+        + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0 0 6px">Pour <b>${esc(D.newName || '—')}</b>${D.newSoc ? ` · ${esc(D.newSoc)}` : ''}.</p>`
+        + fieldDate('Date réelle de remise (à confirmer)', 'startDate', D.startDate, "Proposée = aujourd'hui, modifiable. Jamais reprise d'un ancien état des lieux ni du conducteur précédent.")
+        + fieldNum('Km au départ', 'startKm', D.startKm, 'km compteur')
+        + (overlap ? warnBox('⚠️ La date de début est <b>avant</b> la date de restitution de l\'ancien conducteur — vérifie les dates.') : '');
+    }
+    if (step === 3) {
+      return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">4 · État des lieux d'entrée</p>`
+        + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0 0 6px">Le km de prise en main est déjà saisi (étape 3). Tu peux générer l'<b>état des lieux signé</b> (photos + signature) juste après la validation.</p>`
+        + `<label style="display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#f8fafc);cursor:pointer;margin-top:4px">`
+        + `<input type="checkbox" data-cc="makeEdl" ${D.makeEdl ? 'checked' : ''} style="width:18px;height:18px">`
+        + `<span><b>Générer l'état des lieux d'entrée</b> (photos + signature) après validation</span></label>`;
+    }
+    // step 4 — récap
+    return `<p style="font-weight:800;font-size:1.05rem;margin:0 0 3px">5 · Vérifier et confirmer</p>`
+      + `<p style="color:var(--fp-muted,#64748b);font-size:.85rem;margin:0 0 8px">L'affectation ne devient active qu'après validation. Les historiques sont conservés.</p>`
+      + `<div style="border:1px solid var(--fp-border,#e5e7eb);border-radius:12px;padding:4px 14px">`
+      + (D.oldName ? recapRow('Ancien conducteur', `${esc(D.oldName)} — restitué le ${dnum(D.restDate)}${D.restKm != null ? ' · ' + FP.num(D.restKm) + ' km' : ''}`) : recapRow('Ancien conducteur', '—'))
+      + recapRow('Nouveau conducteur', `${esc(D.newName)}${D.newSoc ? ' · ' + esc(D.newSoc) : ''}`)
+      + recapRow('Date de début', dnum(D.startDate) + (D.startKm != null ? ' · ' + FP.num(D.startKm) + ' km' : ''))
+      + recapRow("État des lieux d'entrée", D.makeEdl ? 'à générer après (photos + signature)' : 'plus tard')
+      + `</div>`;
+  }
+  function recapRow(k, v) {
+    return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:.84rem;padding:7px 0;border-bottom:1px solid var(--fp-border,#eef1f5)"><span style="color:var(--fp-muted,#64748b)">${esc(k)}</span><span style="font-weight:700;text-align:right">${v}</span></div>`;
+  }
+
+  function readInputs() {
+    if (!ov) return;
+    ov.querySelectorAll('[data-cc]').forEach(el => {
+      const k = el.getAttribute('data-cc');
+      if (el.type === 'checkbox') { D[k] = el.checked; return; }
+      let val = el.value;
+      if (el.type === 'number') val = (String(val).trim() === '' ? null : Math.max(0, Math.round(Number(String(val).replace(/[^\d.-]/g, ''))) || 0));
+      D[k] = (val === '' ? null : val);
+    });
+  }
+
+  function render() {
+    const stepsBar = STEPS.map((_, i) => `<span style="flex:1;height:4px;border-radius:3px;background:${i <= step ? 'var(--fp-accent,#f97316)' : 'var(--fp-border,#e5e7eb)'}"></span>`).join('');
+    ov.querySelector('[data-cc-steps]').innerHTML = stepsBar;
+    ov.querySelector('[data-cc-body]').innerHTML = bodyHTML();
+    const prevB = ov.querySelector('[data-cc-prev]'), nextB = ov.querySelector('[data-cc-next]');
+    prevB.style.visibility = step === 0 ? 'hidden' : 'visible';
+    nextB.textContent = (step === STEPS.length - 1) ? "✓ Confirmer l'affectation" : 'Continuer →';
+    nextB.disabled = (step === 1 && !D.newCond);
+    nextB.style.opacity = nextB.disabled ? '.5' : '';
+    if (window.lucide) { try { lucide.createIcons(); } catch (e) {} }
+    if (step === 1) {
+      const inp = ov.querySelector('[data-cc-pick]');
+      if (inp && FP.conducteurPicker) {
+        FP.conducteurPicker(inp, { onPick: (c) => { D.newCond = c; D.newName = fullName(c); D.newSoc = (c && c.societe) || ''; render(); } });
+        setTimeout(() => { try { inp.focus(); } catch (e) {} }, 40);
+      }
+    }
+  }
+
+  function onNext() {
+    readInputs();
+    if (step === 1 && !D.newCond) { if (FP.toast) FP.toast('Choisis (ou crée) un conducteur.'); return; }
+    if (step < STEPS.length - 1) { step++; if (step === 2 && D.startKm == null) D.startKm = (D.restKm != null ? D.restKm : kmOf(veh)); render(); return; }
+    apply();
+  }
+
+  async function apply() {
+    const b = FP.busy ? FP.busy('Enregistrement du changement…') : null;
+    try {
+      const vid = veh.id;
+      // 1) Clôturer la période EN COURS de l'ancien conducteur (si elle existe).
+      const arr = (FP.affectations.all()[vid] || []);
+      let idx = -1; for (let i = arr.length - 1; i >= 0; i--) { if (!arr[i].fin) { idx = i; break; } }
+      if (idx >= 0) FP.affectations.setEntry(vid, idx, { fin: D.restDate || today(), kmFin: D.restKm });
+      // 2) Inspection de SORTIE (trace le km/date de restitution) — non destructif.
+      if (D.oldName && (D.restKm != null || D.restDate)) { try { FP.affectations.ensureInspection(vid, { sens: 'Sortie', date: D.restDate || today(), km: D.restKm }); } catch (e) {} }
+      // 3) Ouvrir la NOUVELLE période — date SAISIE (debutManuel) → jamais héritée/écrasée.
+      FP.affectations.addEntry(vid, D.newName, D.startDate || today(), null, D.startKm, null, { debutManuel: true });
+      // 4) Inspection d'ENTRÉE (km/date de prise en main).
+      if (D.startKm != null || D.startDate) { try { FP.affectations.ensureInspection(vid, { sens: 'Entrée', date: D.startDate || today(), km: D.startKm }); } catch (e) {} }
+      // 5) Conducteur actuel du véhicule → persistance par le chemin de la page (onDone).
+      veh.chauffeur = D.newName;
+      if (opts && typeof opts.onDone === 'function') { try { await opts.onDone(veh); } catch (e) { console.warn('[changeConducteur onDone]', e); } }
+      if (b) b.done('✓ Conducteur mis à jour'); else if (FP.toast) FP.toast('✓ Conducteur mis à jour');
+      close();
+      // 6) État des lieux d'entrée (optionnel) — réutilise le générateur EDL existant.
+      if (D.makeEdl && FP.edl && FP.edl.open) { try { FP.edl.open(veh, { conducteur: D.newName }); } catch (e) { console.warn('[changeConducteur edl]', e); } }
+    } catch (e) {
+      console.warn('[changeConducteur apply]', e);
+      if (b) b.fail("Échec — réessaie"); else if (FP.notifyError) FP.notifyError("Échec du changement de conducteur");
+    }
+  }
+
+  function open(v, o) {
+    if (!v || v.id == null) return;
+    veh = v; opts = o || {};
+    const cur = (FP.affectations && FP.affectations.courante) ? FP.affectations.courante(v.id) : null;
+    const oldName = (cur && cur.conducteur) || ((v.chauffeur && v.chauffeur !== '—') ? String(v.chauffeur).trim() : '');
+    D = { oldName, restDate: today(), restKm: kmOf(v), newCond: null, newName: '', newSoc: '', startDate: today(), startKm: null, makeEdl: false };
+    step = 0;
+    ensureOv();
+    ov.style.display = 'flex';
+    try { FP.scrollLock && FP.scrollLock.on(); } catch (e) {}
+    render();
+  }
+
+  return { open, close };
+})();
+
 // ===== SOURCE UNIQUE — HISTORIQUE DES ÉTATS DES LIEUX PAR AFFECTATION =====
 // Relie chaque état des lieux (documents type 'etat-des-lieux') à la PÉRIODE d'affectation qui le
 // contient, PAR DATE (doc.date/createdAt dans [debut, fin]) → l'EDL est ainsi « lié » au conducteur ET
