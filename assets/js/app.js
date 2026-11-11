@@ -22699,6 +22699,23 @@ FP.revSuivi = {
     const histo = (Array.isArray(prev.histo) ? prev.histo.slice(-19) : []); histo.push({ t: 'relance', canal: canal || '', at: today });
     this._save(vehId, { anchor, prevenuLe: prev.prevenuLe || today, prevenuCanal: prev.prevenuCanal || '', relanceLe: today, relanceCanal: canal || '', histo });
   },
+  // RDV confirmé posé EXPLICITEMENT par l'utilisateur (date réelle du rendez-vous) — jamais une date
+  // théorique. C'est CE champ (et pas vehRdvGarage, qui peut contenir une échéance) qui fait foi pour le
+  // statut « RDV confirmé ». On garde aussi FP.rdvGarage à jour en parallèle (rappel la veille).
+  setRdv(v, date, extra) {
+    const vehId = this._vehId(v); if (vehId == null) return;
+    const anchor = (v && typeof v === 'object') ? this._anchor(v) : ((this._map()[vehId] || {}).anchor || 'norev');
+    const today = this._today(); const prev = this.get(v) || {};
+    const histo = (Array.isArray(prev.histo) ? prev.histo.slice(-19) : []); histo.push({ t: 'rdv', at: today, date: String(date || '').slice(0, 10) });
+    const rec = Object.assign({}, prev, { anchor, rdvDate: String(date || '').slice(0, 10), prevenuLe: prev.prevenuLe || today, histo });
+    if (extra && typeof extra === 'object') { ['rdvHeure', 'rdvGarage', 'rdvNote'].forEach(k => { if (extra[k] != null && String(extra[k]).trim() !== '') rec[k] = String(extra[k]); }); }
+    this._save(vehId, rec);
+  },
+  clearRdv(v) {
+    const vehId = this._vehId(v); if (vehId == null) return; const prev = this.get(v); if (!prev) return;
+    const rec = Object.assign({}, prev); delete rec.rdvDate; delete rec.rdvHeure; delete rec.rdvGarage; delete rec.rdvNote;
+    this._save(vehId, rec);
+  },
   reset(v) { const vehId = this._vehId(v); if (vehId != null) this._save(vehId, null); }
 };
 
@@ -22710,11 +22727,14 @@ FP.revisionStatut = (v) => {
   let ri = null; try { ri = FP.revisionInfo ? FP.revisionInfo(v) : null; } catch (e) {}
   const due = !!(ri && ri.niveau);
   const today = new Date().toISOString().slice(0, 10);
-  let rdv = null; try { rdv = FP.rdvGarage ? FP.rdvGarage.get(v.id) : null; } catch (e) {}
-  const rdvActif = !!(rdv && rdv.date && !rdv.fait && String(rdv.date) >= today);
   const suivi = FP.revSuivi ? FP.revSuivi.get(v) : null;
-  if (!due && !rdvActif && !suivi) return null;
-  if (rdvActif) return { statut: 'rdv_confirme', label: 'RDV confirmé', couleur: 'violet', action: 'Enregistrer la révision', actionKey: 'faite', detail: rdv.date, rdv: rdv };
+  // « RDV confirmé » = une date de RDV posée EXPLICITEMENT par l'utilisateur (suivi.rdvDate), JAMAIS une date
+  // théorique d'échéance (qui, elle, peut contaminer vehRdvGarage via la création de tâche auto). On ne se
+  // fie donc plus à vehRdvGarage pour le statut (il reste utilisé à part pour le rappel automatique la veille).
+  const rdvDate = (suivi && suivi.rdvDate) ? String(suivi.rdvDate).slice(0, 10) : '';
+  const rdvActif = !!(rdvDate && rdvDate >= today);
+  if (rdvActif) return { statut: 'rdv_confirme', label: 'RDV confirmé', couleur: 'violet', action: 'Enregistrer la révision', actionKey: 'faite', detail: rdvDate };
+  if (!due) return null;   // pas due et aucun RDV à venir → rien à suivre (on ignore un suivi d'une échéance révolue)
   if (suivi && suivi.prevenuLe) {
     const base = suivi.relanceLe || suivi.prevenuLe;
     let jours = null; try { jours = Math.floor((new Date(today) - new Date(base)) / 86400000); } catch (e) {}
@@ -22722,8 +22742,7 @@ FP.revisionStatut = (v) => {
     if (jours != null && jours >= seuil) return { statut: 'a_relancer', label: 'À relancer', couleur: 'amber', action: 'Relancer le conducteur', actionKey: 'relancer', detail: suivi.prevenuLe };
     return { statut: 'prevenu', label: 'Conducteur prévenu — RDV à confirmer', couleur: 'blue', action: 'Enregistrer le RDV', actionKey: 'rdv', detail: suivi.prevenuLe };
   }
-  if (due) return { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', action: 'Demander un RDV', actionKey: 'prevenir', detail: null };
-  return null;
+  return { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', action: 'Demander un RDV', actionKey: 'prevenir', detail: null };
 };
 
 // ===== RELANCES — SOURCE UNIQUE : « qui relancer aujourd'hui » + message prêt à envoyer =====

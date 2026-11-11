@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111g">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -582,8 +582,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111f"></script>
-<script src="../assets/js/supabase-client.js?v=20261111f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111g"></script>
+<script src="../assets/js/supabase-client.js?v=20261111g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +599,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111f"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111f" defer></script>
+<script src="../assets/js/app.min.js?v=20261111g"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111g" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -865,8 +865,10 @@
     d = String(d).trim();
     if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) { if (FP.toast) FP.toast('Format attendu : AAAA-MM-JJ'); return; }
     try {
-      if (!d) { if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); }
-      else { if (FP.rdvGarage) FP.rdvGarage.set(v.id, d, 'Révision'); if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d)); }
+      if (!d) { if (FP.revSuivi) FP.revSuivi.clearRdv(v); if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); }
+      // ⚠️ On pose la date de RDV dans le SUIVI (fait foi pour le statut « RDV confirmé ») ET dans
+      //    FP.rdvGarage (déclenche le rappel automatique la veille). Deux usages, une seule action.
+      else { if (FP.revSuivi) FP.revSuivi.setRdv(v, d); if (FP.rdvGarage) FP.rdvGarage.set(v.id, d, 'Révision'); if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d)); }
     } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement du RDV'); }
     renderRevList();
   }
