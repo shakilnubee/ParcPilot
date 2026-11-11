@@ -11045,6 +11045,10 @@ FP.affectations = {
     if ('kmDebut' in patch) { list[index].kmDebut = this._km(patch.kmDebut); list[index].kmDebutManuel = (list[index].kmDebut != null); }
     if ('kmFin' in patch) { list[index].kmFin = this._km(patch.kmFin); list[index].kmFinManuel = (list[index].kmFin != null); }
     if ('conducteur' in patch && this._norm(patch.conducteur)) list[index].conducteur = this._norm(patch.conducteur);
+    // RÉ-ATTRIBUTION par IDENTIFIANT (homonymes) : quand on corrige le conducteur d'une période via le
+    // crayon, on peut poser (ou retirer) sa CLÉ unique → l'historique est relié à la bonne personne,
+    // sans toucher aux dates/km/EDL. Conservé dans `extra` côté table (round-trip garanti).
+    if ('conducteurKey' in patch) { const _ck = (patch.conducteurKey == null) ? '' : String(patch.conducteurKey).trim(); if (_ck) list[index].conducteurKey = _ck; else delete list[index].conducteurKey; }
     this._sauver(s, [vehId]);
     // 🔗 le km saisi sur la période (début/fin, ex. restitution) remonte au compteur du véhicule (raise-only).
     this._propagerKm(vehId, Math.max(this._km(list[index].kmFin) || 0, this._km(list[index].kmDebut) || 0));
