@@ -10056,13 +10056,21 @@ FP.revisionEcheanceTexte = (v, lang) => {
   if (jR != null && jR <= 0) return en
     ? ('due now — the service date' + (dateStr ? (' (' + dateStr + ')') : '') + ' has passed')
     : ('à faire dès maintenant — la date' + (dateStr ? (' du ' + dateStr) : '') + ' est dépassée');
-  // Futur : lequel arrive en PREMIER, le kilométrage ou la date ?
-  let kmFirst = false;
-  if (kmR != null && jR != null && r.pace > 0) kmFirst = (kmR / r.pace) < jR;
-  else if (kmR != null && jR == null) kmFirst = true;
-  if (kmFirst) return en
-    ? ('coming up — about ' + num(kmR) + ' km left before the service' + (dateStr ? (' (around ' + dateStr + ')') : ''))
-    : ('à prévoir bientôt — il reste environ ' + num(kmR) + ' km avant la révision' + (dateStr ? (', soit vers le ' + dateStr) : ''));
+  // Futur : on parle de ce qui DÉCLENCHE réellement l'alerte. ⚠️ Consigne utilisateur : quand c'est le
+  // KILOMÈTRE qui approche, le message doit parler en KM — PAS d'une date d'échéance (qui, elle, peut être
+  // très lointaine). On n'ajoute la date QUE si elle est, elle aussi, proche.
+  let cfg = {}; try { cfg = FP.notifCfg ? FP.notifCfg() : {}; } catch (e) {}
+  const kmNear = (kmR != null && kmR <= (cfg.revAlerteKm || 500));
+  const dateNear = (jR != null && jR <= (cfg.revAlerteJours || 30));
+  // Les DEUX proches → on mentionne les deux (information utile).
+  if (kmNear && dateNear && dateStr) return en
+    ? ('coming up — about ' + num(kmR) + ' km left (or by ' + dateStr + ')')
+    : ('à prévoir — il reste environ ' + num(kmR) + ' km (ou d\'ici le ' + dateStr + ')');
+  // Km connu et date PAS proche (ou inconnue) → KM SEUL, jamais de date.
+  if (kmR != null && !dateNear) return en
+    ? ('coming up — about ' + num(kmR) + ' km left before the service')
+    : ('à prévoir bientôt — il reste environ ' + num(kmR) + ' km avant la révision');
+  // Pas de km (échéance purement calendaire) → date.
   if (dateStr) return en ? ('to plan before ' + dateStr) : ('à prévoir d\'ici le ' + dateStr);
   if (kmR != null) return en ? ('about ' + num(kmR) + ' km left before the service') : ('il reste environ ' + num(kmR) + ' km avant la révision');
   return en ? 'to be planned' : 'à prévoir';
