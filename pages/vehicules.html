@@ -2190,8 +2190,22 @@
     const _impBtn = (p, sens, txt) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-import data-veh="${escapeHtml(vehId)}" data-sens="${sens}" data-date="${_isoIn(p, sens)}"><i data-lucide="paperclip" class="w-3.5 h-3.5"></i> ${txt}</button>`;
     const _signBtn = (p) => `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-signplace data-veh="${escapeHtml(vehId)}" data-cond="${escapeHtml(p.conducteur || '')}" data-sens="restitution" data-date="${_isoIn(p, 'restitution')}"><i data-lucide="pen-line" class="w-3.5 h-3.5"></i> ✍️ Restitution signée sur place</button>`;
     const _chip = (ok, txt) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.74rem;color:${ok ? 'var(--fp-muted,#475569)' : 'var(--fp-faint,#94a3b8)'}"><span style="width:15px;height:15px;border-radius:4px;display:inline-grid;place-items:center;font-size:10px;font-weight:800;background:${ok ? 'rgba(22,163,74,.15)' : 'rgba(148,163,184,.18)'};color:${ok ? '#16a34a' : '#94a3b8'}">${ok ? '✓' : '—'}</span>${txt}</span>`;
-    return items.map(({ a, i }) => {
-      if (i === editIdx) {
+    // Regroupement VISUEL des doublons (même conducteur + mêmes dates début/fin) → UNE seule carte.
+    // AUCUNE donnée supprimée (les enregistrements restent en base) ; un bouton « Nettoyer les doublons »
+    // les consolide sur action EXPLICITE de l'utilisateur (garde la ligne la plus complète).
+    const _gkey = (x) => (String(x.conducteur || '').trim().toLowerCase().replace(/\s+/g, ' ')) + '|' + (x.debut || '') + '|' + (x.fin || '');
+    const _groups = []; const _gmap = {};
+    items.forEach((it) => { const k = _gkey(it.a); if (!_gmap[k]) { _gmap[k] = { recs: [] }; _groups.push(_gmap[k]); } _gmap[k].recs.push(it); });
+    _groups.forEach((g) => {
+      let p = g.recs[0];
+      g.recs.forEach((r) => { const sc = (r.a.kmDebut != null ? 2 : 0) + (r.a.kmFin != null ? 1 : 0); const ps = (p.a.kmDebut != null ? 2 : 0) + (p.a.kmFin != null ? 1 : 0); if (sc > ps) p = r; });
+      g.primary = p; g.kmDebut = null; g.kmFin = null;
+      g.recs.forEach((r) => { if (g.kmDebut == null && r.a.kmDebut != null) g.kmDebut = r.a.kmDebut; if (g.kmFin == null && r.a.kmFin != null) g.kmFin = r.a.kmFin; });
+    });
+    return _groups.map((g) => {
+      const editRec = g.recs.find((r) => r.i === editIdx);
+      if (editRec) {
+        const a = editRec.a, i = editRec.i;
         return `<div class="py-2 border-b border-slate-100" data-affect-row="${i}">
           <div class="flex items-center gap-2 mb-2"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i><span class="font-semibold text-slate-800">${escapeHtml(a.conducteur || '—')}</span></div>
           <div class="flex flex-wrap items-end gap-2">
@@ -2205,6 +2219,11 @@
           </div>
         </div>`;
       }
+      // Carte fusionnée : on prend l'enregistrement le plus complet + les km consolidés du groupe.
+      const a = Object.assign({}, g.primary.a, { kmDebut: g.kmDebut, kmFin: g.kmFin });
+      const i = g.primary.i;
+      const dupN = g.recs.length;
+      const dupIdx = g.recs.map((r) => r.i).join(',');
       const enCours = !a.fin;
       // Date non héritée : une période en cours sans date de début réelle affiche « début à confirmer »
       // (plutôt qu'une date devinée) → l'utilisateur la saisit via « Corriger les dates / km ».
@@ -2226,7 +2245,7 @@
         <summary class="fp-aff-sum" style="cursor:pointer;display:flex;gap:11px;align-items:flex-start;padding:12px 13px">
           <span style="width:9px;height:9px;border-radius:50%;flex:none;margin-top:6px;background:${dot}"></span>
           <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="font-semibold text-slate-800" style="font-size:1rem">${escapeHtml(a.conducteur || '—')}</span>${pill}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="font-semibold text-slate-800" style="font-size:1rem">${escapeHtml(a.conducteur || '—')}</span>${pill}${dupN > 1 ? '<span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 7px;background:rgba(245,158,11,.18);color:#b45309">doublon ×' + dupN + '</span>' : ''}</div>
             <div class="text-slate-500" style="font-size:.84rem;margin-top:2px;font-variant-numeric:tabular-nums">${metaLine}</div>
             <div style="display:flex;gap:13px;flex-wrap:wrap;margin-top:7px">${_chip(hasIn, "EDL d'entrée")}${_chip(hasOut, 'EDL de sortie')}${nbPhotos ? _chip(true, nbPhotos + ' photo' + (nbPhotos > 1 ? 's' : '')) : ''}</div>
           </div>
@@ -2234,6 +2253,7 @@
         </summary>
         <div style="padding:2px 13px 13px;border-top:1px solid var(--fp-border)">
           <div style="margin-top:10px"><button type="button" class="btn btn-outline text-xs" data-affect-edit="${i}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Corriger les dates / km</button></div>
+          ${dupN > 1 ? `<div style="margin-top:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:9px;padding:9px 11px;font-size:.79rem;color:var(--fp-text,#7c5300)">⚠️ <b>${dupN} enregistrements identiques</b> pour cette période (doublon). On n'affiche qu'une ligne ; les ${dupN} existent encore en base.<div style="margin-top:7px"><button type="button" class="btn btn-dark text-xs" data-cc-merge="${escapeHtml(vehId)}" data-cc-dup="${dupIdx}"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Nettoyer les doublons (garder 1 ligne)</button></div></div>` : ''}
           <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-faint,#94a3b8);margin:13px 0 0">États des lieux</div>
           ${edlBlock}
         </div>
@@ -2355,6 +2375,24 @@
       }
       const body = document.getElementById('veh-affect-body');
       const vehId = body ? body.dataset.vehId : null;
+      // Nettoyer les doublons d'une période (action EXPLICITE) : garde l'enregistrement le plus complet,
+      // y recopie les km manquants des autres, puis SUPPRIME les enregistrements redondants. Rien d'autre.
+      const mrg = e.target.closest('[data-cc-merge]');
+      if (mrg && vehId) {
+        const idxs = (mrg.getAttribute('data-cc-dup') || '').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+        if (idxs.length < 2) return;
+        if (!await FP.confirm('Regrouper ces ' + idxs.length + ' enregistrements identiques en UNE seule ligne ?\n\nOn garde la ligne la plus complète (ses km/dates sont conservés) et on retire les copies redondantes. Les états des lieux et documents restent inchangés.')) return;
+        const all = (FP.affectations.all()[vehId] || []);
+        let keep = idxs[0];
+        idxs.forEach(k => { const a = all[k] || {}, kp = all[keep] || {}; const sc = (a.kmDebut != null ? 2 : 0) + (a.kmFin != null ? 1 : 0); const ps = (kp.kmDebut != null ? 2 : 0) + (kp.kmFin != null ? 1 : 0); if (sc > ps) keep = k; });
+        const patch = {};
+        idxs.forEach(k => { const a = all[k] || {}; if ((all[keep] || {}).kmDebut == null && a.kmDebut != null && patch.kmDebut == null) patch.kmDebut = a.kmDebut; if ((all[keep] || {}).kmFin == null && a.kmFin != null && patch.kmFin == null) patch.kmFin = a.kmFin; });
+        if (Object.keys(patch).length) FP.affectations.setEntry(vehId, keep, patch);
+        idxs.filter(k => k !== keep).sort((x, y) => y - x).forEach(k => FP.affectations.removeEntry(vehId, k));
+        refreshAffect(vehId, null);
+        if (FP.toast) FP.toast('✓ Doublons regroupés (1 ligne conservée)');
+        return;
+      }
       const edit = e.target.closest('[data-affect-edit]');
       if (edit && vehId) { refreshAffect(vehId, +edit.dataset.affectEdit); return; }
       const cancel = e.target.closest('[data-affect-cancel]');
