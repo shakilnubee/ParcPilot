@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111e">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -998,6 +998,7 @@
         <div class="man-item">🛠️ <b>Bloc « Entretiens à venir » (CT + révisions)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en haut de la page Tâches, un tableau liste <b>tes contrôles techniques ET tes révisions à venir</b> (et les dépassés), <b>triés du plus urgent au plus lointain</b>, en couleur selon l'urgence (🔧 CT · 🛠️ révision, avec les jours OU les km restants pour la révision). Pour chacun, un bouton <b>« ＋ Créer la tâche »</b> (ou « ✓ Tâche créée »). « Voir tout » déroule le reste. <b>Inclut les véhicules « à vendre »</b> ; seuls les véhicules <b>vraiment cédés</b> (vendus, hors service, archivés, restitués) sont exclus.</div>
         <div class="man-item">⚙️ <b>Tâches d'entretien créées automatiquement</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand un <b>contrôle technique</b> approche (fenêtre réglable dans Paramètres → Notifications → « anticipation CT ») ou qu'une <b>révision</b> devient due (au km ou à la date, seuils dans Paramètres → Notifications → révision), Parc Pilot crée <b>tout seul</b> une tâche « Contrôle technique » ou « Révision » (étiquette Garage). Si tu <b>corriges la date de CT</b> sur la fiche (ou que la révision est faite), l'ancienne tâche auto <b>disparaît</b> et n'apparaît plus en double — même si elle a été créée depuis plusieurs appareils.</div>
         <div class="man-item">⚡ <b>Tâche « Contrôle technique » créée automatiquement</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand le <b>contrôle technique</b> d'un véhicule arrive à échéance, une tâche « Contrôle technique » (type RDV, étiquette Garage) est <b>créée toute seule</b> pour penser à prendre le rendez-vous — y compris pour les CT <b>déjà dépassés</b>. La <b>fenêtre d'anticipation</b> est la <b>même que les alertes</b> (réglage <b>Paramètres → Notifications → « anticipation CT »</b>, 90 jours par défaut) : augmente-la (ex. 180 ou 365 j) si tu veux voir tes CT plus longtemps à l'avance, dans Alertes ET dans Tâches. Si tu supprimes une tâche auto, elle <b>ne réapparaît pas</b>. (Le rappel e-mail du CT, lui, reste géré à part.)</div>
+        <div class="man-item">✉️ <b>« Demander un RDV » (message juste, plus de faux rendez-vous)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand tu envoies le message d'une tâche <b>créée automatiquement</b> (révision / CT « à organiser »), Parc Pilot envoie désormais une <b>demande de rendez-vous</b> : « <i>… à prévoir pour le véhicule … Peux-tu prendre rendez-vous auprès d'un garage puis me communiquer la date prévue ?</i> ». <b>Correction d'un bug</b> : avant, le message affirmait à tort « <i>un rendez-vous est prévu le [date]</i> » en prenant la <b>date théorique</b> d'échéance comme si c'était un vrai rendez-vous. Désormais : une tâche auto = une <b>demande</b> (pas de date de RDV inventée, pas d'invitation agenda) ; l'annonce « rendez-vous prévu le … » n'apparaît que pour un <b>vrai RDV</b> que tu as saisi avec sa date. Le message reste <b>modifiable avant envoi</b> (SMS / WhatsApp / e-mail) et est <b>le même partout</b>.</div>
         <div class="man-item">📅 <b>Ajouter le rendez-vous à ton agenda (Google / Apple / Outlook)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur toute tâche qui a une <b>date</b>, un <b>bouton 📅 « Ajouter à mon agenda »</b> télécharge un petit fichier calendrier (.ics) : tu l'ouvres et le rendez-vous se place dans <b>TON</b> agenda (Google Agenda, Apple Calendrier ou Outlook), avec un rappel la veille. Et quand tu <b>préviens le conducteur par e-mail</b> (bouton ✈️ ou à la création d'un RDV), ce <b>même fichier agenda est joint à l'e-mail</b> → il l'ajoute à <b>SON</b> agenda en un clic. Chacun a le rendez-vous dans son calendrier, sans avoir à connecter de compte.</div>
         <div class="man-item">🔁 <b>Rappels récurrents</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en haut de la page, un bloc de tâches qui <b>reviennent chaque période</b> (chaque mois, trimestre…) : tu les <b>coches quand c'est fait</b> et elles <b>réapparaissent automatiquement</b> à la période suivante. Deux rappels sont prêts par défaut : <b>« Relevé des kilométrages »</b> et <b>« Congés des collaborateurs »</b> (à saisir chaque mois pour permettre les vérifs de conso pendant congé, page Contrôle). Le bouton <b>« Configurer les rappels »</b> (aussi accessible depuis <b>Paramètres → Rappels récurrents</b>) permet d'en <b>ajouter, modifier la fréquence, désactiver ou supprimer</b>. Chaque rappel peut pointer vers la page concernée (bouton ↗). Tout est <b>synchronisé sur tous tes appareils</b>.</div>
         <div class="man-item">📅 <b>Choisir le jour du rappel</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — pour chaque rappel tu peux fixer un <b>« Jour du 1er rappel »</b> (une date). Cette date sert de <b>point de départ</b> ET fixe le <b>jour de récurrence</b> : le rappel revient ensuite <b>chaque période sur ce même jour</b> (jour du mois pour un rappel mensuel, jour de la semaine pour un hebdo, mois + jour pour un trimestriel/annuel). Avant ce jour, le rappel s'affiche en <b>orange « 🔜 à venir le … »</b> (il ne te réclame pas encore d'être coché) ; le jour venu il passe en <b>« 📅 à faire »</b>. Laisse la case <b>vide</b> pour l'ancien comportement (à faire dès le début de chaque période). Le jour se règle à l'ajout d'un rappel <b>ou</b> directement sur un rappel existant (petit champ date dans « Configurer »).</div>
@@ -1143,8 +1144,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111d"></script>
-<script src="../assets/js/supabase-client.js?v=20261111d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111e"></script>
+<script src="../assets/js/supabase-client.js?v=20261111e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1160,10 +1161,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111d"></script>
+<script src="../assets/js/app.min.js?v=20261111e"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

@@ -5982,6 +5982,9 @@ FP.MAIL_DEFAUT = {
   prevAnnonce:   `Bonjour,\n🏷️ Bonne affaire en vue ! Le véhicule {immat} est à vendre. Photos et caractéristiques par ici 👇\n{lien}`,
   // Annonce d'un rendez-vous garage (envoyée QUAND on programme le RDV) — avec la DATE.
   rdvgarage: `Bonjour {prenom},\n\nUn rendez-vous est prévu pour le véhicule {immat} le {date}. 🗓️\nMotif : {motif}\n\nTu recevras un petit rappel la veille, pas d'inquiétude 🙂\nEt n'hésite pas si tu as la moindre question !`,
+  // DEMANDE de rendez-vous (révision / CT « à organiser ») — PAS un RDV confirmé : on demande de PRENDRE
+  // le rendez-vous et de COMMUNIQUER la date (jamais « rendez-vous est prévu le … » ni de date théorique).
+  demandeRdv: `Bonjour {prenom},\n\n{motif} à prévoir pour le véhicule {immat}. 🔧\n\nPeux-tu prendre rendez-vous auprès d'un garage puis me communiquer la date prévue ? Je l'enregistrerai ensuite.\n\nMerci à toi !`,
   // Rappel automatique la VEILLE (reprend les infos du rendez-vous).
   rappelgarage: `Bonjour {prenom},\n\nPetit rappel : un rendez-vous est prévu demain pour le véhicule {immat}. 🗓️\nMotif : {motif}\n\nBelle journée, et à très vite ! 🙂`,
   invitation: `Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗`,
@@ -6002,6 +6005,7 @@ FP.MAIL_DEFAUT = {
   prevEdl_en:       `Hello {prenom},\n📋 Quick reminder: the condition report for vehicle {immat} needs doing 📸 (photos + mileage). It's quick, everything is here 👇\n{lien}`,
   prevCt_en:        `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
   prevRevision_en:  `Hello {prenom},\n🛠️ Vehicle {immat} will soon need a trip to the garage 🚗 (service / maintenance due).`,
+  demandeRdv_en:    `Hello {prenom},\n\n{motif} due for vehicle {immat}. 🔧\n\nCould you book an appointment at a garage and let me know the planned date? I'll record it afterwards.\n\nThank you!`,
   prevAnnonce_en:   `Hello,\n🏷️ Good deal ahead! Vehicle {immat} is for sale. Photos and details here 👇\n{lien}`,
   rdvgarage_en: `Hello {prenom},\n\nAn appointment is scheduled for vehicle {immat} on {date}. 🗓️\nReason: {motif}\n\nYou'll get a quick reminder the day before, no worries 🙂\nAnd feel free to ask if you have any question!`,
   rappelgarage_en: `Hello {prenom},\n\nQuick reminder: an appointment is scheduled tomorrow for vehicle {immat}. 🗓️\nReason: {motif}\n\nHave a great day, and see you soon! 🙂`,
@@ -6080,6 +6084,8 @@ FP.MAIL_OBJET_DEFAUT = {
   bienvenue: "Bienvenue à bord 🚗 — ton espace véhicule",
   relevekm: 'Relevé kilométrique — {immat}',
   rdvgarage: '{motif} le {date} ({immat})',
+  demandeRdv: '{motif} à prévoir — {immat}',
+  demandeRdv_en: '{motif} to schedule — {immat}',
   rappelgarage: 'Rappel : {motif} demain ({immat})',
   invitation: 'Bienvenue sur Parc Pilot 🎉 — ton accès',
   relanceCt: 'Contrôle technique — {immat}',
