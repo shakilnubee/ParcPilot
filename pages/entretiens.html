@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111l">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111l"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111l">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -123,6 +123,19 @@
     <div class="flex flex-wrap justify-end items-center gap-3 mb-8">
       <span data-data-io hidden></span><span id="ent-io-mount"></span>
       <button type="button" class="btn btn-dark text-sm" onclick="document.getElementById('garage-modal').classList.add('open')"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacter le garage</button>
+    </div>
+
+    <!-- 🛠️ Révisions à venir (source unique FP.revisionInfo) — remontée EN HAUT (après « Contacter le garage »). -->
+    <div class="card p-6 mb-6" data-collapsible="ent-revisions">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <h3 class="font-bold text-slate-900">🛠️ Révisions à venir</h3>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" id="rev-prevenir-all" class="btn btn-outline text-sm" style="display:none"><i data-lucide="send" class="w-4 h-4"></i> Prévenir les révisions en retard</button>
+          <span class="text-xs text-slate-500" id="rev-summary"></span>
+        </div>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3" id="rev-list"></div>
+      <p class="text-xs text-slate-400 mt-3">Basé sur la <b>dernière révision</b> et l'intervalle préconisé (km ET durée). Quand la révision est faite, clique <b>« ✓ Révision faite »</b> : la date + le km se saisissent d'un coup et la prochaine échéance se recalcule automatiquement partout.</p>
     </div>
 
     <!-- Entretiens = page AUTONOME (entrée dédiée dans le menu de gauche). Plus de barre d'onglets Factures :
@@ -525,18 +538,6 @@
 
     <div class="section-title" style="margin-top:.5rem"><i data-lucide="bar-chart-3" class="w-5 h-5"></i> Analyse détaillée</div>
 
-    <!-- 🛠️ Révisions à venir (source unique FP.revisionInfo) : véhicules dus au km OU à la date. -->
-    <div class="card p-6 mb-6" data-collapsible="ent-revisions">
-      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <h3 class="font-bold text-slate-900">🛠️ Révisions à venir</h3>
-        <div class="flex items-center gap-2 flex-wrap">
-          <button type="button" id="rev-prevenir-all" class="btn btn-outline text-sm" style="display:none"><i data-lucide="send" class="w-4 h-4"></i> Prévenir les révisions en retard</button>
-          <span class="text-xs text-slate-500" id="rev-summary"></span>
-        </div>
-      </div>
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3" id="rev-list"></div>
-      <p class="text-xs text-slate-400 mt-3">Basé sur la <b>dernière révision</b> et l'intervalle préconisé (km ET durée). Quand la révision est faite, clique <b>« ✓ Révision faite »</b> : la date + le km se saisissent d'un coup et la prochaine échéance se recalcule automatiquement partout.</p>
-    </div>
 
     <!-- Échéances CT critiques -->
     <div class="card p-6 mb-6" data-collapsible="ent-ct">
@@ -582,8 +583,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111k"></script>
-<script src="../assets/js/supabase-client.js?v=20261111k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111l"></script>
+<script src="../assets/js/supabase-client.js?v=20261111l"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +600,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111l"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111k"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111k" defer></script>
+<script src="../assets/js/app.min.js?v=20261111l"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111l" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -883,26 +884,22 @@
     const prenom = chauffeur.split(/\s+/)[0] || '';
     const plaque = v.immat || '';
     const lang = (FP.condLangue && FP.condLangue(chauffeur) === 'en') ? 'en' : 'fr';
-    let due = ''; try { const ri = FP.revisionInfo ? FP.revisionInfo(v) : null; due = (ri && ri.prochaineDate) || v.prochaineRevisionDate || ''; } catch (e) {}
-    const item = { type: 'entretien', veh: v, immat: plaque, conducteur: chauffeur, contact: c, dueDate: due, joursRestants: null, urgence: 'proche' };
-    let built = null; try { built = FP.relances ? await FP.relances.message(item) : null; } catch (e) {}
     let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
     let logo = ''; try { const p = FP.societeProfil ? FP.societeProfil() : {}; logo = p.logoUrl || p.logoDataUrl || ''; } catch (e) {}
     const gAtt = (FP.garages && FP.garages.pdfAttachmentDe) ? FP.garages.pdfAttachmentDe(v) : null;
-    // RELANCE (J+5) : modèle DÉDIÉ « relanceRdv » (demande de confirmer la date) — distinct de la 1ʳᵉ demande.
-    // L'e-mail est alors brandé par FP.msg.open à partir du texte (pas de emailHtml imposé).
-    let text, subj, html;
-    if (relance) {
-      const motif = (lang === 'en') ? 'the service' : 'la révision';
-      const tpl = FP.mailModeleProfilL ? FP.mailModeleProfilL('mailModeleRelanceRdv', 'relanceRdv', lang) : (FP.MAIL_DEFAUT[lang === 'en' ? 'relanceRdv_en' : 'relanceRdv']);
-      text = FP.fillTags ? FP.fillTags(tpl, { prenom, immat: plaque, motif }) : (built ? built.text : '');
-      subj = (lang === 'en') ? ('Service reminder — ' + plaque) : ('Relance révision — ' + plaque);
-      html = undefined;
-    } else {
-      text = built ? built.text : `Bonjour ${prenom},\nLe véhicule ${plaque} a un entretien à prévoir — pense à caler un passage au garage.`;
-      subj = built ? built.subject : ('Entretien à prévoir — ' + plaque);
-      html = built ? built.emailHtml : undefined;
-    }
+    // ⚠️ MESSAGE SANS DATE NI KM (consigne) : on utilise des modèles DÉDIÉS que l'on contrôle —
+    //    « demandeRdv » (1ʳᵉ demande) / « relanceRdv » (relance J+5) — au lieu de « relanceEntretien »
+    //    (qui, personnalisé par la société, pouvait réinjecter « échéance le … »). Juste : « c'est bientôt
+    //    l'heure de la révision, prends rendez-vous et transmets-moi la date ». E-mail brandé depuis le texte.
+    const motif = (lang === 'en') ? (relance ? 'the service' : 'Service') : (relance ? 'la révision' : 'Révision');
+    const _tplKey = relance ? ['mailModeleRelanceRdv', 'relanceRdv'] : ['mailModeleDemandeRdv', 'demandeRdv'];
+    const _tpl = FP.mailModeleProfilL ? FP.mailModeleProfilL(_tplKey[0], _tplKey[1], lang) : (FP.MAIL_DEFAUT[_tplKey[1] + (lang === 'en' ? '_en' : '')] || '');
+    const text = FP.fillTags ? FP.fillTags(_tpl, { prenom, immat: plaque, motif }) : _tpl;
+    const subj = relance
+      ? ((lang === 'en') ? ('Service reminder — ' + plaque) : ('Relance révision — ' + plaque))
+      : ((lang === 'en') ? ('Service to schedule — ' + plaque) : ('Révision à prévoir — ' + plaque));
+    let html = undefined;
+    try { const bodyHtml = '<div style="white-space:pre-wrap;line-height:1.5">' + (FP.esc ? FP.esc(text) : text).replace(/\n/g, '<br>') + '</div>'; html = FP.mailBrand ? FP.mailBrand({ title: subj, prenom: '', nomSoc: soc, logoUrl: logo, plaque: plaque, lang: lang, bodyHtml: bodyHtml }) : bodyHtml; } catch (e) {}
     FP.msg.open({
       phone: c.tel || '', email: c.email || '', nom: prenom || plaque, title: (relance ? 'Relancer — Révision ' : 'Demander un RDV — Révision ') + plaque,
       text: text, lang: lang,

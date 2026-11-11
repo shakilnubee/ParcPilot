@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111l">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111l"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111l">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -185,9 +185,11 @@
 
     <!-- 🛠️ Entretiens à venir (contrôles techniques + révisions) : toute la file, 1 clic pour créer la tâche. -->
     <div class="card p-4 mb-6" id="ct-card" style="display:none">
-      <div class="flex items-center justify-between gap-2 mb-3">
+      <div class="flex items-center justify-between gap-2 mb-2">
         <div class="font-bold flex items-center gap-2" style="color:var(--fp-primary)">🛠️ Entretiens à venir <span class="text-xs font-normal text-slate-400">CT + révisions</span> <span id="ct-count" class="text-xs font-normal text-slate-400"></span></div>
       </div>
+      <!-- Filtres rapides (catégorie) : Tous / Révisions / CT — n'agissent que sur l'AFFICHAGE (aucune donnée touchée). -->
+      <div id="ct-filters" class="flex flex-wrap gap-1.5 mb-3"></div>
       <div id="ct-list" class="space-y-2"></div>
     </div>
 
@@ -382,8 +384,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111k"></script>
-<script src="../assets/js/supabase-client.js?v=20261111k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111l"></script>
+<script src="../assets/js/supabase-client.js?v=20261111l"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -399,10 +401,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111l"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111k"></script>
+<script src="../assets/js/app.min.js?v=20261111l"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -1611,14 +1613,32 @@
     render();
   }
   let ctExpanded = false;
+  let ctCatFilter = 'all';   // 'all' | 'rev' | 'ct' — filtre d'AFFICHAGE uniquement (aucune donnée touchée)
   function renderCTaVenir() {
     const card = $('ct-card'); if (!card) return;
-    const rows = ctList().map(r => Object.assign({ kind: 'ct' }, r))
+    const allRows = ctList().map(r => Object.assign({ kind: 'ct' }, r))
       .concat(revList().map(r => Object.assign({ kind: 'rev', ct: r.date }, r)))
       .sort((a, b) => a.j - b.j);
-    if (!rows.length) { card.style.display = 'none'; return; }
+    if (!allRows.length) { card.style.display = 'none'; return; }
     card.style.display = '';
+    const nAll = allRows.length, nRev = allRows.filter(r => r.kind === 'rev').length, nCt = allRows.filter(r => r.kind === 'ct').length;
+    // Pastilles de filtre (seulement les catégories réellement présentes ; barre masquée s'il n'y a qu'une catégorie).
+    const fbar = $('ct-filters');
+    if (fbar) {
+      const pills = [['all', 'Tous', nAll]];
+      if (nRev) pills.push(['rev', 'Révisions', nRev]);
+      if (nCt) pills.push(['ct', 'CT', nCt]);
+      fbar.style.display = (pills.length > 2) ? 'flex' : 'none';
+      fbar.innerHTML = pills.map(([k, lbl, n]) => {
+        const on = (ctCatFilter === k);
+        return `<button type="button" class="filter-chip" data-ct-filter="${k}" aria-pressed="${on}" style="${on ? 'background:var(--fp-primary);color:#fff;border-color:var(--fp-primary)' : ''}">${escapeHtml(lbl)} <span style="opacity:.7">(${n})</span></button>`;
+      }).join('');
+    }
+    // Garde-fou : si la catégorie filtrée a disparu, on revient à « Tous ».
+    if ((ctCatFilter === 'rev' && !nRev) || (ctCatFilter === 'ct' && !nCt)) ctCatFilter = 'all';
+    const rows = (ctCatFilter === 'all') ? allRows : allRows.filter(r => (ctCatFilter === 'rev' ? r.kind === 'rev' : r.kind === 'ct'));
     $('ct-count').textContent = '· ' + rows.length + ' échéance' + (rows.length > 1 ? 's' : '');
+    if (!rows.length) { $('ct-list').innerHTML = '<div class="text-sm text-slate-400" style="padding:.5rem .2rem">Aucune échéance dans ce filtre.</div>'; return; }
     const show = ctExpanded ? rows : rows.slice(0, 5);
     $('ct-list').innerHTML = show.map(r => {
       const j = r.j;
@@ -1648,6 +1668,7 @@
     if (rows.length > 5) $('ct-list').innerHTML += `<button id="ct-toggle" class="text-xs font-semibold mt-1" style="color:var(--fp-accent);background:none;border:none;cursor:pointer">${ctExpanded ? '▲ Voir moins' : ('▼ Voir tout (' + rows.length + ')')}</button>`;
     lucide.createIcons();
   }
+  { const _cf = $('ct-filters'); if (_cf) _cf.addEventListener('click', e => { const b = e.target.closest('[data-ct-filter]'); if (!b) return; const k = b.getAttribute('data-ct-filter'); if (k === ctCatFilter) return; ctCatFilter = k; ctExpanded = false; renderCTaVenir(); }); }
   $('ct-list').addEventListener('click', e => {
     const nw = e.target.closest('[data-ct-new]'); if (nw) { createCTTaskFor(nw.getAttribute('data-ct-new'), nw.getAttribute('data-ct-date')); return; }
     const rn = e.target.closest('[data-rev-new]'); if (rn) { createRevTaskFor(rn.getAttribute('data-rev-new')); return; }
