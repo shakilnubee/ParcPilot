@@ -10863,6 +10863,16 @@ FP.affectations = {
   // défaut) la 1re mise en circulation du véhicule. Consigne explicite : toujours afficher une date
   // d'entrée, même sans date de sortie. Écrit UNE fois (les ouvertures suivantes trouvent l'entrée).
   // Renvoie l'affectation en cours (existante ou créée), ou null si le véhicule n'a pas de chauffeur.
+  // Date minimale de la période EN COURS = juste APRÈS la dernière période CLÔTURÉE (handover). Empêche
+  // d'« hériter » de l'état des lieux / de la date d'un conducteur PRÉCÉDENT (ou d'un homonyme). null si
+  // le véhicule n'a jamais changé de mains (1er conducteur → on peut remonter à sa propre remise).
+  _sinceCourante(vehId) {
+    try {
+      let mx = '';
+      this.forVeh(vehId).forEach(x => { if (x && x.fin) { const f = String(x.fin).slice(0, 10); if (f > mx) mx = f; } });
+      return mx || null;
+    } catch (e) { return null; }
+  },
   ensureCourante(veh) {
     if (!veh || veh.id == null) return null;
     const ch = this._norm(veh.chauffeur);
@@ -10870,10 +10880,17 @@ FP.affectations = {
     const cur = this.courante(veh.id);
     if (cur) return cur;                                   // une affectation est déjà ouverte
     if (!this._autoOk()) return null;                      // table pas encore lue → on réessaiera au prochain rendu
-    // ⚠️ Point de départ = ÉTAT DES LIEUX de remise (km + date signés par le conducteur), sinon 1re mise
-    //    en circulation. JAMAIS un relevé km (sinon la date « bougerait » à chaque relevé — bug signalé).
-    const rem = this._remise(veh.id, null);
-    this.addEntry(veh.id, ch, rem.date || veh.dateMiseEnCirculation || null, null, rem.km, null, { auto: true });
+    // ⚠️ DATE DE DÉBUT NON HÉRITÉE (consigne utilisateur) : on ne prend QUE l'état des lieux de remise daté
+    //    APRÈS la dernière période clôturée (= prise en main du conducteur ACTUEL), JAMAIS celui d'un
+    //    conducteur précédent/homonyme. Si le véhicule a DÉJÀ changé de mains et qu'aucune remise n'existe
+    //    encore pour le nouveau, on laisse la date VIDE (affichée « début à confirmer ») plutôt que de
+    //    deviner une date fausse (ni la mise en circulation, ni l'EDL d'un autre). Pour le 1er conducteur
+    //    (jamais changé de mains), on peut remonter à sa propre remise, sinon à la 1re mise en circulation.
+    //    JAMAIS un relevé km (sinon la date « bougerait » à chaque relevé — bug signalé).
+    const since = this._sinceCourante(veh.id);
+    const rem = this._remise(veh.id, since);
+    const date = rem.date || (since ? null : (veh.dateMiseEnCirculation || null));
+    this.addEntry(veh.id, ch, date, null, rem.km, null, { auto: true });
     return this.courante(veh.id);
   },
   // Remise (état des lieux d'ENTRÉE) servant de point de départ d'une affectation : la 1re prise en main
@@ -10895,6 +10912,10 @@ FP.affectations = {
     if (!veh) return null;
     const cur = this.courante(veh.id);
     if (cur && cur.debut) return cur.debut;
+    // Date non héritée : si le véhicule a DÉJÀ changé de mains (une période clôturée existe) et que le
+    // conducteur actuel n'a pas encore de date de début réelle, on n'affiche RIEN (« à confirmer ») plutôt
+    // que la 1re mise en circulation (qui serait trompeuse). 1er conducteur seulement → repli sur la MEC.
+    if (this._sinceCourante(veh.id)) return null;
     return veh.dateMiseEnCirculation || null;
   },
   // Véhicules conduits par un conducteur (par nom, tolérant casse/espaces).
@@ -11068,10 +11089,13 @@ FP.affectations = {
         cur = { conducteur: ch, debut: null, fin: null }; list.push(cur); s.affectations[v.id] = list; changed++; touches.push(v.id);
       }
       // Remise (état des lieux d'entrée) de la période en cours = km + date de prise en main signés.
-      const rem = this._remise(v.id, cur.debut);
+      // ⚠️ DATE NON HÉRITÉE : on borne la recherche de remise APRÈS la dernière période clôturée (handover)
+      //    → jamais l'EDL d'un conducteur précédent/homonyme. Repli MEC uniquement pour le 1er conducteur.
+      const since = this._sinceCourante(v.id);
+      const rem = this._remise(v.id, cur.debut || since);
       // On ne REMPLIT QUE le vide (jamais d'écrasement d'une valeur saisie/corrigée). Sources STABLES.
       if (cur.kmDebut == null && rem.km != null) { cur.kmDebut = this._km(rem.km); changed++; touches.push(v.id); }
-      if (!cur.debut) { const d = rem.date || v.dateMiseEnCirculation || null; if (d) { cur.debut = d; changed++; touches.push(v.id); } }
+      if (!cur.debut) { const d = rem.date || (since ? null : (v.dateMiseEnCirculation || null)); if (d) { cur.debut = d; changed++; touches.push(v.id); } }
     });
     if (changed) this._sauver(s, touches);                         // n'écrit QUE si quelque chose a été posé
     return changed;
