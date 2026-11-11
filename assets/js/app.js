@@ -12649,6 +12649,9 @@ FP.buildAlertes = (data) => {
     } else {
       msg = `Révision à prévoir dans ${r.joursRestant}j`;
     }
+    // Statut de suivi (SOURCE UNIQUE FP.revisionStatut) ajouté au message → MÊME info que Entretiens /
+    // Tâches / fiche. On n'ajoute rien pour « à prévenir » (c'est déjà le sens de l'alerte).
+    try { const _st = FP.revisionStatut ? FP.revisionStatut(v) : null; if (_st && _st.statut !== 'a_prevenir') msg += ' · ' + _st.label; } catch (e) {}
     const detail = `${veh} — préconisé tous les ${FP.num(r.intervalle.km)} km / ${r.intervalle.mois} mois`;
     const sort = r.kmRestant !== null ? r.kmRestant : r.joursRestant * 100;
     out.push({ niveau: r.niveau, categorie: 'Révision', message: msg, detail, sort, target: tgt, muteKey: 'rev|' + v.id + '|' + (v.derniereRevision || ''), vehLabel: veh });
