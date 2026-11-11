@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111f">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -582,8 +582,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111e"></script>
-<script src="../assets/js/supabase-client.js?v=20261111e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111f"></script>
+<script src="../assets/js/supabase-client.js?v=20261111f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +599,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111e"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111e" defer></script>
+<script src="../assets/js/app.min.js?v=20261111f"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111f" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -762,18 +762,33 @@
       const dr = (FP.derniereRevision ? FP.derniereRevision(v) : null);
       const drTxt = (dr && dr.date) ? ('Dernière : ' + FP.date(dr.date) + (dr.km != null ? ' · ' + FP.num(dr.km) + ' km' : '')) : 'Aucune révision enregistrée';
       const chauffeur = (v.chauffeur && v.chauffeur !== '—') ? (' · ' + FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur)) : '';
+      // ⚠️ STATUT = SOURCE UNIQUE FP.revisionStatut (partagé Entretiens / Tâches / Alertes / fiche).
+      //    L'action principale DÉPEND du statut (demander RDV → enregistrer RDV → relancer → enregistrer révision).
+      const st = (FP.revisionStatut ? FP.revisionStatut(v) : null) || { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', actionKey: 'prevenir' };
+      const COL = { orange: '#ea580c', blue: '#2563eb', amber: '#d97706', violet: '#7c3aed' };
+      const pc = COL[st.couleur] || '#64748b';
+      const pill = `<span style="color:${pc};border:1px solid ${pc}40;background:${pc}14;border-radius:9999px;padding:1px 9px;font-size:11px;font-weight:700">${FP.esc(st.label)}</span>`;
+      const id = FP.esc(v.id);
+      const bDone = `<button type="button" class="filter-chip" data-rev-done="${id}" style="border-color:#16a34a;color:#16a34a">✓ ${st.actionKey === 'faite' ? 'Enregistrer la révision' : 'Révision faite'}</button>`;
+      const bRdv = `<button type="button" class="filter-chip" data-rev-rdv="${id}" style="border-color:#2563eb;color:#2563eb">🗓️ Enregistrer le RDV</button>`;
+      const bPrev = `<button type="button" class="filter-chip" data-rev-prev="${id}">📣 Demander un RDV</button>`;
+      const bRelance = `<button type="button" class="filter-chip" data-rev-prev="${id}" data-rev-relance="1" style="border-color:#d97706;color:#d97706">🔁 Relancer</button>`;
+      const bRdvMod = `<button type="button" class="filter-chip" data-rev-rdv="${id}">Modifier / annuler le RDV</button>`;
+      let btns;
+      if (st.actionKey === 'faite') btns = bDone + bRdvMod;                 // RDV confirmé
+      else if (st.actionKey === 'rdv') btns = bRdv + bRelance + bDone;       // prévenu
+      else if (st.actionKey === 'relancer') btns = bRelance + bRdv + bDone;  // à relancer
+      else btns = bPrev + bDone;                                            // à prévenir
       return `<div class="ct-card ${cls}">
         <div class="flex items-center justify-between">
           <div class="font-mono font-semibold text-sm">${FP.esc(v.immat)}</div>
           <i data-lucide="${overdue ? 'alert-triangle' : 'wrench'}" class="w-4 h-4"></i>
         </div>
         <div class="text-xs text-slate-600 mt-1">${FP.esc(v.marque)} ${FP.esc(v.modele)}${chauffeur}</div>
+        <div class="mt-2">${pill}</div>
         <div class="text-xs font-semibold mt-2">${FP.esc(kmTxt)}${dateTxt ? ' · ' + FP.esc(dateTxt) : ''}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${FP.esc(drTxt)}</div>
-        <div class="flex gap-1.5 mt-2 flex-wrap">
-          <button type="button" class="filter-chip" data-rev-done="${FP.esc(v.id)}" style="border-color:#16a34a;color:#16a34a">✓ Révision faite</button>
-          <button type="button" class="filter-chip" data-rev-prev="${FP.esc(v.id)}">📣 Prévenir</button>
-        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${FP.esc(drTxt)}${st.statut === 'rdv_confirme' && st.detail ? ' · RDV le ' + FP.esc(FP.date(st.detail)) : (st.statut === 'prevenu' && st.detail ? ' · prévenu le ' + FP.esc(FP.date(st.detail)) : '')}</div>
+        <div class="flex gap-1.5 mt-2 flex-wrap">${btns}</div>
       </div>`;
     }).join('');
     $('rev-summary').textContent = `${items.length} à prévoir${late ? ' · ' + late + ' en retard' : ''}`;
@@ -798,6 +813,9 @@
       // l'affichage/historique, mais ne sert PLUS de base de calcul.
       if (FP.setRevisionKmRef) FP.setRevisionKmRef(v.id, km);
       if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { derniereRevision: today, kmDernierReleve: km });
+      // ⚠️ Clôture du SUIVI de révision : on efface l'état (prévenu/relance) et on marque le RDV comme fait →
+      //    la carte repasse proprement à l'échéance SUIVANTE (plus de statut fantôme de l'échéance révolue).
+      try { if (FP.revSuivi) FP.revSuivi.reset(v); if (FP.rdvGarage) FP.rdvGarage.done(v.id); } catch (e) {}
       if (FP.toast) FP.toast('✓ Révision enregistrée pour ' + (v.immat || ''));
     } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement de la révision'); }
     renderKPIs(); renderRevList();
@@ -805,7 +823,7 @@
   // « 📣 Prévenir » : SMS / WhatsApp / e-mail au conducteur. ⚠️ SOURCE UNIQUE = exactement le MÊME message
   // que l'écran « Relances » et la fiche véhicule (modèle ÉDITABLE « relanceEntretien » via FP.relances.message),
   // dans la langue du conducteur, avec le PDF du garage rattaché. Rien en dur (consigne « tout est connecté »).
-  async function prevenirRevision(vehId) {
+  async function prevenirRevision(vehId, relance) {
     const v = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!v || !FP.msg) return;
     const chauffeur = (v.chauffeur && v.chauffeur !== '—') ? String(v.chauffeur).trim() : '';
     const c = (FP.conducteurContact ? FP.conducteurContact(chauffeur) : {}) || {};
@@ -820,13 +838,37 @@
     const gAtt = (FP.garages && FP.garages.pdfAttachmentDe) ? FP.garages.pdfAttachmentDe(v) : null;
     const text = built ? built.text : `Bonjour ${prenom},\nLe véhicule ${plaque} a un entretien à prévoir — pense à caler un passage au garage.`;
     FP.msg.open({
-      phone: c.tel || '', email: c.email || '', nom: prenom || plaque, title: 'Prévenir — Révision ' + plaque,
+      phone: c.tel || '', email: c.email || '', nom: prenom || plaque, title: (relance ? 'Relancer — Révision ' : 'Demander un RDV — Révision ') + plaque,
       text: text, lang: lang,
       emailSubject: built ? built.subject : ('Entretien à prévoir — ' + plaque),
       emailHtml: built ? built.emailHtml : undefined,
       emailNomSoc: soc, emailLogo: logo,
       attachments: gAtt ? [Object.assign({ _auto: true }, gAtt)] : []
     });
+    // On enregistre le SUIVI (prévenu / relancé) dès l'ouverture du composer : c'est l'action délibérée
+    // « je préviens ». Le statut « Conducteur prévenu — RDV à confirmer » reste honnête (on a sollicité ;
+    // SMS/WhatsApp ne confirment pas l'envoi — on ne prétend donc jamais « envoyé », on dit « prévenu »).
+    try { if (FP.revSuivi) { if (relance) FP.revSuivi.marquerRelance(v); else FP.revSuivi.marquerPrevenu(v); } } catch (e) {}
+    renderRevList();
+  }
+  // « 🗓️ Enregistrer le RDV » : saisit la date du rendez-vous réel pris par le conducteur → FP.rdvGarage
+  //    (source unique du RDV + rappel la veille). Vide = annuler le RDV (on revient au suivi « prévenu »).
+  //    Version simple (Lot 2) — une vraie fenêtre (heure, garage, commentaire) arrivera au lot suivant.
+  async function enregistrerRdvRevision(vehId) {
+    const v = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!v) return;
+    const cur = (FP.rdvGarage ? FP.rdvGarage.get(v.id) : null);
+    const def = (cur && cur.date) ? cur.date : '';
+    let d;
+    try { d = FP.prompt ? await FP.prompt('Date du rendez-vous garage pour ' + (v.immat || '') + ' (AAAA-MM-JJ) — laisse vide pour annuler le RDV :', def) : prompt('Date du RDV (AAAA-MM-JJ) :', def); }
+    catch (e) { d = null; }
+    if (d == null) return;
+    d = String(d).trim();
+    if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) { if (FP.toast) FP.toast('Format attendu : AAAA-MM-JJ'); return; }
+    try {
+      if (!d) { if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); }
+      else { if (FP.rdvGarage) FP.rdvGarage.set(v.id, d, 'Révision'); if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d)); }
+    } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement du RDV'); }
+    renderRevList();
   }
   // ENVOI GROUPÉ (#5) : un e-mail de rappel de révision à TOUS les conducteurs des véhicules en retard
   // (ceux qui ont une adresse), avec le PDF du garage. MÊME message éditable (FP.relances.message) que
@@ -905,7 +947,8 @@
   { const _c = $('cpv-list'); if (_c) _c.addEventListener('click', e => { const t = e.target.closest('[data-cpv-toggle]'); if (!t) return; const k = t.getAttribute('data-cpv-toggle'); cpvExpanded[k] = !cpvExpanded[k]; renderCoutParVeh(); }); }
   { const _rl = $('rev-list'); if (_rl) _rl.addEventListener('click', (e) => {
       const d = e.target.closest('[data-rev-done]'); if (d) { markRevisionFaite(d.getAttribute('data-rev-done')); return; }
-      const p = e.target.closest('[data-rev-prev]'); if (p) { prevenirRevision(p.getAttribute('data-rev-prev')); return; }
+      const r = e.target.closest('[data-rev-rdv]'); if (r) { enregistrerRdvRevision(r.getAttribute('data-rev-rdv')); return; }
+      const p = e.target.closest('[data-rev-prev]'); if (p) { prevenirRevision(p.getAttribute('data-rev-prev'), p.hasAttribute('data-rev-relance')); return; }
     }); }
 
   // === Config colonnes éditables ===
