@@ -5992,7 +5992,7 @@ FP.MAIL_DEFAUT = {
   invitation: `Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗`,
   // ===== RELANCES (écran « 📣 Relances ») — rappels envoyés au conducteur. TOUS ÉDITABLES. =====
   relanceCt: `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche (échéance le {date}) ⏳. Pense à caler un rendez-vous ! 📅`,
-  relanceEntretien: `Bonjour {prenom},\n🛠️ Le véhicule {immat} : révision {revision} 🚗. Pense à caler un passage au garage.`,
+  relanceEntretien: `Bonjour {prenom},\n\n🔧 C'est bientôt l'heure de la révision du véhicule {immat}. Peux-tu prendre rendez-vous auprès d'un garage, puis me transmettre la date dès que tu l'auras confirmée ?\n\nMerci à toi !`,
   relanceGarage: `Bonjour {prenom},\n🔧 Rendez-vous garage pour le véhicule {immat} ({motif}) : prévu le {date} 📅. Pense à t'organiser.`,
   relanceKm: `Bonjour {prenom},\n📸 Un petit coup d'œil au compteur du véhicule {immat} ? 😊 Ça file en 30 secondes !`,
   relanceAmende: `Bonjour {prenom},\n🎫 Une amende concerne le véhicule {immat}. Pense à la régler pour éviter une majoration 💵\nRegarde ta boîte mail 📩`,
@@ -6015,7 +6015,7 @@ FP.MAIL_DEFAUT = {
   invitation_en: `Hello,\n\nWelcome to Parc Pilot! 🎉 Your access to the fleet management platform is ready.\n\nChoose your password in one click (button just below) and you can log in right away. Everything in one place, simple and fast.\n\nYour login: {email}\n\nSee you soon! 🚗`,
   signature_en: `Hello {prenom},\n\nLast step before hitting the road! 🚀 Sign the condition report for your {modele} ({immat}) in seconds, right from this email.`,
   relanceCt_en: `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
-  relanceEntretien_en: `Hello {prenom},\n🛠️ Vehicle {immat}: service {revision} 🚗. Remember to book a garage visit.`,
+  relanceEntretien_en: `Hello {prenom},\n\n🔧 It's almost time for the service of vehicle {immat}. Could you book an appointment at a garage, then send me the date as soon as it's confirmed?\n\nThank you!`,
   relanceGarage_en: `Hello {prenom},\n🔧 Garage appointment for vehicle {immat} ({motif}): scheduled on {date} 📅. Please plan ahead.`,
   relanceKm_en: `Hello {prenom},\n📸 A quick look at the odometer of vehicle {immat}? 😊 It takes 30 seconds!`,
   relanceAmende_en: `Hello {prenom},\n🎫 A fine concerns vehicle {immat}. Remember to settle it to avoid a surcharge 💵\nCheck your inbox 📩`,
