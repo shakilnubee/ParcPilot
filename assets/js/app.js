@@ -5984,7 +5984,7 @@ FP.MAIL_DEFAUT = {
   rdvgarage: `Bonjour {prenom},\n\nUn rendez-vous est prévu pour le véhicule {immat} le {date}. 🗓️\nMotif : {motif}\n\nTu recevras un petit rappel la veille, pas d'inquiétude 🙂\nEt n'hésite pas si tu as la moindre question !`,
   // DEMANDE de rendez-vous (révision / CT « à organiser ») — PAS un RDV confirmé : on demande de PRENDRE
   // le rendez-vous et de COMMUNIQUER la date (jamais « rendez-vous est prévu le … » ni de date théorique).
-  demandeRdv: `Bonjour {prenom},\n\n{motif} à prévoir pour le véhicule {immat}. 🔧\n\nPeux-tu prendre rendez-vous auprès d'un garage puis me communiquer la date prévue ? Je l'enregistrerai ensuite.\n\nMerci à toi !`,
+  demandeRdv: `Bonjour {prenom},\n\n🔧 {motif} à prévoir pour le véhicule {immat}. Peux-tu prendre rendez-vous auprès d'un garage, puis me transmettre la date dès que tu l'auras confirmée ?\n\nMerci à toi !`,
   // RELANCE (J+5 sans RDV) — ton de rappel courtois, demande la date prévue.
   relanceRdv: `Bonjour {prenom},\n\nJe reviens vers toi concernant {motif} du véhicule {immat}. 🔧\n\nAs-tu pu prendre rendez-vous auprès d'un garage ? Peux-tu me confirmer la date prévue, s'il te plaît ?\n\nMerci à toi !`,
   // Rappel automatique la VEILLE (reprend les infos du rendez-vous).
