@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111j">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111j"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111j">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -582,8 +582,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111i"></script>
-<script src="../assets/js/supabase-client.js?v=20261111i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111j"></script>
+<script src="../assets/js/supabase-client.js?v=20261111j"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +599,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111i"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111i" defer></script>
+<script src="../assets/js/app.min.js?v=20261111j"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111j" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -775,10 +775,12 @@
       const bPrev = `<button type="button" class="filter-chip" data-rev-prev="${id}">📣 Demander un RDV</button>`;
       const bRelance = `<button type="button" class="filter-chip" data-rev-prev="${id}" data-rev-relance="1" style="border-color:#d97706;color:#d97706">🔁 Relancer</button>`;
       const bRdvMod = `<button type="button" class="filter-chip" data-rev-rdv="${id}">Modifier / annuler le RDV</button>`;
+      // Retour en arrière : annule le suivi (prévenu / relancé) et revient à « À prévenir ».
+      const bUndo = `<button type="button" class="filter-chip" data-rev-undo="${id}" title="Annuler le suivi et revenir à « À prévenir »" style="color:#64748b">↩︎ Annuler</button>`;
       let btns;
       if (st.actionKey === 'faite') btns = bDone + bRdvMod;                 // RDV confirmé
-      else if (st.actionKey === 'rdv') btns = bRdv + bRelance + bDone;       // prévenu
-      else if (st.actionKey === 'relancer') btns = bRelance + bRdv + bDone;  // à relancer
+      else if (st.actionKey === 'rdv') btns = bRdv + bRelance + bDone + bUndo;       // prévenu
+      else if (st.actionKey === 'relancer') btns = bRelance + bRdv + bDone + bUndo;  // à relancer
       else btns = bPrev + bDone;                                            // à prévenir
       return `<div class="ct-card ${cls}">
         <div class="flex items-center justify-between">
@@ -1029,6 +1031,7 @@
   { const _c = $('cpv-list'); if (_c) _c.addEventListener('click', e => { const t = e.target.closest('[data-cpv-toggle]'); if (!t) return; const k = t.getAttribute('data-cpv-toggle'); cpvExpanded[k] = !cpvExpanded[k]; renderCoutParVeh(); }); }
   { const _rl = $('rev-list'); if (_rl) _rl.addEventListener('click', (e) => {
       const d = e.target.closest('[data-rev-done]'); if (d) { markRevisionFaite(d.getAttribute('data-rev-done')); return; }
+      const u = e.target.closest('[data-rev-undo]'); if (u) { const vid = u.getAttribute('data-rev-undo'); const vv = (data.vehicules || []).find(x => String(x.id) === String(vid)); if (vv) { try { if (FP.revSuivi) FP.revSuivi.reset(vv); if (FP.rdvGarage) FP.rdvGarage.set(vv.id, ''); } catch (e2) {} if (FP.toast) FP.toast('Suivi annulé — retour à « À prévenir »'); renderRevList(); } return; }
       const r = e.target.closest('[data-rev-rdv]'); if (r) { enregistrerRdvRevision(r.getAttribute('data-rev-rdv')); return; }
       const p = e.target.closest('[data-rev-prev]'); if (p) { prevenirRevision(p.getAttribute('data-rev-prev'), p.hasAttribute('data-rev-relance')); return; }
     }); }
