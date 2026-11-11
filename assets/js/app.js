@@ -7633,7 +7633,7 @@ FP.settings = {
     'garageParMarque', 'vehGarage', 'archiveDocs', 'aenOfficiel', 'vehDossierVente',
     'revisionIntervalleVeh', 'revisionOverride', 'checklistDone', 'condLangues', 'leasingDocs',
     'leasingNumero', 'restitutionChecklist', 'suiviFlotte', 'vehRdvGarage', 'vehDin',
-    'vehImmobilise', 'kmSuiviExclus', 'amendesJustifWatch', 'contratsCadre', 'vehGenreFiscal'],
+    'vehImmobilise', 'kmSuiviExclus', 'amendesJustifWatch', 'contratsCadre', 'vehGenreFiscal', 'revSuivi'],
   _guardWipe(obj) {
     try {
       if (!obj || typeof obj !== 'object') return obj;
@@ -7781,7 +7781,7 @@ FP.settings = {
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
       'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements',
       // — Historique & données par VÉHICULE :
-      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef',
+      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef', 'revSuivi',
       // — Données par SINISTRE :
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
@@ -22657,6 +22657,73 @@ FP.rdvGarage = {
     const r = m[vehId]; if (!r || !r.date) return;
     m[vehId] = { date: r.date, motif: r.motif || '', fait: false }; s.vehRdvGarage = m; FP.settings.save(s);
   }
+};
+
+// ===== SUIVI DE RÉVISION — MACHINE À ÉTATS UNIQUE (source unique partagée Entretiens / Tâches / Alertes / fiche)
+// Parcours : À prévenir → Conducteur prévenu → À relancer (J+5) → RDV confirmé → Révision effectuée.
+// État de travail synchronisé (settings.revSuivi → COLLECTION_KEYS) : { [vehId]: { anchor, prevenuLe, prevenuCanal,
+// relanceLe, relanceCanal, histo:[] } }.
+//  • `anchor` = date de la DERNIÈRE révision (FP.derniereRevision) → quand une révision est enregistrée, l'ancre
+//    change et le suivi d'une échéance RÉVOLUE est automatiquement ignoré (plus de « prévenu » fantôme).
+//  • « RDV confirmé » est DÉRIVÉ de FP.rdvGarage (source unique du RDV + rappel la veille) — jamais redupliqué.
+//  • « Effectuée » = la révision n'est plus due (FP.revisionInfo sans niveau).
+FP.REV_RELANCE_JOURS = 5;   // délai (jours) avant de proposer une relance après le 1er « prévenu » (consigne)
+FP.revSuivi = {
+  _map() { try { const m = FP.settings.get().revSuivi; return (m && typeof m === 'object') ? m : {}; } catch (e) { return {}; } },
+  _vehId(v) { return (v && typeof v === 'object') ? v.id : v; },
+  _anchor(v) { try { return (FP.derniereRevision ? (FP.derniereRevision(v).date || '') : ((v && v.derniereRevision) || '')) || 'norev'; } catch (e) { return 'norev'; } },
+  // Entrée de suivi SI elle correspond à l'ancre courante (sinon = échéance révolue → ignorée).
+  get(v) {
+    const vehId = this._vehId(v); const r = this._map()[vehId];
+    if (!r || typeof r !== 'object') return null;
+    if (v && typeof v === 'object' && r.anchor && r.anchor !== this._anchor(v)) return null;
+    return r;
+  },
+  _save(vehId, rec) {
+    const s = FP.settings.get(); s.revSuivi = (s.revSuivi && typeof s.revSuivi === 'object') ? s.revSuivi : {};
+    if (rec == null) delete s.revSuivi[vehId]; else s.revSuivi[vehId] = rec;
+    FP.settings.save(s);
+  },
+  _today() { return new Date().toISOString().slice(0, 10); },
+  marquerPrevenu(v, canal) {
+    const vehId = this._vehId(v); if (vehId == null) return;
+    const anchor = (v && typeof v === 'object') ? this._anchor(v) : ((this._map()[vehId] || {}).anchor || 'norev');
+    const today = this._today(); const prev = this.get(v) || {};
+    const histo = (Array.isArray(prev.histo) ? prev.histo.slice(-19) : []); histo.push({ t: 'prevenu', canal: canal || '', at: today });
+    this._save(vehId, { anchor, prevenuLe: prev.prevenuLe || today, prevenuCanal: canal || prev.prevenuCanal || '', relanceLe: prev.relanceLe || null, relanceCanal: prev.relanceCanal || '', histo });
+  },
+  marquerRelance(v, canal) {
+    const vehId = this._vehId(v); if (vehId == null) return;
+    const anchor = (v && typeof v === 'object') ? this._anchor(v) : ((this._map()[vehId] || {}).anchor || 'norev');
+    const today = this._today(); const prev = this.get(v) || {};
+    const histo = (Array.isArray(prev.histo) ? prev.histo.slice(-19) : []); histo.push({ t: 'relance', canal: canal || '', at: today });
+    this._save(vehId, { anchor, prevenuLe: prev.prevenuLe || today, prevenuCanal: prev.prevenuCanal || '', relanceLe: today, relanceCanal: canal || '', histo });
+  },
+  reset(v) { const vehId = this._vehId(v); if (vehId != null) this._save(vehId, null); }
+};
+
+// STATUT d'une révision — SOURCE UNIQUE lue par tous les écrans. Renvoie null si la révision n'est pas due ET
+// qu'aucun suivi/RDV n'est en cours. Sinon { statut, label, couleur, action, actionKey, detail }.
+// statut ∈ 'a_prevenir' | 'prevenu' | 'a_relancer' | 'rdv_confirme'.
+FP.revisionStatut = (v) => {
+  if (!v || v.id == null) return null;
+  let ri = null; try { ri = FP.revisionInfo ? FP.revisionInfo(v) : null; } catch (e) {}
+  const due = !!(ri && ri.niveau);
+  const today = new Date().toISOString().slice(0, 10);
+  let rdv = null; try { rdv = FP.rdvGarage ? FP.rdvGarage.get(v.id) : null; } catch (e) {}
+  const rdvActif = !!(rdv && rdv.date && !rdv.fait && String(rdv.date) >= today);
+  const suivi = FP.revSuivi ? FP.revSuivi.get(v) : null;
+  if (!due && !rdvActif && !suivi) return null;
+  if (rdvActif) return { statut: 'rdv_confirme', label: 'RDV confirmé', couleur: 'violet', action: 'Enregistrer la révision', actionKey: 'faite', detail: rdv.date, rdv: rdv };
+  if (suivi && suivi.prevenuLe) {
+    const base = suivi.relanceLe || suivi.prevenuLe;
+    let jours = null; try { jours = Math.floor((new Date(today) - new Date(base)) / 86400000); } catch (e) {}
+    const seuil = (FP.notifCfg && FP.notifCfg().revRelanceJours) || FP.REV_RELANCE_JOURS;
+    if (jours != null && jours >= seuil) return { statut: 'a_relancer', label: 'À relancer', couleur: 'amber', action: 'Relancer le conducteur', actionKey: 'relancer', detail: suivi.prevenuLe };
+    return { statut: 'prevenu', label: 'Conducteur prévenu — RDV à confirmer', couleur: 'blue', action: 'Enregistrer le RDV', actionKey: 'rdv', detail: suivi.prevenuLe };
+  }
+  if (due) return { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', action: 'Demander un RDV', actionKey: 'prevenir', detail: null };
+  return null;
 };
 
 // ===== RELANCES — SOURCE UNIQUE : « qui relancer aujourd'hui » + message prêt à envoyer =====
