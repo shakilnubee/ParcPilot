@@ -1074,6 +1074,12 @@
   function lookupEmail(prenom) {
     const p = _nnc(prenom);
     if (condEmails[p]) return condEmails[p];               // 1) correspondance exacte (jamais ambiguë)
+    // 1 bis) NOM COMPLET (contient un nom de famille) → résolution exacte de la FICHE via le resolver
+    //        canonique surname-aware (FP.conducteurContact → condGroupKey) : homonyme-safe. On ne
+    //        l'applique PAS à un prénom SEUL (sans nom, impossible de départager → doit rester ambigu).
+    if (/\s/.test(String(prenom || '').trim())) {
+      try { const cc = (window.FP && FP.conducteurContact) ? FP.conducteurContact(prenom) : null; if (cc && cc.email) return cc.email; } catch (e) {}
+    }
     const fb = condEmailByFirst[_npr(prenom)];             // 2) repli prénom SEULEMENT s'il est unique
     // ⚠️ Ne JAMAIS deviner sur un prénom partagé par 2 conducteurs (envoi de l'avis + PII au MAUVAIS
     // destinataire). En cas d'ambiguïté on renvoie '' → le flux d'envoi bloque au lieu de se tromper.
@@ -1798,7 +1804,13 @@
       FP.conducteurPicker($('am-cond-input'), { onPick: (cond) => {
         // Nom COMPLET (prénom + nom de famille) — displayName d'abord, sinon repli. Avant, on prenait
         // cond.name en premier (souvent le prénom seul d'un import Ulys) → le nom de famille était perdu.
-        const nm = (FP.conducteurs.displayName ? FP.conducteurs.displayName(cond) : '') || (cond && (cond.name || cond.prenom)) || '';
+        let nm = (FP.conducteurs.displayName ? FP.conducteurs.displayName(cond) : '') || (cond && (cond.name || cond.prenom)) || '';
+        // ⚠️ HOMONYMES (bug réel « Daniel » qui disait « pas de mail ») : displayName ne renvoie le nom de
+        //    famille QUE si un AUTRE homonyme ACTIF a lui-même un nom rempli. Si l'autre « Daniel » n'a pas
+        //    de nom, on retombait sur le prénom SEUL → l'amende restait AMBIGUË et la relance ne trouvait
+        //    pas l'e-mail. On force donc le nom de famille de la fiche choisie dès qu'il existe (identité
+        //    complète = résolution e-mail fiable). Le mail au conducteur n'utilise que {prenom} (1er mot).
+        try { const _nom = String((cond && cond.nom) || '').trim(); if (_nom && !nm.toLowerCase().includes(_nom.toLowerCase())) nm = (nm + ' ' + _nom).trim(); } catch (e) {}
         if (!nm) return;
         if (FP.history && FP.history.commit) FP.history.commit();
         a.prenom = nm;
