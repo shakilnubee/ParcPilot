@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111d">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111c"></script>
-<script src="../assets/js/supabase-client.js?v=20261111c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111d"></script>
+<script src="../assets/js/supabase-client.js?v=20261111d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261111c"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261111c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261111d"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261111d"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261111c"></script><script>
+<script src="../assets/js/app.min.js?v=20261111d"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2207,7 +2207,10 @@
       if (editRec) {
         const a = editRec.a, i = editRec.i;
         return `<div class="py-2 border-b border-slate-100" data-affect-row="${i}">
-          <div class="flex items-center gap-2 mb-2"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i><span class="font-semibold text-slate-800">${escapeHtml(a.conducteur || '—')}</span></div>
+          <div class="flex flex-wrap items-end gap-2 mb-2">
+            <label class="text-xs text-slate-500">Conducteur<br><input type="text" data-affect-cond value="${escapeHtml(a.conducteur || '')}" data-affect-condkey="${escapeHtml(a.conducteurKey || '')}" placeholder="Choisir ou créer…" class="border border-slate-200 rounded-lg px-2 py-1 text-sm" style="width:220px" autocomplete="off"></label>
+            <span class="text-[11px] text-slate-400" style="padding-bottom:4px">Relie la période à la bonne personne (homonymes)</span>
+          </div>
           <div class="flex flex-wrap items-end gap-2">
             <label class="text-xs text-slate-500">Début<br><input type="date" data-affect-debut value="${a.debut || ''}" class="border border-slate-200 rounded-lg px-2 py-1 text-sm"></label>
             <label class="text-xs text-slate-500">Km au début<br><input type="number" min="0" inputmode="numeric" data-affect-kmdebut value="${a.kmDebut != null ? a.kmDebut : ''}" placeholder="km compteur" class="border border-slate-200 rounded-lg px-2 py-1 text-sm" style="width:110px"></label>
@@ -2292,6 +2295,17 @@
     if (!body) return;
     body.innerHTML = affectRowsHTML(vehId, editIdx == null ? null : editIdx);
     if (window.lucide) lucide.createIcons();
+    // Formulaire « Corriger » ouvert → champ Conducteur = picker (choisir OU créer), avec clé unique.
+    if (editIdx != null) {
+      const condInp = body.querySelector('[data-affect-cond]');
+      if (condInp && FP.conducteurPicker) {
+        FP.conducteurPicker(condInp, { onPick: (c) => {
+          if (!c) return;
+          condInp.value = FP.conducteurs && FP.conducteurs.displayName ? FP.conducteurs.displayName(c) : (c.prenom || c.name || condInp.value);
+          condInp.dataset.affectCondkey = c.key || '';
+        } });
+      }
+    }
   }
 
   // Gestion des interactions (délégation globale, attachée une seule fois).
@@ -2404,14 +2418,31 @@
         const fin = row.querySelector('[data-affect-fin]').value || null;
         const kmDebut = row.querySelector('[data-affect-kmdebut]').value.trim() || null;
         const kmFin = row.querySelector('[data-affect-kmfin]').value.trim() || null;
+        // Conducteur de la période (choisi/créé via le picker) + sa CLÉ unique (relie à la bonne personne).
+        const _condEl = row.querySelector('[data-affect-cond]');
+        const _condSaisi = _condEl ? String(_condEl.value || '').trim() : '';
+        const _condKeySaisi = _condEl ? String(_condEl.dataset.affectCondkey || '').trim() : '';
         if (debut && fin && fin < debut) { FP.alert('La date de fin ne peut pas être avant la date de début.'); return; }
         if (kmDebut != null && kmFin != null && +kmFin < +kmDebut) { FP.alert('Le km à la fin ne peut pas être inférieur au km au début.'); return; }
         // État AVANT édition de la ligne (pour détecter la TRANSITION ouvert↔fermé de CETTE période).
         const _idx = +save.dataset.affectSave;
         const _before = (FP.affectations.forVeh(vehId) || [])[_idx] || null;
         const _etaitOuverte = !!(_before && !_before.fin);
-        const _condLigne = (_before && _before.conducteur) ? String(_before.conducteur).trim() : '';
-        FP.affectations.setEntry(vehId, _idx, { debut, fin, kmDebut, kmFin });
+        const _condAvant = (_before && _before.conducteur) ? String(_before.conducteur).trim() : '';
+        // Patch : on inclut le conducteur UNIQUEMENT s'il est renseigné (jamais vider une période) ; la clé
+        // est posée dès qu'un conducteur a été choisi dans la liste (homonymes reliés à la bonne fiche).
+        const _patch = { debut, fin, kmDebut, kmFin };
+        if (_condSaisi) { _patch.conducteur = _condSaisi; _patch.conducteurKey = _condKeySaisi || null; }
+        // La ligne (nom) utilisée pour la synchro « conducteur actuel » = le nouveau nom s'il a changé.
+        const _condLigne = _condSaisi || _condAvant;
+        FP.affectations.setEntry(vehId, _idx, _patch);
+        // Renommage/ré-attribution de la période EN COURS → refléter sur le conducteur actuel du véhicule.
+        try {
+          if (_etaitOuverte && !fin && _condSaisi && _condSaisi.toLowerCase() !== _condAvant.toLowerCase()) {
+            const _veh = (data.vehicules || []).find(x => x.id === vehId);
+            if (_veh) { _veh.chauffeur = _condSaisi; await persistVehFields(_veh, ['chauffeur']); try { renderTable(); renderKPIs(); } catch (e) {} }
+          }
+        } catch (e) { console.warn('[affect sync rename]', e); }
         refreshAffect(vehId, null);
         // ⚠️ SOURCE UNIQUE : une période SANS date de fin = le conducteur EN COURS. On synchronise donc
         // « conducteur actuel » (v.chauffeur) UNIQUEMENT sur une vraie transition de la ligne éditée :
