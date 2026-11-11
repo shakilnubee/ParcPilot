@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111h">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -582,8 +582,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111g"></script>
-<script src="../assets/js/supabase-client.js?v=20261111g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111h"></script>
+<script src="../assets/js/supabase-client.js?v=20261111h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -599,11 +599,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261111g"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261111g" defer></script>
+<script src="../assets/js/app.min.js?v=20261111h"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261111h" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -765,6 +765,7 @@
       // ⚠️ STATUT = SOURCE UNIQUE FP.revisionStatut (partagé Entretiens / Tâches / Alertes / fiche).
       //    L'action principale DÉPEND du statut (demander RDV → enregistrer RDV → relancer → enregistrer révision).
       const st = (FP.revisionStatut ? FP.revisionStatut(v) : null) || { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', actionKey: 'prevenir' };
+      const _rsv = FP.revSuivi ? FP.revSuivi.get(v) : null;   // extras du RDV (heure / garage) à afficher
       const COL = { orange: '#ea580c', blue: '#2563eb', amber: '#d97706', violet: '#7c3aed' };
       const pc = COL[st.couleur] || '#64748b';
       const pill = `<span style="color:${pc};border:1px solid ${pc}40;background:${pc}14;border-radius:9999px;padding:1px 9px;font-size:11px;font-weight:700">${FP.esc(st.label)}</span>`;
@@ -787,38 +788,88 @@
         <div class="text-xs text-slate-600 mt-1">${FP.esc(v.marque)} ${FP.esc(v.modele)}${chauffeur}</div>
         <div class="mt-2">${pill}</div>
         <div class="text-xs font-semibold mt-2">${FP.esc(kmTxt)}${dateTxt ? ' · ' + FP.esc(dateTxt) : ''}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${FP.esc(drTxt)}${st.statut === 'rdv_confirme' && st.detail ? ' · RDV le ' + FP.esc(FP.date(st.detail)) : (st.statut === 'prevenu' && st.detail ? ' · prévenu le ' + FP.esc(FP.date(st.detail)) : '')}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${FP.esc(drTxt)}${st.statut === 'rdv_confirme' && st.detail ? ' · RDV le ' + FP.esc(FP.date(st.detail)) + (_rsv && _rsv.rdvHeure ? ' à ' + FP.esc(_rsv.rdvHeure) : '') + (_rsv && _rsv.rdvGarage ? ' · ' + FP.esc(_rsv.rdvGarage) : '') : (st.statut === 'prevenu' && st.detail ? ' · prévenu le ' + FP.esc(FP.date(st.detail)) : '')}</div>
         <div class="flex gap-1.5 mt-2 flex-wrap">${btns}</div>
       </div>`;
     }).join('');
     $('rev-summary').textContent = `${items.length} à prévoir${late ? ' · ' + late + ' en retard' : ''}`;
     lucide.createIcons();
   }
-  // « ✓ Révision faite » : enregistre la date (aujourd'hui) + le km (pré-rempli au km actuel, modifiable)
-  // → source unique derniereRevision + kmDernierReleve → la PROCHAINE révision se recalcule partout.
-  async function markRevisionFaite(vehId) {
+  // ---- Petite fenêtre de saisie réutilisable (révision / RDV) ----------------------------------------
+  // overlay role="dialog" → fermé par Échap via le GARDE GLOBAL d'app.js ; clic sur le fond ferme aussi ;
+  // Entrée valide (formulaire). Champs simples ; `onSave(values)` renvoie false pour garder la fenêtre ouverte.
+  function fpRevModal(opts) {
+    opts = opts || {};
+    const E = FP.esc || (x => x);
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.45)';
+    const fh = (opts.fields || []).map(f => {
+      const id = 'fpm-' + f.key;
+      const lab = `<span style="font-size:12px;color:var(--fp-muted,#64748b);font-weight:600">${E(f.label)}${f.required ? ' *' : ''}</span>`;
+      if (f.type === 'textarea') return `<label style="display:block;margin-bottom:10px">${lab}<textarea id="${id}" rows="2" placeholder="${E(f.placeholder || '')}" style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit">${E(f.value || '')}</textarea></label>`;
+      return `<label style="display:block;margin-bottom:10px">${lab}<input id="${id}" type="${f.type || 'text'}" value="${E(f.value == null ? '' : String(f.value))}" placeholder="${E(f.placeholder || '')}" ${f.type === 'number' ? 'inputmode="numeric" min="0"' : ''} style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit"></label>`;
+    }).join('');
+    ov.innerHTML = `<div style="background:var(--fp-surface,#fff);color:var(--fp-primary,#0f172a);border-radius:16px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(15,23,42,.3);padding:18px">
+      <div style="font-weight:800;font-size:1.05rem;margin-bottom:12px">${E(opts.title || '')}</div>
+      <form id="fpm-form">${fh}
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px">
+          ${opts.extraBtn ? `<button type="button" id="fpm-extra" class="btn btn-outline text-xs" style="margin-right:auto;border-color:#dc2626;color:#dc2626">${E(opts.extraBtn)}</button>` : ''}
+          <button type="button" id="fpm-cancel" class="btn btn-outline text-sm">Annuler</button>
+          <button type="submit" class="btn btn-dark text-sm">${E(opts.okLabel || 'Enregistrer')}</button>
+        </div>
+      </form></div>`;
+    document.body.appendChild(ov);
+    try { if (FP.scrollLock) FP.scrollLock.on(); } catch (e) {}
+    const close = () => { try { ov.remove(); } catch (e) {} try { if (FP.scrollLock) FP.scrollLock.off(); } catch (e) {} };
+    ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    ov.querySelector('#fpm-cancel').addEventListener('click', close);
+    if (opts.extraBtn) { const eb = ov.querySelector('#fpm-extra'); if (eb) eb.addEventListener('click', () => { close(); if (opts.onExtra) opts.onExtra(); }); }
+    ov.querySelector('#fpm-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const vals = {}; (opts.fields || []).forEach(f => { const el = ov.querySelector('#fpm-' + f.key); vals[f.key] = el ? String(el.value).trim() : ''; });
+      for (const f of (opts.fields || [])) { if (f.required && !vals[f.key]) { if (FP.toast) FP.toast('« ' + f.label + ' » est requis'); return; } }
+      const ok = opts.onSave ? opts.onSave(vals) : true;
+      if (ok !== false) close();
+    });
+    setTimeout(() => { const first = ov.querySelector('input,textarea'); if (first) first.focus(); }, 30);
+  }
+
+  // « Enregistrer la révision » : vraie fenêtre — DATE RÉELLE (modifiable, PASSÉE autorisée : cas « révision
+  // déjà faite mais pas encore enregistrée ») + KM réel. Source unique derniereRevision + FP.kmRevision →
+  // la PROCHAINE révision se recalcule partout. Le COÛT (facture/montant) s'ajoute via la page Factures
+  // (source unique des coûts, anti-doublon) — on n'invente aucune facture ici.
+  function markRevisionFaite(vehId) {
     const v = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!v) return;
     const kmDefault = (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0)) || '';
-    let kmStr;
-    try { kmStr = FP.prompt ? await FP.prompt('Révision faite pour ' + (v.immat || '') + ' — kilométrage au moment de la révision (date = aujourd\'hui) :', String(kmDefault)) : prompt('Km à la révision :', String(kmDefault)); }
-    catch (e) { kmStr = null; }
-    if (kmStr == null) return;
-    const km = parseInt(String(kmStr).replace(/[^\d]/g, ''), 10);
-    if (!Number.isFinite(km) || km < 0) { if (FP.toast) FP.toast('Kilométrage invalide'); return; }
     const today = new Date().toISOString().slice(0, 10);
-    try {
-      v.derniereRevision = today; v.kmDernierReleve = km;
-      // ⚠️ km À LA RÉVISION (base STABLE du seuil de prochaine révision) → réf dédiée, jamais écrasée par les
-      // relevés km (source unique FP.kmRevision, lue aussi par le portail). kmDernierReleve reste posé pour
-      // l'affichage/historique, mais ne sert PLUS de base de calcul.
-      if (FP.setRevisionKmRef) FP.setRevisionKmRef(v.id, km);
-      if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { derniereRevision: today, kmDernierReleve: km });
-      // ⚠️ Clôture du SUIVI de révision : on efface l'état (prévenu/relance) et on marque le RDV comme fait →
-      //    la carte repasse proprement à l'échéance SUIVANTE (plus de statut fantôme de l'échéance révolue).
-      try { if (FP.revSuivi) FP.revSuivi.reset(v); if (FP.rdvGarage) FP.rdvGarage.done(v.id); } catch (e) {}
-      if (FP.toast) FP.toast('✓ Révision enregistrée pour ' + (v.immat || ''));
-    } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement de la révision'); }
-    renderKPIs(); renderRevList();
+    fpRevModal({
+      title: 'Enregistrer la révision — ' + (v.immat || ''),
+      okLabel: '✓ Enregistrer',
+      fields: [
+        { key: 'date', label: 'Date réelle de la révision', type: 'date', value: today, required: true },
+        { key: 'km', label: 'Kilométrage à la révision', type: 'number', value: kmDefault, required: true, placeholder: 'km compteur' }
+      ],
+      onSave: (vals) => {
+        const km = parseInt(String(vals.km).replace(/[^\d]/g, ''), 10);
+        if (!Number.isFinite(km) || km < 0) { if (FP.toast) FP.toast('Kilométrage invalide'); return false; }
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(vals.date) ? vals.date : today;
+        if (date > today) { if (FP.toast) FP.toast('La date ne peut pas être dans le futur'); return false; }
+        try {
+          v.derniereRevision = date;
+          // raise-only : on ne fait JAMAIS descendre le compteur sous un relevé déjà plus élevé.
+          const kmNew = Math.max(km, Number(v.kmDernierReleve) || 0);
+          v.kmDernierReleve = kmNew;
+          if (FP.setRevisionKmRef) FP.setRevisionKmRef(v.id, km);   // km À LA RÉVISION = base stable du seuil
+          if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { derniereRevision: date, kmDernierReleve: kmNew });
+          // Clôture du suivi (efface prévenu/relance/rdv) → la carte repart à l'échéance suivante.
+          try { if (FP.revSuivi) FP.revSuivi.reset(v); if (FP.rdvGarage) FP.rdvGarage.done(v.id); } catch (e) {}
+          if (FP.toast) FP.toast('✓ Révision enregistrée pour ' + (v.immat || ''));
+        } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement de la révision'); return false; }
+        renderKPIs(); renderRevList();
+        return true;
+      }
+    });
   }
   // « 📣 Prévenir » : SMS / WhatsApp / e-mail au conducteur. ⚠️ SOURCE UNIQUE = exactement le MÊME message
   // que l'écran « Relances » et la fiche véhicule (modèle ÉDITABLE « relanceEntretien » via FP.relances.message),
@@ -851,26 +902,42 @@
     try { if (FP.revSuivi) { if (relance) FP.revSuivi.marquerRelance(v); else FP.revSuivi.marquerPrevenu(v); } } catch (e) {}
     renderRevList();
   }
-  // « 🗓️ Enregistrer le RDV » : saisit la date du rendez-vous réel pris par le conducteur → FP.rdvGarage
-  //    (source unique du RDV + rappel la veille). Vide = annuler le RDV (on revient au suivi « prévenu »).
-  //    Version simple (Lot 2) — une vraie fenêtre (heure, garage, commentaire) arrivera au lot suivant.
-  async function enregistrerRdvRevision(vehId) {
+  // « 🗓️ Enregistrer le RDV » : vraie fenêtre (date + heure + garage + commentaire). La date pose le statut
+  //    « RDV confirmé » (FP.revSuivi.setRdv) ET déclenche le rappel automatique la veille (FP.rdvGarage.set).
+  //    Bouton « Annuler le RDV » = on retire le RDV (retour au suivi « prévenu »).
+  function enregistrerRdvRevision(vehId) {
     const v = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!v) return;
-    const cur = (FP.rdvGarage ? FP.rdvGarage.get(v.id) : null);
-    const def = (cur && cur.date) ? cur.date : '';
-    let d;
-    try { d = FP.prompt ? await FP.prompt('Date du rendez-vous garage pour ' + (v.immat || '') + ' (AAAA-MM-JJ) — laisse vide pour annuler le RDV :', def) : prompt('Date du RDV (AAAA-MM-JJ) :', def); }
-    catch (e) { d = null; }
-    if (d == null) return;
-    d = String(d).trim();
-    if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) { if (FP.toast) FP.toast('Format attendu : AAAA-MM-JJ'); return; }
-    try {
-      if (!d) { if (FP.revSuivi) FP.revSuivi.clearRdv(v); if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); }
-      // ⚠️ On pose la date de RDV dans le SUIVI (fait foi pour le statut « RDV confirmé ») ET dans
-      //    FP.rdvGarage (déclenche le rappel automatique la veille). Deux usages, une seule action.
-      else { if (FP.revSuivi) FP.revSuivi.setRdv(v, d); if (FP.rdvGarage) FP.rdvGarage.set(v.id, d, 'Révision'); if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d)); }
-    } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement du RDV'); }
-    renderRevList();
+    const cur = (FP.revSuivi ? FP.revSuivi.get(v) : null) || {};
+    const rdvCur = (FP.rdvGarage ? FP.rdvGarage.get(v.id) : null) || {};
+    const today = new Date().toISOString().slice(0, 10);
+    const annuler = () => {
+      try { if (FP.revSuivi) FP.revSuivi.clearRdv(v); if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); } catch (e) {}
+      renderRevList();
+    };
+    fpRevModal({
+      title: 'Enregistrer le RDV — ' + (v.immat || ''),
+      okLabel: '🗓️ Enregistrer le RDV',
+      extraBtn: (cur.rdvDate || rdvCur.date) ? 'Annuler le RDV' : '',
+      onExtra: annuler,
+      fields: [
+        { key: 'date', label: 'Date du rendez-vous', type: 'date', value: (cur.rdvDate || (rdvCur.date ? String(rdvCur.date).slice(0, 10) : '')), required: true },
+        { key: 'heure', label: 'Heure (optionnel)', type: 'time', value: (cur.rdvHeure || '') },
+        { key: 'garage', label: 'Garage (optionnel)', type: 'text', value: (cur.rdvGarage || ''), placeholder: 'Nom du garage' },
+        { key: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', value: (cur.rdvNote || ''), placeholder: 'ex. dépose 8h, récup 17h' }
+      ],
+      onSave: (vals) => {
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(vals.date) ? vals.date : '';
+        if (!d) { if (FP.toast) FP.toast('Date invalide'); return false; }
+        if (d < today) { if (FP.toast) FP.toast('La date du RDV est dans le passé — vérifie.'); /* on laisse passer (RDV passé = à enregistrer la révision) */ }
+        try {
+          if (FP.revSuivi) FP.revSuivi.setRdv(v, d, { rdvHeure: vals.heure, rdvGarage: vals.garage, rdvNote: vals.commentaire });
+          if (FP.rdvGarage) FP.rdvGarage.set(v.id, d, 'Révision' + (vals.garage ? (' · ' + vals.garage) : ''));
+          if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d) + (vals.heure ? (' à ' + vals.heure) : ''));
+        } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement du RDV'); return false; }
+        renderRevList();
+        return true;
+      }
+    });
   }
   // ENVOI GROUPÉ (#5) : un e-mail de rappel de révision à TOUS les conducteurs des véhicules en retard
   // (ceux qui ont une adresse), avec le PDF du garage. MÊME message éditable (FP.relances.message) que
