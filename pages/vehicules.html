@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261111g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261111g">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111f"></script>
-<script src="../assets/js/supabase-client.js?v=20261111f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261111g"></script>
+<script src="../assets/js/supabase-client.js?v=20261111g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261111f"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261111f"></script>
+<script src="../assets/js/fleet-docs.js?v=20261111g"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261111g"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261111f"></script><script>
+<script src="../assets/js/app.min.js?v=20261111g"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -3708,6 +3708,10 @@
     const revProchaine = rev.prochaineKm
       ? `${revPref}~${FP.num(rev.prochaineKm)} km${rev.prochaineDate ? ' ou ' + FP.dateNum(rev.prochaineDate.toISOString()) : ''}`
       : (rev.prochaineDate ? revPref + FP.dateNum(rev.prochaineDate.toISOString()) : '—');
+    // Statut de révision — MÊME source unique (FP.revisionStatut) que Entretiens / Tâches / Alertes.
+    const _revSt = FP.revisionStatut ? FP.revisionStatut(v) : null;
+    const _SCOLR = { orange: '#ea580c', blue: '#2563eb', amber: '#d97706', violet: '#7c3aed' };
+    const revStatutPill = _revSt ? `<div style="margin-top:3px"><span style="font-size:10px;font-weight:700;color:${_SCOLR[_revSt.couleur] || '#64748b'};border:1px solid ${(_SCOLR[_revSt.couleur] || '#64748b')}55;background:${(_SCOLR[_revSt.couleur] || '#64748b')}14;border-radius:9999px;padding:1px 7px">${FP.esc(_revSt.label)}</span></div>` : '';
     const lease = FP.leasingInfo(v);
     // Concerné par le contrôle anti-pollution (utilitaires + camions diesel, hors chariot)
     const isUtilitaire = FP.concerneAntiPollution(v);
@@ -3894,7 +3898,7 @@
       <div class="fiche-title" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-muted);margin-bottom:.5rem">Entretien &amp; échéances</div>
       <div class="grid grid-cols-2 gap-3">
         <div class="kpi p-3 cursor-pointer" data-rev-edit title="Cliquer pour saisir la date ET le km de la dernière révision"><div class="kpi-label">Dernière révision <span style="color:var(--fp-accent)">✏️</span></div><div class="kpi-value" style="font-size:1rem">${drRevDate ? FP.dateNum(drRevDate) : (estNeuf ? '<span class="text-emerald-600" style="font-size:.85rem">Véhicule neuf</span>' : '<span class="text-slate-400">à saisir</span>')}</div><div class="text-xs text-slate-500" style="margin-top:1px">${estNeuf && !drRevDate ? 'pas encore de révision' : 'à ' + ((drRevKm != null) ? FP.num(drRevKm) + ' km' : '— km')}</div></div>
-        <div class="kpi p-3"><div class="kpi-label">Prochaine révision (est.)</div><div class="kpi-value" style="font-size:1rem;${revColor}">${revProchaine}${rev.niveau ? ' ⚠️' : ''}</div></div>
+        <div class="kpi p-3"><div class="kpi-label">Prochaine révision (est.)</div><div class="kpi-value" style="font-size:1rem;${revColor}">${revProchaine}${rev.niveau ? ' ⚠️' : ''}</div>${revStatutPill}</div>
       </div>
       </div>
 
