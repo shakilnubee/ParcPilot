@@ -14487,15 +14487,28 @@ FP.lienVehicule = function (immat, label) {
   if (!im) return txt;
   return `<a class="fp-lien" href="${FP._pagePrefix()}vehicules.html?immat=${encodeURIComponent(im)}" title="Voir la fiche véhicule" onclick="event.stopPropagation()">${txt}</a>`;
 };
-FP.lienConducteur = function (name, label) {
+FP.lienConducteur = function (name, label, key) {
   const raw = (name == null ? '' : String(name)).trim();
   // Règle GLOBALE : on affiche le PRÉNOM SEUL du conducteur (source unique FP.prenomAffiche) — sauf si
   // l'appelant impose un `label`. Le lien pointe toujours vers la fiche complète du conducteur.
   const txt = FP._escLien(label != null ? label : (FP.prenomAffiche ? FP.prenomAffiche(raw) : raw));
   const excl = ['', '—', 'x', 'X', 'Siège', 'Dépôt', 'Navette', 'VENDU', 'Fenwick'];
   if (excl.includes(raw)) return txt;
-  const key = raw.split(/\s+/)[0].toLowerCase();
-  return `<a class="fp-lien" href="${FP._pagePrefix()}conducteurs.html?cond=${encodeURIComponent(key)}" title="Voir la fiche conducteur" onclick="event.stopPropagation()">${txt}</a>`;
+  // HOMONYMES : si l'appelant connaît la CLÉ unique du conducteur (ex. clé de l'affectation EN COURS),
+  // on cible cette fiche précise — sinon repli sur le prénom (1er mot), qui peut tomber sur un homonyme.
+  const target = (key != null && String(key).trim()) ? String(key).trim() : raw.split(/\s+/)[0].toLowerCase();
+  return `<a class="fp-lien" href="${FP._pagePrefix()}conducteurs.html?cond=${encodeURIComponent(target)}" title="Voir la fiche conducteur" onclick="event.stopPropagation()">${txt}</a>`;
+};
+
+// SOURCE UNIQUE — lien vers la fiche du conducteur EN COURS d'un véhicule. Résout la CLÉ de l'affectation
+// courante (fiche exacte même avec des homonymes : deux « Daniel »), repli sur le prénom si pas de clé.
+// Tout « chauffeur cliquable » affiché depuis un véhicule DOIT passer par ce helper (header fiche, tableaux,
+// Contrats…) pour ne jamais renvoyer vers le mauvais homonyme.
+FP.lienChauffeurVeh = function (v, label) {
+  if (!v) return '';
+  let key = '';
+  try { if (FP.affectations && FP.affectations.courante) { const c = FP.affectations.courante(v.id); if (c && c.conducteurKey) key = String(c.conducteurKey).trim(); } } catch (e) {}
+  return FP.lienConducteur(v.chauffeur || '—', label, key);
 };
 
 // ============================================================================
