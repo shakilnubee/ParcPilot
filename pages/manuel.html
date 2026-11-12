@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -471,6 +471,7 @@
         <div class="man-item"><b>Restitution leasing</b> — checklist des frais à prévoir au retour (pneus, carrosserie, km dépassé, manquants, nettoyage) avec un total estimé.</div>
         <div class="man-item"><b>État des lieux</b> — historique daté d'inspections <b>📥 Entrée</b> / <b>📤 Sortie</b> (km + note + photos/fichier PDF). Un seul formulaire enregistre l'inspection ET ses pièces d'un coup. <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> Le conducteur peut aussi faire l'état des lieux <b>depuis le QR de la voiture</b> (photos <b>à la prise</b> ET <b>à la restitution</b>) en indiquant le <b>kilométrage</b> : ça remonte le km du véhicule, s'ajoute à cette frise, et te prévient (alerte + onglet Sinistres).</div>
         <div class="man-item"><b>✍️ Signer l'état des lieux SUR PLACE (nouveau)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans le bouton <b>« État des lieux »</b> de la fiche véhicule (utilisable <b>sur téléphone</b>) : tu remplis tout le PDF (employé, immat, km, état carrosserie/intérieur/accessoires), tu prends les photos avec l'appareil photo, puis dans <b>« Signature électronique »</b> tu choisis <b>« ✍️ Signer maintenant, sur place »</b>. À la remise, <b>le conducteur signe au doigt sur ton téléphone</b>, puis <b>toi pour la société</b> → le <b>PDF signé est généré tout de suite</b>, rangé dans les Documents du véhicule, et une copie part par e-mail si l'adresse est connue. Tout se fait <b>en une fois</b>, idéal pour un nouveau conducteur. <b>Signer au doigt = signer à la souris</b>, c'est identique. L'autre choix, <b>« Envoyer un lien de signature »</b>, reste disponible quand le conducteur n'est pas là (il signe à distance, plus tard). <b>🇬🇧 Version anglaise / autres langues :</b> dans le formulaire d'état des lieux, un sélecteur <b>« Langue du document »</b> (🇫🇷 Français / 🇬🇧 English) est <b>pré-réglé sur la langue de la fiche conducteur</b> — tu peux le <b>forcer</b> à la volée. Le choix pilote d'un coup : le <b>PDF</b> (titres, rubriques, libellés, mention de signature), l'<b>e-mail de demande de signature</b>, et la <b>page de signature</b>. Bonus : pour un conducteur non francophone, la <b>page de signature s'ouvre dans SA langue</b> parmi <b>6 langues</b> (français, anglais, espagnol, italien, allemand, 中文), même si le PDF est en anglais ; il peut aussi changer de langue sur la page. <i>(La langue par défaut se règle dans la fiche conducteur → « Langue du conducteur ».)</i></div>
+        <div class="man-item"><b>📎 Ajouter des photos à un état des lieux (même déjà signé)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur chaque période d'état des lieux (fiche véhicule → « États des lieux », ou fiche conducteur → historique), un bouton <b>« ＋ Ajouter des photos »</b> permet d'ajouter des images <b>à tout moment</b>, y compris <b>après la signature</b>. Tu choisis ou <b>prends les photos</b> (mobile), tu les vois en aperçu (tu peux en retirer avant d'enregistrer), tu ajoutes une <b>date de prise de vue</b> et un <b>commentaire</b> facultatifs, puis tu valides. ⚠️ <b>Le document signé n'est jamais modifié</b> : les nouvelles photos s'ajoutent dans une section <b>« 📎 Photos complémentaires »</b> à part, avec la mention <b>« Ajoutée après signature »</b>, la date d'ajout et l'auteur — elles ne se mélangent pas aux photos initiales signées. Chaque photo reste rattachée au <b>bon véhicule et à la bonne période</b> (jamais par simple prénom). Réservé à l'administrateur / gestionnaire.</div>
         <div class="man-item" style="background:#f0f9ff;border-left:3px solid var(--fp-accent)"><b>⭐ Le bon process, pas à pas (remise / reprise) — tout en un seul endroit</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — pas besoin de te promener dans la fiche : pars du <b>tableau de bord</b> et laisse-toi guider.
           <br><b>Pour DONNER une voiture à un conducteur</b> : Tableau de bord → <b>« Checklist remise conducteur »</b> → choisis le véhicule. La fenêtre <b>« Remise — je donne la voiture »</b> s'ouvre ; tu <b>coches la checklist au fur et à mesure</b> (clés, carte carburant, badge, papiers…) et tu remplis les <b>infos de remise</b> (conducteur, km, date). Le bouton <b>« 📸 État des lieux (photos) »</b> fait les photos + la <b>signature</b> ; puis <b>« Terminer la remise »</b> enregistre tout.
           <br><b>Pour RÉCUPÉRER une voiture</b> : Tableau de bord → <b>« Checklist reprise conducteur »</b> → choisis le véhicule → fenêtre <b>« Reprise — je récupère la voiture »</b>. Tu coches, tu mets le <b>km de restitution</b>, la <b>date</b>, et le <b>nouveau conducteur</b> (ou tu laisses <b>vide</b> pour rendre la voiture libre). Bouton <b>« 📸 État des lieux (photos) »</b> → photos + signature ; puis <b>« Terminer la reprise »</b> → ça <b>ferme la période</b> du conducteur, met la fiche à jour et range tout.
@@ -1144,8 +1145,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112c"></script>
-<script src="../assets/js/supabase-client.js?v=20261112c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112d"></script>
+<script src="../assets/js/supabase-client.js?v=20261112d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1161,10 +1162,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261112c"></script>
+<script src="../assets/js/app.min.js?v=20261112d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

@@ -11560,6 +11560,141 @@ FP.edlHisto = {
   }
 };
 
+// ============================================================================
+// FP.edlCompl — PHOTOS COMPLÉMENTAIRES d'un état des lieux (ajoutées APRÈS COUP,
+// y compris APRÈS SIGNATURE). Une photo complémentaire reste une ligne `documents`
+// (type 'etat-des-lieux') comme les autres → rattachée à la BONNE période par date +
+// sens via FP.edlHisto, JAMAIS par prénom (homonymes sûrs). Sa TRAÇABILITÉ vit dans
+// `documents.meta` (source:'ajout-photo', apresSignature, priseDeVue, auteur,
+// commentaire, ajouteLe, periode). Le PDF signé et les photos INITIALES ne sont
+// JAMAIS modifiés : on n'insère que de NOUVELLES lignes. Source unique : détection +
+// rendu + modal d'ajout, réutilisés par la fiche véhicule ET la fiche conducteur.
+// Repli : la détection reconnaît aussi un marqueur dans le `label` (si meta absente,
+// ex. colonne pas encore en prod) → l'affichage reste correct sans rien casser.
+// ============================================================================
+FP.edlCompl = {
+  estCompl(d) {
+    if (!d) return false;
+    if (d.meta && (d.meta.apresSignature || d.meta.source === 'ajout-photo')) return true;
+    return /📎|compl[ée]mentaire/i.test(String(d.label || ''));
+  },
+  metaDe(d) { return (d && d.meta) || {}; },
+  // Sépare un lot de documents EDL en { initiales, compl }.
+  split(docs) { const initiales = [], compl = []; (docs || []).forEach(d => (this.estCompl(d) ? compl : initiales).push(d)); return { initiales, compl }; },
+  // Période SIGNÉE ? (présence d'un PDF signé parmi ses documents)
+  estSignee(periodeDocs) { return (periodeDocs || []).some(d => d && /\.pdf(\?|$)/i.test(String(d.url || '')) && /sign[eé]|signed/i.test(String(d.label || ''))); },
+  _safeUrl(u) { u = String(u == null ? '' : u); return /^(https?:|data:image\/)/i.test(u) ? u : ''; },
+  // Rendu d'UNE tuile complémentaire (vignette + traçabilité + croix de retrait).
+  tileHTML(d, opts) {
+    opts = opts || {};
+    const esc = FP.esc || (s => String(s == null ? '' : s));
+    const m = this.metaDe(d);
+    const url = this._safeUrl(d && d.url);
+    const isImg = FP.edlHisto ? FP.edlHisto.isPhoto(d) : /\.(jpe?g|png|webp|gif|avif|heic)(\?|$)/i.test(url);
+    const pdv = m.priseDeVue ? ('📷 ' + (FP.dateNum ? FP.dateNum(m.priseDeVue) : m.priseDeVue)) : '';
+    const add = m.ajouteLe ? ('ajoutée le ' + (FP.dateNum ? FP.dateNum(String(m.ajouteLe).slice(0, 10)) : String(m.ajouteLe).slice(0, 10))) : '';
+    const who = m.auteur ? ('par ' + esc(m.auteur)) : '';
+    const com = m.commentaire ? esc(m.commentaire) : '';
+    const media = isImg
+      ? `<img src="${esc(url)}" loading="lazy" alt="Photo complémentaire" style="width:100%;height:64px;object-fit:cover;border-radius:7px;border:1px solid var(--fp-border);display:block"/>`
+      : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:64px;border-radius:7px;border:1px solid var(--fp-border);background:var(--fp-bg,#f0f9ff);color:#0e7490"><i data-lucide="file" style="width:18px;height:18px"></i></div>`;
+    const delBtn = (opts.del === false) ? '' : `<button type="button" data-doc-del="${esc(d.id)}" data-doc-compl="1" title="Retirer cette photo complémentaire" style="position:absolute;top:3px;right:3px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:20px;text-align:center;padding:0">✕</button>`;
+    const metaLine = [add, pdv, who].filter(Boolean).join(' · ');
+    return `<div style="position:relative">
+      <div style="position:relative">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="Ouvrir">${media}</a>` : media}${delBtn}</div>
+      ${metaLine ? `<div style="font-size:9px;color:var(--fp-faint,#94a3b8);margin-top:2px;line-height:1.3">${esc(metaLine)}</div>` : ''}
+      ${com ? `<div style="font-size:10px;color:var(--fp-muted,#475569);margin-top:1px;line-height:1.35">${com}</div>` : ''}
+    </div>`;
+  },
+  // Rendu de la SECTION « 📎 Photos complémentaires » (vide si aucune).
+  sectionHTML(arr, opts) {
+    arr = (arr || []).slice(); if (!arr.length) return ''; opts = opts || {};
+    arr.sort((a, b) => String(this.metaDe(b).ajouteLe || '').localeCompare(String(this.metaDe(a).ajouteLe || '')));
+    const anyApres = arr.some(d => this.metaDe(d).apresSignature);
+    const badge = anyApres ? `<span style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:999px;padding:1px 7px;background:rgba(245,158,11,.18);color:#b45309;margin-left:6px">Ajoutée après signature</span>` : '';
+    const tiles = arr.map(d => this.tileHTML(d, opts)).join('');
+    return `<div style="margin-top:9px;padding-top:8px;border-top:1px dashed var(--fp-border)">
+      <div class="text-xs font-semibold" style="color:var(--fp-muted,#475569)">📎 Photos complémentaires <span class="text-slate-400">(${arr.length})</span>${badge}</div>
+      <div class="fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;margin-top:5px">${tiles}</div>
+    </div>`;
+  },
+  // Bouton « ＋ Ajouter des photos » (attributs data → délégué global de la page).
+  addBtnHTML(opts) {
+    opts = opts || {}; const esc = FP.esc || (s => String(s == null ? '' : s));
+    return `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-edl-addphotos data-veh="${esc(opts.vehId)}" data-sens="${esc(opts.sens || 'remise')}" data-date="${esc(opts.date || '')}" data-apres="${opts.apresSignature ? '1' : ''}" data-ck="${esc(opts.conducteurKey || '')}" data-deb="${esc(opts.debut || '')}" data-fin="${esc(opts.fin || '')}"><i data-lucide="camera" class="w-3.5 h-3.5"></i> ＋ Ajouter des photos</button>`;
+  },
+  // Droit d'ajout : tout rôle qui gère des données (jamais le chauffeur / lecture seule).
+  _peut() { try { return !(FP.role && FP.role() === 'chauffeur'); } catch (e) { return true; } },
+  // MODAL d'ajout. opts = { veh, sens, date, apresSignature, periode:{conducteurKey,debut,fin}, onDone }
+  open(opts) {
+    opts = opts || {}; const veh = opts.veh; if (!veh) return;
+    if (!this._peut()) { if (FP.notifyError) FP.notifyError("Vous n'avez pas les droits pour ajouter des pièces."); return; }
+    if (!(FP.uploadScan && FP.persist)) { if (FP.notifyError) FP.notifyError('Ajout indisponible (connexion requise).'); return; }
+    const sens = String(opts.sens || 'remise') === 'restitution' ? 'restitution' : 'remise';
+    const today = new Date().toISOString().slice(0, 10);
+    const files = [];
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.innerHTML = `<div class="fp-edlc-card" style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:560px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;gap:10px">
+        <div style="font-size:15px;font-weight:800">📎 Ajouter des photos</div>
+        ${opts.apresSignature ? '<span style="font-size:.58rem;font-weight:800;text-transform:uppercase;border-radius:999px;padding:1px 7px;background:rgba(245,158,11,.18);color:#b45309">après signature</span>' : ''}
+        <button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;line-height:1;color:var(--fp-muted,#64748b)">✕</button>
+      </div>
+      <div style="padding:14px 16px;overflow:auto">
+        <p style="font-size:12.5px;color:var(--fp-muted,#475569);margin:0 0 10px">Ces photos sont ajoutées comme <b>pièces complémentaires</b> à l'état des lieux (${sens === 'restitution' ? 'restitution' : 'remise'}). <b>Le document signé n'est pas modifié.</b></p>
+        <label class="btn btn-outline text-xs" style="cursor:pointer;display:inline-flex"><i data-lucide="image-plus" class="w-4 h-4"></i> Choisir / prendre des photos<input type="file" accept="image/*" multiple capture="environment" data-edlc-files style="display:none"></label>
+        <div data-edlc-preview style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-top:10px"></div>
+        <label style="display:block;font-size:12px;color:var(--fp-muted,#475569);margin-top:12px">Date de prise de vue (facultatif)<br><input type="date" data-edlc-pdv max="${today}" style="margin-top:3px;border:1px solid var(--fp-border);border-radius:8px;padding:6px 9px;font-size:13px"></label>
+        <label style="display:block;font-size:12px;color:var(--fp-muted,#475569);margin-top:10px">Commentaire (facultatif)<br><textarea data-edlc-com rows="2" placeholder="Ex. rayure constatée après restitution…" style="width:100%;margin-top:3px;border:1px solid var(--fp-border);border-radius:8px;padding:6px 9px;font-size:12.5px"></textarea></label>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--fp-border);display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" data-close class="btn btn-outline text-xs">Annuler</button>
+        <button type="button" data-edlc-save class="btn btn-dark text-xs"><i data-lucide="check" class="w-3.5 h-3.5"></i> Enregistrer les photos</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+    const q = sel => ov.querySelector(sel);
+    const preview = q('[data-edlc-preview]');
+    const renderPreview = () => { preview.innerHTML = files.map((f, i) => `<div style="position:relative"><img src="${f.url}" style="width:100%;height:72px;object-fit:cover;border-radius:7px;border:1px solid var(--fp-border)"/><button type="button" data-rm="${i}" title="Retirer" style="position:absolute;top:2px;right:2px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;font-size:11px;padding:0">✕</button></div>`).join(''); };
+    const close = () => { try { files.forEach(f => URL.revokeObjectURL(f.url)); } catch (e) {} try { ov.remove(); } catch (e) {} };
+    ov.addEventListener('click', e => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) close(); });
+    q('[data-edlc-files]').addEventListener('change', e => { Array.from(e.target.files || []).forEach(file => { if (file && /^image\//i.test(file.type)) files.push({ file, url: URL.createObjectURL(file) }); }); e.target.value = ''; renderPreview(); });
+    preview.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; const i = +b.getAttribute('data-rm'); try { URL.revokeObjectURL(files[i].url); } catch (er) {} files.splice(i, 1); renderPreview(); });
+    q('[data-edlc-save]').addEventListener('click', async () => {
+      if (!files.length) { if (FP.notifyError) FP.notifyError('Ajoutez au moins une photo.'); return; }
+      const saveBtn = q('[data-edlc-save]'); saveBtn.disabled = true;
+      const pdv = (q('[data-edlc-pdv]').value || '').slice(0, 10) || null;
+      const com = (q('[data-edlc-com]').value || '').trim();
+      const auteur = (FP.userEmail || '').trim() || 'inconnu';
+      const isoDate = (opts.date && /^\d{4}-\d{2}-\d{2}/.test(String(opts.date))) ? String(opts.date).slice(0, 10) : today;
+      const sensLabel = sens === 'restitution' ? 'Restitution' : 'Remise';
+      const per = opts.periode || {};
+      const busy = FP.busy ? FP.busy('Ajout des photos… 0/' + files.length) : null;
+      let ok = 0, ko = 0;
+      for (let i = 0; i < files.length; i++) {
+        if (busy) busy.update('Ajout des photos… ' + (i + 1) + '/' + files.length);
+        try {
+          const url = await FP.uploadScan(files[i].file, 'documents', { name: 'edl-compl-' + sens + '-' + isoDate });
+          if (!url) { ko++; continue; }
+          const meta = { source: 'ajout-photo', apresSignature: !!opts.apresSignature, priseDeVue: pdv, auteur: auteur, commentaire: com, ajouteLe: new Date().toISOString(), periode: { conducteurKey: per.conducteurKey || '', debut: per.debut || '', fin: per.fin || '' } };
+          const doc = { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: sensLabel + ' — ' + isoDate + ' · 📎 complémentaire', url: url, driveId: null, meta: meta };
+          await FP.persist.insert('documents', doc);
+          if (typeof opts.onInsert === 'function') { try { opts.onInsert(doc); } catch (e) {} }
+          ok++;
+        } catch (e) { ko++; }
+      }
+      if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
+      if (busy) { if (ko && !ok) busy.fail("Échec de l'ajout"); else busy.done('✓ ' + ok + ' photo' + (ok > 1 ? 's' : '') + ' ajoutée' + (ok > 1 ? 's' : '') + (ko ? (' · ' + ko + ' échec' + (ko > 1 ? 's' : '')) : '')); }
+      close();
+      if (typeof opts.onDone === 'function') { try { opts.onDone(); } catch (e) {} }
+    });
+    setTimeout(() => { try { q('[data-edlc-files]').focus(); } catch (e) {} }, 60);
+  }
+};
+
 // ⚠️ SOURCE UNIQUE — KM PARCOURUS PAR CONDUCTEUR (classement Statistiques).
 // Somme, par conducteur, des km de chaque période d'affectation (FP.affectations.kmPeriode :
 // km saisis en priorité, sinon estimation états des lieux). Groupé par conducteur via
