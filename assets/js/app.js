@@ -9492,6 +9492,13 @@ FP.applyNavSubmenus = () => {
     if (FP.reapplyNavBadges) FP.reapplyNavBadges();
   } catch (e) {}
 };
+// ⚠️ Prestataires PERSO dans le sous-menu « Contrôle » : applyNavSubmenus() tourne au DOMContentLoaded,
+// AVANT que les réglages serveur (où vit `prestatairesPerso`) ne soient chargés → un prestataire créé
+// (ex. DKV) n'apparaissait PAS dans la navigation de gauche, alors qu'il est bien visible dans « Cartes
+// & badges » et sur les fiches conducteur (vues reconstruites sur fp:data-ready). On rejoue donc le
+// sous-menu quand les réglages arrivent (fp:data-ready) — applyNavSubmenus est idempotent (il repart
+// propre). Même logique que les cartes/panneaux de controle.html.
+try { document.addEventListener('fp:data-ready', () => { try { FP.applyNavSubmenus(); } catch (e) {} }); } catch (e) {}
 
 // ⚠️ SAISIE SIMPLIFIÉE PARTOUT — masques de saisie automatiques (consigne : « je tape juste les
 // chiffres, la date se remplit toute seule »). Moteur GLOBAL par DÉLÉGATION (couvre aussi les champs
