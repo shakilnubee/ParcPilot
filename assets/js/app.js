@@ -6239,7 +6239,7 @@ FP.MAIL_DEFAUT = {
   invitation: `Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗`,
   // ===== RELANCES (écran « 📣 Relances ») — rappels envoyés au conducteur. TOUS ÉDITABLES. =====
   relanceCt: `Bonjour {prenom},\n🔧 Le contrôle technique du véhicule {immat} approche (échéance le {date}) ⏳. Pense à caler un rendez-vous ! 📅`,
-  relanceEntretien: `Bonjour {prenom},\n\n🔧 C'est bientôt l'heure de la révision du véhicule {immat}. Peux-tu prendre rendez-vous auprès d'un garage, puis me transmettre la date dès que tu l'auras confirmée ?\n\nMerci à toi !`,
+  relanceEntretien: `Bonjour {prenom},\n\n🛠️ Révision du véhicule {immat} : {revision}. Peux-tu prendre rendez-vous auprès d'un garage, puis me transmettre la date dès que tu l'auras confirmée ?\n\nMerci à toi !`,
   relanceGarage: `Bonjour {prenom},\n🔧 Rendez-vous garage pour le véhicule {immat} ({motif}) : prévu le {date} 📅. Pense à t'organiser.`,
   relanceKm: `Bonjour {prenom},\n📸 Un petit coup d'œil au compteur du véhicule {immat} ? 😊 Ça file en 30 secondes !`,
   relanceAmende: `Bonjour {prenom},\n🎫 Une amende concerne le véhicule {immat}. Pense à la régler pour éviter une majoration 💵\nRegarde ta boîte mail 📩`,
@@ -6262,7 +6262,7 @@ FP.MAIL_DEFAUT = {
   invitation_en: `Hello,\n\nWelcome to Parc Pilot! 🎉 Your access to the fleet management platform is ready.\n\nChoose your password in one click (button just below) and you can log in right away. Everything in one place, simple and fast.\n\nYour login: {email}\n\nSee you soon! 🚗`,
   signature_en: `Hello {prenom},\n\nLast step before hitting the road! 🚀 Sign the condition report for your {modele} ({immat}) in seconds, right from this email.`,
   relanceCt_en: `Hello {prenom},\n🔧 The roadworthiness test for vehicle {immat} is coming up (due {date}) ⏳. Time to book a slot! 📅`,
-  relanceEntretien_en: `Hello {prenom},\n\n🔧 It's almost time for the service of vehicle {immat}. Could you book an appointment at a garage, then send me the date as soon as it's confirmed?\n\nThank you!`,
+  relanceEntretien_en: `Hello {prenom},\n\n🛠️ Service for vehicle {immat}: {revision}. Please book a garage appointment, then send me the date once it's confirmed.\n\nThank you!`,
   relanceGarage_en: `Hello {prenom},\n🔧 Garage appointment for vehicle {immat} ({motif}): scheduled on {date} 📅. Please plan ahead.`,
   relanceKm_en: `Hello {prenom},\n📸 A quick look at the odometer of vehicle {immat}? 😊 It takes 30 seconds!`,
   relanceAmende_en: `Hello {prenom},\n🎫 A fine concerns vehicle {immat}. Remember to settle it to avoid a surcharge 💵\nCheck your inbox 📩`,
@@ -6302,7 +6302,17 @@ FP._MAIL_OBSOLETE = {
     'Hello {prenom},\n🛠️ Vehicle {immat}: service {date} 🚗 — remember to book a garage visit.'
   ]
 };
-FP._mailEstObsolete = function (defKey, val) { const a = (FP._MAIL_OBSOLETE && FP._MAIL_OBSOLETE[defKey]) || []; const t = String(val == null ? '' : val).trim(); return a.some(s => String(s).trim() === t); };
+FP._mailEstObsolete = function (defKey, val) {
+  const a = (FP._MAIL_OBSOLETE && FP._MAIL_OBSOLETE[defKey]) || []; const t = String(val == null ? '' : val).trim();
+  if (a.some(s => String(s).trim() === t)) return true;
+  // ⚠️ RÉVISION — RÈGLE DE FOND (consigne) : un modèle d'entretien/révision qui annonce une {date} brute (date
+  // calendaire) SANS la balise intelligente {revision} présente le mauvais motif quand c'est le KILOMÉTRAGE qui
+  // déclenche (ex. « maintenance due (09 juil. 2027) » alors que le km est déjà dépassé). Tout modèle
+  // relanceEntretien de ce type (ancien défaut OU variante perso à base de {date}) est traité comme périmé →
+  // on retombe sur le NOUVEAU défaut qui utilise {revision} (km OU date, selon ce qui déclenche réellement).
+  if (/^relanceEntretien/.test(defKey) && /\{date\}/.test(t) && !/\{revision\}/.test(t)) return true;
+  return false;
+};
 // Modèle e-mail ACTIF : texte personnalisé de la société (profil[profilKey]) sinon défaut (MAIL_DEFAUT[defKey]).
 FP.mailModeleProfil = function (profilKey, defKey) { return FP.mailModeleProfilL(profilKey, defKey, 'fr'); };
 // Idem, mais SELON LA LANGUE (fr/en). lang==='en' → modèle EN personnalisé (profil[key+'_en']) sinon
@@ -10322,9 +10332,18 @@ FP.revisionEcheanceTexte = (v, lang) => {
   const dateStr = r.prochaineDate ? (FP.date ? FP.date(r.prochaineDate.toISOString().slice(0, 10)) : r.prochaineDate.toISOString().slice(0, 10)) : '';
   const kmR = (r.kmRestant == null) ? null : r.kmRestant;
   const jR = (r.joursRestant == null) ? null : r.joursRestant;
-  if (kmR != null && kmR <= 0) return en
-    ? ('due now — the service mileage is already passed' + ' (about ' + num(Math.abs(kmR)) + ' km over)')
-    : ('à faire dès maintenant — le kilométrage de révision est dépassé (environ ' + num(Math.abs(kmR)) + ' km de trop)');
+  if (kmR != null && kmR <= 0) {
+    // Dépassement KM : on nomme le SEUIL et le COMPTEUR ACTUEL (jamais une date future) — motif réel = le km.
+    const over = num(Math.abs(kmR));
+    const seuil = (r.prochaineKm != null) ? num(r.prochaineKm) : null;
+    let kmNow = null; try { kmNow = FP.kmActuel ? FP.kmActuel(v) : null; } catch (e) {}
+    if (seuil != null && kmNow != null) return en
+      ? ('due now — the service was due at ' + seuil + ' km and the current mileage is ' + num(kmNow) + ' km (about ' + over + ' km over)')
+      : ('à faire dès maintenant — la révision était due à ' + seuil + ' km et le compteur affiche ' + num(kmNow) + ' km (environ ' + over + ' km de trop)');
+    return en
+      ? ('due now — the service mileage is already passed (about ' + over + ' km over)')
+      : ('à faire dès maintenant — le kilométrage de révision est dépassé (environ ' + over + ' km de trop)');
+  }
   if (jR != null && jR <= 0) return en
     ? ('due now — the service date' + (dateStr ? (' (' + dateStr + ')') : '') + ' has passed')
     : ('à faire dès maintenant — la date' + (dateStr ? (' du ' + dateStr) : '') + ' est dépassée');
