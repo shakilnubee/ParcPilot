@@ -428,30 +428,159 @@
       host.appendChild(pane);
     });
   }
-  // Contenu d'un panneau prestataire perso : ses factures (fournisseur qui matche) + KPIs + gestion.
-  function renderPresta(id){
-    const p = FP.prestataireById ? FP.prestataireById(id) : null; const pane = $('pane-' + id); if (!pane || !p) return;
-    const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-    const pn = norm(p.nom);
-    const facs = (window.FP_DATA.factures || []).filter(f => { const fo = norm(f.fournisseur); return pn && fo && (fo.includes(pn) || pn.includes(fo)); })
+  // ===================== PAGE PRESTATAIRE (générique, au niveau Total/Ulys) =====================
+  // Un prestataire perso (DKV, Shell, Eurotoll…) a la MÊME page riche que Total Fleet / Ulys, pilotée par
+  // CONFIG (carburant vs péage), sans duplication : KPIs HT/TVA/TTC, filtre période (mois + Du→Au),
+  // conso par conducteur (table + cartes), transactions datées (total_conso_tx), factures, exports
+  // (FP.makeExportMenu → PDF/Excel/CSV + aperçu). Source unique des données : factures (source='presta-id'
+  // ou fournisseur reconnu) + total_conso_tx (dédoublonné FP.dedupeConsoTx) rattaché par n° de carte.
+  const _prestaTx = {};            // cache transactions par prestataire (évite de recharger à chaque filtre)
+  const _prestaNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  const _ttcFac = f => Number(f.montantTtc != null ? f.montantTtc : (f.montant_ttc != null ? f.montant_ttc : (f.montantTTC || 0))) || 0;
+  const _htFac = f => { const v = (f.montantHT != null ? f.montantHT : f.montant_ht); return v != null ? (Number(v) || 0) : null; };
+  const _tvaFac = f => { const v = (f.montantTVA != null ? f.montantTVA : f.montant_tva); return v != null ? (Number(v) || 0) : null; };
+  function _prestaFacs(p) {
+    const pn = _prestaNorm(p.nom);
+    return (window.FP_DATA.factures || []).filter(f => f.source === 'presta-' + p.id || (() => { const fo = _prestaNorm(f.fournisseur); return pn && fo && (fo.includes(pn) || pn.includes(fo)); })())
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-    const ttcOf = f => Number(f.montantTtc != null ? f.montantTtc : (f.montant_ttc != null ? f.montant_ttc : (f.montantTTC || 0))) || 0;
-    const tot = facs.reduce((s, f) => s + ttcOf(f), 0);
-    let nNum = 0; try { (FP.conducteurs.list() || []).forEach(c => { if (FP.condNum && FP.condNum(c.key, p.numKey)) nNum++; }); } catch (e) {}
-    const kpi = (l, v) => '<div class="ctrl-kpi"><div class="lbl">' + l + '</div><div class="val">' + v + '</div></div>';
-    const rows = facs.map(f => {
-      const url = f.url || f.fileId || '';
-      const voir = (url && !/^IMP-/.test(url)) ? '<button type="button" data-pfac="' + esc(f.id || '') + '" class="btn btn-outline" style="padding:2px 9px;font-size:12px;display:inline-flex;align-items:center;gap:4px"><i data-lucide="eye" class="w-3.5 h-3.5"></i>Voir</button>' : '';
-      return '<tr><td>' + (f.date ? dfr(f.date) : '—') + '</td><td>' + esc(f.numeroFacture || f.numero_facture || '—') + '</td><td>' + esc(f.fournisseur || '—') + '</td><td style="text-align:right;font-weight:600">' + euro(ttcOf(f)) + '</td><td style="text-align:right">' + voir + '</td></tr>';
-    }).join('');
+  }
+  async function _loadPrestaTx(p, facnums) {
+    const COLS = 'id,facnum,carte,conducteur,plaque,date_tx,mois,produit,categorie,montant_ttc,societe';
+    let rows = [];
+    try {
+      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', COLS); rows = (r && r.data) || []; }
+      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select(COLS); rows = (r && r.data) || []; }
+    } catch (e) {}
+    const soc = (FP.activeSociete && FP.activeSociete() !== '__all__') ? FP.activeSociete() : null;
+    rows = rows.filter(r => !soc || !r.societe || r.societe === soc).map(r => ({
+      id: r.id, facnum: String(r.facnum || ''), carte: r.carte || '', conducteur: r.conducteur || '', plaque: r.plaque || null,
+      dateTx: r.date_tx || '', mois: r.mois || String(r.date_tx || '').slice(0, 7), produit: r.produit || '', categorie: r.categorie || '',
+      montantTtc: (r.montant_ttc != null ? Number(r.montant_ttc) : 0)
+    })).filter(t => facnums.has(t.facnum));
+    return FP.dedupeConsoTx ? FP.dedupeConsoTx(rows) : rows;
+  }
+  // Conducteur d'une transaction : par N° DE CARTE (jamais le prénom seul) → repli libellé lu.
+  function _prestaResolve(p, t) {
+    try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) return { key: c.key, nom: (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || c.prenom)) || c.key }; } catch (e) {}
+    const nm = (t.conducteur || '').trim();
+    return { key: 'lbl:' + _prestaNorm(nm), nom: nm || '—' };
+  }
+  function renderPresta(id) {
+    const p = FP.prestataireById ? FP.prestataireById(id) : null; const pane = $('pane-' + id); if (!pane || !p) return;
+    const isPeage = p.type === 'peage';
+    const st = pane._st = pane._st || { mois: 'all', from: '', to: '', q: '', view: 'table' };
+    const facs = _prestaFacs(p);
+    const facnums = new Set(facs.map(f => String(f.numeroFacture || f.numero_facture || '')).filter(Boolean));
+    let nCond = 0; try { (FP.conducteurs.list() || []).forEach(c => { if (FP.condNum && FP.condNum(c.key, p.numKey)) nCond++; }); } catch (e) {}
+    const kpi = (l, v, id2) => '<div class="ctrl-kpi"><div class="lbl">' + l + '</div><div class="val"' + (id2 ? ' id="' + id2 + '"' : '') + '>' + v + '</div></div>';
+    // Options de mois (union factures + transactions connues du cache).
+    const moisSet = new Set(facs.map(f => String(f.date || '').slice(0, 7)).filter(Boolean));
+    (_prestaTx[id] || []).forEach(t => { if (t.dateTx) moisSet.add(String(t.dateTx).slice(0, 7)); });
+    const MOISN = ['', 'Janv.', 'Févr.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+    const moisOpts = ['<option value="all">Tous les mois</option>'].concat(Array.from(moisSet).sort().reverse().map(m => { const pp = m.split('-'); return '<option value="' + m + '"' + (st.mois === m ? ' selected' : '') + '>' + (MOISN[+pp[1]] || '') + ' ' + pp[0] + '</option>'; })).join('');
     pane.innerHTML =
-      '<div class="grid gap-3 mb-5" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
-        + kpi('Type', p.type === 'peage' ? 'Badge péage' : 'Carte carburant') + kpi('Factures', facs.length) + kpi('Total TTC', euro(tot)) + kpi('Conducteurs rattachés', nNum) + '</div>'
-      + '<div class="card p-4 mb-4 text-sm text-slate-600" style="line-height:1.55">Prestataire <b>' + esc(p.nom) + '</b>. Ses factures apparaissent ici (fournisseur reconnu). Les n° de carte/badge se remplissent dans <b>💳 Cartes &amp; badges</b> ou sur chaque <b>fiche conducteur</b> → la conso se rattache alors automatiquement au bon conducteur.</div>'
-      + '<div class="flex flex-wrap items-center gap-2 mb-3"><button type="button" data-presta-import="' + esc(p.id) + '" class="btn btn-dark text-sm"><i data-lucide="file-up" class="w-4 h-4"></i> Importer un relevé (PDF)</button><input type="file" class="presta-import-file hidden" data-pid="' + esc(p.id) + '" accept="application/pdf,.pdf"><a href="factures.html" class="btn btn-outline text-sm"><i data-lucide="upload" class="w-4 h-4"></i> Facture manuelle</a><span style="flex:1"></span><button type="button" data-rm-presta="' + esc(p.id) + '" class="btn btn-outline text-sm" style="color:#B91C1C;border-color:#FCA5A5"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer ce prestataire</button></div>'
-      + '<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>N° facture</th><th>Fournisseur</th><th style="text-align:right">Montant TTC</th><th></th></tr></thead><tbody>'
-        + (facs.length ? rows : '<tr><td colspan="5" class="text-slate-400 p-3">Aucune facture reconnue pour ce prestataire pour l\'instant. Importe une facture (le fournisseur doit contenir « ' + esc(p.nom) +' »).</td></tr>')
-        + '</tbody></table></div>';
+      '<div class="grid gap-3 mb-4" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'
+        + kpi('Type', isPeage ? 'Badge péage' : 'Carte carburant')
+        + kpi('Total TTC', '…', 'pk-ttc-' + id) + kpi('HT', '…', 'pk-ht-' + id) + kpi('TVA', '…', 'pk-tva-' + id)
+        + kpi('Factures', '…', 'pk-nf-' + id) + kpi('Transactions', '…', 'pk-nt-' + id) + kpi('Conducteurs rattachés', nCond)
+      + '</div>'
+      // Barre d'actions
+      + '<div class="flex flex-wrap items-center gap-2 mb-3">'
+        + '<button type="button" data-presta-import="' + esc(p.id) + '" class="btn btn-dark text-sm"><i data-lucide="file-up" class="w-4 h-4"></i> Importer un relevé (PDF)</button>'
+        + '<input type="file" class="presta-import-file hidden" data-pid="' + esc(p.id) + '" accept="application/pdf,.pdf">'
+        + '<a href="factures.html" class="btn btn-outline text-sm"><i data-lucide="upload" class="w-4 h-4"></i> Facture manuelle</a>'
+        + '<span id="pk-export-' + id + '"></span>'
+        + '<span style="flex:1"></span>'
+        + '<button type="button" data-rm-presta="' + esc(p.id) + '" class="btn btn-outline text-sm" style="color:#B91C1C;border-color:#FCA5A5"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</button>'
+      + '</div>'
+      // Barre période + recherche
+      + '<div class="card p-3 mb-3"><div class="flex flex-wrap items-center gap-2">'
+        + '<input id="pk-q-' + id + '" type="text" placeholder="Rechercher (conducteur, carte, produit, n°…)" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="flex:1;min-width:200px" value="' + esc(st.q) + '">'
+        + '<select id="pk-mois-' + id + '" class="text-sm border border-slate-200 rounded-lg px-2 py-2">' + moisOpts + '</select>'
+        + '<span class="text-xs text-slate-400">ou</span>'
+        + '<input id="pk-from-' + id + '" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Du" value="' + esc(st.from) + '">'
+        + '<span class="text-xs text-slate-400">→</span>'
+        + '<input id="pk-to-' + id + '" type="date" class="text-sm border border-slate-200 rounded-lg px-2 py-2" title="Au" value="' + esc(st.to) + '">'
+        + '<span id="pk-reset-' + id + '"></span>'
+      + '</div></div>'
+      + '<div id="pk-body-' + id + '"></div>';
+    // Export (centre unifié) — conso de la PÉRIODE affichée.
+    try {
+      const expMount = $('pk-export-' + id);
+      if (expMount && FP.makeExportMenu && !expMount._wired) {
+        expMount._wired = true;
+        FP.makeExportMenu({
+          mount: expMount, baseName: () => (_prestaNorm(p.nom) || 'prestataire') + '-conso', sheetName: 'Conso ' + p.nom, label: 'Exporter',
+          period: { dateOf: r => r.dateTx },
+          columns: isPeage
+            ? [ { label: 'Date', value: r => dfr(r.dateTx) }, { label: 'Carte/Badge', value: r => r.carte }, { label: 'Conducteur', value: r => r.nom }, { label: 'Trajet/Produit', value: r => r.produit }, { label: 'Montant TTC', value: r => r.montantTtc, number: true } ]
+            : [ { label: 'Date', value: r => dfr(r.dateTx) }, { label: 'Carte', value: r => r.carte }, { label: 'Conducteur', value: r => r.nom }, { label: 'Produit', value: r => r.produit }, { label: 'Litres', value: r => (r.litres != null ? r.litres : ''), number: true, noTotal: true }, { label: 'Montant TTC', value: r => r.montantTtc, number: true } ],
+          getRows: () => _prestaRows(p, pane).tx.map(t => Object.assign({}, t, { nom: _prestaResolve(p, t).nom }))
+        });
+      }
+    } catch (e) {}
+    // Bouton réinitialiser les filtres.
+    try { const rm = $('pk-reset-' + id); if (rm && FP.filterResetButton) FP.filterResetButton(rm, { mount: rm, onReset: () => { st.mois = 'all'; st.from = ''; st.to = ''; st.q = ''; renderPresta(id); } }); } catch (e) {}
+    // Câblage filtres (met à jour l'état + repeint le corps, sans reconstruire la barre → focus gardé).
+    const bindCtl = (sel, ev, fn) => { const el = $(sel + '-' + id); if (el) el.addEventListener(ev, fn); };
+    bindCtl('pk-q', 'input', e => { st.q = e.target.value; _paintPresta(p, pane); });
+    bindCtl('pk-mois', 'change', e => { st.mois = e.target.value; st.from = ''; st.to = ''; const fe = $('pk-from-' + id), te = $('pk-to-' + id); if (fe) fe.value = ''; if (te) te.value = ''; _paintPresta(p, pane); });
+    bindCtl('pk-from', 'change', e => { st.from = e.target.value; _paintPresta(p, pane); });
+    bindCtl('pk-to', 'change', e => { st.to = e.target.value; _paintPresta(p, pane); });
+    if (window.lucide) lucide.createIcons();
+    // Données transactions : cache sinon chargement (puis repeint).
+    if (_prestaTx[id]) _paintPresta(p, pane);
+    else { _paintPresta(p, pane, true); _loadPrestaTx(p, facnums).then(tx => { _prestaTx[id] = tx; _paintPresta(p, pane); }).catch(() => { _prestaTx[id] = []; _paintPresta(p, pane); }); }
+  }
+  // Applique la période choisie (Du→Au prioritaire, sinon mois, sinon tout) à une liste datée.
+  function _prestaPeriod(st, list, dateKey) {
+    if (st.from || st.to) return list.filter(x => { const d = String(x[dateKey] || ''); return (!st.from || d >= st.from) && (!st.to || d <= st.to); });
+    if (st.mois && st.mois !== 'all') return list.filter(x => String(x[dateKey] || '').slice(0, 7) === st.mois);
+    return list;
+  }
+  // Renvoie les lignes filtrées (facs + tx) selon l'état courant du pane.
+  function _prestaRows(p, pane) {
+    const st = pane._st || {}; const id = p.id;
+    const q = String(st.q || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const facs = _prestaPeriod(st, _prestaFacs(p), 'date').filter(f => { if (!q) return true; const s = (String(f.numeroFacture || f.numero_facture || '') + ' ' + String(f.fournisseur || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return s.includes(q); });
+    let tx = _prestaPeriod(st, (_prestaTx[id] || []), 'dateTx');
+    if (q) tx = tx.filter(t => { const nm = _prestaResolve(p, t).nom; const s = (nm + ' ' + (t.carte || '') + ' ' + (t.produit || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return s.includes(q); });
+    tx = tx.slice().sort((a, b) => String(b.dateTx || '').localeCompare(String(a.dateTx || '')));
+    return { facs, tx };
+  }
+  function _paintPresta(p, pane, loading) {
+    const id = p.id, isPeage = p.type === 'peage'; const body = $('pk-body-' + id); if (!body) return;
+    const { facs, tx } = _prestaRows(p, pane);
+    const hasLitres = !isPeage && tx.some(t => Number(t.litres) > 0);   // litres non persistés en base → colonne affichée seulement si présents
+    const ttc = facs.reduce((s, f) => s + _ttcFac(f), 0);
+    const htVals = facs.map(_htFac).filter(v => v != null); const tvaVals = facs.map(_tvaFac).filter(v => v != null);
+    const ht = htVals.length ? htVals.reduce((a, b) => a + b, 0) : null; const tva = tvaVals.length ? tvaVals.reduce((a, b) => a + b, 0) : null;
+    const setK = (kid, v) => { const el = $(kid + '-' + id); if (el) el.textContent = v; };
+    setK('pk-ttc', euro(ttc)); setK('pk-ht', ht != null ? euro(ht) : '—'); setK('pk-tva', tva != null ? euro(tva) : '—');
+    setK('pk-nf', String(facs.length)); setK('pk-nt', loading ? '…' : String(tx.length));
+    // Agrégat conso par conducteur.
+    const agg = {};
+    tx.forEach(t => { const r = _prestaResolve(p, t); const k = r.key; (agg[k] = agg[k] || { nom: r.nom, n: 0, ttc: 0, litres: 0 }); agg[k].n++; agg[k].ttc += (Number(t.montantTtc) || 0); agg[k].litres += (Number(t.litres) || 0); });
+    const aggList = Object.keys(agg).map(k => agg[k]).sort((a, b) => b.ttc - a.ttc);
+    const consoTable = aggList.length
+      ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Conducteur</th><th style="text-align:right">Transactions</th>' + (hasLitres ? '<th style="text-align:right">Litres</th>' : '') + '<th style="text-align:right">Total TTC</th></tr></thead><tbody>'
+        + aggList.map(a => '<tr><td>' + esc(a.nom) + '</td><td style="text-align:right">' + a.n + '</td>' + (hasLitres ? '<td style="text-align:right">' + (a.litres ? (Math.round(a.litres * 10) / 10).toLocaleString('fr-FR') + ' L' : '—') + '</td>' : '') + '<td style="text-align:right;font-weight:700">' + euro(a.ttc) + '</td></tr>').join('')
+        + '</tbody></table></div>')
+      : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune consommation détaillée sur la période. Importe un relevé détaillé et renseigne les n° de carte dans « Cartes &amp; badges ».</div>';
+    // Table transactions datées.
+    const txTable = tx.length
+      ? ('<div class="card p-2" style="overflow:auto;max-height:52vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>' + (isPeage ? 'Trajet' : 'Produit') + '</th>' + (hasLitres ? '<th style="text-align:right">Litres</th>' : '') + '<th style="text-align:right">TTC</th></tr></thead><tbody>'
+        + tx.map(t => { const r = _prestaResolve(p, t); return '<tr><td>' + dfr(t.dateTx) + '</td><td>' + esc(t.carte || '') + '</td><td>' + esc(r.nom) + '</td><td>' + esc(t.produit || '—') + '</td>' + (hasLitres ? '<td style="text-align:right">' + (t.litres != null ? (String(t.litres).replace('.', ',') + ' L') : '—') + '</td>' : '') + '<td style="text-align:right;font-weight:600">' + euro(t.montantTtc) + '</td></tr>'; }).join('')
+        + '</tbody></table></div>')
+      : (loading ? '<div class="card p-6 text-center text-slate-400 text-sm">Chargement des transactions…</div>' : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune transaction sur la période.</div>');
+    // Table factures.
+    const facTable = facs.length
+      ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>N° facture</th><th>Fournisseur</th><th style="text-align:right">HT</th><th style="text-align:right">TVA</th><th style="text-align:right">TTC</th><th></th></tr></thead><tbody>'
+        + facs.map(f => { const url = f.url || f.fileId || ''; const voir = (url && !/^IMP-/.test(url)) ? '<button type="button" data-pfac="' + esc(f.id || '') + '" class="btn btn-outline" style="padding:2px 9px;font-size:12px"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>' : ''; const h = _htFac(f), v = _tvaFac(f); return '<tr><td>' + (f.date ? dfr(f.date) : '—') + '</td><td>' + esc(f.numeroFacture || f.numero_facture || '—') + '</td><td>' + esc(f.fournisseur || '—') + '</td><td style="text-align:right">' + (h != null ? euro(h) : '—') + '</td><td style="text-align:right">' + (v != null ? euro(v) : '—') + '</td><td style="text-align:right;font-weight:600">' + euro(_ttcFac(f)) + '</td><td style="text-align:right">' + voir + '</td></tr>'; }).join('')
+        + '</tbody></table></div>')
+      : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune facture sur la période. Importe un relevé (PDF) ou une facture manuelle.</div>';
+    const h3 = (t) => '<h3 class="text-lg font-extrabold mt-5 mb-2" style="color:var(--fp-primary)">' + t + '</h3>';
+    body.innerHTML = h3('Consommation par conducteur') + consoTable + h3('Transactions') + txTable + h3('Factures') + facTable;
     if (window.lucide) lucide.createIcons();
   }
   // ===================== SANEF (péages flux libre) — import par passage + regroupement =====================
@@ -785,6 +914,7 @@
         try { if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (!(r && r.error)) okTx++; } } catch (e) {}
       }
       if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
+      try { delete _prestaTx[p.id]; } catch (e) {}   // invalide le cache transactions → rechargé au rendu
       try { renderPresta(p.id); } catch (e) {}
       const doneMsg = parsed.incomplet
         ? ('✓ Facture enregistrée' + (already ? ' (déjà présente)' : '') + ' — ventilation par conducteur incomplète (pas de détail dans ce document).')
