@@ -14507,7 +14507,22 @@ FP.lienConducteur = function (name, label, key) {
 FP.lienChauffeurVeh = function (v, label) {
   if (!v) return '';
   let key = '';
-  try { if (FP.affectations && FP.affectations.courante) { const c = FP.affectations.courante(v.id); if (c && c.conducteurKey) key = String(c.conducteurKey).trim(); } } catch (e) {}
+  try {
+    const c = (FP.affectations && FP.affectations.courante) ? FP.affectations.courante(v.id) : null;
+    if (c) {
+      // 1) meilleure source : la CLÉ posée sur l'affectation (ré-attribution via l'assistant).
+      if (c.conducteurKey) key = String(c.conducteurKey).trim();
+      // 2) repli : la période ne porte pas de clé mais un NOM COMPLET (« Daniel CALVO ») → on
+      //    retrouve la fiche exacte par ce nom complet (lève l'homonymie, contrairement au prénom seul).
+      if (!key && c.conducteur && FP.conducteurs && FP.conducteurs.find) {
+        try { const cc = FP.conducteurs.find(c.conducteur); if (cc && cc.key) key = cc.key; } catch (e) {}
+      }
+    }
+    // 3) dernier repli : le véhicule porte directement un NOM COMPLET de chauffeur (hors période).
+    if (!key && v.chauffeur && String(v.chauffeur).trim().indexOf(' ') !== -1 && FP.conducteurs && FP.conducteurs.find) {
+      try { const cc = FP.conducteurs.find(v.chauffeur); if (cc && cc.key) key = cc.key; } catch (e) {}
+    }
+  } catch (e) {}
   return FP.lienConducteur(v.chauffeur || '—', label, key);
 };
 
