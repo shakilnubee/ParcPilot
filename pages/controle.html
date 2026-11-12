@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112i">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -314,8 +314,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112h"></script>
-<script src="../assets/js/supabase-client.js?v=20261112h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112i"></script>
+<script src="../assets/js/supabase-client.js?v=20261112i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -331,11 +331,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112h"></script>
+<script src="../assets/js/app.min.js?v=20261112i"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -366,7 +366,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261112h';
+        s.src = '../assets/js/fleet-views.min.js?v=20261112i';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -700,28 +700,45 @@
   async function importPrestaReleve(file, pid) {
     const p = FP.prestataireById ? FP.prestataireById(pid) : null; if (!p || !file) return;
     const busy = FP.busy ? FP.busy('Lecture du relevé…') : null;
-    let parsed = null;
-    try {
-      const text = (FP.dkv && FP.dkv.pdfToText) ? await FP.dkv.pdfToText(file) : '';
-      const det = (FP.presta && FP.presta.detectParser) ? FP.presta.detectParser(text) : null;
-      if (!det) { if (busy) busy.fail('Relevé non reconnu — aucun lecteur disponible pour ce format (envoie-le pour qu\'on l\'ajoute).'); return; }
-      parsed = det.def.parse(text);
-    } catch (err) { console.warn('[presta import]', err); if (busy) busy.fail('Lecture impossible'); return; }
-    if (!parsed || !parsed.tx || !parsed.tx.length) { if (busy) busy.fail('Aucune transaction lue dans ce relevé'); return; }
+    let res = null;
+    // Lecture via le moteur UNIQUE FP.presta.lireReleve : lecteur déterministe si la couche texte est
+    // propre, sinon repli IA (FP.scanIA, vision). Une facture valide SANS détail n'est PAS rejetée.
+    try { res = (FP.presta && FP.presta.lireReleve) ? await FP.presta.lireReleve(file, p) : null; }
+    catch (err) { console.warn('[presta import]', err); if (busy) busy.fail('Lecture impossible'); return; }
+    if (!res) { if (busy) busy.fail('Lecture impossible'); return; }
+    if (res.needsSample) {
+      if (busy) busy.fail('Format CSV/Excel : la lecture détaillée de « ' + (p.nom || 'ce prestataire') + ' » n\'est pas encore configurée. Importe le relevé en PDF, ou envoie un vrai export CSV pour qu\'on l\'ajoute.');
+      return;
+    }
+    if (!res.facture && !(res.tx && res.tx.length)) {
+      const why = (res.erreur && res.erreur !== 'vide' && res.erreur !== 'ia') ? (' — ' + res.erreur) : '';
+      if (busy) busy.fail('Le document a été lu, mais aucune donnée exploitable n\'a été identifiée' + why + '. Vérifie que c\'est bien un relevé/facture de ce prestataire, ou essaie un autre format.');
+      return;
+    }
     if (busy) busy.close();
-    showPrestaImportPreview(file, p, parsed);
+    showPrestaImportPreview(file, p, res);
   }
   // Aperçu AVANT import (obligatoire) : facture + transactions + conducteur résolu par n° de carte.
   function showPrestaImportPreview(file, p, parsed) {
     const f = parsed.facture || {};
     const resolveNom = (t) => { try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) return (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || c.prenom)) || c.name; } catch (e) {} return t.conducteur || '—'; };
     const rows = parsed.tx.map(t => '<tr><td>' + dfr(t.dateTx) + '</td><td>' + esc(t.carte || '') + '</td><td>' + esc(resolveNom(t)) + '</td><td>' + esc(t.produit || '') + '</td><td style="text-align:right">' + (t.litres != null ? (String(t.litres).replace('.', ',') + ' L') : '—') + '</td><td style="text-align:right;font-weight:600">' + euro(t.montantTtc) + '</td></tr>').join('');
+    // Bandeau « source de lecture » (auto = lecteur déterministe ; IA = lecture vision quand la couche
+    // texte est inexploitable) + alerte cohérence HT+TVA=TTC (tolérance 2 cts) + facture sans détail.
+    const srcBadge = parsed.source === 'ia'
+      ? '<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:9999px;padding:2px 9px">Lu par IA</span>'
+      : (parsed.source === 'auto' ? '<span style="font-size:11px;font-weight:700;color:#0f766e;background:#ccfbf1;border-radius:9999px;padding:2px 9px">Lecture automatique</span>' : '');
+    const htv = Number(f.montantHT), tvav = Number(f.montantTVA), ttcv = Number(f.montantTTC);
+    const incohe = (isFinite(htv) && isFinite(tvav) && isFinite(ttcv) && Math.abs(htv + tvav - ttcv) > 0.02);
+    const warnHt = incohe ? '<div style="margin-bottom:10px;padding:8px 11px;border-radius:9px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:12px">⚠️ Incohérence : HT (' + euro(htv) + ') + TVA (' + euro(tvav) + ') ≠ TTC (' + euro(ttcv) + '). Vérifie les montants avant d\'importer.</div>' : '';
+    const warnIncompl = (parsed.incomplet) ? '<div style="margin-bottom:10px;padding:8px 11px;border-radius:9px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px">ℹ️ Facture récapitulative <b>sans détail par transaction</b> : elle sera enregistrée (comptée dans le coût), mais la <b>ventilation par conducteur reste incomplète</b>. Importe le relevé détaillé si tu l\'as.</div>' : '';
     const ov = document.createElement('div');
     ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
     ov.innerHTML = '<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:760px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
-      + '<div style="padding:13px 16px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;gap:10px"><div style="font-size:15px;font-weight:800">Importer le relevé ' + esc(p.nom) + '</div><button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;color:var(--fp-muted,#64748b)">✕</button></div>'
+      + '<div style="padding:13px 16px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;gap:10px"><div style="font-size:15px;font-weight:800">Importer le relevé ' + esc(p.nom) + '</div>' + srcBadge + '<button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;color:var(--fp-muted,#64748b)">✕</button></div>'
       + '<div style="padding:14px 16px">'
+      + warnHt + warnIncompl
       + '<div class="grid gap-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
       + '<div class="ctrl-kpi"><div class="lbl">N° facture</div><div class="val" style="font-size:14px">' + esc(f.numero || '—') + '</div></div>'
       + '<div class="ctrl-kpi"><div class="lbl">Date</div><div class="val" style="font-size:14px">' + (f.date ? dfr(f.date) : '—') + '</div></div>'
@@ -729,8 +746,10 @@
       + '<div class="ctrl-kpi"><div class="lbl">TVA</div><div class="val" style="font-size:14px">' + euro(f.montantTVA) + '</div></div>'
       + '<div class="ctrl-kpi"><div class="lbl">TTC</div><div class="val" style="font-size:14px">' + euro(f.montantTTC) + '</div></div>'
       + '</div>'
-      + '<div class="text-xs text-slate-500 mb-1">' + parsed.tx.length + ' transaction(s) — conducteur résolu par n° de carte (saisis les n° dans « Cartes & badges » pour l\'attribution automatique) :</div>'
-      + '<div class="card p-2" style="overflow:auto;max-height:40vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>Produit</th><th style="text-align:right">Litres</th><th style="text-align:right">TTC</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      + (parsed.tx.length
+          ? ('<div class="text-xs text-slate-500 mb-1">' + parsed.tx.length + ' transaction(s) — conducteur résolu par n° de carte (saisis les n° dans « Cartes & badges » pour l\'attribution automatique) :</div>'
+             + '<div class="card p-2" style="overflow:auto;max-height:40vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>Produit</th><th style="text-align:right">Litres</th><th style="text-align:right">TTC</th></tr></thead><tbody>' + rows + '</tbody></table></div>')
+          : '<div class="card p-3 text-sm text-slate-500">Aucun détail par transaction dans ce document — seule la <b>facture</b> ci-dessus sera enregistrée.</div>')
       + '</div>'
       + '<div style="padding:12px 16px;border-top:1px solid var(--fp-border);display:flex;gap:8px;justify-content:flex-end"><button type="button" data-close class="btn btn-outline text-sm">Annuler</button><button type="button" data-commit class="btn btn-dark text-sm"><i data-lucide="check" class="w-4 h-4"></i> Importer</button></div>'
       + '</div>';
@@ -748,9 +767,12 @@
       const already = (window.FP_DATA.factures || []).find(x => num && String(x.numeroFacture || x.numero_facture || '') === num && Math.abs((Number(x.montantTTC || x.montant_ttc) || 0) - (Number(f.montantTTC) || 0)) < 0.02);
       let url = ''; try { if (FP.uploadScan) url = await FP.uploadScan(file, 'factures'); } catch (e) {}
       const soc = (FP.activeSociete && FP.activeSociete && FP.activeSociete() !== '__all__') ? FP.activeSociete() : null;
-      const facId = already ? already.id : ('DKV-' + (num.replace(/[^0-9A-Za-z]/g, '') || Date.now().toString(36)));
+      // Id facture GÉNÉRIQUE (déterministe sur le n° → ré-import = même id → anti-doublon) ; type selon le prestataire.
+      const slug = String(p.id || 'presta').replace(/[^0-9A-Za-z]/g, '').toUpperCase() || 'PRESTA';
+      const facType = p.type === 'peage' ? 'peage' : 'carburant';
+      const facId = already ? already.id : (slug + '-' + (num.replace(/[^0-9A-Za-z]/g, '') || Date.now().toString(36)));
       if (!already) {
-        const facRec = { id: facId, date: f.date || '', fournisseur: p.nom, numeroFacture: num, type: 'carburant', montantHT: f.montantHT, montantTVA: f.montantTVA, montantTTC: f.montantTTC, fileId: url || null, source: 'presta-' + p.id, societe: soc };
+        const facRec = { id: facId, date: f.date || '', fournisseur: p.nom, numeroFacture: num, type: facType, montantHT: f.montantHT, montantTVA: f.montantTVA, montantTTC: f.montantTTC, fileId: url || null, source: 'presta-' + p.id, societe: soc };
         try { if (FP.persist) await FP.persist.insert('factures', facRec); else if (FP.db) await FP.db.insert('factures', facRec); } catch (e) {}
         (window.FP_DATA.factures = window.FP_DATA.factures || []).push(facRec);
       } else if (url && !already.fileId) { try { if (FP.persist) FP.persist.update('factures', already.id, { fileId: url }); already.fileId = url; } catch (e) {} }
@@ -759,12 +781,15 @@
       for (const t of parsed.tx) {
         let nm = t.conducteur || '';
         try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) nm = (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || nm)) || nm; } catch (e) {}
-        const tr = { id: 'PTX-' + facId + '-' + (i++), facnum: num, carte: t.carte || '', conducteur: nm || '—', plaque: null, dateTx: t.dateTx, mois: (t.dateTx || '').slice(0, 7), produit: t.produit || 'Carburant', categorie: t.categorie || 'carburant', montantTtc: (t.montantTtc != null ? t.montantTtc : 0) };
+        const tr = { id: 'PTX-' + facId + '-' + (i++), facnum: num, carte: t.carte || '', conducteur: nm || '—', plaque: null, dateTx: t.dateTx, mois: (t.dateTx || '').slice(0, 7), produit: t.produit || (facType === 'peage' ? 'Péage' : 'Carburant'), categorie: t.categorie || facType, montantTtc: (t.montantTtc != null ? t.montantTtc : 0) };
         try { if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (!(r && r.error)) okTx++; } } catch (e) {}
       }
       if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
       try { renderPresta(p.id); } catch (e) {}
-      if (busy) busy.done('✓ Relevé importé — ' + okTx + ' transaction(s)' + (already ? ' (facture déjà présente)' : ''));
+      const doneMsg = parsed.incomplet
+        ? ('✓ Facture enregistrée' + (already ? ' (déjà présente)' : '') + ' — ventilation par conducteur incomplète (pas de détail dans ce document).')
+        : ('✓ Relevé importé — ' + okTx + ' transaction(s)' + (already ? ' (facture déjà présente)' : ''));
+      if (busy) busy.done(doneMsg);
     } catch (e) { console.warn('[presta commit]', e); if (busy) busy.fail('Import incomplet'); }
   }
 
