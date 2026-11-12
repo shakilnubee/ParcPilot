@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112d">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112c"></script>
-<script src="../assets/js/supabase-client.js?v=20261112c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112d"></script>
+<script src="../assets/js/supabase-client.js?v=20261112d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261112c"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261112c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261112d"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261112d"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112c"></script><script>
+<script src="../assets/js/app.min.js?v=20261112d"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2236,14 +2236,25 @@
       const kmRange = (a.kmDebut != null || a.kmFin != null) ? `${a.kmDebut != null ? FP.num(a.kmDebut) : '—'} → ${a.kmFin != null ? FP.num(a.kmFin) : '…'} km` : '';
       const kmParc = (kmP != null && kmP > 0) ? `${FP.num(kmP)} km parcourus` : '';
       const ep = _edlFor(a);
-      const hasIn = ep.remise.length > 0, hasOut = ep.restitution.length > 0;
-      const nbPhotos = ep.remise.concat(ep.restitution).filter(_isPhoto).length;
+      // Photos COMPLÉMENTAIRES (ajoutées après coup / après signature) : sorties des galeries initiales
+      // et regroupées dans leur propre section (source unique FP.edlCompl). Le PDF signé n'est pas touché.
+      const _isCompl = (d) => !!(FP.edlCompl && FP.edlCompl.estCompl(d));
+      const _remIni = ep.remise.filter(d => !_isCompl(d));
+      const _resIni = ep.restitution.filter(d => !_isCompl(d));
+      const _complArr = ep.remise.concat(ep.restitution).filter(_isCompl);
+      const _periodeDocs = ep.remise.concat(ep.restitution);
+      const _apresSig = !!(FP.edlCompl && FP.edlCompl.estSignee(_periodeDocs));
+      const hasIn = _remIni.length > 0, hasOut = _resIni.length > 0;
+      const nbPhotos = _remIni.concat(_resIni).filter(_isPhoto).length;
       const dot = enCours ? '#16a34a' : '#94a3b8';
       const pill = enCours
         ? '<span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 8px;background:rgba(22,163,74,.15);color:#16a34a">en cours</span>'
         : '<span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:2px 8px;background:rgba(148,163,184,.2);color:#64748b">terminée</span>';
       const metaLine = `${escapeHtml(periode)}${kmRange ? ` · ${kmRange}` : ''}${kmParc ? ` · ${kmParc}` : ''}`;
-      const edlBlock = `${_gallery('Remise', '📥', ep.remise)}${_gallery('Restitution', '📤', ep.restitution)}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${_signBtn(a)}${_impBtn(a, 'remise', 'Importer une remise (PDF)')}${_impBtn(a, 'restitution', 'Importer une restitution (PDF)')}</div>`;
+      const _addSens = hasOut ? 'restitution' : 'remise';
+      const _addBtn = (FP.edlCompl && FP.edlCompl.addBtnHTML) ? FP.edlCompl.addBtnHTML({ vehId, sens: _addSens, date: _isoIn(a, _addSens), apresSignature: _apresSig, conducteurKey: a.conducteurKey || '', debut: a.debut || '', fin: a.fin || '' }) : '';
+      const _complSection = (FP.edlCompl && FP.edlCompl.sectionHTML) ? FP.edlCompl.sectionHTML(_complArr) : '';
+      const edlBlock = `${_gallery('Remise', '📥', _remIni)}${_gallery('Restitution', '📤', _resIni)}${_complSection}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${_signBtn(a)}${_impBtn(a, 'remise', 'Importer une remise (PDF)')}${_impBtn(a, 'restitution', 'Importer une restitution (PDF)')}${_addBtn}</div>`;
       return `<details class="fp-aff-card" ${enCours ? 'open' : ''} data-affect-row="${i}" style="border:1px solid ${enCours ? 'rgba(22,163,74,.45)' : 'var(--fp-border)'};border-radius:12px;margin-bottom:10px;background:var(--fp-card,#fff);overflow:hidden">
         <summary class="fp-aff-sum" style="cursor:pointer;display:flex;gap:11px;align-items:flex-start;padding:12px 13px">
           <span style="width:9px;height:9px;border-radius:50%;flex:none;margin-top:6px;background:${dot}"></span>
@@ -2406,6 +2417,24 @@
         idxs.filter(k => k !== keep).sort((x, y) => y - x).forEach(k => FP.affectations.removeEntry(vehId, k));
         refreshAffect(vehId, null);
         if (FP.toast) FP.toast('✓ Doublons regroupés (1 ligne conservée)');
+        return;
+      }
+      const addph = e.target.closest('[data-edl-addphotos]');
+      if (addph && window.FP && FP.edlCompl) {
+        const vId = addph.getAttribute('data-veh') || vehId;
+        const veh = (data.vehicules || []).find(x => x.id === vId);
+        if (veh) {
+          FP.edlCompl.open({
+            veh,
+            sens: addph.getAttribute('data-sens') || 'remise',
+            date: addph.getAttribute('data-date') || '',
+            apresSignature: addph.getAttribute('data-apres') === '1',
+            periode: { conducteurKey: addph.getAttribute('data-ck') || '', debut: addph.getAttribute('data-deb') || '', fin: addph.getAttribute('data-fin') || '' },
+            // Affichage immédiat : on pousse la nouvelle photo dans le cache docs de la page (même schéma qu'addVehDoc).
+            onInsert: (doc) => { try { if (docsCache) { docsCache.push(doc); try { localStorage.setItem(DOCS_CACHE_KEY, JSON.stringify(docsCache)); } catch (e) {} } } catch (e) {} },
+            onDone: () => { try { refreshAffect(vId, null); } catch (e) {} }
+          });
+        }
         return;
       }
       const edit = e.target.closest('[data-affect-edit]');

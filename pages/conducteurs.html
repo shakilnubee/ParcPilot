@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112d">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -679,8 +679,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112c"></script>
-<script src="../assets/js/supabase-client.js?v=20261112c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112d"></script>
+<script src="../assets/js/supabase-client.js?v=20261112d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -696,12 +696,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261112c"></script>
-<script src="../assets/js/app.min.js?v=20261112c"></script>
+<script src="../assets/js/fleet-docs.js?v=20261112d"></script>
+<script src="../assets/js/app.min.js?v=20261112d"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1857,10 +1857,20 @@
             return `<a href="${escapeHtml(sanitizeUrl(dd.url))}" target="_blank" rel="noopener" title="Ouvrir">${media}</a>`;
           };
           const egrp = (label, emo, arr) => arr.length ? `<div style="margin-top:5px"><div class="text-xs font-semibold" style="color:#475569">${emo} ${label} <span class="text-slate-400">(${arr.length})</span></div><div class="fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:4px">${arr.map(etile).join('')}</div></div>` : '';
+          const _isComplC = (dd) => !!(FP.edlCompl && FP.edlCompl.estCompl(dd));
           edlInner = egroups.map(g => {
             const v = _vAll.find(x => x.id === g.vehId); const immat = v ? v.immat : g.vehId;
             const per = (g.debut ? (FP.dateNum ? FP.dateNum(g.debut) : g.debut) : 'origine') + ' → ' + (g.fin ? (FP.dateNum ? FP.dateNum(g.fin) : g.fin) : 'en cours');
-            return `<div style="padding:8px 0;border-top:1px solid var(--fp-border,#eef1f5)"><div class="flex items-center gap-2"><span class="plate-badge">${escapeHtml(immat)}</span><span class="text-xs text-slate-500">${escapeHtml(per)}</span></div>${egrp('Remise', '📥', g.remise)}${egrp('Restitution', '📤', g.restitution)}</div>`;
+            // Photos complémentaires (ajoutées après coup / après signature) sorties des galeries initiales.
+            const remIni = g.remise.filter(dd => !_isComplC(dd));
+            const resIni = g.restitution.filter(dd => !_isComplC(dd));
+            const complC = g.remise.concat(g.restitution).filter(_isComplC);
+            const apresSig = !!(FP.edlCompl && FP.edlCompl.estSignee(g.remise.concat(g.restitution)));
+            const section = (FP.edlCompl && FP.edlCompl.sectionHTML) ? FP.edlCompl.sectionHTML(complC, { del: false }) : '';
+            const addSens = resIni.length ? 'restitution' : 'remise';
+            const addDate = (addSens === 'restitution' ? g.fin : g.debut) || new Date().toISOString().slice(0, 10);
+            const addBtn = (v && FP.edlCompl && FP.edlCompl.addBtnHTML) ? ('<div style="margin-top:7px">' + FP.edlCompl.addBtnHTML({ vehId: g.vehId, sens: addSens, date: addDate, apresSignature: apresSig, conducteurKey: key || '', debut: g.debut || '', fin: g.fin || '' }) + '</div>') : '';
+            return `<div style="padding:8px 0;border-top:1px solid var(--fp-border,#eef1f5)"><div class="flex items-center gap-2"><span class="plate-badge">${escapeHtml(immat)}</span><span class="text-xs text-slate-500">${escapeHtml(per)}</span></div>${egrp('Remise', '📥', remIni)}${egrp('Restitution', '📤', resIni)}${section}${addBtn}</div>`;
           }).join('');
         }
       }
@@ -1929,6 +1939,24 @@
         let _reply = ''; try { _reply = ((FP.societeProfil ? FP.societeProfil() : {}) || {}).mailExpediteur || ''; } catch (er) {}
         const _objBienv = (FP.mailObjetL ? FP.mailObjetL('bienvenue', { prenom: prenom, plaque: plaque }, lang) : '') || L('Bienvenue à bord 🚗 — l\'espace véhicule', 'Welcome on board 🚗 — your vehicle space');
         FP.msg.open({ phone: tel, email: email, nom: prenom, lang: lang, title: 'Bienvenue — ' + (prenom || 'conducteur'), text: text, emailSubject: _objBienv, emailHtml: emailHtml, emailOpts: _reply ? { replyTo: _reply } : {} });
+      });
+      // « ＋ Ajouter des photos » sur un EDL depuis la fiche conducteur (source unique FP.edlCompl).
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-edl-addphotos]');
+        if (!b || !(window.FP && FP.edlCompl)) return;
+        e.preventDefault();
+        const vId = b.getAttribute('data-veh');
+        const veh = ((window.FP_DATA && FP_DATA.vehicules) || []).find(x => x.id === vId);
+        if (!veh) return;
+        FP.edlCompl.open({
+          veh,
+          sens: b.getAttribute('data-sens') || 'remise',
+          date: b.getAttribute('data-date') || '',
+          apresSignature: b.getAttribute('data-apres') === '1',
+          periode: { conducteurKey: b.getAttribute('data-ck') || '', debut: b.getAttribute('data-deb') || '', fin: b.getAttribute('data-fin') || '' },
+          onInsert: (doc) => { try { if (Array.isArray(_edlDocs)) _edlDocs.push(doc); } catch (er) {} },
+          onDone: () => { try { if (currentDriverKey) openDrawer(currentDriverKey); } catch (er) {} }
+        });
       });
       // Bouton « Changement de titulaire (périodes) » de la carte « Cartes & badges » → éditeur de périodes.
       document.addEventListener('click', (e) => {
