@@ -3907,11 +3907,13 @@ FP.prestataireBadge = () => { try { const v = FP.settings.get().prestataireBadge
 // prestataire est « branché » partout automatiquement : champ n° dans la fiche conducteur, colonne dans
 // « Cartes & badges », sous-onglet dans Contrôle. Persos synchronisés dans settings.prestatairesPerso.
 FP.prestataires = () => {
+  // numKey = n° PAR CONDUCTEUR (settings[numKey][condKey]) ; vehKey = n° PAR VÉHICULE (settings[vehKey][vehId]).
+  // Les natifs gardent leurs clés historiques ; un perso a condNum_<id> / vehNum_<id> → même socle pour tous.
   const out = [
-    { id: 'total', nom: FP.prestataireCarte(), type: 'carburant', builtin: true, numKey: 'condCarteTotal' },
-    { id: 'ulys',  nom: FP.prestataireBadge(), type: 'peage',     builtin: true, numKey: 'condBadgeUlys' }
+    { id: 'total', nom: FP.prestataireCarte(), type: 'carburant', builtin: true, numKey: 'condCarteTotal', vehKey: 'vehCarteCarb' },
+    { id: 'ulys',  nom: FP.prestataireBadge(), type: 'peage',     builtin: true, numKey: 'condBadgeUlys',  vehKey: 'vehBadge' }
   ];
-  try { const p = FP.settings.get().prestatairesPerso; if (Array.isArray(p)) p.forEach(x => { if (x && x.id && x.nom) out.push({ id: x.id, nom: String(x.nom), type: (x.type === 'peage' ? 'peage' : 'carburant'), builtin: false, numKey: 'condNum_' + x.id }); }); } catch (e) {}
+  try { const p = FP.settings.get().prestatairesPerso; if (Array.isArray(p)) p.forEach(x => { if (x && x.id && x.nom) out.push({ id: x.id, nom: String(x.nom), type: (x.type === 'peage' ? 'peage' : 'carburant'), builtin: false, numKey: 'condNum_' + x.id, vehKey: 'vehNum_' + x.id }); }); } catch (e) {}
   return out;
 };
 FP.prestataireById = (id) => FP.prestataires().find(p => p.id === id) || null;
@@ -3925,6 +3927,24 @@ FP.addPrestataire = (nom, type) => {
   list.push(rec); s.prestatairesPerso = list; FP.settings.save(s); return rec;
 };
 FP.removePrestataire = (id) => { if (!id) return; const s = FP.settings.get(); s.prestatairesPerso = (s.prestatairesPerso || []).filter(x => x.id !== id); FP.settings.save(s); };
+// Pont VÉHICULE ↔ CONDUCTEUR par prestataire (dynamique : natifs + persos) → { vehKey: numKey }. Généralise
+// FP.CARTE_COND_MAP (figé aux 2 natifs) à N prestataires, en incluant TOUJOURS les natifs (comportement inchangé).
+FP.carteCondMap = () => {
+  const m = {};
+  try { FP.prestataires().forEach(p => { if (p && p.vehKey && p.numKey) m[p.vehKey] = p.numKey; }); } catch (e) {}
+  if (!m.vehCarteCarb) m.vehCarteCarb = 'condCarteTotal';
+  if (!m.vehBadge) m.vehBadge = 'condBadgeUlys';
+  return m;
+};
+// Registre des LECTEURS de relevés par prestataire. Total/Ulys vivent dans fleet-views ; un NOUVEAU
+// prestataire (ex. DKV) enregistrera ici son parseur quand on aura ses vrais relevés — même standard de
+// lecture que Total/Ulys (reconstruction par position, montant exact, contrôle HT/TVA/TTC, écriture dans
+// total_conso_tx avec numKey). ⚠️ SCAFFOLD : aucun comportement changé tant qu'aucun parseur n'est enregistré.
+FP.presta = FP.presta || {};
+FP.presta._parsers = FP.presta._parsers || {};
+FP.presta.registerParser = (id, def) => { if (id && def) FP.presta._parsers[String(id)] = def; };
+FP.presta.getParser = (id) => FP.presta._parsers[String(id)] || null;
+FP.presta.hasParser = (id) => !!FP.presta._parsers[String(id)];
 // n° d'un prestataire pour un conducteur (généralise numCarteConducteur à N prestataires).
 FP.condNum = (condKey, numKey) => { try { const v = (FP.settings.get()[numKey] || {})[condKey]; if (v) return v; } catch (e) {} return (FP.numCarteConducteur && (numKey === 'condCarteTotal' || numKey === 'condBadgeUlys')) ? (FP.numCarteConducteur(condKey, numKey) || '') : ''; };
 FP.setCondNum = (condKey, numKey, val) => { if (!condKey || !numKey) return; const s = FP.settings.get(); s[numKey] = s[numKey] || {}; val = (val || '').trim(); if (val) s[numKey][condKey] = val; else delete s[numKey][condKey]; FP.settings.save(s); };
@@ -4304,7 +4324,11 @@ FP.condKeyDeConso = (t) => {
     // fiche porte le n° complet alors que le relevé n'affiche que les derniers chiffres).
     const isUlys = /^ULYS/i.test(s);
     const num = s.replace(/^ULYS[-_\s]*/i, '');
-    const mapKey = isUlys ? 'condBadgeUlys' : 'condCarteTotal';
+    // Prestataire EXPLICITE (nouveau socle) : un relevé perso (ex. DKV) peut porter sa clé conducteur
+    // (t.numKey = condNum_<id>). On l'utilise telle quelle ; sinon on garde l'inférence native ULYS/Total
+    // STRICTEMENT inchangée. `_explNum` ⇒ on résout le titulaire courant via le lookup générique par n°.
+    const _explNum = (typeof t.numKey === 'string' && t.numKey && t.numKey !== 'condCarteTotal' && t.numKey !== 'condBadgeUlys') ? t.numKey : null;
+    const mapKey = _explNum || (isUlys ? 'condBadgeUlys' : 'condCarteTotal');
     // ATTRIBUTION DATÉE (source unique) : si des périodes de validité existent pour cette carte/badge
     // (réattribution « changement de titulaire »), le titulaire est celui À LA DATE de la transaction —
     // une réattribution ne transfère JAMAIS l'historique au nouveau porteur. Périodes présentes mais date
@@ -4315,8 +4339,11 @@ FP.condKeyDeConso = (t) => {
         return (tt && tt.key) ? tt.key : null;
       }
     } catch (e) {}
-    // Pas de période saisie → titulaire COURANT par n° (comportement STRICTEMENT inchangé).
-    if (isUlys) {
+    // Pas de période saisie → titulaire COURANT par n°.
+    // Prestataire perso explicite : lookup générique par n° sur sa propre clé (FP._condParNumero).
+    if (_explNum) {
+      try { const c = FP._condParNumero && FP._condParNumero(_explNum, num); if (c && c.key) return c.key; } catch (e) {}
+    } else if (isUlys) {   // natif Ulys — comportement STRICTEMENT inchangé
       try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(num); if (c && c.key) return c.key; } catch (e) {}
     } else {
       try { const c = FP.conducteurParCarteTotal && FP.conducteurParCarteTotal(s); if (c && c.key) return c.key; } catch (e) {}
@@ -4884,7 +4911,7 @@ FP.condKeyDuVehicule = (v) => {
 FP.numCarteVehicule = (v, vehKey) => {
   try {
     const s = FP.settings.get();
-    const condMapKey = FP.CARTE_COND_MAP[vehKey];
+    const condMapKey = FP.carteCondMap()[vehKey];
     const condKey = FP.condKeyDuVehicule(v);
     if (condKey && condMapKey) { const cv = (s[condMapKey] || {})[condKey]; if (cv) return cv; }
     return (s[vehKey] || {})[v.id] || '';
@@ -4894,7 +4921,7 @@ FP.numCarteVehicule = (v, vehKey) => {
 // (chauffeur reconnu), sinon repli sur le stockage par véhicule. Ne concerne QUE les champs "numéro".
 FP.setNumCarteVehicule = (v, vehKey, val) => {
   const s = FP.settings.get();
-  const condMapKey = FP.CARTE_COND_MAP[vehKey];
+  const condMapKey = FP.carteCondMap()[vehKey];
   const condKey = FP.condKeyDuVehicule(v);
   val = (val || '').trim();
   // (1) Lien VÉHICULE-spécifique TOUJOURS conservé (settings[vehKey][v.id]) : c'est lui qui permet
@@ -4913,7 +4940,8 @@ FP.numCarteConducteur = (condKey, condMapKey) => {
   try {
     const s = FP.settings.get();
     const direct = (s[condMapKey] || {})[condKey]; if (direct) return direct;
-    const vehKey = Object.keys(FP.CARTE_COND_MAP).find(k => FP.CARTE_COND_MAP[k] === condMapKey);
+    const _ccm = FP.carteCondMap();
+    const vehKey = Object.keys(_ccm).find(k => _ccm[k] === condMapKey);
     if (!vehKey) return '';
     const map = s[vehKey] || {};
     const vehs = (window.FP_DATA && FP_DATA.vehicules) || [];
@@ -5127,7 +5155,11 @@ FP.cartePeriodesEditor = function (condKey) {
   const allConds = (FP.conducteursTous ? FP.conducteursTous() : (FP.conducteurs && FP.conducteurs.list ? FP.conducteurs.list() : [])) || [];
   const nameOfKey = (k) => { const c = allConds.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : k; };
   const dFR = (iso) => { const s = String(iso || '').slice(0, 10); if (!s) return ''; return (FP.date ? FP.date(s) : s); };
-  const MAPS = [{ mapKey: 'condCarteTotal', label: 'Carte carburant' }, { mapKey: 'condBadgeUlys', label: 'Badge télépéage / Ulys' }];
+  // Historique daté / réattribution des cartes pour TOUS les prestataires (natifs + persos), plus seulement
+  // les 2 natifs → un prestataire perso (ex. DKV) a aussi ses périodes de validité par titulaire.
+  let MAPS = [];
+  try { MAPS = (FP.prestataires ? FP.prestataires() : []).map(p => ({ mapKey: p.numKey, label: p.nom || (p.type === 'peage' ? 'Badge télépéage' : 'Carte carburant') })); } catch (e) {}
+  if (!MAPS.length) MAPS = [{ mapKey: 'condCarteTotal', label: 'Carte carburant' }, { mapKey: 'condBadgeUlys', label: 'Badge télépéage / Ulys' }];
   if (!document.getElementById('fp-cpe-style')) {
     const st = document.createElement('style'); st.id = 'fp-cpe-style';
     st.textContent = [
