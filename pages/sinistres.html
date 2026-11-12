@@ -1058,7 +1058,32 @@
   function sinDocsSectionHTML(g, s, dv, big) {
     const annee = escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()));
     const immat = escapeHtml(s.vehiculeImmat || ''), sinDate = escapeHtml(String(s.date || '').slice(0, 10));
-    return `<div class="sin-docs">
+    // ── PHOTOS DU SINISTRE : images rattachées à CET incident (ajout manuel + QR), dédoublonnées par URL.
+    // Séparées des courriers/constats (lus par l'IA). Ajout via le bouton (plusieurs photos / appareil photo).
+    let _sinPhotos = [];
+    try {
+      const _sub = 'sin:' + g.key, _seen = new Set();
+      _sinPhotos = (sinDocs || []).filter(d => d && d.type === 'sinistre-doc' && isImg(d.url) && docSub(d.id) === _sub)
+        .filter(d => { const k = String(d.url || ''); if (!k || _seen.has(k)) return false; _seen.add(k); return true; });
+    } catch (e) {}
+    const _photoTiles = _sinPhotos.map(d => {
+      const _manuel = !!(d.meta && d.meta.source === 'ajout-fiche');
+      return `<div style="position:relative">
+          <button type="button" class="sin-photo-open" data-url="${escapeHtml(d.url)}" title="Agrandir" style="display:block;width:100%;padding:0;border:none;background:none;cursor:zoom-in">
+            <img class="sin-doc-thumb" data-url="${escapeHtml(d.url)}" alt="Photo du sinistre" style="width:100%;height:84px;object-fit:cover;border-radius:9px;border:1px solid var(--fp-border);display:block">
+          </button>
+          <button type="button" class="sin-photo-del" data-id="${escapeHtml(d.id)}" title="Retirer cette photo" style="position:absolute;top:3px;right:3px;background:rgba(15,30,61,.72);color:#fff;border:none;border-radius:6px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:20px;text-align:center;padding:0">✕</button>
+          ${_manuel ? '<span style="position:absolute;bottom:3px;left:3px;font-size:8px;font-weight:700;background:rgba(15,30,61,.72);color:#fff;border-radius:5px;padding:1px 4px">manuel</span>' : ''}
+        </div>`;
+    }).join('');
+    const photosBlock = `<div class="sin-det-sec" style="padding:4px 0 6px">📷 Photos du sinistre${_sinPhotos.length ? (' · ' + _sinPhotos.length) : ''}</div>
+      <div class="fp-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-bottom:12px">
+        <button type="button" class="sin-addphotos-btn" data-key="${g.key}" data-immat="${immat}" title="Ajouter des photos à ce sinistre (plusieurs à la fois ; appareil photo possible sur mobile)" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:84px;border:1px dashed var(--fp-accent);border-radius:9px;background:color-mix(in srgb,var(--fp-accent) 7%,transparent);color:var(--fp-accent);cursor:pointer;font-size:11px;font-weight:700"><i data-lucide="camera" class="w-5 h-5"></i> ＋ Ajouter</button>
+        ${_photoTiles}
+      </div>
+      <input type="file" class="sin-photos-file hidden" data-key="${g.key}" data-immat="${immat}" accept="image/*" multiple capture="environment">
+      <div class="sin-det-sec" style="padding:2px 0 6px">📄 Courrier &amp; constat <span class="text-slate-400" style="font-weight:400;font-size:11px">(lus par l'IA)</span></div>`;
+    return photosBlock + `<div class="sin-docs">
         <div class="sin-dz" data-key="${g.key}" data-immat="${immat}" data-annee="${annee}" data-sindate="${sinDate}" tabindex="0" role="button" title="Glissez un document ici ou cliquez pour en choisir un — l'IA le lit automatiquement">
           <div class="sin-dz-idle">
             <i data-lucide="upload-cloud" class="w-5 h-5" style="color:var(--fp-accent)"></i>
@@ -1698,7 +1723,35 @@
     // Courrier de l'assureur déposé → l'IA lit responsabilité + n° dossier + date, remplit le dossier.
     const crf = e.target.closest('.sin-courrier-file');
     if (crf) { handleCourrierScan(crf); return; }
+    // Photos du sinistre (bouton « ＋ Ajouter ») : upload + rattachement à CET incident (sin:<clé>).
+    const pf = e.target.closest('.sin-photos-file');
+    if (pf) { const files = pf.files; const key = pf.dataset.key, immat = pf.dataset.immat || ''; pf.value = ''; uploadSinistrePhotos(files, key, immat); return; }
   });
+
+  // Ajoute des photos à UN sinistre : upload (dossier société) → ligne documents 'sinistre-doc' rattachée
+  // à l'incident (docSub 'sin:<clé>', jamais par prénom), meta source='ajout-fiche'. Les anciennes photos
+  // (manuelles + QR) et les constats/factures sont CONSERVÉS (on n'ajoute que de nouvelles lignes).
+  async function uploadSinistrePhotos(fileList, key, immat) {
+    const files = Array.from(fileList || []).filter(f => f && /^image\//i.test(f.type));
+    if (!files.length) return;
+    if (!(window.FP && FP.uploadScan && FP.persist)) { if (FP.notifyError) FP.notifyError("L'ajout de photos nécessite d'être connecté."); return; }
+    const busy = FP.busy ? FP.busy('Ajout des photos… 0/' + files.length) : null;
+    let ok = 0, ko = 0;
+    for (let i = 0; i < files.length; i++) {
+      if (busy) busy.update('Ajout des photos… ' + (i + 1) + '/' + files.length);
+      try {
+        const url = await FP.uploadScan(files[i], 'sinistres/' + normPl(immat));
+        if (!url) { ko++; continue; }
+        const doc = { id: 'SDP' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: immat, type: 'sinistre-doc', label: files[i].name || 'Photo du sinistre', url, driveId: null, meta: { source: 'ajout-fiche', auteur: (FP.userEmail || '').trim() || 'inconnu', ajouteLe: new Date().toISOString() } };
+        sinDocs.push(doc);                       // affichage immédiat (anti-race)
+        await FP.persist.insert('documents', doc);
+        setDocSub(doc.id, 'sin:' + key);         // rattaché à CET incident
+        ok++;
+      } catch (e) { ko++; }
+    }
+    if (busy) { if (ko && !ok) busy.fail("Échec de l'ajout"); else busy.done('✓ ' + ok + ' photo' + (ok > 1 ? 's' : '') + ' ajoutée' + (ok > 1 ? 's' : '') + (ko ? (' · ' + ko + ' échec' + (ko > 1 ? 's' : '')) : '')); }
+    renderTimeline();
+  }
 
   // Lecture IA d'un constat : propose la responsabilité de NOTRE véhicule (jamais enregistré sans confirmation).
   // Thin wrapper : extrait le fichier + le contexte de l'<input file> puis délègue au cœur ingestConstat
@@ -2034,6 +2087,32 @@
       const ic = col.querySelector('i'); if (ic) { ic.setAttribute('data-lucide', willCollapse ? 'chevron-down' : 'chevron-up'); }
       col.title = willCollapse ? 'Agrandir cet incident' : 'Réduire cet incident';
       if (window.lucide) lucide.createIcons();
+      return;
+    }
+    // 📷 Ajouter des photos au sinistre → ouvre le sélecteur de fichiers (plusieurs ; appareil photo mobile).
+    const addPh = e.target.closest('.sin-addphotos-btn');
+    if (addPh) { _openSinFile('sin-photos-file', addPh.dataset.key); return; }
+    // 📷 Agrandir une photo (bucket privé → URL signée, nouvel onglet).
+    const phOpen = e.target.closest('.sin-photo-open');
+    if (phOpen) {
+      const u = phOpen.dataset.url; if (!u) return;
+      (async () => { try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? await FP.signedScanUrl(u, 3600) : u; window.open(su || u, '_blank', 'noopener'); } catch (_) { window.open(u, '_blank', 'noopener'); } })();
+      return;
+    }
+    // 📷 Retirer une photo du sinistre — traçable (corbeille FP.docTrash + suppression + délien), jamais silencieux.
+    const phDel = e.target.closest('.sin-photo-del');
+    if (phDel) {
+      const id = phDel.dataset.id; if (!id) return;
+      if (!confirm('Retirer cette photo du sinistre ? Les autres pièces (photos, constats, factures) sont conservées.')) return;
+      try {
+        const doc = (sinDocs || []).find(d => d && d.id === id);
+        if (doc && FP.docTrash) { try { FP.docTrash.add(doc); } catch (_) {} }
+        sinDocs = (sinDocs || []).filter(d => d && d.id !== id);
+        if (FP.persist) FP.persist.delete('documents', id);
+        setDocSub(id, null);
+      } catch (_) {}
+      renderTimeline();
+      if (FP.toast) FP.toast('Photo retirée');
       return;
     }
     // 💳 Ajouter un versement (remboursement encaissé) à un incident — tableau sinistreAssurance[key].versements
