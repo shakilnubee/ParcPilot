@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112c">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112b"></script>
-<script src="../assets/js/supabase-client.js?v=20261112b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112c"></script>
+<script src="../assets/js/supabase-client.js?v=20261112c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261112b"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261112b"></script>
+<script src="../assets/js/fleet-docs.js?v=20261112c"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261112c"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112b"></script><script>
+<script src="../assets/js/app.min.js?v=20261112c"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2364,8 +2364,9 @@
             if (veh && ch && ch !== '—' && FP.msg && FP.mailModeleProfilL && FP.fillTags) {
               const c = (FP.conducteurContact ? FP.conducteurContact(veh.chauffeur) : {}) || {};
               const prenom = ch.split(/\s+/)[0] || '';
-              // Langue du conducteur (fr / en) — même règle partout (amendes, relevé km…).
-              const lang = (FP.condLangue ? FP.condLangue(veh.chauffeur) : 'fr');
+              // Langue du conducteur (fr / autre→en) — résolue sur la fiche EN COURS du véhicule (clé),
+              // fiable pour les homonymes (source unique FP.langueChauffeurVeh).
+              const lang = (FP.langueChauffeurVeh ? FP.langueChauffeurVeh(veh) : (FP.condLangue ? FP.condLangue(veh.chauffeur) : 'fr'));
               const motif = mo || 'Rendez-vous garage';
               const dateFr = FP.date ? FP.date(dt) : dt;
               const msg = FP.fillTags(FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang), { prenom, immat: veh.immat, motif, date: dateFr });
@@ -5849,7 +5850,7 @@
         const email = emailOf(v);
         const prenom = String(v.chauffeur).trim().split(/\s+/)[0];
         let portail = ''; try { const qd = await FP.qr.dataFor(v); portail = (qd && qd.url) || ''; } catch (e) {}
-        const lang = (FP.condLangue ? FP.condLangue(v.chauffeur) : '') || '';   // e-mail dans la langue du conducteur
+        const lang = (FP.langueChauffeurVeh ? FP.langueChauffeurVeh(v) : (FP.condLangue ? FP.condLangue(v.chauffeur) : '')) || '';   // e-mail dans la langue du conducteur (fiche en cours, homonymes OK)
         const m = await FP.buildMail('bienvenue-conducteur', { prenom, plaque: v.immat || '', portail, lang });
         if (!m) throw new Error('mail indisponible');
         await FP.sendEmail({ to: email, subject: m.subject, html: m.html, text: m.text });
@@ -7245,8 +7246,9 @@
       try { const qd = await FP.qr.dataFor(v); if (qd && qd.url) { portail = qd.url; edlLink = portail + '&edl=1'; const tok = decodeURIComponent((portail.split('h=')[1] || '')); if (tok) { kmLink = 'https://parc-pilot.fr/km.html?q=' + encodeURIComponent(tok); venteLink = portail + '&vue=vente'; } } } catch (e) {}
       const ctTxt = v.prochainCT ? (FP.date ? FP.date(v.prochainCT) : v.prochainCT) : '';
       const aVendre = /a[\s-]?vendre/.test((v.statut || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''));
-      // Bilingue : messages dans la LANGUE DU CONDUCTEUR (FR défaut, EN si sa fiche est en « English »).
-      const en = !!(FP.condLangue && FP.condLangue(chauffeur) === 'en');
+      // Bilingue : messages dans la LANGUE DU CONDUCTEUR (FR défaut, EN sinon) — fiche EN COURS du
+      // véhicule (clé), fiable pour les homonymes (source unique FP.langueChauffeurVeh).
+      const en = !!(FP.langueChauffeurVeh ? (FP.langueChauffeurVeh(v) === 'en') : (FP.condLangue && FP.condLangue(chauffeur) === 'en'));
       const L = en ? 'en' : 'fr';
       const templates = [];
       const nbp = String(plaque || '').replace(/-/g, '‑').replace(/ /g, ' ');

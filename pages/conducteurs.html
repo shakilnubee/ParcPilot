@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112c">
 <style>
   .driver-card { position: relative; background: white; border: 1px solid var(--fp-border); border-radius: .85rem; padding: 1.1rem; cursor: pointer; transition: all .12s; }
   .driver-card.selected { border-color: var(--fp-accent); box-shadow: inset 0 0 0 2px var(--fp-accent); }
@@ -679,8 +679,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112b"></script>
-<script src="../assets/js/supabase-client.js?v=20261112b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112c"></script>
+<script src="../assets/js/supabase-client.js?v=20261112c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -696,12 +696,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/fleet-docs.js?v=20261112b"></script>
-<script src="../assets/js/app.min.js?v=20261112b"></script>
+<script src="../assets/js/fleet-docs.js?v=20261112c"></script>
+<script src="../assets/js/app.min.js?v=20261112c"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1881,7 +1881,7 @@
     // fonctionnement + le lien de l'espace véhicule (résolu automatiquement). Async → géré par le
     // délégué .cond-bienvenue (câblé une seule fois plus bas).
     { const prenomLbl = (d.prenom || d.name || '').trim();
-      chips.push(`<button type="button" class="fiche-chip cond-bienvenue" data-prenom="${escapeHtml(prenomLbl)}" data-tel="${escapeHtml(String(d.tel || '').replace(/\s+/g, ''))}" data-email="${escapeHtml(d.email || '')}" style="cursor:pointer"><i data-lucide="send"></i> Bienvenue (SMS · WhatsApp · Email)</button>`); }
+      chips.push(`<button type="button" class="fiche-chip cond-bienvenue" data-key="${escapeHtml(d.key || '')}" data-prenom="${escapeHtml(prenomLbl)}" data-tel="${escapeHtml(String(d.tel || '').replace(/\s+/g, ''))}" data-email="${escapeHtml(d.email || '')}" style="cursor:pointer"><i data-lucide="send"></i> Bienvenue (SMS · WhatsApp · Email)</button>`); }
     if (!window.__condBienvWired) {
       window.__condBienvWired = true;
       document.addEventListener('click', async (e) => {
@@ -1889,18 +1889,28 @@
         if (!b || !(window.FP && FP.msg)) return;
         e.preventDefault();
         const prenom = b.getAttribute('data-prenom') || '';
+        const condKey = b.getAttribute('data-key') || '';
         const tel = b.getAttribute('data-tel') || '';
         const email = b.getAttribute('data-email') || '';
-        // Véhicule assigné à ce conducteur → lien de son espace (QR permanent, asynchrone).
+        // Fiche conducteur EXACTE (par sa clé) → langue + véhicule fiables même avec des homonymes.
+        const condObj = (condKey && FP.conducteurs && FP.conducteurs.list) ? (FP.conducteurs.list().find(c => c && c.key === condKey) || null) : null;
+        // Véhicule assigné À CE conducteur (par sa CLÉ via l'affectation en cours, jamais par prénom) →
+        // lien de son espace (QR permanent, asynchrone). Évite de prendre la voiture d'un homonyme.
         let veh = null;
-        try { const gk = FP.condGroupKey ? FP.condGroupKey(prenom) : null; veh = (data.vehicules || []).find(v => v.chauffeur && v.chauffeur !== '—' && ((gk && FP.condGroupKey(v.chauffeur) === gk) || (FP.normPrenom && FP.normPrenom(v.chauffeur) === FP.normPrenom(prenom)))); } catch (err) {}
+        try {
+          if (condKey && FP.condFicheDeVehicule) {
+            veh = (data.vehicules || []).find(v => { if (!v.chauffeur || v.chauffeur === '—') return false; const f = FP.condFicheDeVehicule(v); return !!(f && f.key === condKey); }) || null;
+          }
+          if (!veh) { const gk = FP.condGroupKey ? FP.condGroupKey(prenom) : null; veh = (data.vehicules || []).find(v => v.chauffeur && v.chauffeur !== '—' && ((gk && FP.condGroupKey(v.chauffeur) === gk) || (FP.normPrenom && FP.normPrenom(v.chauffeur) === FP.normPrenom(prenom)))) || null; }
+        } catch (err) {}
         const plaque = veh ? (veh.immat || '') : '';
         let portail = '';
         if (veh && FP.qr && FP.qr.dataFor) { try { const qd = await FP.qr.dataFor(veh); if (qd && qd.url) portail = qd.url; } catch (err) {} }
         const nbp = String(plaque || '').replace(/-/g, '‑').replace(/ /g, ' ');
         const plLine = plaque ? ('Le véhicule ' + nbp + ' dispose') : 'Le véhicule dispose';
-        // Langue du conducteur (fr / en) — même règle partout (amendes, relevé km…).
-        const lang = (FP.condLangue ? FP.condLangue(prenom) : 'fr');
+        // Langue du conducteur (fr / toute autre → en) — résolue sur sa FICHE (clé), pas le prénom
+        // (sinon un homonyme fait retomber FP.condLangue sur le défaut « fr »). Même règle partout.
+        const lang = (FP.condLangue ? FP.condLangue(condObj || prenom) : 'fr');
         const L = (fr, en) => (lang === 'en' ? en : fr);
         // Message ÉDITABLE (Paramètres → E-mails → « bienvenue conducteur »), balises {prenom} {plaque}.
         const msg = (FP.mailModeleProfilL && FP.fillTags)
