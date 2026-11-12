@@ -3754,14 +3754,15 @@ FP.kmCollecte = {
     let nomSoc = ''; try { nomSoc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
     const plaque = FP.esc ? FP.esc(v.immat || '') : (v.immat || '');
     const marque = FP.esc ? FP.esc(((v.marque || '') + ' ' + (v.modele || '')).trim()) : ((v.marque || '') + ' ' + (v.modele || '')).trim();
-    // Conducteur : prénom + nom + poste (via la fiche conducteur, comme le QR).
-    let cond = null; try { cond = (FP.conducteurs && FP.conducteurs.find) ? FP.conducteurs.find(v.chauffeur) : null; } catch (e) {}
+    // Conducteur : prénom + nom + poste (via la fiche conducteur EN COURS, résolue par CLÉ → fiable
+    // même avec des homonymes ; repli sur le nom du chauffeur). Même source que le lien / la langue.
+    let cond = null; try { cond = (FP.condFicheDeVehicule ? FP.condFicheDeVehicule(v) : null) || ((FP.conducteurs && FP.conducteurs.find) ? FP.conducteurs.find(v.chauffeur) : null); } catch (e) {}
     const cPrenom = (cond && cond.prenom) || (v.chauffeur ? String(v.chauffeur).trim().split(/\s+/)[0] : '');
     const cNom = (cond && cond.nom) || '';
     const fullName = ((cPrenom || '') + ' ' + (cNom || '')).trim() || String(v.chauffeur || '').trim();
     const cPoste = (cond && cond.poste) || '';
-    // Langue du conducteur → e-mail en français ou en anglais.
-    const L = (FP.condLangue ? FP.condLangue(cond || v.chauffeur) : 'fr');
+    // Langue du conducteur → e-mail en français ou en anglais (fiche EN COURS par clé, homonymes OK).
+    const L = (FP.langueChauffeurVeh ? FP.langueChauffeurVeh(v) : (FP.condLangue ? FP.condLangue(cond || v.chauffeur) : 'fr'));
     const T = (L === 'en')
       ? { subject: 'Mileage reading', hi: 'Hello', title: 'Mileage reading requested', ask1: 'Please provide the <b>current mileage</b> of your vehicle', ask2: '. It only takes a second: one tap, one number, done.', btn: 'Enter my mileage →', fb: "If the button doesn't work, ", fbLink: 'click here', askTxt: 'Please provide the current mileage of your vehicle', clickTxt: 'Open this link:' }
       : { subject: 'Relevé kilométrique', hi: 'Bonjour', title: 'Relevé kilométrique demandé', ask1: "Merci d'indiquer le <b>kilométrage actuel</b> de ton véhicule", ask2: ". C'est rapide : un clic, un nombre, terminé.", btn: 'Indiquer mon kilométrage →', fb: 'Si le bouton ne fonctionne pas, ', fbLink: 'cliquez ici', askTxt: "Merci d'indiquer le kilométrage actuel de ton véhicule", clickTxt: 'Clique sur ce lien :' };
@@ -14504,26 +14505,42 @@ FP.lienConducteur = function (name, label, key) {
 // courante (fiche exacte même avec des homonymes : deux « Daniel »), repli sur le prénom si pas de clé.
 // Tout « chauffeur cliquable » affiché depuis un véhicule DOIT passer par ce helper (header fiche, tableaux,
 // Contrats…) pour ne jamais renvoyer vers le mauvais homonyme.
+// SOURCE UNIQUE — retrouve la FICHE conducteur EN COURS d'un véhicule, de façon fiable même avec des
+// homonymes (deux « Daniel ») : on s'appuie sur la CLÉ de l'affectation courante, sinon sur son NOM
+// COMPLET, jamais sur le prénom seul. Renvoie l'objet conducteur (ou null). À utiliser partout où on a
+// besoin de la personne réellement affectée (lien de fiche, langue d'envoi, coordonnées…).
+FP.condFicheDeVehicule = function (v) {
+  if (!v || !FP.conducteurs) return null;
+  try {
+    const c = (FP.affectations && FP.affectations.courante) ? FP.affectations.courante(v.id) : null;
+    if (c) {
+      if (c.conducteurKey) { const f = (FP.conducteurs.list() || []).find(x => x && x.key === c.conducteurKey); if (f) return f; }
+      if (c.conducteur && FP.conducteurs.find) { const f = FP.conducteurs.find(c.conducteur); if (f) return f; }
+    }
+    // repli : le véhicule porte directement un nom (complet de préférence) de chauffeur.
+    if (v.chauffeur && FP.conducteurs.find) { const f = FP.conducteurs.find(v.chauffeur); if (f) return f; }
+  } catch (e) {}
+  return null;
+};
 FP.lienChauffeurVeh = function (v, label) {
   if (!v) return '';
   let key = '';
   try {
+    // 1) meilleure source : la CLÉ posée sur l'affectation courante (robuste même hors cache conducteurs).
     const c = (FP.affectations && FP.affectations.courante) ? FP.affectations.courante(v.id) : null;
-    if (c) {
-      // 1) meilleure source : la CLÉ posée sur l'affectation (ré-attribution via l'assistant).
-      if (c.conducteurKey) key = String(c.conducteurKey).trim();
-      // 2) repli : la période ne porte pas de clé mais un NOM COMPLET (« Daniel CALVO ») → on
-      //    retrouve la fiche exacte par ce nom complet (lève l'homonymie, contrairement au prénom seul).
-      if (!key && c.conducteur && FP.conducteurs && FP.conducteurs.find) {
-        try { const cc = FP.conducteurs.find(c.conducteur); if (cc && cc.key) key = cc.key; } catch (e) {}
-      }
-    }
-    // 3) dernier repli : le véhicule porte directement un NOM COMPLET de chauffeur (hors période).
-    if (!key && v.chauffeur && String(v.chauffeur).trim().indexOf(' ') !== -1 && FP.conducteurs && FP.conducteurs.find) {
-      try { const cc = FP.conducteurs.find(v.chauffeur); if (cc && cc.key) key = cc.key; } catch (e) {}
-    }
+    if (c && c.conducteurKey) key = String(c.conducteurKey).trim();
+    // 2) repli : résoudre la fiche (nom complet de l'affectation / du chauffeur) et prendre sa clé.
+    if (!key) { const f = FP.condFicheDeVehicule(v); if (f && f.key) key = f.key; }
   } catch (e) {}
   return FP.lienConducteur(v.chauffeur || '—', label, key);
+};
+// SOURCE UNIQUE — langue d'ENVOI (fr/en) du conducteur EN COURS d'un véhicule. Résout la fiche exacte
+// (clé/ nom complet) via FP.condFicheDeVehicule → FP.condLangue (règle fr→fr, autre langue→en). Fiable
+// pour les homonymes, contrairement à FP.condLangue(v.chauffeur) qui, sur un prénom partagé, retombe
+// sur le défaut « fr ». Tout envoi depuis un véhicule DOIT passer par ce helper.
+FP.langueChauffeurVeh = function (v) {
+  try { const f = FP.condFicheDeVehicule(v); if (f) return FP.condLangue(f); } catch (e) {}
+  return FP.condLangue(v && v.chauffeur);
 };
 
 // ============================================================================
@@ -22962,8 +22979,9 @@ FP.relances = {
     // Messages ÉDITABLES (Paramètres → E-mails → « Relance — … ») via FP.mailModeleProfil + FP.mailObjet.
     // Balises : {prenom} {immat} {date} {motif}. Repli automatique sur le texte par défaut (MAIL_DEFAUT).
     const p = this._prenom(item.conducteur);
-    // Langue du conducteur (fr/en) → modèle + objet EN éditables (repli FR). Rien en dur.
-    const _lg = (FP.condLangue && FP.condLangue(item.conducteur) === 'en') ? 'en' : 'fr';
+    // Langue du conducteur (fr/en) → modèle + objet EN éditables (repli FR). Rien en dur. On résout la
+    // fiche EN COURS par le véhicule de l'item (clé → homonymes fiables), repli sur le nom du conducteur.
+    const _lg = ((item.veh && FP.langueChauffeurVeh) ? (FP.langueChauffeurVeh(item.veh) === 'en') : (FP.condLangue && FP.condLangue(item.conducteur) === 'en')) ? 'en' : 'fr';
     const _en = (_lg === 'en');
     const _tags = { prenom: p, immat: item.immat, date: this._fdate(item.dueDate), motif: item.motif || '', revision: '' };
     // RÉVISION : balise {revision} = phrase qui tient compte du KILOMÉTRAGE **ET** de la date (le premier des
