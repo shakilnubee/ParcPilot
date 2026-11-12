@@ -552,37 +552,87 @@
   function _paintPresta(p, pane, loading) {
     const id = p.id, isPeage = p.type === 'peage'; const body = $('pk-body-' + id); if (!body) return;
     const { facs, tx } = _prestaRows(p, pane);
-    const hasLitres = !isPeage && tx.some(t => Number(t.litres) > 0);   // litres non persistés en base → colonne affichée seulement si présents
     const ttc = facs.reduce((s, f) => s + _ttcFac(f), 0);
     const htVals = facs.map(_htFac).filter(v => v != null); const tvaVals = facs.map(_tvaFac).filter(v => v != null);
     const ht = htVals.length ? htVals.reduce((a, b) => a + b, 0) : null; const tva = tvaVals.length ? tvaVals.reduce((a, b) => a + b, 0) : null;
     const setK = (kid, v) => { const el = $(kid + '-' + id); if (el) el.textContent = v; };
     setK('pk-ttc', euro(ttc)); setK('pk-ht', ht != null ? euro(ht) : '—'); setK('pk-tva', tva != null ? euro(tva) : '—');
     setK('pk-nf', String(facs.length)); setK('pk-nt', loading ? '…' : String(tx.length));
-    // Agrégat conso par conducteur.
+    // ===== Consommation par conducteur — MÊME tableau par CATÉGORIES que Total Fleet =====
+    // Chaque transaction porte UNE catégorie (FP.txCat) + son TTC → on somme par conducteur et par catégorie.
+    // La somme des colonnes = Total TTC (pas de double comptage facture↔transaction). Litres/HT/TVA ne sont
+    // pas stockés par transaction aujourd'hui → « — » (comme Total Fleet en mode Du→Au) jusqu'à la migration.
+    const cat5 = (c) => { c = String(c || '').toLowerCase(); if (c === 'carburant' || c === 'recharge' || c === 'electrique') return 'carburant'; if (c === 'repas' || c === 'boutique') return 'boutique'; if (c === 'lavage') return 'lavage'; if (c === 'peage' || c === 'parking') return 'peage'; return 'autre'; };
     const agg = {};
-    tx.forEach(t => { const r = _prestaResolve(p, t); const k = r.key; (agg[k] = agg[k] || { nom: r.nom, n: 0, ttc: 0, litres: 0 }); agg[k].n++; agg[k].ttc += (Number(t.montantTtc) || 0); agg[k].litres += (Number(t.litres) || 0); });
+    tx.forEach(t => {
+      if ((t.categorie || '') === 'frais') return;                 // frais de gestion : jamais rattachés à un conducteur
+      const r = _prestaResolve(p, t); const k = r.key;
+      const g = agg[k] || (agg[k] = { nom: r.nom, n: 0, carburant: 0, boutique: 0, lavage: 0, peage: 0, autre: 0, litres: 0, ttc: 0 });
+      const m = Number(t.montantTtc) || 0; g.n++; g.ttc += m; g.litres += (Number(t.litres) || 0);
+      g[cat5(t.categorie)] += m;
+    });
     const aggList = Object.keys(agg).map(k => agg[k]).sort((a, b) => b.ttc - a.ttc);
+    const anyLitres = aggList.some(a => a.litres > 0);
+    const cell = (v) => v ? euro(v) : '<span style="color:var(--fp-faint,#cbd5e1)">—</span>';
+    const sumK = (k) => aggList.reduce((s, a) => s + (Number(a[k]) || 0), 0);
     const consoTable = aggList.length
-      ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Conducteur</th><th style="text-align:right">Transactions</th>' + (hasLitres ? '<th style="text-align:right">Litres</th>' : '') + '<th style="text-align:right">Total TTC</th></tr></thead><tbody>'
-        + aggList.map(a => '<tr><td>' + esc(a.nom) + '</td><td style="text-align:right">' + a.n + '</td>' + (hasLitres ? '<td style="text-align:right">' + (a.litres ? (Math.round(a.litres * 10) / 10).toLocaleString('fr-FR') + ' L' : '—') + '</td>' : '') + '<td style="text-align:right;font-weight:700">' + euro(a.ttc) + '</td></tr>').join('')
-        + '</tbody></table></div>')
+      ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr>'
+          + '<th>Conducteur / Véhicule</th><th style="text-align:right">Carburant</th><th style="text-align:right">Litres</th>'
+          + '<th style="text-align:right">Boutique / Repas</th><th style="text-align:right">Lavage</th>'
+          + '<th style="text-align:right">Péage / Parking</th><th style="text-align:right">Autres</th>'
+          + '<th style="text-align:right">HT</th><th style="text-align:right">TVA</th><th style="text-align:right">Total TTC</th></tr></thead><tbody>'
+        + aggList.map(a => '<tr><td style="font-weight:600">' + esc(a.nom) + '</td>'
+            + '<td style="text-align:right">' + cell(a.carburant) + '</td>'
+            + '<td style="text-align:right;color:var(--fp-muted)">' + (a.litres ? (FP.num ? FP.num(Math.round(a.litres)) : Math.round(a.litres)) + ' L' : '—') + '</td>'
+            + '<td style="text-align:right">' + cell(a.boutique) + '</td>'
+            + '<td style="text-align:right">' + cell(a.lavage) + '</td>'
+            + '<td style="text-align:right">' + cell(a.peage) + '</td>'
+            + '<td style="text-align:right">' + cell(a.autre) + '</td>'
+            + '<td style="text-align:right;color:var(--fp-muted)">—</td>'
+            + '<td style="text-align:right;color:var(--fp-muted)">—</td>'
+            + '<td style="text-align:right;font-weight:700">' + euro(a.ttc) + '</td></tr>').join('')
+        + '</tbody><tfoot><tr style="border-top:2px solid var(--fp-border);font-weight:700;background:var(--fp-surface,#f8fafc)">'
+          + '<td>Total</td><td style="text-align:right">' + euro(sumK('carburant')) + '</td>'
+          + '<td style="text-align:right;color:var(--fp-muted)">' + (anyLitres ? (FP.num ? FP.num(Math.round(sumK('litres'))) : Math.round(sumK('litres'))) + ' L' : '—') + '</td>'
+          + '<td style="text-align:right">' + euro(sumK('boutique')) + '</td><td style="text-align:right">' + euro(sumK('lavage')) + '</td>'
+          + '<td style="text-align:right">' + euro(sumK('peage')) + '</td><td style="text-align:right">' + euro(sumK('autre')) + '</td>'
+          + '<td style="text-align:right;color:var(--fp-muted)">—</td><td style="text-align:right;color:var(--fp-muted)">—</td>'
+          + '<td style="text-align:right">' + euro(sumK('ttc')) + '</td></tr></tfoot></table></div>'
+        + '<p class="text-xs text-slate-400 mt-2">Détail reconstitué depuis les transactions des relevés (rattaché par n° de carte). Litres / HT / TVA par conducteur : disponibles après activation du détail par transaction.</p>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune consommation détaillée sur la période. Importe un relevé détaillé et renseigne les n° de carte dans « Cartes &amp; badges ».</div>';
-    // Table transactions datées.
-    const txTable = tx.length
-      ? ('<div class="card p-2" style="overflow:auto;max-height:52vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>' + (isPeage ? 'Trajet' : 'Produit') + '</th>' + (hasLitres ? '<th style="text-align:right">Litres</th>' : '') + '<th style="text-align:right">TTC</th></tr></thead><tbody>'
-        + tx.map(t => { const r = _prestaResolve(p, t); return '<tr><td>' + dfr(t.dateTx) + '</td><td>' + esc(t.carte || '') + '</td><td>' + esc(r.nom) + '</td><td>' + esc(t.produit || '—') + '</td>' + (hasLitres ? '<td style="text-align:right">' + (t.litres != null ? (String(t.litres).replace('.', ',') + ' L') : '—') + '</td>' : '') + '<td style="text-align:right;font-weight:600">' + euro(t.montantTtc) + '</td></tr>'; }).join('')
-        + '</tbody></table></div>')
-      : (loading ? '<div class="card p-6 text-center text-slate-400 text-sm">Chargement des transactions…</div>' : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune transaction sur la période.</div>');
-    // Table factures.
+    // Table factures (+ « Voir les transactions » de la facture → la section Transactions autonome est retirée).
     const facTable = facs.length
       ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>N° facture</th><th>Fournisseur</th><th style="text-align:right">HT</th><th style="text-align:right">TVA</th><th style="text-align:right">TTC</th><th></th></tr></thead><tbody>'
-        + facs.map(f => { const url = f.url || f.fileId || ''; const voir = (url && !/^IMP-/.test(url)) ? '<button type="button" data-pfac="' + esc(f.id || '') + '" class="btn btn-outline" style="padding:2px 9px;font-size:12px"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>' : ''; const h = _htFac(f), v = _tvaFac(f); return '<tr><td>' + (f.date ? dfr(f.date) : '—') + '</td><td>' + esc(f.numeroFacture || f.numero_facture || '—') + '</td><td>' + esc(f.fournisseur || '—') + '</td><td style="text-align:right">' + (h != null ? euro(h) : '—') + '</td><td style="text-align:right">' + (v != null ? euro(v) : '—') + '</td><td style="text-align:right;font-weight:600">' + euro(_ttcFac(f)) + '</td><td style="text-align:right">' + voir + '</td></tr>'; }).join('')
+        + facs.map(f => {
+            const url = f.url || f.fileId || '';
+            const num = String(f.numeroFacture || f.numero_facture || '');
+            const nTx = tx.filter(t => String(t.facnum || '') === num).length;
+            const voir = (url && !/^IMP-/.test(url)) ? '<button type="button" data-pfac="' + esc(f.id || '') + '" class="btn btn-outline" style="padding:2px 9px;font-size:12px" title="Voir le PDF"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>' : '';
+            const vtx = nTx ? '<button type="button" data-ptx="' + esc(num) + '" class="btn btn-outline" style="padding:2px 9px;font-size:12px" title="Voir les transactions de cette facture"><i data-lucide="list" class="w-3.5 h-3.5"></i> ' + nTx + '</button>' : '';
+            const h = _htFac(f), v = _tvaFac(f);
+            return '<tr><td>' + (f.date ? dfr(f.date) : '—') + '</td><td>' + esc(num || '—') + '</td><td>' + esc(f.fournisseur || '—') + '</td><td style="text-align:right">' + (h != null ? euro(h) : '—') + '</td><td style="text-align:right">' + (v != null ? euro(v) : '—') + '</td><td style="text-align:right;font-weight:600">' + euro(_ttcFac(f)) + '</td><td style="text-align:right;white-space:nowrap">' + vtx + ' ' + voir + '</td></tr>';
+          }).join('')
         + '</tbody></table></div>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune facture sur la période. Importe un relevé (PDF) ou une facture manuelle.</div>';
     const h3 = (t) => '<h3 class="text-lg font-extrabold mt-5 mb-2" style="color:var(--fp-primary)">' + t + '</h3>';
-    body.innerHTML = h3('Consommation par conducteur') + consoTable + h3('Transactions') + txTable + h3('Factures') + facTable;
+    body.innerHTML = h3('Consommation par conducteur / véhicule') + consoTable + h3('Factures') + facTable;
     if (window.lucide) lucide.createIcons();
+  }
+  // Détail des transactions d'UNE facture (modal) — remplace la section « Transactions » autonome : les
+  // transactions restent consultables, rattachées à leur facture. Fermeture Échap gérée par le garde global.
+  function openPrestaTxModal(p, facnum) {
+    const tx = (_prestaTx[p.id] || []).filter(t => String(t.facnum || '') === String(facnum));
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+    const rows = tx.sort((a, b) => String(b.dateTx || '').localeCompare(String(a.dateTx || ''))).map(t => { const r = _prestaResolve(p, t); return '<tr><td>' + dfr(t.dateTx) + '</td><td>' + esc(t.carte || '') + '</td><td>' + esc(r.nom) + '</td><td>' + esc(t.produit || '—') + '</td><td style="text-align:right;font-weight:600">' + euro(t.montantTtc) + '</td></tr>'; }).join('');
+    ov.innerHTML = '<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:720px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
+      + '<div style="padding:13px 16px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;gap:10px"><div style="font-size:15px;font-weight:800">Transactions — facture ' + esc(facnum) + '</div><button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;color:var(--fp-muted,#64748b)">✕</button></div>'
+      + '<div style="padding:14px 16px"><div class="card p-2" style="overflow:auto;max-height:60vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>Produit</th><th style="text-align:right">TTC</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="text-slate-400 p-3">Aucune transaction.</td></tr>') + '</tbody></table></div></div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    if (window.lucide) lucide.createIcons();
+    ov.addEventListener('click', (e) => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) { try { ov.remove(); } catch (_) {} } });
   }
   // ===================== SANEF (péages flux libre) — import par passage + regroupement =====================
   // Chaque justificatif de passage → 1 facture (type 'peage', fournisseur 'Sanef', source 'sanef') qui
@@ -802,6 +852,14 @@
       const f = (window.FP_DATA.factures || []).find(x => String(x.id || '') === pf.getAttribute('data-pfac'));
       if (!f) return;
       if (FP.openPdf) FP.openPdf(f.url || f.fileId || '', 'Aucun PDF stocké');
+      return;
+    }
+    const ptx = e.target.closest('[data-ptx]');
+    if (ptx) {
+      e.preventDefault();
+      const pane = ptx.closest('[data-presta-pane]'); const pid = pane ? pane.getAttribute('data-presta-pane') : '';
+      const p = pid && FP.prestataireById ? FP.prestataireById(pid) : null;
+      if (p) openPrestaTxModal(p, ptx.getAttribute('data-ptx'));
       return;
     }
     const imp = e.target.closest('[data-presta-import]');
