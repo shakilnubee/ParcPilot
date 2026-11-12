@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112l">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112m">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112l"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112m"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112l">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112m">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -315,8 +315,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112l"></script>
-<script src="../assets/js/supabase-client.js?v=20261112l"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112m"></script>
+<script src="../assets/js/supabase-client.js?v=20261112m"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -332,11 +332,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112l"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112l"></script>
+<script src="../assets/js/app.min.js?v=20261112m"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -369,7 +369,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261112l';
+        s.src = '../assets/js/fleet-views.min.js?v=20261112m';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -448,17 +448,20 @@
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   }
   async function _loadPrestaTx(p, facnums) {
-    const COLS = 'id,facnum,carte,conducteur,plaque,date_tx,mois,produit,categorie,montant_ttc,societe';
+    // ⚠️ select('*') (et non une liste figée) : résilient à la migration litres/montant_ht/montant_tva —
+    // fonctionne AVANT (colonnes absentes → undefined → null) ET APRÈS son application en prod.
     let rows = [];
     try {
-      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', COLS); rows = (r && r.data) || []; }
-      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select(COLS); rows = (r && r.data) || []; }
+      if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', '*'); rows = (r && r.data) || []; }
+      else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select('*'); rows = (r && r.data) || []; }
     } catch (e) {}
     const soc = (FP.activeSociete && FP.activeSociete() !== '__all__') ? FP.activeSociete() : null;
+    const n = (x) => (x != null && isFinite(Number(x))) ? Number(x) : null;
     rows = rows.filter(r => !soc || !r.societe || r.societe === soc).map(r => ({
       id: r.id, facnum: String(r.facnum || ''), carte: r.carte || '', conducteur: r.conducteur || '', plaque: r.plaque || null,
       dateTx: r.date_tx || '', mois: r.mois || String(r.date_tx || '').slice(0, 7), produit: r.produit || '', categorie: r.categorie || '',
-      montantTtc: (r.montant_ttc != null ? Number(r.montant_ttc) : 0)
+      montantTtc: (r.montant_ttc != null ? Number(r.montant_ttc) : 0),
+      litres: n(r.litres), montantHt: n(r.montant_ht), montantTva: n(r.montant_tva)
     })).filter(t => facnums.has(t.facnum));
     return FP.dedupeConsoTx ? FP.dedupeConsoTx(rows) : rows;
   }
@@ -567,8 +570,10 @@
     tx.forEach(t => {
       if ((t.categorie || '') === 'frais') return;                 // frais de gestion : jamais rattachés à un conducteur
       const r = _prestaResolve(p, t); const k = r.key;
-      const g = agg[k] || (agg[k] = { nom: r.nom, n: 0, carburant: 0, boutique: 0, lavage: 0, peage: 0, autre: 0, litres: 0, ttc: 0 });
+      const g = agg[k] || (agg[k] = { nom: r.nom, n: 0, carburant: 0, boutique: 0, lavage: 0, peage: 0, autre: 0, litres: 0, ht: 0, tva: 0, hasHt: false, hasTva: false, ttc: 0 });
       const m = Number(t.montantTtc) || 0; g.n++; g.ttc += m; g.litres += (Number(t.litres) || 0);
+      if (t.montantHt != null) { g.ht += Number(t.montantHt); g.hasHt = true; }
+      if (t.montantTva != null) { g.tva += Number(t.montantTva); g.hasTva = true; }
       g[cat5(t.categorie)] += m;
     });
     const aggList = Object.keys(agg).map(k => agg[k]).sort((a, b) => b.ttc - a.ttc);
@@ -588,15 +593,16 @@
             + '<td style="text-align:right">' + cell(a.lavage) + '</td>'
             + '<td style="text-align:right">' + cell(a.peage) + '</td>'
             + '<td style="text-align:right">' + cell(a.autre) + '</td>'
-            + '<td style="text-align:right;color:var(--fp-muted)">—</td>'
-            + '<td style="text-align:right;color:var(--fp-muted)">—</td>'
+            + '<td style="text-align:right;color:var(--fp-muted)">' + (a.hasHt ? euro(a.ht) : '—') + '</td>'
+            + '<td style="text-align:right;color:var(--fp-muted)">' + (a.hasTva ? euro(a.tva) : '—') + '</td>'
             + '<td style="text-align:right;font-weight:700">' + euro(a.ttc) + '</td></tr>').join('')
         + '</tbody><tfoot><tr style="border-top:2px solid var(--fp-border);font-weight:700;background:var(--fp-surface,#f8fafc)">'
           + '<td>Total</td><td style="text-align:right">' + euro(sumK('carburant')) + '</td>'
           + '<td style="text-align:right;color:var(--fp-muted)">' + (anyLitres ? (FP.num ? FP.num(Math.round(sumK('litres'))) : Math.round(sumK('litres'))) + ' L' : '—') + '</td>'
           + '<td style="text-align:right">' + euro(sumK('boutique')) + '</td><td style="text-align:right">' + euro(sumK('lavage')) + '</td>'
           + '<td style="text-align:right">' + euro(sumK('peage')) + '</td><td style="text-align:right">' + euro(sumK('autre')) + '</td>'
-          + '<td style="text-align:right;color:var(--fp-muted)">—</td><td style="text-align:right;color:var(--fp-muted)">—</td>'
+          + '<td style="text-align:right;color:var(--fp-muted)">' + (aggList.some(a => a.hasHt) ? euro(sumK('ht')) : '—') + '</td>'
+          + '<td style="text-align:right;color:var(--fp-muted)">' + (aggList.some(a => a.hasTva) ? euro(sumK('tva')) : '—') + '</td>'
           + '<td style="text-align:right">' + euro(sumK('ttc')) + '</td></tr></tfoot></table></div>'
         + '<p class="text-xs text-slate-400 mt-2">Détail reconstitué depuis les transactions des relevés (rattaché par n° de carte). Litres / HT / TVA par conducteur : disponibles après activation du détail par transaction.</p>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune consommation détaillée sur la période. Importe un relevé détaillé et renseigne les n° de carte dans « Cartes &amp; badges ».</div>';
@@ -996,6 +1002,11 @@
         let nm = t.conducteur || '';
         try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) nm = (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || nm)) || nm; } catch (e) {}
         const tr = { id: 'PTX-' + facId + '-' + (i++), facnum: num, carte: t.carte || '', conducteur: nm || '—', plaque: null, dateTx: t.dateTx, mois: (t.dateTx || '').slice(0, 7), produit: t.produit || (facType === 'peage' ? 'Péage' : 'Carburant'), categorie: t.categorie || facType, montantTtc: (t.montantTtc != null ? t.montantTtc : 0) };
+        // Détail PAR TRANSACTION (colonnes ajoutées par la migration total_conso_tx) : volume + ventilation
+        // HT/TVA QUAND le relevé les fournit (ex. litres DKV) → alimente litres / prix-L / CO₂ / HT / TVA.
+        if (t.litres != null && isFinite(Number(t.litres))) tr.litres = Number(t.litres);
+        if (t.montantHt != null && isFinite(Number(t.montantHt))) tr.montantHt = Number(t.montantHt);
+        if (t.montantTva != null && isFinite(Number(t.montantTva))) tr.montantTva = Number(t.montantTva);
         try { if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (!(r && r.error)) okTx++; } } catch (e) {}
       }
       if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }

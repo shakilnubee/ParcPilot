@@ -3987,7 +3987,7 @@ FP.RELEVE_PRESTA_PROMPT = [
   "⚠️ La couche texte peut être mal ordonnée (colonnes mélangées) : FIE-TOI À L'IMAGE pour associer chaque montant à sa ligne et à sa colonne.",
   "Structure EXACTE attendue :",
   '{ "facture": { "numero": string|null, "date": "AAAA-MM-JJ"|null, "fournisseur": string|null, "montantHT": number|null, "montantTVA": number|null, "montantTTC": number|null },',
-  '  "transactions": [ { "date": "AAAA-MM-JJ", "carte": string|null, "conducteur": string|null, "produit": string|null, "montantTtc": number, "litres": number|null, "station": string|null } ] }',
+  '  "transactions": [ { "date": "AAAA-MM-JJ", "carte": string|null, "conducteur": string|null, "produit": string|null, "montantTtc": number, "montantHt": number|null, "montantTva": number|null, "litres": number|null, "station": string|null } ] }',
   "facture.montantTTC = le TOTAL TTC de la facture (souvent après « NET À PAYER TTC » / « Valeur totale TTC » / « Montant TTC »).",
   "Pour une transaction, montantTtc = la valeur TTC de CETTE ligne (colonne « Valeur totale TTC »), JAMAIS un sous-total par carte ni le total général.",
   "carte = le numéro de carte/badge (ex. « CARD NO. »), recopié EXACTEMENT — il sert à rattacher la ligne au bon conducteur. conducteur = le libellé lu tel quel (souvent un prénom ou un nom de véhicule) ; ne le DEVINE pas.",
@@ -4015,6 +4015,8 @@ FP.presta.lireReleve = async function (file, p) {
     produit: String(t.produit || t.product || '').trim(),
     litres: num(t.litres != null ? t.litres : t.quantite),
     montantTtc: num(t.montantTtc != null ? t.montantTtc : (t.montant != null ? t.montant : t.ttc)),
+    montantHt: num(t.montantHt != null ? t.montantHt : (t.montantHT != null ? t.montantHT : t.ht)),
+    montantTva: num(t.montantTva != null ? t.montantTva : (t.montantTVA != null ? t.montantTVA : t.tva)),
     station: String(t.station || '').trim(),
     categorie: (FP.txCat ? FP.txCat(t.produit || t.product || '') : 'carburant') || 'carburant'
   });
