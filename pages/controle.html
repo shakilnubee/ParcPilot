@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112g">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -314,8 +314,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112f"></script>
-<script src="../assets/js/supabase-client.js?v=20261112f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112g"></script>
+<script src="../assets/js/supabase-client.js?v=20261112g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -331,11 +331,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112f"></script>
+<script src="../assets/js/app.min.js?v=20261112g"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -366,7 +366,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261112f';
+        s.src = '../assets/js/fleet-views.min.js?v=20261112g';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -448,7 +448,7 @@
       '<div class="grid gap-3 mb-5" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
         + kpi('Type', p.type === 'peage' ? 'Badge péage' : 'Carte carburant') + kpi('Factures', facs.length) + kpi('Total TTC', euro(tot)) + kpi('Conducteurs rattachés', nNum) + '</div>'
       + '<div class="card p-4 mb-4 text-sm text-slate-600" style="line-height:1.55">Prestataire <b>' + esc(p.nom) + '</b>. Ses factures apparaissent ici (fournisseur reconnu). Les n° de carte/badge se remplissent dans <b>💳 Cartes &amp; badges</b> ou sur chaque <b>fiche conducteur</b> → la conso se rattache alors automatiquement au bon conducteur.</div>'
-      + '<div class="flex flex-wrap items-center gap-2 mb-3"><a href="factures.html" class="btn btn-outline text-sm"><i data-lucide="upload" class="w-4 h-4"></i> Importer une facture</a><span style="flex:1"></span><button type="button" data-rm-presta="' + esc(p.id) + '" class="btn btn-outline text-sm" style="color:#B91C1C;border-color:#FCA5A5"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer ce prestataire</button></div>'
+      + '<div class="flex flex-wrap items-center gap-2 mb-3"><button type="button" data-presta-import="' + esc(p.id) + '" class="btn btn-dark text-sm"><i data-lucide="file-up" class="w-4 h-4"></i> Importer un relevé (PDF)</button><input type="file" class="presta-import-file hidden" data-pid="' + esc(p.id) + '" accept="application/pdf,.pdf"><a href="factures.html" class="btn btn-outline text-sm"><i data-lucide="upload" class="w-4 h-4"></i> Facture manuelle</a><span style="flex:1"></span><button type="button" data-rm-presta="' + esc(p.id) + '" class="btn btn-outline text-sm" style="color:#B91C1C;border-color:#FCA5A5"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer ce prestataire</button></div>'
       + '<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>N° facture</th><th>Fournisseur</th><th style="text-align:right">Montant TTC</th><th></th></tr></thead><tbody>'
         + (facs.length ? rows : '<tr><td colspan="5" class="text-slate-400 p-3">Aucune facture reconnue pour ce prestataire pour l\'instant. Importe une facture (le fournisseur doit contenir « ' + esc(p.nom) +' »).</td></tr>')
         + '</tbody></table></div>';
@@ -679,8 +679,93 @@
       const f = (window.FP_DATA.factures || []).find(x => String(x.id || '') === pf.getAttribute('data-pfac'));
       if (!f) return;
       if (FP.openPdf) FP.openPdf(f.url || f.fileId || '', 'Aucun PDF stocké');
+      return;
+    }
+    const imp = e.target.closest('[data-presta-import]');
+    if (imp) {
+      const pid = imp.getAttribute('data-presta-import');
+      const inp = $('presta-panes').querySelector('.presta-import-file[data-pid="' + pid + '"]');
+      if (inp) inp.click();
+      return;
     }
   });
+  // Import d'un relevé de prestataire (PDF) → parseur détecté → aperçu → commit (facture + conso).
+  $('presta-panes').addEventListener('change', (e) => {
+    const inp = e.target.closest('.presta-import-file');
+    if (!inp) return;
+    const file = (inp.files || [])[0]; inp.value = '';
+    if (file) importPrestaReleve(file, inp.getAttribute('data-pid'));
+  });
+  async function importPrestaReleve(file, pid) {
+    const p = FP.prestataireById ? FP.prestataireById(pid) : null; if (!p || !file) return;
+    const busy = FP.busy ? FP.busy('Lecture du relevé…') : null;
+    let parsed = null;
+    try {
+      const text = (FP.dkv && FP.dkv.pdfToText) ? await FP.dkv.pdfToText(file) : '';
+      const det = (FP.presta && FP.presta.detectParser) ? FP.presta.detectParser(text) : null;
+      if (!det) { if (busy) busy.fail('Relevé non reconnu — aucun lecteur disponible pour ce format (envoie-le pour qu\'on l\'ajoute).'); return; }
+      parsed = det.def.parse(text);
+    } catch (err) { console.warn('[presta import]', err); if (busy) busy.fail('Lecture impossible'); return; }
+    if (!parsed || !parsed.tx || !parsed.tx.length) { if (busy) busy.fail('Aucune transaction lue dans ce relevé'); return; }
+    if (busy) busy.close();
+    showPrestaImportPreview(file, p, parsed);
+  }
+  // Aperçu AVANT import (obligatoire) : facture + transactions + conducteur résolu par n° de carte.
+  function showPrestaImportPreview(file, p, parsed) {
+    const f = parsed.facture || {};
+    const resolveNom = (t) => { try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) return (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || c.prenom)) || c.name; } catch (e) {} return t.conducteur || '—'; };
+    const rows = parsed.tx.map(t => '<tr><td>' + dfr(t.dateTx) + '</td><td>' + esc(t.carte || '') + '</td><td>' + esc(resolveNom(t)) + '</td><td>' + esc(t.produit || '') + '</td><td style="text-align:right">' + (t.litres != null ? (String(t.litres).replace('.', ',') + ' L') : '—') + '</td><td style="text-align:right;font-weight:600">' + euro(t.montantTtc) + '</td></tr>').join('');
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto';
+    ov.innerHTML = '<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:760px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
+      + '<div style="padding:13px 16px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;gap:10px"><div style="font-size:15px;font-weight:800">Importer le relevé ' + esc(p.nom) + '</div><button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;color:var(--fp-muted,#64748b)">✕</button></div>'
+      + '<div style="padding:14px 16px">'
+      + '<div class="grid gap-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">'
+      + '<div class="ctrl-kpi"><div class="lbl">N° facture</div><div class="val" style="font-size:14px">' + esc(f.numero || '—') + '</div></div>'
+      + '<div class="ctrl-kpi"><div class="lbl">Date</div><div class="val" style="font-size:14px">' + (f.date ? dfr(f.date) : '—') + '</div></div>'
+      + '<div class="ctrl-kpi"><div class="lbl">HT</div><div class="val" style="font-size:14px">' + euro(f.montantHT) + '</div></div>'
+      + '<div class="ctrl-kpi"><div class="lbl">TVA</div><div class="val" style="font-size:14px">' + euro(f.montantTVA) + '</div></div>'
+      + '<div class="ctrl-kpi"><div class="lbl">TTC</div><div class="val" style="font-size:14px">' + euro(f.montantTTC) + '</div></div>'
+      + '</div>'
+      + '<div class="text-xs text-slate-500 mb-1">' + parsed.tx.length + ' transaction(s) — conducteur résolu par n° de carte (saisis les n° dans « Cartes & badges » pour l\'attribution automatique) :</div>'
+      + '<div class="card p-2" style="overflow:auto;max-height:40vh"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>Carte</th><th>Conducteur</th><th>Produit</th><th style="text-align:right">Litres</th><th style="text-align:right">TTC</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      + '</div>'
+      + '<div style="padding:12px 16px;border-top:1px solid var(--fp-border);display:flex;gap:8px;justify-content:flex-end"><button type="button" data-close class="btn btn-outline text-sm">Annuler</button><button type="button" data-commit class="btn btn-dark text-sm"><i data-lucide="check" class="w-4 h-4"></i> Importer</button></div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    if (window.lucide) lucide.createIcons();
+    const close = () => { try { ov.remove(); } catch (e) {} };
+    ov.addEventListener('click', (e) => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) close(); });
+    ov.querySelector('[data-commit]').addEventListener('click', async () => { ov.querySelector('[data-commit]').disabled = true; await commitPrestaImport(file, p, parsed); close(); });
+  }
+  async function commitPrestaImport(file, p, parsed) {
+    const f = parsed.facture || {}; const num = String(f.numero || '').trim();
+    const busy = FP.busy ? FP.busy('Import en cours…') : null;
+    try {
+      // Anti-doublon facture (même n° + même TTC) — ne ré-insère pas, mais met à jour la conso.
+      const already = (window.FP_DATA.factures || []).find(x => num && String(x.numeroFacture || x.numero_facture || '') === num && Math.abs((Number(x.montantTTC || x.montant_ttc) || 0) - (Number(f.montantTTC) || 0)) < 0.02);
+      let url = ''; try { if (FP.uploadScan) url = await FP.uploadScan(file, 'factures'); } catch (e) {}
+      const soc = (FP.activeSociete && FP.activeSociete && FP.activeSociete() !== '__all__') ? FP.activeSociete() : null;
+      const facId = already ? already.id : ('DKV-' + (num.replace(/[^0-9A-Za-z]/g, '') || Date.now().toString(36)));
+      if (!already) {
+        const facRec = { id: facId, date: f.date || '', fournisseur: p.nom, numeroFacture: num, type: 'carburant', montantHT: f.montantHT, montantTVA: f.montantTVA, montantTTC: f.montantTTC, fileId: url || null, source: 'presta-' + p.id, societe: soc };
+        try { if (FP.persist) await FP.persist.insert('factures', facRec); else if (FP.db) await FP.db.insert('factures', facRec); } catch (e) {}
+        (window.FP_DATA.factures = window.FP_DATA.factures || []).push(facRec);
+      } else if (url && !already.fileId) { try { if (FP.persist) FP.persist.update('factures', already.id, { fileId: url }); already.fileId = url; } catch (e) {} }
+      // Détail transaction → total_conso_tx (ids déterministes = ré-import sans doublon). Conducteur résolu par n°.
+      let i = 0, okTx = 0;
+      for (const t of parsed.tx) {
+        let nm = t.conducteur || '';
+        try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) nm = (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || nm)) || nm; } catch (e) {}
+        const tr = { id: 'PTX-' + facId + '-' + (i++), facnum: num, carte: t.carte || '', conducteur: nm || '—', plaque: null, dateTx: t.dateTx, mois: (t.dateTx || '').slice(0, 7), produit: t.produit || 'Carburant', categorie: t.categorie || 'carburant', montantTtc: (t.montantTtc != null ? t.montantTtc : 0) };
+        try { if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (!(r && r.error)) okTx++; } } catch (e) {}
+      }
+      if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
+      try { renderPresta(p.id); } catch (e) {}
+      if (busy) busy.done('✓ Relevé importé — ' + okTx + ' transaction(s)' + (already ? ' (facture déjà présente)' : ''));
+    } catch (e) { console.warn('[presta commit]', e); if (busy) busy.fail('Import incomplet'); }
+  }
 
   // ➕ Créer un prestataire (nom + type) → crée le sous-onglet + la colonne + la zone fiche conducteur.
   $('cb-add-presta').addEventListener('click', async () => {

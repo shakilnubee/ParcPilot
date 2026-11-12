@@ -3945,6 +3945,96 @@ FP.presta._parsers = FP.presta._parsers || {};
 FP.presta.registerParser = (id, def) => { if (id && def) FP.presta._parsers[String(id)] = def; };
 FP.presta.getParser = (id) => FP.presta._parsers[String(id)] || null;
 FP.presta.hasParser = (id) => !!FP.presta._parsers[String(id)];
+// Essaie chaque parseur enregistré sur un texte de relevé → le 1er dont detect() matche (ou null).
+FP.presta.detectParser = (text) => { try { for (const id in FP.presta._parsers) { const d = FP.presta._parsers[id]; if (d && typeof d.detect === 'function' && d.detect(text)) return { id, def: d }; } } catch (e) {} return null; };
+
+// ===== LECTEUR DKV (carte carburant) — même standard que Total/Ulys : couche texte reconstruite par
+// POSITION (pdf.js, y↓ puis x→), montant EXACT par transaction (Valeur totale TTC), contrôle du total,
+// rattachement conducteur PAR N° DE CARTE (jamais le prénom). Relevé DKV France = autoliquidation (TVA 0%)
+// → HT = TTC. Vérifié sur un vrai relevé (facture 26/655912607/001 : 2 cartes, 4 transactions, 333,46 € TTC).
+FP.dkv = {
+  // Détection d'un relevé DKV à partir du texte extrait.
+  detect(text) {
+    const t = String(text || '');
+    return /DKV\s*EURO\s*SERVICE/i.test(t) || /Num[ée]ro de TVA DKV/i.test(t) || (/E-?FACTURE/i.test(t) && /CARD\s*NO\./i.test(t));
+  },
+  // Nombre « à l'allemande » (point = milliers, virgule = décimale) : "1.234,56" → 1234.56 ; "38,700" → 38.7.
+  _num(s) { if (s == null) return null; const n = parseFloat(String(s).replace(/\s/g, '').replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : null; },
+  _iso(d) { const m = String(d || '').match(/(\d{2})\.(\d{2})\.(\d{4})/); return m ? (m[3] + '-' + m[2] + '-' + m[1]) : ''; },
+  // pdf.js → texte reconstruit par position (même plumbing que ulysPdfToText).
+  async pdfToText(file) {
+    try {
+      if (!(FP.ocr && FP.ocr.loadScript)) return '';
+      await FP.ocr.loadScript(FP.ocr.PDFJS_CDN);
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = FP.ocr.PDFJS_WORKER;
+      const buf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+      let text = '';
+      for (let pg = 1; pg <= pdf.numPages; pg++) {
+        const page = await pdf.getPage(pg);
+        const tc = await page.getTextContent();
+        const items = tc.items.filter(i => i.str && i.str.trim() !== '').map(i => ({ x: i.transform[4], y: i.transform[5], s: i.str.trim() }));
+        items.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+        const lines = []; let cur = null;
+        for (const it of items) { if (!cur || Math.abs(it.y - cur.y) > 2) { cur = { y: it.y, parts: [it] }; lines.push(cur); } else cur.parts.push(it); }
+        for (const ln of lines) { ln.parts.sort((a, b) => a.x - b.x); text += ln.parts.map(p => p.s).join(' ') + '\n'; }
+        text += '\n';
+      }
+      return text;
+    } catch (e) { console.warn('[dkv pdfToText]', e); return ''; }
+  },
+  // Parse le texte reconstruit → { facture:{numero,date,fournisseur,montantHT,montantTVA,montantTTC}, tx:[...] }.
+  parse(text) {
+    const T = String(text || ''); const lines = T.split(/\r?\n/);
+    const mFac = T.match(/Num[ée]ro de facture\s*:?\s*([0-9][0-9/\-]+)/i);
+    const mDate = T.match(/Date de facturation\s*:?\s*(\d{2}\.\d{2}\.\d{4})/i);
+    const numero = mFac ? mFac[1].trim() : '';
+    const dateISO = mDate ? this._iso(mDate[1]) : '';
+    // Total facture : section « Statistiques TVA » (… HT  TVA  TTC). Repli = somme des « TOTAL » par carte.
+    let ht = null, tva = null, ttc = null;
+    const idxStat = lines.findIndex(l => /Statistiques TVA/i.test(l));
+    if (idxStat !== -1) {
+      for (let i = idxStat; i < Math.min(idxStat + 6, lines.length); i++) {
+        const nums = (lines[i].match(/-?\d[\d.]*,\d{2}/g) || []).map(x => this._num(x));
+        if (nums.length >= 3) { ht = nums[nums.length - 3]; tva = nums[nums.length - 2]; ttc = nums[nums.length - 1]; break; }
+      }
+    }
+    // Transactions : rattachées à la CARTE courante (CARD NO.). Le champ VEHICLE = libellé (souvent un prénom).
+    const tx = []; let card = '', vlabel = '';
+    for (const raw of lines) {
+      const ln = raw.trim(); if (!ln) continue;
+      const mc = ln.match(/CARD\s*NO\.?\s*:?\s*([0-9][0-9.\-]*)\s*(?:VEHICLE\s*:?\s*(.*))?$/i);
+      if (mc) { card = (mc[1] || '').trim(); vlabel = (mc[2] || '').trim(); continue; }
+      if (/^»/.test(ln) || /\bTOTAL\s*:/.test(ln)) continue;          // lignes de sous-total
+      if (!/^\d{2}\.\d{2}\.\d{4}\b/.test(ln)) continue;               // une transaction commence par une date
+      const nums = ln.match(/-?\d[\d.]*,\d{2,3}/g) || [];             // tous les montants/quantités de la ligne
+      if (!nums.length) continue;
+      const montantTtc = this._num(nums[nums.length - 1]);            // dernière colonne = Valeur totale TTC
+      // Produit = libellé entre le dernier nombre « seul » (km/n° transaction) et le code+unité (« 0038 LTR »).
+      let produit = '', litres = null;
+      const mU = ln.match(/\s(\d{3,5})\s+(?:LTR|L|KG|PCE|UN)\b/i);     // code produit + unité
+      if (mU) {
+        const before = ln.slice(0, mU.index).trim();
+        const pm = before.match(/(?:^|\s)\d{3,}\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9()/.\s+-]*)$/);
+        produit = (pm ? pm[1] : (before.split(/\s{2,}/).pop() || '')).replace(/\s+/g, ' ').trim();
+      }
+      const mUnit = ln.match(/\b(?:LTR|L|KG|PCE|UN)\s+(\d[\d.]*,\d{2,3})/i);
+      if (mUnit) litres = this._num(mUnit[1]);
+      const mSta = ln.match(/^\d{2}\.\d{2}\.\d{4}\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9'’/.\s-]*?)\s+\d{4,}/);
+      const station = mSta ? mSta[1].replace(/\s+/g, ' ').trim() : '';
+      tx.push({
+        dateTx: this._iso(ln.slice(0, 10)), carte: card, conducteur: (vlabel || '').trim(),
+        produit, station, litres, montantTtc,
+        categorie: (FP.txCat ? FP.txCat(produit) : 'carburant') || 'carburant'
+      });
+    }
+    // Repli total : somme des montants de transaction si la section stat n'a pas été lue.
+    if (ttc == null && tx.length) { ttc = tx.reduce((a, t) => a + (Number(t.montantTtc) || 0), 0); ht = ttc; tva = 0; }
+    if (tva == null) tva = 0; if (ht == null && ttc != null) ht = ttc;   // DKV FR autoliquidation : HT = TTC, TVA = 0
+    return { facture: { numero, date: dateISO, fournisseur: 'DKV', montantHT: ht, montantTVA: tva, montantTTC: ttc }, tx };
+  }
+};
+try { FP.presta.registerParser('dkv', { detect: (t) => FP.dkv.detect(t), pdfToText: (f) => FP.dkv.pdfToText(f), parse: (t) => FP.dkv.parse(t) }); } catch (e) {}
 // n° d'un prestataire pour un conducteur (généralise numCarteConducteur à N prestataires).
 FP.condNum = (condKey, numKey) => { try { const v = (FP.settings.get()[numKey] || {})[condKey]; if (v) return v; } catch (e) {} return (FP.numCarteConducteur && (numKey === 'condCarteTotal' || numKey === 'condBadgeUlys')) ? (FP.numCarteConducteur(condKey, numKey) || '') : ''; };
 FP.setCondNum = (condKey, numKey, val) => { if (!condKey || !numKey) return; const s = FP.settings.get(); s[numKey] = s[numKey] || {}; val = (val || '').trim(); if (val) s[numKey][condKey] = val; else delete s[numKey][condKey]; FP.settings.save(s); };
@@ -4328,26 +4418,32 @@ FP.condKeyDeConso = (t) => {
     // (t.numKey = condNum_<id>). On l'utilise telle quelle ; sinon on garde l'inférence native ULYS/Total
     // STRICTEMENT inchangée. `_explNum` ⇒ on résout le titulaire courant via le lookup générique par n°.
     const _explNum = (typeof t.numKey === 'string' && t.numKey && t.numKey !== 'condCarteTotal' && t.numKey !== 'condBadgeUlys') ? t.numKey : null;
-    const mapKey = _explNum || (isUlys ? 'condBadgeUlys' : 'condCarteTotal');
-    // ATTRIBUTION DATÉE (source unique) : si des périodes de validité existent pour cette carte/badge
-    // (réattribution « changement de titulaire »), le titulaire est celui À LA DATE de la transaction —
-    // une réattribution ne transfère JAMAIS l'historique au nouveau porteur. Périodes présentes mais date
-    // non couverte → non attribué (on ne DEVINE pas le porteur courant, cf. 0-conducteurs + spec audit).
-    try {
-      if (dateTx && FP.cartePeriodesGet && FP.titulaireCarteALaDate && FP.cartePeriodesGet(mapKey, s).length) {
-        const tt = FP.titulaireCarteALaDate(mapKey, s, dateTx);
-        return (tt && tt.key) ? tt.key : null;
-      }
-    } catch (e) {}
+    // Clés candidates. Une carte perso (ex. DKV) n'a pas de préfixe type « ULYS- » → on essaie aussi les
+    // prestataires PERSOS (leur numKey), puis Total en repli. Quand il n'y a AUCUN perso, cands = ['condCarteTotal']
+    // → comportement natif STRICTEMENT inchangé (Ulys inchangé aussi).
+    let cands;
+    if (_explNum) cands = [_explNum];
+    else if (isUlys) cands = ['condBadgeUlys'];
+    else { let pk = []; try { pk = (FP.prestataires ? FP.prestataires() : []).filter(p => p && !p.builtin && p.numKey).map(p => p.numKey); } catch (e) {} cands = pk.concat(['condCarteTotal']); }
+    // ATTRIBUTION DATÉE (source unique) : 1re clé candidate ayant des périodes pour cette carte → titulaire
+    // À LA DATE de la transaction (une réattribution ne transfère JAMAIS l'historique au nouveau porteur ;
+    // périodes présentes mais date non couverte → non attribué, on ne DEVINE pas le porteur courant).
+    for (const mk of cands) {
+      try {
+        if (dateTx && FP.cartePeriodesGet && FP.titulaireCarteALaDate && FP.cartePeriodesGet(mk, s).length) {
+          const tt = FP.titulaireCarteALaDate(mk, s, dateTx);
+          return (tt && tt.key) ? tt.key : null;
+        }
+      } catch (e) {}
+    }
     // Pas de période saisie → titulaire COURANT par n°.
-    // Prestataire perso explicite : lookup générique par n° sur sa propre clé (FP._condParNumero).
-    if (_explNum) {
-      try { const c = FP._condParNumero && FP._condParNumero(_explNum, num); if (c && c.key) return c.key; } catch (e) {}
-    } else if (isUlys) {   // natif Ulys — comportement STRICTEMENT inchangé
+    if (isUlys) {   // natif Ulys — comportement STRICTEMENT inchangé
       try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(num); if (c && c.key) return c.key; } catch (e) {}
     } else {
-      try { const c = FP.conducteurParCarteTotal && FP.conducteurParCarteTotal(s); if (c && c.key) return c.key; } catch (e) {}
-      try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(s); if (c && c.key) return c.key; } catch (e) {}
+      // Persos d'abord, puis Total (dernière clé candidate) — lookup générique par n° (FP._condParNumero).
+      for (const mk of cands) { try { const c = FP._condParNumero && FP._condParNumero(mk, s); if (c && c.key) return c.key; } catch (e) {} }
+      // Repli natif historique : une carte « Total » peut en réalité être un badge Ulys.
+      if (!_explNum) { try { const c = FP.conducteurParBadgeUlys && FP.conducteurParBadgeUlys(s); if (c && c.key) return c.key; } catch (e) {} }
     }
   }
   const nm = t.conducteur || '';
