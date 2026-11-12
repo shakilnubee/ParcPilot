@@ -8434,7 +8434,7 @@ FP.shortcutsHelp = {
     el.id = 'fp-help-overlay';
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Raccourcis clavier');
     el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,6,20,.55);display:flex;align-items:center;justify-content:center;padding:16px';
-    el.innerHTML = '<div style="background:var(--fp-surface);color:var(--fp-text);max-width:440px;width:100%;border:1px solid var(--fp-border);border-radius:16px;box-shadow:var(--fp-shadow-lg);padding:20px 22px">'
+    el.innerHTML = '<div style="background:var(--fp-surface);color:var(--fp-text);max-width:440px;width:100%;border:1px solid var(--fp-border);border-radius:16px;box-shadow:var(--fp-shadow-lg);padding:20px 22px;max-height:90vh;max-height:90dvh;overflow:auto">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><h2 style="font-family:var(--fp-title);font-size:18px;font-weight:700;margin:0;color:var(--fp-text)">Raccourcis clavier</h2><button type="button" aria-label="Fermer" data-close style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:24px;line-height:1">&times;</button></div>'
       + body
       + '<p style="margin:12px 0 0;color:var(--fp-muted);font-size:12px">Les raccourcis sont désactivés pendant la saisie dans un champ.</p></div>';
@@ -8633,6 +8633,46 @@ FP.scrollLock = (function () {
   // → zéro coût sur l'ouverture d'un module. L'observateur est bien actif avant toute interaction.
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
   return { sync, on: sync, off: sync, reset: sync, _anyOpen: anyOpen };
+})();
+
+// ============================================================
+// FP.modalShell — DIMENSIONNEMENT PARTAGÉ DES FENÊTRES (source unique, réutilisable).
+// Toute nouvelle modale de Parc Pilot doit utiliser ces 4 classes → elle s'adapte AUTOMATIQUEMENT à la
+// hauteur réelle du navigateur, À TOUS LES NIVEAUX DE ZOOM (50 %→150 %), sans jamais couper le pied.
+// Cause des bugs d'avant (cf. FP.exportCenter) : un wrapper intermédiaire NON-flex cassait la chaîne →
+// le contenu débordait sous l'écran. Règle d'or : de la coque jusqu'à la zone qui défile, CHAQUE maillon
+// est flex + min-height:0 ; le milieu est flex:1 + overflow:auto ; en-tête et pied sont flex:0 0 auto.
+//   <div class="fp-modal-ov">            ← scrim plein écran (centre la fenêtre)
+//     <div class="fp-modal-shell" role="dialog" aria-modal="true">
+//       <div class="fp-modal-head"> … </div>   ← en-tête FIXE (titre, onglets, ✕)
+//       <div class="fp-modal-body"> … </div>   ← contenu qui DÉFILE (le seul à scroller)
+//       <div class="fp-modal-foot"> … </div>   ← pied TOUJOURS visible (Annuler / Valider)
+// ⚠️ iOS (bug « fixed-in-fixed ») : sur tactile court on laisse l'OVERLAY défiler (data-self-scroll="1"
+// sur .fp-modal-ov → exclu du verrou <body> par FP.scrollLock). Le zoom de BUREAU (pointer:fine) garde
+// la chaîne flex (pied ancré). Échap/clic-fond/focus = garde GLOBAL d'app.js (rien à recâbler ici).
+FP.modalShell = (function () {
+  function inject() {
+    if (document.getElementById('fp-modal-shell-style')) return;
+    const st = document.createElement('style'); st.id = 'fp-modal-shell-style';
+    st.textContent = `
+    .fp-modal-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px 12px;background:rgba(15,23,42,.5);overflow:auto;overscroll-behavior:contain}
+    .fp-modal-shell{display:flex;flex-direction:column;min-height:0;width:94vw;max-width:1100px;max-height:94vh;max-height:94dvh;overflow:hidden;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.35)}
+    .fp-modal-head{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #eef2f7}
+    .fp-modal-body{flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px}
+    .fp-modal-foot{flex:0 0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid #eef2f7;background:#f8fafc}
+    body.fp-dark .fp-modal-shell{background:#0f1726;color:#e6edf6}
+    body.fp-dark .fp-modal-head,body.fp-dark .fp-modal-foot{border-color:#26344e}
+    body.fp-dark .fp-modal-foot{background:#0b1220}
+    /* Tactile court (iOS) : l'overlay défile tout — le zoom de bureau garde le pied ancré ci-dessus. */
+    @media(max-width:760px),(max-height:600px) and (pointer:coarse){
+      .fp-modal-ov{align-items:flex-start;padding:8px;-webkit-overflow-scrolling:touch}
+      .fp-modal-shell{width:100%;max-width:none;max-height:none;overflow:visible}
+      .fp-modal-body{overflow:visible}
+    }`;
+    (document.head || document.documentElement).appendChild(st);
+  }
+  if (document.readyState !== 'loading') inject(); else document.addEventListener('DOMContentLoaded', inject, { once: true });
+  return { inject };
 })();
 
 // ⚡ RÉACTION VISUELLE IMMÉDIATE AU CLIC DE NAVIGATION (sidebar). La View-Transition « navigation: auto »
@@ -20893,7 +20933,10 @@ FP.ficheColsFromExport = function (cols) {
     const st = document.createElement('style'); st.id = 'fp-xc-style';
     st.textContent = `
     #fp-xc-ov{display:none;position:fixed;inset:0;z-index:82;background:rgba(15,23,42,.5);align-items:center;justify-content:center;padding:20px 12px;overflow:auto;overscroll-behavior:contain}
-    .fp-xc-modal{background:#fff;border-radius:16px;width:94vw;max-width:2200px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:94vh;overflow:hidden}
+    .fp-xc-modal{background:#fff;border-radius:16px;width:94vw;max-width:2200px;box-shadow:0 24px 60px rgba(15,23,42,.35);display:flex;flex-direction:column;max-height:94vh;max-height:94dvh;overflow:hidden}
+    /* ⚠️ CHAÎNE FLEX (cause racine du pied coupé) : les onglets Exporter/Importer DOIVENT participer à la
+       colonne flex de la modale (flex:1 + min-height:0), sinon le contenu déborde sous l'écran. */
+    #fp-xc-view-exp:not([hidden]),#fp-xc-view-imp:not([hidden]){display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
     .fp-xc-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid #eef2f7}
     .fp-xc-head h3{font-size:16px;font-weight:800;margin:0;color:#0f172a}
     .fp-xc-tabs{display:inline-flex;background:#f1f5f9;border-radius:9px;padding:3px}
@@ -20902,8 +20945,10 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-x{margin-left:auto;border:none;background:none;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:7px}
     .fp-xc-x:hover{background:#f1f5f9;color:#0f172a}
     /* Desktop : colonne gauche (réglages) compacte, l'aperçu prend toute la largeur restante → plus lisible. */
-    .fp-xc-body{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);min-height:0;overflow:hidden}
-    .fp-xc-pane{padding:15px 18px;overflow:auto;min-width:0}
+    .fp-xc-body{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);flex:1 1 auto;min-height:0;overflow:hidden}
+    .fp-xc-pane{padding:15px 18px;overflow:auto;min-width:0;min-height:0}
+    /* Colonne APERÇU = colonne flex → l'aperçu remplit et défile seul, la légende reste dessous. */
+    .fp-xc-body>.fp-xc-pane:not(.l){display:flex;flex-direction:column;overflow:hidden}
     .fp-xc-pane.l{border-right:1px solid #eef2f7}
     /* MOBILE (portrait ≤760px de large OU paysage téléphone ≤600px de haut) : un SEUL
        conteneur qui défile (les 2 panes empilés). Le critère de HAUTEUR est indispensable :
@@ -20912,10 +20957,16 @@ FP.ficheColsFromExport = function (cols) {
     /* MOBILE / petit écran : schéma le plus FIABLE sur iOS → c'est l'OVERLAY (#fp-xc-ov) qui défile tout
        le pop-up. Le pop-up GRANDIT (pas de hauteur max, pas de scroll interne) → plus de « sous-bloc »
        bloqué, on atteint toujours le bas (bouton Exporter). Le fond reste gelé par FP.scrollLock. */
-    @media(max-width:760px),(max-height:600px){
+    /* VRAI MOBILE / TACTILE court (iOS : bug « fixed-in-fixed », cf. tâche #32) → c'est l'OVERLAY qui défile
+       tout le pop-up (schéma le plus fiable sur iOS). ⚠️ On ne bascule dans ce mode QUE sur écran étroit OU
+       écran bas ET TACTILE (pointer:coarse) : le ZOOM NAVIGATEUR de BUREAU (pointer:fine) garde la chaîne
+       flex ci-dessus (pied ancré + défilement interne) → plus jamais besoin de dézoomer. */
+    @media(max-width:760px),(max-height:600px) and (pointer:coarse){
       #fp-xc-ov{padding:8px 8px;-webkit-overflow-scrolling:touch;align-items:flex-start}
       .fp-xc-modal{width:100%;max-width:none;max-height:none;overflow:visible}
+      #fp-xc-view-exp:not([hidden]),#fp-xc-view-imp:not([hidden]){display:block;overflow:visible;flex:none}
       .fp-xc-body{display:block;overflow:visible;overflow-x:hidden;min-width:0}
+      .fp-xc-body>.fp-xc-pane:not(.l){display:block;overflow:visible}
       .fp-xc-pane{overflow:visible}
       .fp-xc-pane.l{border-right:none;border-bottom:1px solid #eef2f7}
       .fp-xc-cols{max-height:none}
@@ -20948,7 +20999,7 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-fav{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:4px 6px 4px 11px;cursor:pointer}
     .fp-xc-fav:hover{border-color:#f97316}.fp-xc-fav .del{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1}.fp-xc-fav .del:hover{color:#ef4444}
     .fp-xc-pvhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.fp-xc-pvhead .cnt{font-size:11.5px;color:#64748b}
-    .fp-xc-pv{border:1px solid #eef2f7;border-radius:10px;background:#f8fafc;overflow:auto;max-height:min(72vh,calc(100vh - 210px))}
+    .fp-xc-pv{border:1px solid #eef2f7;border-radius:10px;background:#f8fafc;overflow:auto;flex:1 1 auto;min-height:0}
     .fp-xc-doc{background:#fff;margin:10px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:16px;font-size:12.5px;min-width:380px}
     .fp-xc-doc .dh{display:flex;justify-content:space-between;border-bottom:2px solid #f97316;padding-bottom:7px;margin-bottom:8px}
     .fp-xc-doc .br{font-weight:900;font-size:15px;color:#0f1e3d}.fp-xc-doc .br .o{color:#f97316}
@@ -20961,7 +21012,7 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-xls table{border-collapse:collapse;width:100%}.fp-xc-xls th{background:#217346;color:#fff;font-size:11px;padding:6px 8px;text-align:left;white-space:nowrap}
     .fp-xc-xls td{padding:5px 8px;border:1px solid #d7deea;color:#0f172a;white-space:nowrap}.fp-xc-xls tr:nth-child(even) td{background:#f3f8f4}.fp-xc-num{text-align:right}
     .fp-xc-csv{margin:0;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;color:#0f172a;min-width:380px}.fp-xc-csv .h{color:#f97316;font-weight:700}
-    .fp-xc-foot{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid #eef2f7;background:#f8fafc;flex-wrap:wrap}
+    .fp-xc-foot{display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid #eef2f7;background:#f8fafc;flex-wrap:wrap;flex:0 0 auto}
     .fp-xc-foot .sp{margin-left:auto}.fp-xc-hint{font-size:11.5px;color:#64748b}
     .fp-xc-dz{border:1.5px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;background:#f8fafc}
     .fp-xc-imp-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:11px 13px;cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;color:#0f172a;margin-top:8px}
@@ -21782,18 +21833,23 @@ FP.msg = {
     ov.id = 'fp-msg-ov';
     ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(8,15,30,.55);display:flex;align-items:center;justify-content:center;padding:16px';
     ov.innerHTML =
-      '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:440px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);overflow:hidden">'
-      + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px">'
+      '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:440px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:92vh;max-height:92dvh;overflow:hidden">'
+      + '<div style="flex:0 0 auto;padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px">'
         + '<b style="font-size:1.02rem">📣 ' + esc(title) + '</b>'
         + '<button type="button" id="fp-msg-x" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--fp-muted,#64748b)">×</button>'
       + '</div>'
-      + '<div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
+      + '<div style="flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
         + '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Numéro de téléphone'
           + '<input id="fp-msg-phone" type="tel" value="' + esc(String(opts.phone || '').replace(/\s+/g, '')) + '" placeholder="ex. 0661779753" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.95rem"></label>'
         + ((Array.isArray(opts.templates) && opts.templates.length)
             ? '<div id="fp-msg-tpls" style="display:flex;flex-wrap:wrap;gap:6px">'
               + opts.templates.map((t, i) => '<button type="button" class="fp-msg-tpl" data-i="' + i + '" style="font-size:.75rem;font-weight:700;padding:5px 10px;border-radius:9999px;border:1px solid var(--fp-border,#e5e7eb);background:var(--fp-bg,#fff);color:inherit;cursor:pointer">' + esc(t.label) + '</button>').join('')
               + '</div>'
+            : '')
+        // Lien direct pour MODIFIER le texte de ces messages (modèles éditables Paramètres → E-mails).
+        // Réservé à qui peut gérer la config société ; mène droit au bon groupe (anglais si conducteur EN).
+        + ((Array.isArray(opts.templates) && opts.templates.length && (!FP.canManageSociete || FP.canManageSociete()))
+            ? '<a href="parametres.html?sec=emails' + (opts.lang === 'en' ? '&grp=english' : '') + '" style="font-size:.72rem;font-weight:700;color:var(--fp-accent,#0EA5A0);text-decoration:underline;align-self:flex-start">✏️ Personnaliser ces messages (Paramètres → E-mails)</a>'
             : '')
         + '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Message'
           // Champ ÉDITABLE (gras/puces/liens conservés au collage) pour l'e-mail ; repli textarea pur si pas
@@ -22087,12 +22143,12 @@ FP.share = function (opts) {
   ov.id = 'fp-share-ov';
   ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(8,15,30,.55);display:flex;align-items:center;justify-content:center;padding:16px';
   ov.innerHTML =
-    '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:410px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);overflow:hidden">'
-    + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px">'
+    '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:410px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:92vh;max-height:92dvh;overflow:hidden">'
+    + '<div style="flex:0 0 auto;padding:15px 18px;border-bottom:1px solid var(--fp-border,#e5e7eb);display:flex;align-items:center;justify-content:space-between;gap:10px">'
       + '<b style="font-size:1.02rem">📤 ' + esc(title || 'Partager le lien') + '</b>'
       + '<button type="button" id="fp-share-x" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--fp-muted,#64748b)">×</button>'
     + '</div>'
-    + '<div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
+    + '<div style="flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
       + '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Message (modifiable)'
         + '<textarea id="fp-share-text" rows="4" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.9rem;resize:vertical">' + esc(body) + '</textarea></label>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
