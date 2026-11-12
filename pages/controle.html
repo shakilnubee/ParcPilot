@@ -600,6 +600,38 @@
           + '<td style="text-align:right">' + euro(sumK('ttc')) + '</td></tr></tfoot></table></div>'
         + '<p class="text-xs text-slate-400 mt-2">Détail reconstitué depuis les transactions des relevés (rattaché par n° de carte). Litres / HT / TVA par conducteur : disponibles après activation du détail par transaction.</p>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune consommation détaillée sur la période. Importe un relevé détaillé et renseigne les n° de carte dans « Cartes &amp; badges ».</div>';
+    // ===== Analyse de la consommation — MÊME section que Total Fleet (répartition, évolution, classement) =====
+    // Stats/répartition/classement suivent la période (tx filtré) ; l'évolution 12 mois couvre tout l'historique.
+    const MOISN2 = ['', 'Janv.', 'Févr.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+    const moisLbl = (m) => { const q = String(m || '').split('-'); return q[1] ? (MOISN2[+q[1]] + ' ' + q[0]) : String(m || ''); };
+    const totCat = { carburant: sumK('carburant'), boutique: sumK('boutique'), lavage: sumK('lavage'), peage: sumK('peage'), autre: sumK('autre') };
+    const totTtcA = sumK('ttc'), totLitres = sumK('litres');
+    const prixL = totLitres > 0 ? totCat.carburant / totLitres : 0;
+    const co2 = totLitres > 0 ? (totLitres * 2.51) : 0;   // estimation « mixte » (litres non typés par véhicule ici)
+    const stats = [
+      ['Litres totaux', totLitres > 0 ? ((FP.num ? FP.num(Math.round(totLitres)) : Math.round(totLitres)) + ' L') : '—', 'carburant consommé'],
+      ['Prix moyen / L', (prixL > 0 && prixL <= 4) ? (prixL.toFixed(3).replace('.', ',') + ' €') : '—', 'carburant TTC ÷ litres'],
+      ['CO₂ estimé', co2 > 0 ? ((Math.round(co2 / 100) / 10).toLocaleString('fr-FR') + ' t') : '—', 'depuis les litres (est.)'],
+      ['Péages', euro(totCat.peage), Math.round(totCat.peage / (totTtcA || 1) * 100) + ' % du total']
+    ];
+    const bar = (pct, col) => '<div style="flex:1;background:var(--fp-surface,#f1f5f9);border-radius:6px;overflow:hidden;height:14px"><div style="width:' + pct + '%;height:100%;background:' + col + '"></div></div>';
+    const parts = [['Carburant', totCat.carburant, '#f97316'], ['Péage / parking', totCat.peage, '#0e7490'], ['Lavage', totCat.lavage, '#0891b2'], ['Boutique / repas', totCat.boutique, '#8b5cf6'], ['Autres', totCat.autre, '#ec4899']].filter(p => p[1] > 0);
+    const totP = parts.reduce((s, p) => s + p[1], 0) || 1;
+    const repartHTML = parts.length ? parts.map(p => '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><div style="width:120px;font-size:12px;color:var(--fp-muted)">' + p[0] + '</div>' + bar(Math.round(p[1] / totP * 100), p[2]) + '<div style="width:42px;text-align:right;font-size:12px;font-weight:600">' + Math.round(p[1] / totP * 100) + '%</div><div style="width:82px;text-align:right;font-size:11px;color:var(--fp-faint,#94a3b8)">' + euro(p[1]) + '</div></div>').join('') : '<p class="text-sm text-slate-400">—</p>';
+    // Évolution 12 mois : TOUT l'historique des transactions du prestataire (pas seulement la période).
+    const byMonth = {}; (_prestaTx[id] || []).forEach(t => { const m = t.mois || String(t.dateTx || '').slice(0, 7); if (!m) return; (byMonth[m] = byMonth[m] || { ttc: 0, litres: 0 }); byMonth[m].ttc += (Number(t.montantTtc) || 0); byMonth[m].litres += (Number(t.litres) || 0); });
+    const months = Object.keys(byMonth).sort().slice(-12); const maxT = Math.max(1, ...months.map(m => byMonth[m].ttc));
+    const evolHTML = months.length ? months.map(m => { const vv = byMonth[m]; return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div style="width:74px;font-size:11px;color:var(--fp-muted)">' + moisLbl(m) + '</div>' + bar(Math.round(vv.ttc / maxT * 100), 'linear-gradient(90deg,#f97316,#fb923c)') + '<div style="width:88px;text-align:right;font-size:12px;font-weight:600">' + euro(vv.ttc) + '</div></div>'; }).join('') : '<p class="text-sm text-slate-400">Pas assez de données.</p>';
+    // Classement conducteurs (top 8, sur la période affichée).
+    const maxD = Math.max(1, ...aggList.map(a => a.ttc));
+    const rankHTML = aggList.length ? aggList.slice(0, 8).map((d, i) => '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><div style="width:16px;font-weight:800;color:var(--fp-faint,#94a3b8)">' + (i + 1) + '</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.nom) + '</div><div style="background:var(--fp-surface,#f1f5f9);border-radius:5px;overflow:hidden;height:7px;margin-top:2px"><div style="width:' + Math.round(d.ttc / maxD * 100) + '%;height:100%;background:#f97316"></div></div></div><div style="width:82px;text-align:right;font-size:12px;font-weight:700">' + euro(d.ttc) + '</div></div>').join('') : '<p class="text-sm text-slate-400">—</p>';
+    const analysisHTML = aggList.length ? ('<div class="grid gap-3 mb-4" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">'
+        + stats.map(s => '<div class="ctrl-kpi"><div class="lbl">' + s[0] + '</div><div class="val" style="font-size:1.2rem">' + s[1] + '</div><div class="lbl" style="font-weight:500;text-transform:none;letter-spacing:0">' + s[2] + '</div></div>').join('') + '</div>'
+      + '<div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">'
+        + '<div class="card p-4"><div class="font-semibold mb-3">Évolution sur 12 mois</div>' + evolHTML + '</div>'
+        + '<div class="card p-4"><div class="font-semibold mb-3">Répartition des dépenses</div>' + repartHTML + '</div>'
+        + '</div>'
+      + '<div class="card p-4 mt-3"><div class="font-semibold mb-3">Classement conducteurs <span class="text-xs font-normal text-slate-400">(dépense totale)</span></div>' + rankHTML + '</div>') : '';
     // Table factures (+ « Voir les transactions » de la facture → la section Transactions autonome est retirée).
     const facTable = facs.length
       ? ('<div class="card p-2" style="overflow-x:auto"><table class="ctrl-tbl"><thead><tr><th>Date</th><th>N° facture</th><th>Fournisseur</th><th style="text-align:right">HT</th><th style="text-align:right">TVA</th><th style="text-align:right">TTC</th><th></th></tr></thead><tbody>'
@@ -615,7 +647,9 @@
         + '</tbody></table></div>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune facture sur la période. Importe un relevé (PDF) ou une facture manuelle.</div>';
     const h3 = (t) => '<h3 class="text-lg font-extrabold mt-5 mb-2" style="color:var(--fp-primary)">' + t + '</h3>';
-    body.innerHTML = h3('Consommation par conducteur / véhicule') + consoTable + h3('Factures') + facTable;
+    body.innerHTML = h3('Consommation par conducteur / véhicule') + consoTable
+      + (analysisHTML ? (h3('Analyse de la consommation') + analysisHTML) : '')
+      + h3('Factures') + facTable;
     if (window.lucide) lucide.createIcons();
   }
   // Détail des transactions d'UNE facture (modal) — remplace la section « Transactions » autonome : les
