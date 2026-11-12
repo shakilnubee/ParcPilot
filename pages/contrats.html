@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111m">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111m"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111m">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112a">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -825,8 +825,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111m"></script>
-<script src="../assets/js/supabase-client.js?v=20261111m"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112a"></script>
+<script src="../assets/js/supabase-client.js?v=20261112a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -842,11 +842,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261111m"></script>
+<script src="../assets/js/app.min.js?v=20261112a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1106,7 +1106,7 @@
       <tr>
         <td class="font-mono font-semibold">${FP.lienVehicule(v.immat)}</td>
         <td>${FP.esc(v.marque)} ${FP.esc(v.modele)}</td>
-        <td>${FP.lienConducteur(v.chauffeur)}</td>
+        <td>${FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)}</td>
         <td>${inp('vehCarteCarb', v.id, numC(v))}</td>
         <td>${inp('vehFournCarb', v.id, fc[v.id])}</td>
         <td>${inp('vehCarteCarbExp', v.id, cce[v.id], 'date')} ${expCell(cce[v.id])}</td>
@@ -1436,7 +1436,7 @@
       <tr${rowNone}>
         <td class="font-mono font-semibold">${FP.lienVehicule(v.immat)}</td>
         <td>${FP.esc(v.marque)} ${FP.esc(v.modele)}</td>
-        <td>${FP.lienConducteur(v.chauffeur)}</td>
+        <td>${FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)}</td>
         <td>${assCell}</td>
         <td><div class="flex flex-wrap gap-1">${FP.vehGroupes(v).map(k => `<span class="groupe-pill gp-${k}"><span class="dot"></span>${FP.groupeLabel(k)}</span>`).join('')}</div></td>
         <td><span class="badge ${prComplete ? 'badge-ok' : (hasPerVeh ? 'badge-warn' : 'badge-ok')}">${prComplete ? 'Couvert' : (hasPerVeh ? 'Prime manquante' : 'Couvert')}</span></td>
@@ -1974,7 +1974,7 @@
       <tr>
         <td class="font-mono font-semibold">${FP.lienVehicule(v.immat)}</td>
         <td>${FP.esc(v.marque)} ${FP.esc(v.modele)}${(cRaw && cRaw.malus) ? ` <span class="text-amber-600 text-xs">· malus ${FP.euro(cRaw.malus)}</span>` : ''}</td>
-        <td>${(v.chauffeur && v.chauffeur !== '—') ? (FP.lienConducteur(v.chauffeur) + ` <button type="button" data-veh-cond="${FP.esc(v.immat)}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`) : `<button type="button" data-veh-cond="${FP.esc(v.immat)}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem">+ affecter</button>`}</td>
+        <td>${(v.chauffeur && v.chauffeur !== '—') ? ((FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)) + ` <button type="button" data-veh-cond="${FP.esc(v.immat)}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`) : `<button type="button" data-veh-cond="${FP.esc(v.immat)}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem">+ affecter</button>`}</td>
         <td><span class="cursor-pointer" data-chg-loueur="${escC(v.immat)}" title="Changer de loueur" style="border-bottom:1px dotted #94a3b8">${loueurDeVeh(v)}</span></td>
         <td>${l ? FP.num(l.kmContrat) + ' km' : '<span class="text-slate-400">—</span>'}</td>
         <td>${(() => { const km = l ? FP.num(l.km) + ' km' : (v.km != null ? FP.num(v.km) + ' km' : null); return km ? `<span class="cursor-pointer underline decoration-dotted" data-edit-lease="${FP.esc(v.immat)}" title="Modifier le contrat (km, forfait, dates…)">${km}</span>` : '<span class="text-slate-400">—</span>'; })()}</td>
@@ -2011,7 +2011,7 @@
       return `<div class="ls-card">
         <div class="ls-top">
           <div><span class="ls-immat">${FP.lienVehicule(v.immat)}</span> <span class="ls-veh">${FP.esc(v.marque)} ${FP.esc(v.modele)}</span>${(cRaw && cRaw.malus) ? ` <span class="text-amber-600 text-xs">· malus ${FP.euro(cRaw.malus)}</span>` : ''}<br>
-            <span class="ls-sub">${(v.chauffeur && v.chauffeur !== '—') ? FP.lienConducteur(v.chauffeur) + ' · ' : ''}${FP.esc(loueurNomOf(v) || 'Leasing')}</span></div>
+            <span class="ls-sub">${(v.chauffeur && v.chauffeur !== '—') ? (FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)) + ' · ' : ''}${FP.esc(loueurNomOf(v) || 'Leasing')}</span></div>
           <div>${statutKm(l, v.immat)}</div>
         </div>
         <div class="ls-grid">

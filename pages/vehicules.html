@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261111m">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261111m"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261111m">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112a">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261111m"></script>
-<script src="../assets/js/supabase-client.js?v=20261111m"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112a"></script>
+<script src="../assets/js/supabase-client.js?v=20261112a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261111m"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261111m"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261111m"></script>
+<script src="../assets/js/fleet-docs.js?v=20261112a"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261112a"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261111m"></script><script>
+<script src="../assets/js/app.min.js?v=20261112a"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2565,7 +2565,7 @@
     { key: 'groupes',               label: 'Groupe',            defaultWidth: 150, render: v => `<div class="inline-flex gap-1">${multiGroupePills(v)}</div>` },
     { key: 'categorie',             label: 'Catégorie',         defaultWidth: 110, render: v => `<span class="text-slate-600">${escapeHtml(v.categorie) || '—'}</span>` },
     { key: 'km',                    label: 'Km',                defaultWidth: 100, render: v => `${FP.num(FP.kmActuel ? FP.kmActuel(v) : v.km)} km` },
-    { key: 'chauffeur',             label: 'Chauffeur',         defaultWidth: 140, render: v => (window.FP && FP.lienConducteur) ? FP.lienConducteur(v.chauffeur || '—') : escapeHtml(v.chauffeur || '—') },
+    { key: 'chauffeur',             label: 'Chauffeur',         defaultWidth: 140, render: v => (window.FP && FP.lienChauffeurVeh) ? FP.lienChauffeurVeh(v) : escapeHtml(v.chauffeur || '—') },
     { key: 'prochainCT',            label: 'Prochain CT',       defaultWidth: 170, render: v => ctCell(v.prochainCT, v) },
     { key: 'statut',                label: 'Statut',            defaultWidth: 110, render: v => FP.statutBadge(v.statut) },
     { key: 'dateMiseEnCirculation', label: '1ère immat.',       defaultWidth: 120, render: v => v.dateMiseEnCirculation ? FP.dateNum(v.dateMiseEnCirculation) : '—' },
@@ -3512,7 +3512,8 @@
     if (hasChauf && FP.affectations && FP.affectations.ensureCourante) { try { FP.affectations.ensureCourante(v); } catch (e) {} }
     const _entree = (hasChauf && FP.affectations && FP.affectations.debutAffiche) ? FP.affectations.debutAffiche(v) : null;
     const _entreeTxt = _entree ? ` <span style="font-weight:400;font-size:.8rem;color:var(--fp-muted)">· depuis le ${FP.date ? FP.date(_entree) : _entree}</span>` : '';
-    const _chaufLink = (window.FP && FP.lienConducteur) ? FP.lienConducteur(v.chauffeur) : escapeHtml(v.chauffeur);
+    // HOMONYMES : le lien pointe vers la fiche de l'affectation EN COURS (sa clé unique), pas le 1er homonyme du prénom.
+    const _chaufLink = (window.FP && FP.lienChauffeurVeh) ? FP.lienChauffeurVeh(v) : escapeHtml(v.chauffeur);
     chauf.innerHTML = hasChauf ? `<i data-lucide="user" class="w-5 h-5" style="opacity:.6"></i> ${_chaufLink}${_entreeTxt}` : '';
     // Readouts "instruments" dans l'en-tête sombre (comme l'artefact) : km · carburant · CT · TVS
     (function fillReadouts(){
