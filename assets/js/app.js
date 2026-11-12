@@ -9011,10 +9011,15 @@ FP.datePickerOuvert = () => { try { return !!document.querySelector('.fp-dp'); }
 FP.cellEditor = (el, value, type, opts) => {
   opts = opts || {};
   if (!el || el.querySelector('.cell-edit')) return;
+  const isTA = (type === 'textarea' || opts.multiline);   // édition MULTILIGNE auto-agrandissante
   let html;
   if (type === 'select') {
     const options = opts.options || [];
     html = `<select class="cell-edit">${options.map(o => `<option value="${String(o).replace(/"/g, '&quot;')}" ${o === value ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+  } else if (isTA) {
+    // Vrai champ multiligne : garde les retours à la ligne, hauteur suivant le contenu (scroll au-delà).
+    const escTA = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = `<textarea class="cell-edit cell-edit-ta" rows="2" placeholder="${String(opts.placeholder || '').replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;resize:vertical;min-height:2.6em;max-height:45vh;overflow:auto;line-height:1.45;font:inherit;padding:6px 8px">${escTA(value)}</textarea>`;
   } else {
     const t = type === 'number' ? 'number' : type === 'date' ? 'date' : 'text';
     const val = type === 'date' ? (typeof value === 'string' ? value.slice(0, 10) : '') : (value == null ? '' : value);
@@ -9022,7 +9027,12 @@ FP.cellEditor = (el, value, type, opts) => {
   }
   el.innerHTML = html;
   const inp = el.querySelector('.cell-edit');
-  inp.focus(); if (inp.select) inp.select();
+  inp.focus();
+  if (isTA) {
+    const grow = () => { try { inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight + 2, Math.round((window.innerHeight || 600) * 0.45)) + 'px'; } catch (e) {} };
+    inp.addEventListener('input', grow); setTimeout(grow, 0);
+    try { const L = inp.value.length; inp.setSelectionRange(L, L); } catch (e) {}   // curseur en fin de texte
+  } else if (inp.select) { inp.select(); }
   let done = false;
   const finish = (save) => {
     if (done) return;
@@ -9044,7 +9054,11 @@ FP.cellEditor = (el, value, type, opts) => {
     } else { done = true; if (opts.onCancel) opts.onCancel(); }
   };
   inp.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+    if (isTA) {
+      // Multiligne : Entrée = nouvelle ligne ; Ctrl/Cmd+Entrée = enregistrer ; Échap = annuler.
+      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); finish(true); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+    } else if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
     else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
   });
   inp.addEventListener('blur', (ev) => {
