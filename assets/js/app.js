@@ -3885,11 +3885,18 @@ FP.busy = (message) => {
   const setIco = (h) => { const el = document.getElementById('fp-busy-ico'); if (el) el.innerHTML = h; };
   const setMsg = (m) => { const el = document.getElementById('fp-busy-msg'); if (el) el.textContent = m || ''; };
   host.style.display = 'flex'; setIco(spin); setMsg(message || 'Enregistrement en cours…');
-  const close = () => { if (host) host.style.display = 'none'; };
+  // ⚠️ FILET ANTI-BLOCAGE (commun à toute l'app) : cette surcouche plein écran BLOQUE l'interface. Si une
+  // opération n'appelle jamais done/fail/close (exception après l'await, await qui ne revient pas, navigation),
+  // l'écran resterait figé « en cours » pour toujours. On arme donc un garde-fou (90 s, RÉARMÉ à chaque
+  // update()) qui ferme la surcouche en cas de fuite réelle — jamais un délai cosmétique, juste un backstop.
+  const clearWd = () => { if (host._wd) { clearTimeout(host._wd); host._wd = null; } };
+  const close = () => { clearWd(); if (host) host.style.display = 'none'; };
+  const armWd = () => { clearWd(); host._wd = setTimeout(() => { setIco('<span style="color:#DC2626;font-size:32px;line-height:1">✕</span>'); setMsg('⚠ Opération interrompue — réessaie.'); setTimeout(close, 3800); }, 90000); };
+  armWd();
   return {
-    update: setMsg,
-    done: (m, ms) => { setIco('<span style="color:#16a34a;font-size:32px;line-height:1">✓</span>'); setMsg(m || '✓ Enregistré'); setTimeout(close, ms == null ? 1900 : ms); },
-    fail: (m, ms) => { setIco('<span style="color:#DC2626;font-size:32px;line-height:1">✕</span>'); setMsg(m || "Échec de l'enregistrement"); setTimeout(close, ms == null ? 3800 : ms); },
+    update: (m) => { setMsg(m); armWd(); },
+    done: (m, ms) => { clearWd(); setIco('<span style="color:#16a34a;font-size:32px;line-height:1">✓</span>'); setMsg(m || '✓ Enregistré'); setTimeout(close, ms == null ? 1900 : ms); },
+    fail: (m, ms) => { clearWd(); setIco('<span style="color:#DC2626;font-size:32px;line-height:1">✕</span>'); setMsg(m || "Échec de l'enregistrement"); setTimeout(close, ms == null ? 3800 : ms); },
     close
   };
 };
@@ -13949,13 +13956,23 @@ FP.toastProgress = function (msg, opts) {
   const x = document.createElement('button'); x.className = 'x'; x.setAttribute('aria-label', 'Fermer'); x.textContent = '✕';
   el.appendChild(ic); el.appendChild(tx); el.appendChild(x);
   wrap.appendChild(el);
-  let timer = null;
-  const remove = () => { clearTimeout(timer); el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => { el.remove(); if (wrap && !wrap.children.length) wrap.remove(); }, 200); };
+  let timer = null, wd = null;
+  const clearWd = () => { if (wd) { clearTimeout(wd); wd = null; } };
+  const remove = () => { clearTimeout(timer); clearWd(); el.style.transition = 'opacity .2s'; el.style.opacity = '0'; setTimeout(() => { el.remove(); if (wrap && !wrap.children.length) wrap.remove(); }, 200); };
   x.onclick = remove;
-  const settle = (cls, m, ms, icon) => { el.className = 'fp-tp ' + cls; ic.className = 'ic'; ic.textContent = icon; if (m != null) tx.textContent = m; try { if (FP.haptic) FP.haptic('light'); } catch (e) {} clearTimeout(timer); timer = setTimeout(remove, ms); };
+  const settle = (cls, m, ms, icon) => { clearWd(); el.className = 'fp-tp ' + cls; ic.className = 'ic'; ic.textContent = icon; if (m != null) tx.textContent = m; try { if (FP.haptic) FP.haptic('light'); } catch (e) {} clearTimeout(timer); timer = setTimeout(remove, ms); };
+  // ⚠️ FILET ANTI-SPINNER INFINI (commun à TOUTE l'app) : un toast de progression qui n'est jamais
+  // conclu (done/fail) — ex. une exception après l'await, un await qui ne revient pas, un changement de
+  // page — resterait à tourner indéfiniment. Si rien ne le conclut ni ne le met à jour pendant `watchdog`
+  // ms, on le passe AUTOMATIQUEMENT en erreur (jamais bloqué « en cours » pour toujours). Ce n'est PAS un
+  // délai cosmétique : c'est un garde-fou généreux (90 s par défaut) RÉARMÉ à chaque update() → une
+  // opération longue qui rapporte sa progression reste vivante ; seule une fuite réelle le déclenche.
+  const WD = (opts.watchdog != null) ? opts.watchdog : 90000;
+  const armWd = () => { clearWd(); if (WD > 0) wd = setTimeout(() => { settle('err', '⚠ Opération interrompue — réessaie.', opts.failMs || 7000, '⚠'); }, WD); };
+  armWd();
   return {
     el: el,
-    update: (m) => { if (m != null) tx.textContent = m; },
+    update: (m) => { if (m != null) tx.textContent = m; armWd(); },
     done: (m) => settle('ok', m, opts.doneMs || 3200, '✓'),
     fail: (m) => settle('err', m, opts.failMs || 7000, '⚠'),
     close: remove,
