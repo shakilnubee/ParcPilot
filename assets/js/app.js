@@ -3948,6 +3948,101 @@ FP.presta.hasParser = (id) => !!FP.presta._parsers[String(id)];
 // Essaie chaque parseur enregistré sur un texte de relevé → le 1er dont detect() matche (ou null).
 FP.presta.detectParser = (text) => { try { for (const id in FP.presta._parsers) { const d = FP.presta._parsers[id]; if (d && typeof d.detect === 'function' && d.detect(text)) return { id, def: d }; } } catch (e) {} return null; };
 
+// Extraction texte GÉNÉRIQUE d'un relevé PDF (pdf.js, reconstruction par position). Sert à (a) détecter
+// le lecteur déterministe et (b) alimenter le repli IA. Même plumbing que les lecteurs Total/Ulys/DKV
+// (aucune logique propre à un fournisseur). ⚠️ Sur certains PDF (ex. e-facture DKV) la couche texte
+// n'est PAS rangée par ligne → la reconstruction donne un texte désordonné : c'est pour ça que le repli
+// IA (vision) prend le relais (il lit la vraie image), et que l'IMAGE fait foi sur l'ordre des colonnes.
+FP.presta.pdfToText = async function (file) {
+  try { return (FP.dkv && FP.dkv.pdfToText) ? await FP.dkv.pdfToText(file) : ''; } catch (e) { return ''; }
+};
+// Prompt IA d'un relevé prestataire (carte carburant/recharge ou badge péage) → { facture, transactions }.
+// Moteur UNIQUE = FP.scanIA (jamais un 2e moteur). LIRE, JAMAIS DEVINER : null si absent, rien d'inventé.
+FP.RELEVE_PRESTA_PROMPT = [
+  "Tu lis un RELEVÉ / une FACTURE d'un prestataire de flotte (carte carburant ou de recharge, ou badge de péage).",
+  "Renvoie UNIQUEMENT un objet JSON valide, sans aucun texte autour. Mets null si une valeur est absente ou illisible — n'INVENTE JAMAIS une valeur.",
+  "⚠️ La couche texte peut être mal ordonnée (colonnes mélangées) : FIE-TOI À L'IMAGE pour associer chaque montant à sa ligne et à sa colonne.",
+  "Structure EXACTE attendue :",
+  '{ "facture": { "numero": string|null, "date": "AAAA-MM-JJ"|null, "fournisseur": string|null, "montantHT": number|null, "montantTVA": number|null, "montantTTC": number|null },',
+  '  "transactions": [ { "date": "AAAA-MM-JJ", "carte": string|null, "conducteur": string|null, "produit": string|null, "montantTtc": number, "litres": number|null, "station": string|null } ] }',
+  "facture.montantTTC = le TOTAL TTC de la facture (souvent après « NET À PAYER TTC » / « Valeur totale TTC » / « Montant TTC »).",
+  "Pour une transaction, montantTtc = la valeur TTC de CETTE ligne (colonne « Valeur totale TTC »), JAMAIS un sous-total par carte ni le total général.",
+  "carte = le numéro de carte/badge (ex. « CARD NO. »), recopié EXACTEMENT — il sert à rattacher la ligne au bon conducteur. conducteur = le libellé lu tel quel (souvent un prénom ou un nom de véhicule) ; ne le DEVINE pas.",
+  "Si le document est une facture récapitulative SANS détail ligne par ligne, renvoie \"transactions\": [] mais remplis quand même « facture ».",
+  "Cohérence : HT + TVA ≈ TTC (tolérance 2 centimes). Si la TVA est à 0 (autoliquidation), alors HT = TTC."
+].join("\n");
+// Lecture d'un relevé de prestataire → { facture, tx, source:'auto'|'ia'|'', incomplet, needsSample, erreur }.
+//  1) Voie rapide : lecteur déterministe enregistré (FP.presta.detectParser) si la couche texte est propre.
+//  2) Repli IA : FP.scanIA (vision) quand le déterministe ne sort AUCUNE transaction (couche texte
+//     désordonnée, ou scan/photo). On lui passe la couche texte en complément, en précisant que l'IMAGE
+//     fait foi (le marqueur « TEXTE EXTRAIT DU DOCUMENT » désactive le ré-ajout automatique de scanIA).
+//  3) Une facture VALIDE sans transactions n'est JAMAIS rejetée → incomplet=true (ventilation incomplète).
+//  CSV/Excel : lecture propre à chaque fournisseur (pas d'invention) → needsSample=true (on demande un vrai export).
+FP.presta.lireReleve = async function (file, p) {
+  const out = { facture: null, tx: [], source: '', incomplet: false, needsSample: false, erreur: '' };
+  if (!file) { out.erreur = 'Aucun fichier.'; return out; }
+  const name = String(file.name || '').toLowerCase();
+  const isPdf = /pdf/i.test(file.type || '') || /\.pdf$/.test(name);
+  const isCsvXls = /csv|sheet|excel/i.test(file.type || '') || /\.(csv|xlsx?)$/.test(name);
+  const num = (v) => { if (v == null || v === '') return null; const n = Number(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : null; };
+  const normTx = (t) => ({
+    dateTx: (FP._parseDateLue ? (FP._parseDateLue(t.date || t.dateTx) || '') : (t.date || t.dateTx || '')),
+    carte: String(t.carte || t.card || '').trim(),
+    conducteur: String(t.conducteur || t.vehicule || t.vehicle || '').trim(),
+    produit: String(t.produit || t.product || '').trim(),
+    litres: num(t.litres != null ? t.litres : t.quantite),
+    montantTtc: num(t.montantTtc != null ? t.montantTtc : (t.montant != null ? t.montant : t.ttc)),
+    station: String(t.station || '').trim(),
+    categorie: (FP.txCat ? FP.txCat(t.produit || t.product || '') : 'carburant') || 'carburant'
+  });
+  if (isCsvXls) { out.needsSample = true; out.erreur = 'csv-xls'; return out; }
+  if (!isPdf) { out.erreur = 'format'; return out; }
+  // 1) Déterministe (gratuit, instantané) — si la couche texte est propre.
+  let detText = '';
+  try { detText = await FP.presta.pdfToText(file); } catch (e) {}
+  const det = detText ? FP.presta.detectParser(detText) : null;
+  if (det) {
+    try {
+      const r = det.def.parse(detText);
+      if (r && ((r.tx && r.tx.length) || (r.facture && r.facture.numero))) {
+        out.facture = r.facture || null;
+        out.tx = (r.tx || []).map(normTx).filter(t => t.montantTtc != null);
+        out.source = 'auto';
+      }
+    } catch (e) {}
+  }
+  // 2) Repli IA (vision) si aucune transaction lue — le document a bien été ouvert, mais la couche
+  //    texte ne permet pas de reconstruire le tableau → on laisse l'IA lire l'image.
+  if (!out.tx.length && FP.scanIA) {
+    try {
+      let prompt = FP.RELEVE_PRESTA_PROMPT;
+      if (detText && detText.replace(/\s/g, '').length > 40) {
+        prompt += "\nTEXTE EXTRAIT DU DOCUMENT (couche texte — colonnes possiblement mal ordonnées, l'IMAGE fait foi) :\n" + detText.slice(0, 16000);
+      }
+      const fields = await FP.scanIA(file, 'releve-prestataire', prompt, { maxTokens: 4096 });
+      if (fields) {
+        const fac = fields.facture || { numero: fields.numero, date: fields.date, fournisseur: fields.fournisseur, montantHT: fields.montantHT, montantTVA: fields.montantTVA, montantTTC: fields.montantTTC };
+        const txs = Array.isArray(fields.transactions) ? fields.transactions : (Array.isArray(fields.tx) ? fields.tx : []);
+        const nTx = txs.map(normTx).filter(t => t.montantTtc != null);
+        if (nTx.length || (fac && (fac.numero || fac.montantTTC != null))) { out.facture = fac; out.tx = nTx; out.source = 'ia'; }
+        else out.erreur = out.erreur || 'vide';
+      } else { out.erreur = FP._scanLastErr || out.erreur || 'ia'; }
+    } catch (e) { out.erreur = (e && e.message) || out.erreur || 'ia'; }
+  }
+  // Normalisation facture + autoliquidation (HT=TTC si TVA 0) + repli TTC = somme des transactions.
+  if (out.facture) {
+    const f = out.facture;
+    f.fournisseur = f.fournisseur || (p && p.nom) || '';
+    f.montantHT = num(f.montantHT); f.montantTVA = num(f.montantTVA); f.montantTTC = num(f.montantTTC);
+    if (f.date) f.date = FP._parseDateLue ? (FP._parseDateLue(f.date) || f.date) : f.date;
+    if (f.montantTTC == null && out.tx.length) f.montantTTC = out.tx.reduce((a, t) => a + (Number(t.montantTtc) || 0), 0);
+    if (f.montantTVA == null) f.montantTVA = 0;
+    if (f.montantHT == null && f.montantTTC != null) f.montantHT = +(f.montantTTC - (Number(f.montantTVA) || 0)).toFixed(2);
+  }
+  out.incomplet = !!(out.facture && !out.tx.length);
+  return out;
+};
+
 // ===== LECTEUR DKV (carte carburant) — même standard que Total/Ulys : couche texte reconstruite par
 // POSITION (pdf.js, y↓ puis x→), montant EXACT par transaction (Valeur totale TTC), contrôle du total,
 // rattachement conducteur PAR N° DE CARTE (jamais le prénom). Relevé DKV France = autoliquidation (TVA 0%)
