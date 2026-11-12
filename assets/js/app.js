@@ -3920,19 +3920,35 @@ FP.prestataires = () => {
     { id: 'total', nom: FP.prestataireCarte(), type: 'carburant', builtin: true, numKey: 'condCarteTotal', vehKey: 'vehCarteCarb' },
     { id: 'ulys',  nom: FP.prestataireBadge(), type: 'peage',     builtin: true, numKey: 'condBadgeUlys',  vehKey: 'vehBadge' }
   ];
-  try { const p = FP.settings.get().prestatairesPerso; if (Array.isArray(p)) p.forEach(x => { if (x && x.id && x.nom) out.push({ id: x.id, nom: String(x.nom), type: (x.type === 'peage' ? 'peage' : 'carburant'), builtin: false, numKey: 'condNum_' + x.id, vehKey: 'vehNum_' + x.id }); }); } catch (e) {}
+  // statut : brouillon | actif | desactive (défaut actif pour tout perso existant sans champ).
+  const normStatut = (v) => (v === 'brouillon' || v === 'desactive') ? v : 'actif';
+  try { const p = FP.settings.get().prestatairesPerso; if (Array.isArray(p)) p.forEach(x => { if (x && x.id && x.nom) out.push({ id: x.id, nom: String(x.nom), type: (x.type === 'peage' ? 'peage' : 'carburant'), builtin: false, statut: normStatut(x.statut), numKey: 'condNum_' + x.id, vehKey: 'vehNum_' + x.id }); }); } catch (e) {}
   return out;
 };
+// Prestataires « visibles » dans l'exploitation (onglets Contrôle + colonnes Cartes & badges) : natifs
+// TOUJOURS, persos NON désactivés. Un perso désactivé est archivé — ses données (factures, conso, n° de
+// carte, historiques) restent intactes ; seul son onglet/colonne disparaît (réactivable à tout moment).
+FP.prestatairesActifs = () => (FP.prestataires() || []).filter(p => p.builtin || p.statut !== 'desactive');
 FP.prestataireById = (id) => FP.prestataires().find(p => p.id === id) || null;
-FP.addPrestataire = (nom, type) => {
+FP.addPrestataire = (nom, type, statut) => {
   nom = String(nom || '').trim(); if (!nom) return null;
   const s = FP.settings.get(); const list = Array.isArray(s.prestatairesPerso) ? s.prestatairesPerso.slice() : [];
   const base = (nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '') || 'presta').slice(0, 14);
   let id = 'p_' + base, n = 1; const taken = new Set(list.map(x => x.id).concat(['total', 'ulys']));
   while (taken.has(id)) id = 'p_' + base + (++n);
-  const rec = { id, nom, type: (type === 'peage' ? 'peage' : 'carburant') };
+  const st = (statut === 'brouillon' || statut === 'desactive') ? statut : 'actif';
+  const rec = { id, nom, type: (type === 'peage' ? 'peage' : 'carburant'), statut: st };
   list.push(rec); s.prestatairesPerso = list; FP.settings.save(s); return rec;
 };
+// Change le statut (cycle de vie) d'un prestataire perso — ne touche JAMAIS ses données.
+FP.setPrestataireStatut = (id, statut) => {
+  if (!id) return; const st = (statut === 'brouillon' || statut === 'desactive') ? statut : 'actif';
+  const s = FP.settings.get(); let found = false;
+  s.prestatairesPerso = (s.prestatairesPerso || []).map(x => { if (x && x.id === id) { found = true; return Object.assign({}, x, { statut: st }); } return x; });
+  if (found) FP.settings.save(s); return found;
+};
+// Retire la DÉFINITION d'un prestataire perso (onglet + colonne). ⚠️ NON destructif : ses factures,
+// transactions (total_conso_tx), n° de carte déjà saisis et historiques NE SONT PAS effacés.
 FP.removePrestataire = (id) => { if (!id) return; const s = FP.settings.get(); s.prestatairesPerso = (s.prestatairesPerso || []).filter(x => x.id !== id); FP.settings.save(s); };
 // Pont VÉHICULE ↔ CONDUCTEUR par prestataire (dynamique : natifs + persos) → { vehKey: numKey }. Généralise
 // FP.CARTE_COND_MAP (figé aux 2 natifs) à N prestataires, en incluant TOUJOURS les natifs (comportement inchangé).
@@ -9558,7 +9574,7 @@ FP.applyNavSubmenus = () => {
         // masquée). Insérés juste avant « Contrôle ».
         if (navKey === 'controle.html' && FP.prestataires) {
           try {
-            const perso = FP.prestataires().filter(p => !p.builtin).map(p => ({ label: p.nom, tab: p.id }));
+            const perso = (FP.prestatairesActifs ? FP.prestatairesActifs() : FP.prestataires()).filter(p => !p.builtin).map(p => ({ label: p.nom, tab: p.id }));
             if (perso.length) { subs = subs.slice(); const iCtrl = subs.findIndex(s => s.tab === 'controle'); subs.splice(iCtrl < 0 ? subs.length : iCtrl, 0, ...perso); }
           } catch (e) {}
         }

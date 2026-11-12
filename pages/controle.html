@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112k">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -308,14 +308,15 @@
         </span>
         <button type="button" id="cb-add-presta" class="btn btn-dark text-sm"><i data-lucide="plus" class="w-4 h-4"></i> Prestataire</button>
       </div>
+      <div id="cb-presta-manage"></div>
       <div class="card p-2" style="overflow-x:auto"><div id="cb-body"><p class="text-sm text-slate-400 p-3">Chargement…</p></div></div>
     </div>
 
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112j"></script>
-<script src="../assets/js/supabase-client.js?v=20261112j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112k"></script>
+<script src="../assets/js/supabase-client.js?v=20261112k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -331,11 +332,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261112j"></script>
+<script src="../assets/js/app.min.js?v=20261112k"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -355,7 +356,9 @@
 
   // ===== Sous-onglets (dynamiques : Total, Ulys, prestataires PERSO, Contrôle, Cartes) =====
   let _tab = 'controle';
-  const customPres = () => (FP.prestataires ? FP.prestataires() : []).filter(p => !p.builtin);
+  // Onglets prestataires = persos NON désactivés (un prestataire désactivé est archivé : onglet masqué,
+  // données conservées). On réutilise FP.prestatairesActifs (source unique du cycle de vie).
+  const customPres = () => (FP.prestatairesActifs ? FP.prestatairesActifs() : (FP.prestataires ? FP.prestataires() : [])).filter(p => !p.builtin);
   const tabNames = () => ['total', 'ulys', 'sanef'].concat(customPres().map(p => p.id)).concat(['controle', 'cartes', 'relevekm']);
   // Chargement À LA DEMANDE du module Total Fleet / Ulys (fleet-views.js, ~160 Ko). Idempotent :
   // ne l'injecte qu'une fois ; renvoie une promesse résolue quand FP.mountTotal est prêt (ou en échec).
@@ -366,7 +369,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261112j';
+        s.src = '../assets/js/fleet-views.min.js?v=20261112k';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -490,8 +493,6 @@
         + '<input type="file" class="presta-import-file hidden" data-pid="' + esc(p.id) + '" accept="application/pdf,.pdf">'
         + '<a href="factures.html" class="btn btn-outline text-sm"><i data-lucide="upload" class="w-4 h-4"></i> Facture manuelle</a>'
         + '<span id="pk-export-' + id + '"></span>'
-        + '<span style="flex:1"></span>'
-        + '<button type="button" data-rm-presta="' + esc(p.id) + '" class="btn btn-outline text-sm" style="color:#B91C1C;border-color:#FCA5A5"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</button>'
       + '</div>'
       // Barre période + recherche
       + '<div class="card p-3 mb-3"><div class="flex flex-wrap items-center gap-2">'
@@ -792,17 +793,9 @@
     const _target = tabNames().includes(t) ? t : (tabNames().includes(last) ? last : 'controle');
     setTimeout(function(){ try { switchTab(_target); } catch (e) { console.error('[controle init]', e); try { switchTab('controle'); } catch (_) {} } }, 0); }
 
-  // Clics dans les panneaux prestataire : ouvrir une facture / supprimer le prestataire.
+  // Clics dans les panneaux prestataire : ouvrir une facture (la gestion du prestataire — statut,
+  // suppression — est centralisée dans « Cartes & badges », gardée par les droits).
   $('presta-panes').addEventListener('click', async (e) => {
-    const rm = e.target.closest('[data-rm-presta]');
-    if (rm) {
-      const id = rm.getAttribute('data-rm-presta'); const p = FP.prestataireById(id);
-      if (!(await FP.confirm('Supprimer le prestataire « ' + (p ? p.nom : id) + ' » ?\n\nSes factures et les n° déjà saisis ne sont PAS effacés — seul le sous-onglet et la colonne disparaissent.'))) return;
-      FP.removePrestataire(id); renderPrestaTabs(); renderCartes(); switchTab('cartes');
-      try { if (FP.applyNavSubmenus) FP.applyNavSubmenus(); } catch (_) {} // maj live du sous-menu sidebar
-      if (FP.toast) FP.toast('Prestataire supprimé');
-      return;
-    }
     const pf = e.target.closest('[data-pfac]');
     if (pf) {
       e.preventDefault();
@@ -924,7 +917,10 @@
   }
 
   // ➕ Créer un prestataire (nom + type) → crée le sous-onglet + la colonne + la zone fiche conducteur.
+  // Créer un prestataire = configuration société → réservé à l'administrateur (FP.canManageSociete).
+  try { if (FP.canManageSociete && !FP.canManageSociete()) { const ab = $('cb-add-presta'); if (ab) ab.style.display = 'none'; } } catch (e) {}
   $('cb-add-presta').addEventListener('click', async () => {
+    if (FP.canManageSociete && !FP.canManageSociete()) { if (FP.notifyError) FP.notifyError('Réservé à l\'administrateur.'); return; }
     const ask = (FP.prompt ? FP.prompt : (m, d) => Promise.resolve(prompt(m, d)));
     const tell = (FP.alert ? FP.alert : (m) => { alert(m); return Promise.resolve(); });
     const nom = ((await ask('Nom du nouveau prestataire (ex. Shell, DKV, Eurotoll, AS24)…')) || '').trim();
@@ -1576,11 +1572,87 @@
   const _cbInpLocked = _cbInpBase + ';background:#F1F5F9;color:#475569;cursor:pointer';
   // Un conducteur a-t-il AU MOINS un n° (carte ou badge) attribué chez un prestataire quelconque ?
   function _cbHasNum(c, pres){ return pres.some(p => String((FP.condNum ? FP.condNum(c.key, p.numKey) : '') || '').trim()); }
+  // Un prestataire a-t-il des DONNÉES ? (factures reconnues, transactions, ou n° de carte saisis) → sert à
+  // recommander l'archivage plutôt que la suppression, et à prévenir avant une suppression définitive.
+  function _prestaHasData(p){
+    try {
+      const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+      const pn = norm(p.nom);
+      const hasFac = (window.FP_DATA.factures||[]).some(f => f.source==='presta-'+p.id || (()=>{const fo=norm(f.fournisseur);return pn&&fo&&(fo.includes(pn)||pn.includes(fo));})());
+      if (hasFac) return true;
+      let hasNum = false; (FP.conducteurs.list()||[]).forEach(c => { if (FP.condNum && FP.condNum(c.key, p.numKey)) hasNum = true; });
+      return hasNum;
+    } catch(e){ return false; }
+  }
+  // Panneau GESTION des prestataires (statut + archivage/suppression), dans « Cartes & badges ».
+  // Config société → gardé par FP.canManageSociete() (sinon lecture seule). Non destructif : désactiver =
+  // archiver (données conservées) ; supprimer = retirer la définition, JAMAIS les factures/tx/n° saisis.
+  function renderPrestaManage(){
+    const box = $('cb-presta-manage'); if (!box) return;
+    const persos = (FP.prestataires ? FP.prestataires() : []).filter(p => !p.builtin);
+    if (!persos.length) { box.innerHTML = ''; return; }
+    const canManage = !FP.canManageSociete || FP.canManageSociete();
+    const badge = (st) => st==='desactive' ? '<span style="font-size:11px;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:9999px;padding:2px 9px">Désactivé</span>'
+                       : st==='brouillon' ? '<span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:9999px;padding:2px 9px">Brouillon</span>'
+                       : '<span style="font-size:11px;font-weight:700;color:#0f766e;background:#ccfbf1;border-radius:9999px;padding:2px 9px">Actif</span>';
+    const rows = persos.map(p => {
+      const actions = canManage
+        ? ((p.statut==='desactive'
+            ? '<button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px" data-presta-statut="'+esc(p.id)+'" data-to="actif">Réactiver</button>'
+            : '<button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px" data-presta-statut="'+esc(p.id)+'" data-to="desactive">Désactiver</button>')
+          + ' <button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px;color:#B91C1C;border-color:#FCA5A5" data-rm-presta="'+esc(p.id)+'"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>')
+        : '<span style="font-size:12px;color:var(--fp-muted)">lecture seule</span>';
+      return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--fp-border);border-radius:10px;background:var(--fp-card,#fff)">'
+        + '<b style="min-width:110px">'+esc(p.nom)+'</b>'
+        + '<span style="font-size:12px;color:var(--fp-muted)">'+(p.type==='peage'?'Badge péage':'Carte carburant')+'</span>'
+        + badge(p.statut) + '<span style="flex:1"></span>' + actions + '</div>';
+    }).join('');
+    box.innerHTML = '<div class="card p-3 mb-3"><div class="text-sm font-extrabold mb-2" style="color:var(--fp-primary)">Prestataires — gestion'
+      + (canManage ? '' : ' <span style="font-weight:500;color:var(--fp-muted)">(réservé à l\'administrateur)</span>')
+      + '</div><div style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>'
+      + '<div class="text-xs text-slate-400 mt-2"><b>Désactiver</b> = archiver (onglet &amp; colonne masqués, données conservées, réactivable). <b>Supprimer</b> = retirer la définition ; les <b>factures, transactions et n° déjà saisis ne sont PAS effacés</b>.</div></div>';
+    if (window.lucide) lucide.createIcons();
+  }
+  // Clics de gestion (statut / suppression) — gardés par les droits, non destructifs.
+  $('cb-presta-manage').addEventListener('click', async (e) => {
+    if (FP.canManageSociete && !FP.canManageSociete()) return;   // sécurité : ignore si pas le droit
+    const stBtn = e.target.closest('[data-presta-statut]');
+    if (stBtn) {
+      const id = stBtn.getAttribute('data-presta-statut'), to = stBtn.getAttribute('data-to');
+      if (FP.setPrestataireStatut) FP.setPrestataireStatut(id, to);
+      renderPrestaManage(); renderPrestaTabs(); renderCartes();
+      try { if (FP.applyNavSubmenus) FP.applyNavSubmenus(); } catch (_) {}
+      const cur = (new URLSearchParams(location.search).get('tab')) || '';
+      if (to === 'desactive' && cur === id) switchTab('cartes');   // on quittait un onglet qu'on vient de masquer
+      if (FP.toast) FP.toast(to === 'desactive' ? 'Prestataire désactivé (archivé)' : 'Prestataire réactivé');
+      return;
+    }
+    const rm = e.target.closest('[data-rm-presta]');
+    if (rm) {
+      const id = rm.getAttribute('data-rm-presta'); const p = FP.prestataireById(id);
+      if (!p) return;
+      if (_prestaHasData(p)) {
+        const ok = await FP.confirm('« ' + p.nom + ' » a des données (factures / transactions / n° de carte).\n\nIl est recommandé de le DÉSACTIVER (archiver) plutôt que de le supprimer.\n\nSupprimer retire seulement l\'onglet et la colonne — les factures, transactions et n° saisis sont CONSERVÉS. Continuer la suppression ?');
+        if (!ok) return;
+      } else {
+        if (!(await FP.confirm('Supprimer le prestataire « ' + p.nom + ' » ?'))) return;
+      }
+      FP.removePrestataire(id);
+      renderPrestaManage(); renderPrestaTabs(); renderCartes();
+      try { if (FP.applyNavSubmenus) FP.applyNavSubmenus(); } catch (_) {}
+      const cur = (new URLSearchParams(location.search).get('tab')) || '';
+      if (cur === id) switchTab('cartes');
+      if (FP.toast) FP.toast('Prestataire supprimé (données conservées)');
+      return;
+    }
+  });
   function renderCartes(){
     const box = $('cb-body'); if (!box) return;
+    try { renderPrestaManage(); } catch (e) {}
     if (_cbView === 'parcarte') { renderCartesParCarte(box); return; }   // vue carte-centrée (registre)
-    // Une COLONNE par prestataire (Total, Ulys + tout prestataire perso créé dans Contrôle).
-    const pres = (FP.prestataires ? FP.prestataires() : []);
+    // Une COLONNE par prestataire ACTIF (Total, Ulys + persos non désactivés). Un prestataire désactivé
+    // (archivé) n'a plus de colonne ici — ses n° déjà saisis restent en base, réaffichés s'il est réactivé.
+    const pres = (FP.prestatairesActifs ? FP.prestatairesActifs() : (FP.prestataires ? FP.prestataires() : []));
     let conds = (FP.conducteurs && FP.conducteurs.list) ? FP.conducteurs.list() : [];
     const q = _cbSearch.trim().toLowerCase();
     if (q) conds = conds.filter(c => FP.conducteurs.displayName(c).toLowerCase().includes(q));
