@@ -14966,7 +14966,13 @@ FP.lienConducteur = function (name, label, key) {
   // Règle GLOBALE : on affiche le PRÉNOM SEUL du conducteur (source unique FP.prenomAffiche) — sauf si
   // l'appelant impose un `label`. Le lien pointe toujours vers la fiche complète du conducteur.
   const txt = FP._escLien(label != null ? label : (FP.prenomAffiche ? FP.prenomAffiche(raw) : raw));
-  const excl = ['', '—', 'x', 'X', 'Siège', 'Dépôt', 'Navette', 'VENDU', 'Fenwick'];
+  // EMPLACEMENTS (lieu/état, PAS une personne) : « Dépôt », « Siège », « Navette ». Rendus NON cliquables
+  // — il n'existe pas de fiche à ouvrir — mais CLAIREMENT identifiés comme un emplacement (📍 + grisé +
+  // info-bulle) pour qu'on ne les confonde pas avec un conducteur « cassé ». Pour affecter une vraie
+  // personne, on utilise le ✏️ de la ligne (fiche véhicule / Leasing). Source unique → cohérent partout.
+  const LIEUX = ['Siège', 'Dépôt', 'Navette'];
+  if (LIEUX.includes(raw)) return `<span class="fp-emplacement" title="Emplacement — pas un conducteur. Utilisez ✏️ pour affecter une personne." style="color:var(--fp-muted,#94a3b8);font-style:italic;white-space:nowrap">📍 ${txt}</span>`;
+  const excl = ['', '—', 'x', 'X', 'VENDU', 'Fenwick'];
   if (excl.includes(raw)) return txt;
   // HOMONYMES : si l'appelant connaît la CLÉ unique du conducteur (ex. clé de l'affectation EN COURS),
   // on cible cette fiche précise — sinon repli sur le prénom (1er mot), qui peut tomber sur un homonyme.
