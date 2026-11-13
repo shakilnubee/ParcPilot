@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113c">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -151,6 +151,11 @@
   .sin-jtag { font-size: 10px; font-weight: 800; border-radius: 9999px; padding: 2px 8px; text-transform: uppercase; letter-spacing: .03em; background: var(--fp-soft, #f1f5f9); color: var(--fp-muted); }
   .sin-jstep.done .sin-jtag { background: rgba(4,120,87,.14); color: #047857; }
   .sin-jstep.cur .sin-jtag { background: rgba(249,115,22,.16); color: var(--fp-accent); }
+  .sin-jstep.ignored { opacity: .75; }
+  .sin-jstep.ignored .sin-jbadge { background: #94a3b8; }
+  .sin-jstep.ignored .sin-jh b { color: var(--fp-muted); text-decoration: line-through; text-decoration-color: #cbd5e1; }
+  .sin-jstep.ignored .sin-jtag { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
+  body.fp-dark .sin-jstep.ignored .sin-jtag { background: #1e293b; }
   .sin-jd { font-size: 12.5px; color: var(--fp-muted); margin-top: 3px; }
   .sin-jact { margin-top: 9px; display: flex; gap: 7px; flex-wrap: wrap; }
   .sin-detail .btn { font-size: 12.5px; font-weight: 700; border: 1px solid var(--fp-border); background: var(--fp-card, #fff); color: var(--fp-primary, #0f1e3d); border-radius: 9px; padding: 6px 11px; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
@@ -571,8 +576,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113b"></script>
-<script src="../assets/js/supabase-client.js?v=20261113b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113c"></script>
+<script src="../assets/js/supabase-client.js?v=20261113c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -588,12 +593,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113b"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261113b" defer></script>
+<script src="../assets/js/app.min.js?v=20261113c"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261113c" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1159,42 +1164,57 @@
           const opts = ['devis', 'facture'].map(k => `<option value="${k}" ${st === k ? 'selected' : ''}>${STAGE_LABELS[k]}</option>`).join('');
           return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px"><span style="font-weight:700;color:#334155">${FP.euroPrecis(l.montantTTC)}</span><span style="color:#94a3b8">=</span><select class="sin-stage" data-id="${escapeHtml(l.id)}" title="Un devis alimente le coût estimé ; une facture définitive alimente le coût facturé" style="font-size:11px;border:1px solid var(--fp-border);border-radius:6px;padding:3px 26px 3px 9px;font-weight:700;cursor:pointer">${opts}</select><span style="color:${st === 'devis' ? '#b45309' : '#047857'}">${st === 'devis' ? '→ devis (pas une facture définitive)' : '→ facture définitive'}</span></div>`;
         }).join('') + '</div>') : '';
+    // Étapes IGNORÉES (volontairement passées) — map par société, persistée (COLLECTION_KEYS), réversible.
+    const ignMap = (FP.settings.get().sinistreEtapeIgnore || {})[g.key] || {};
     const steps = [
-      { t: 'Courrier d’assurance', done: !!courrierUrl, cur: false,
+      { id: 'declaration', t: 'Courrier d’assurance', done: !!courrierUrl, cur: false,
         d: courrierUrl ? ('Reçu et lu.' + (dv.numeroDossier ? ' Dossier n° ' + escapeHtml(dv.numeroDossier) + '.' : '') + (respLbl ? ' Responsabilité : ' + escapeHtml(respLbl) + '.' : '')) : 'Dépose le courrier de l’assureur : l’IA le lit et te propose les infos à valider.',
         act: courrierUrl
           ? `<button type="button" class="btn sin-doc-view" data-url="${escapeHtml(courrierUrl)}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>`
           : `<button type="button" class="btn p sin-courrier-btn" data-key="${g.key}" data-immat="${immat}"><i data-lucide="mail-search" class="w-3.5 h-3.5"></i> Scanner le courrier</button>` },
-      { t: 'Chiffrage (devis / coût)', done: coutKnown, cur: false,
+      { id: 'chiffrage', t: 'Chiffrage (devis / coût)', done: coutKnown, cur: false,
         d: (facture ? ('Coût facturé : ' + eur(fin.coutFacture) + '.') : (fin.coutEstime != null ? ('Coût estimé : ' + eur(fin.coutEstime) + '.') : ((g.cost || 0) > 0 ? ('Coût estimé (devis) : ' + eur(g.cost) + '.') : 'Dépose un devis / une facture, ou saisis le coût estimé dans « Suivi financier ».'))) + stageCtrl,
         act: `<button type="button" class="btn p" data-sin-depose="${s.id}" data-key="${g.key}"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer un devis / une facture</button>` },
-      { t: 'Décision de l’assurance', done: pecConf || !!dv.resp || !!dv.decisionRecue, cur: false,
+      { id: 'decision', t: 'Décision de l’assurance', done: pecConf || !!dv.resp || !!dv.decisionRecue, cur: false,
         tag: (!pecConf && dv.decisionRecue) ? 'Décision reçue' : null,
         d: pecConf ? ('Prise en charge confirmée : ' + eur(fin.pecConfirmee) + '.')
           : (dv.decisionRecue ? ('Décision reçue — montants à confirmer.' + (fin.franchiseContractuelle != null ? ' Franchise contractuelle : ' + eur(fin.franchiseContractuelle) + ' (appliquée à confirmer).' : ''))
           : (dv.resp ? ('Responsabilité : ' + escapeHtml(respLbl) + '. Prise en charge à confirmer.')
           : 'Franchise appliquée · prise en charge annoncée puis confirmée — uniquement si le document le confirme.')),
         act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Compléter</button>` },
-      { t: 'Facture définitive', done: facture, cur: false,
+      { id: 'facture', t: 'Facture définitive', done: facture, cur: false,
         d: facture ? ('Facturé : ' + eur(fin.coutFacture) + '.') : 'Associe la facture (module Factures) — jamais recréée, jamais additionnée au devis.',
         act: '' },
-      { t: 'Remboursements', done: encaisse, cur: false,
+      { id: 'reglements', t: 'Remboursements', done: encaisse, cur: false,
         d: (fin.encaisse || 0) > 0 ? ('Encaissé : ' + eur(fin.encaisse) + '.' + (fin.resteARecevoir != null && fin.resteARecevoir > 0 ? ' Reste à recevoir : ' + eur(fin.resteARecevoir) + '.' : '')) : 'Enregistre les versements réellement reçus de l’assurance.',
         act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter un versement</button>` },
-      { t: 'Solde financier', done: solde, cur: false,
+      { id: 'solde', t: 'Solde financier', done: solde, cur: false,
         d: solde ? ('Dossier soldé.' + (fin.resteChargeDef != null ? ' Reste à charge définitif : ' + eur(fin.resteChargeDef) + '.' : '')) : 'Le reste à charge définitif s’affiche une fois le dossier financièrement soldé (≠ clôture administrative).',
         act: '' },
     ];
-    let curIdx = steps.findIndex(st => !st.done); if (curIdx === -1) curIdx = -1; else steps[curIdx].cur = true;
+    // Une étape ignorée n'est JAMAIS comptée comme accomplie et ne bloque PAS la progression (les infos
+    // et documents déjà saisis restent intacts : on ne touche qu'un drapeau d'affichage).
+    steps.forEach(st => { const ig = ignMap[st.id]; if (ig) { st.ignored = true; st.ig = ig; } });
+    // « En cours » = 1re étape ni faite ni ignorée → on peut avancer même si une étape antérieure est ignorée.
+    let curIdx = steps.findIndex(st => !st.done && !st.ignored); if (curIdx === -1) curIdx = -1; else steps[curIdx].cur = true;
+    const fmtD = d => (d && FP.dateNum) ? FP.dateNum(String(d).slice(0, 10)) : '';
     return steps.map((st, i) => {
-      const cls = st.done ? 'done' : (st.cur ? 'cur' : 'wait');
-      const tag = st.tag || (st.done ? 'Fait' : (st.cur ? 'À faire' : 'En attente'));
+      const cls = st.ignored ? 'ignored' : (st.done ? 'done' : (st.cur ? 'cur' : 'wait'));
+      const tag = st.ignored ? 'Ignorée' : (st.tag || (st.done ? 'Fait' : (st.cur ? 'À faire' : 'En attente')));
+      const badge = st.ignored ? '⊘' : (st.done ? '✓' : (i + 1));
+      const igLine = st.ignored
+        ? `<div class="sin-jd" style="font-style:italic;color:#94a3b8;margin-top:2px">Ignorée${st.ig && st.ig.date ? ' le ' + fmtD(st.ig.date) : ''}${st.ig && st.ig.motif ? ' — ' + escapeHtml(st.ig.motif) : ''}${st.ig && st.ig.by ? ' · par ' + escapeHtml(st.ig.by) : ''}. Les informations saisies sont conservées.</div>`
+        : '';
+      const actRow = st.ignored
+        ? `<div class="sin-jact"><button type="button" class="btn sin-step-react" data-key="${escapeHtml(g.key)}" data-step="${st.id}"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Réactiver l’étape</button></div>`
+        : `<div class="sin-jact">${(st.cur && st.act) ? st.act : ''}<button type="button" class="btn sin-step-ignore" data-key="${escapeHtml(g.key)}" data-step="${st.id}" title="Passer volontairement cette étape (réversible, sans perdre les infos déjà saisies)"><i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> Ignorer</button></div>`;
       return `<div class="sin-jstep ${cls}">
-        <div class="sin-jbadge">${st.done ? '✓' : (i + 1)}</div>
+        <div class="sin-jbadge">${badge}</div>
         <div class="sin-jmain">
           <div class="sin-jh"><b>${i + 1} · ${st.t}</b><span class="sin-jtag">${tag}</span></div>
           <div class="sin-jd">${st.d}</div>
-          ${(st.cur && st.act) ? `<div class="sin-jact">${st.act}</div>` : ''}
+          ${igLine}
+          ${actRow}
         </div>
       </div>`;
     }).join('');
@@ -2073,6 +2093,31 @@
     // Changer d'onglet DANS la fiche : on ne touche pas au défilement (l'utilisateur reste à sa hauteur).
     const dtab = e.target.closest('.sin-dtab, .sin-dtab2');
     if (dtab) { sinDetailTab = dtab.dataset.tab || 'fin'; renderTimeline(); return; }
+    // ── Ignorer / Réactiver une étape du parcours (réversible · infos & documents conservés · tracé daté) ──
+    // On ne touche QU'UN drapeau d'affichage (settings.sinistreEtapeIgnore[key][step]) : aucune donnée métier,
+    // aucun montant, aucun document n'est modifié. Persisté (COLLECTION_KEYS) → synchronisé multi-appareils.
+    const igBtn = e.target.closest('.sin-step-ignore');
+    if (igBtn) {
+      const key = igBtn.dataset.key, step = igBtn.dataset.step;
+      let motif = null; try { motif = window.prompt('Motif (facultatif) — pourquoi ignorer cette étape ?', ''); } catch (_) { motif = ''; }
+      if (motif === null) return;                                   // annulé → on ne change rien
+      const s = FP.settings.get(); s.sinistreEtapeIgnore = s.sinistreEtapeIgnore || {};
+      const m = s.sinistreEtapeIgnore[key] = s.sinistreEtapeIgnore[key] || {};
+      const by = (FP.profile && (FP.profile.name || FP.profile.email)) || '';
+      m[step] = { date: new Date().toISOString().slice(0, 10), motif: (motif || '').trim(), by: by };
+      FP.settings.save(s);
+      if (FP.toast) FP.toast('Étape ignorée — réversible, infos conservées.');
+      renderTimeline(); return;
+    }
+    const reBtn = e.target.closest('.sin-step-react');
+    if (reBtn) {
+      const key = reBtn.dataset.key, step = reBtn.dataset.step;
+      const s = FP.settings.get();
+      const m = (s.sinistreEtapeIgnore || {})[key];
+      if (m && m[step]) { delete m[step]; if (!Object.keys(m).length) delete s.sinistreEtapeIgnore[key]; FP.settings.save(s); }
+      if (FP.toast) FP.toast('Étape réactivée.');
+      renderTimeline(); return;
+    }
     // Maquette B : clic sur une ligne de la liste compacte → aperçu latéral (mise à jour légère, sans re-render global).
     const selRow = e.target.closest('[data-sel]');
     if (selRow) {
