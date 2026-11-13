@@ -5926,7 +5926,7 @@
     releve: vehFicheConfig,
     // Filtres de la fenêtre d'export (en plus de la vue affichée) — société / statut / carburant.
     filters: [
-      { k: 'societe', label: 'Société', type: 'select', opts: ['Toutes'].concat((function () { try { return (FP.settings.get().societes || []); } catch (e) { return []; } })()), apply: (v, val) => (v.societe || '') === val },
+      { k: 'societe', label: 'Société', type: 'select', opts: ['Toutes'].concat((function () { try { return (FP.getSocietes ? FP.getSocietes() : (FP.settings.get().societes || [])); } catch (e) { return []; } })()), apply: (v, val) => (v.societe || '') === val },
       { k: 'statut', label: 'Statut', type: 'select', opts: ['Tous', 'Actif', 'En entretien', 'À vendre', 'Vendu', 'Sinistre'], apply: (v, val) => (v.statut || '').toLowerCase() === val.toLowerCase() },
       { k: 'carburant', label: 'Carburant', type: 'select', opts: ['Tous', 'Électrique', 'Hybride', 'Hybride rechargeable', 'Essence', 'Diesel', 'GPL'], apply: (v, val) => (v.carburant || '').toLowerCase() === val.toLowerCase() },
     ],
