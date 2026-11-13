@@ -735,7 +735,7 @@
         <!-- Multi-entités : filtres entité / loueur / mode de détention / pays. Chacun est MASQUÉ
              automatiquement s'il n'y a qu'une seule valeur (barre épurée pour les flottes simples). -->
         <select id="filter-entite" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par entité de rattachement"><option value="all">Toutes entités</option></select>
-        <select id="filter-loueur" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par loueur"><option value="all">Tous loueurs</option></select>
+        <select id="filter-proprio" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par propriétaire juridique (champ de la fiche véhicule)"><option value="all">Tous propriétaires juridiques</option></select>
         <select id="filter-detention" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par mode de détention"><option value="all">Tous modes de détention</option></select>
         <select id="filter-pays" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par pays d'immatriculation"><option value="all">Tous pays</option></select>
 
@@ -1248,7 +1248,7 @@
     categorie: 'all',
     groupe: 'all',
     entite: 'all',       // multi-entités : entité de rattachement
-    loueur: 'all',       // loueur (FP.loueurOf)
+    proprio: 'all',      // propriétaire juridique (champ v.proprietaire, jamais déduit du loueur)
     detention: 'all',    // mode de détention (v.modeDetention)
     pays: 'all',         // pays d'immatriculation
     editingId: null,
@@ -2962,7 +2962,8 @@
       if (state.entite !== 'all' && (v.entiteRattachement || '') !== state.entite) return false;
       if (state.detention !== 'all' && (v.modeDetention || '') !== state.detention) return false;
       if (state.pays !== 'all' && (v.paysImmat || '') !== state.pays) return false;
-      if (state.loueur !== 'all') { let lo = ''; try { lo = (FP.loueurOf ? (FP.loueurOf(v) || '') : ''); } catch (e) {} if (lo !== state.loueur) return false; }
+      // Propriétaire juridique = champ v.proprietaire EXACT (jamais le loueur/bailleur). '__none__' = non renseigné.
+      if (state.proprio !== 'all') { const pr = (v.proprietaire || '').trim(); if (state.proprio === '__none__') { if (pr) return false; } else if (pr !== state.proprio) return false; }
       if (q && !(FP.norm(`${v.immat} ${v.marque} ${v.modele} ${v.chauffeur}`).includes(q))) return false;
       return true;
     });
@@ -5258,29 +5259,39 @@
     _fillFilter('filter-entite', 'entite', 'Toutes entités', vs.map(v => v.entiteRattachement));
     _fillFilter('filter-detention', 'detention', 'Tous modes de détention', vs.map(v => v.modeDetention));
     _fillFilter('filter-pays', 'pays', "Tous pays", vs.map(v => v.paysImmat));
-    // ⚠️ LOUEUR ≠ SOCIÉTÉ : on ne liste QUE les loueurs de véhicules réellement EN LEASING (FP.estLeasing,
-    //    helper canonique). Sinon FP.loueurOf retombe sur le champ « propriétaire » brut (= la SOCIÉTÉ pour
-    //    un véhicule ACHETÉ : TJMAX, PROJECT X PARIS RETAIL, PXPR…) et ces sociétés polluaient la liste des
-    //    loueurs. Dynamique (aucun nom codé en dur) → marche pour tout futur client. Les véhicules achetés
-    //    n'ont pas de loueur et n'apparaissent donc plus ici.
-    let loueurs = []; try { loueurs = vs.filter(v => { try { return FP.estLeasing ? FP.estLeasing(v) : false; } catch (e) { return false; } }).map(v => { try { return FP.loueurOf ? (FP.loueurOf(v) || '') : ''; } catch (e) { return ''; } }); } catch (e) {}
-    _fillFilter('filter-loueur', 'loueur', 'Tous loueurs', loueurs);
+    // ⚠️ PROPRIÉTAIRE JURIDIQUE = champ v.proprietaire RÉELLEMENT enregistré (carte grise C.1) — JAMAIS déduit
+    //    du loueur / bailleur / organisme de financement (BPCE, TEMSYS…). Valeurs DISTINCTES telles que saisies
+    //    + option « Non renseigné » si des véhicules n'ont pas de propriétaire. Dynamique, aucun nom codé en dur.
+    (function () {
+      const sel = $('filter-proprio'); if (!sel) return;
+      const uniq = [...new Set(vs.map(v => (v.proprietaire || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+      const hasVide = vs.some(v => !(v.proprietaire || '').trim());
+      if (uniq.length + (hasVide ? 1 : 0) < 2) {   // rien à filtrer → masqué + neutralisé (barre épurée)
+        sel.style.display = 'none'; if (state.proprio !== 'all') state.proprio = 'all';
+        sel.innerHTML = '<option value="all">Tous propriétaires juridiques</option>'; return;
+      }
+      const cur = (state.proprio && (state.proprio === '__none__' ? hasVide : uniq.includes(state.proprio))) ? state.proprio : 'all';
+      sel.innerHTML = '<option value="all">Tous propriétaires juridiques</option>'
+        + uniq.map(x => `<option value="${FP.esc(x)}"${x === cur ? ' selected' : ''}>${FP.esc(x)}</option>`).join('')
+        + (hasVide ? `<option value="__none__"${cur === '__none__' ? ' selected' : ''}>Non renseigné</option>` : '');
+      sel.value = cur; state.proprio = cur; sel.style.display = '';
+    })();
   }
   populateEntiteFilters();
   document.addEventListener('fp:data-ready', populateEntiteFilters);
   $('filter-entite').addEventListener('change', (e) => { state.entite = e.target.value; renderTable(); });
-  $('filter-loueur').addEventListener('change', (e) => { state.loueur = e.target.value; renderTable(); });
+  $('filter-proprio').addEventListener('change', (e) => { state.proprio = e.target.value; renderTable(); });
   $('filter-detention').addEventListener('change', (e) => { state.detention = e.target.value; renderTable(); });
   $('filter-pays').addEventListener('change', (e) => { state.pays = e.target.value; renderTable(); });
   // Bouton « Réinitialiser » de la barre de filtres (recherche + statut + catégorie).
   function resetVehFilters() {
     state.search = ''; state.statut = 'all'; state.categorie = 'all';
     state.groupe = 'all';                    // revient à l'onglet « Tous »
-    state.entite = 'all'; state.loueur = 'all'; state.detention = 'all'; state.pays = 'all';
+    state.entite = 'all'; state.proprio = 'all'; state.detention = 'all'; state.pays = 'all';
     state.sortKey = null; state.sortDir = 'asc'; // et annule le tri par colonne
     if ($('search')) $('search').value = '';
     if ($('filter-categorie')) $('filter-categorie').value = 'all';
-    ['filter-entite', 'filter-loueur', 'filter-detention', 'filter-pays'].forEach(id => { const s = $(id); if (s) s.value = 'all'; });
+    ['filter-entite', 'filter-proprio', 'filter-detention', 'filter-pays'].forEach(id => { const s = $(id); if (s) s.value = 'all'; });
     document.querySelectorAll('#filters-statut .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.value === 'all'));
     renderTabBar(); renderTable();
   }
