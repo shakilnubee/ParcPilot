@@ -80,7 +80,7 @@ function _fpAdHocOverlays() {
     const vis = (el) => el && !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
     // Exclus : les couches DÉJÀ reconnues par les sélecteurs standards + la fiche elle-même + backdrops connus.
     const excl = '.modal-backdrop, [id$="-modal"], [id$="-backdrop"], .fp-dlg-backdrop, .fp-menu, .popover, .fp-popover, .drawer, .drawer-backdrop, .fp-sidebar-backdrop';
-    return Array.from(document.body.children).filter((el) => {
+    const list = Array.from(document.body.children).filter((el) => {
       if (!(el instanceof HTMLElement)) return false;
       if (el.matches(excl)) return false;
       if (!vis(el)) return false;
@@ -98,6 +98,18 @@ function _fpAdHocOverlays() {
       const isDialog = el.matches('[role="dialog"],[aria-modal="true"]') || !!el.querySelector('[role="dialog"],[aria-modal="true"]');
       const hasClose = !!el.querySelector(FP_MODAL_CLOSE_SEL);
       return isDialog || (z >= 20 && hasClose);
+    });
+    // ⚠️ TRI PAR Z-INDEX EFFECTIF (ascendant → la PLUS HAUTE en dernier). Les appelants prennent
+    // `list[list.length-1]` comme « couche du dessus » (garde Échap, clic-dehors). Avant, l'ordre était
+    // l'ordre d'INSERTION DOM → quand deux modales ad-hoc étaient empilées (ex. aperçu PDF z=86 PAR-DESSUS
+    // le centre d'export z=82), Échap pouvait fermer la mauvaise (celle insérée en dernier, pas la plus
+    // haute). Le tri par z-index rend la fermeture « une étape en arrière » correcte PARTOUT (véhicules,
+    // sinistres, entretiens…). Départage à z-index égal : l'ordre DOM (dernière insérée = au-dessus).
+    return list.sort((a, b) => {
+      const za = parseInt(getComputedStyle(a).zIndex, 10) || 0;
+      const zb = parseInt(getComputedStyle(b).zIndex, 10) || 0;
+      if (za !== zb) return za - zb;
+      return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
     });
   } catch (e) { return []; }
 }
@@ -20632,7 +20644,12 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     // --- Modale 2 : aperçu PDF plein écran ---
     const pv = document.createElement('div');
     pv.id = 'fp-fiche-prev';
-    pv.style.cssText = 'display:none;position:fixed;inset:0;z-index:81;background:rgba(15,23,42,.6);align-items:center;justify-content:center;padding:16px';
+    // ⚠️ z-index : l'aperçu PDF est une fenêtre SECONDAIRE qui peut s'ouvrir par-dessus la fiche « colonnes »
+    // (#fp-fiche-ov, z=80) OU le centre d'export (#fp-xc-ov, z=82, qui RESTE ouvert derrière). Il doit donc
+    // passer AU-DESSUS des deux (bug vécu : aperçu à 81 → sous le centre d'export à 82 → masqué). 86 = au-dessus
+    // des fenêtres primaires, sous les couches hautes (90/99). _fpAdHocOverlays trie par z-index → Échap/clic
+    // dehors visent bien la couche du dessus (l'aperçu d'abord). Rester < 1000 (famille ad-hoc, garde Échap).
+    pv.style.cssText = 'display:none;position:fixed;inset:0;z-index:86;background:rgba(15,23,42,.6);align-items:center;justify-content:center;padding:16px';
     pv.innerHTML = '<div style="background:#fff;border-radius:16px;width:96vw;max-width:1400px;height:94vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(15,23,42,.4);overflow:hidden">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid #eef2f7">'
       + '<div style="font-weight:800;color:#0f172a;font-size:15px">Aperçu <span id="fp-prev-sub" style="color:#64748b;font-weight:500;font-size:13px"></span></div>'
@@ -20647,7 +20664,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const pClose = () => { pv.style.display = 'none'; const f = pv.querySelector('#fp-prev-frame'); try { if (f.src && f.src.indexOf('blob:') === 0) URL.revokeObjectURL(f.src); } catch (e) {} f.src = 'about:blank'; };
     pv.querySelector('#fp-prev-x').onclick = pClose;
     pv.addEventListener('click', e => { if (e.target === pv) pClose(); });
-    pv.querySelector('#fp-prev-back').onclick = () => { pClose(); modal.style.display = 'flex'; };
+    // « ← Modifier les colonnes » : revient à l'OUVREUR. Depuis le centre d'export (resté ouvert derrière) →
+    // on ferme juste l'aperçu et le centre réapparaît (avec son sélecteur de colonnes). Depuis la fiche
+    // classique → on ré-affiche la fiche « colonnes ». Jamais la fiche par-dessus le centre d'export.
+    pv.querySelector('#fp-prev-back').onclick = () => { const fromXc = pv._fromXc; pClose(); if (!fromXc) modal.style.display = 'flex'; };
     pv.querySelector('#fp-prev-dl').onclick = () => { if (curDoc) curDoc.save(curName); };
     pv.querySelector('#fp-prev-print').onclick = () => { const f = pv.querySelector('#fp-prev-frame'); try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { if (f.src) window.open(f.src); } };
     // ⚠️ Échap ferme la couche DU DESSUS (aperçu d'abord, sinon la modale de choix des colonnes), pas la
@@ -20827,6 +20847,11 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const url = curDoc.output('bloburl') + '#toolbar=1&navpanes=0&view=FitH';
     prev.querySelector('#fp-prev-frame').src = url;
     prev.querySelector('#fp-prev-sub').textContent = '· ' + c.rows.length + ' ligne(s)';
+    // Qui a ouvert l'aperçu ? Si le centre d'export (#fp-xc-ov) est visible, c'est LUI l'ouvreur (il reste
+    // ouvert derrière l'aperçu). Sinon = la fiche « colonnes » classique. Sert au bouton « ← Modifier les
+    // colonnes » et à la restitution du focus : on ne ré-affiche JAMAIS la vieille fiche colonnes par-dessus
+    // le centre d'export (elle serait derrière + serait la mauvaise fenêtre).
+    try { const xc = document.getElementById('fp-xc-ov'); prev._fromXc = !!(xc && getComputedStyle(xc).display !== 'none'); } catch (e) { prev._fromXc = false; }
     modal.style.display = 'none';
     prev.style.display = 'flex';
   }
