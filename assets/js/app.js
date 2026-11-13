@@ -5163,6 +5163,38 @@ FP.condDuVehALaDate = (plaque, dtx) => {
   } catch (e) { return null; }
 };
 
+// ── DÉSIGNATION D'AMENDE : conducteur affecté au véhicule À LA DATE DE L'INFRACTION ──────────────
+// Source unique pour désigner le conducteur d'une amende (et, à terme, d'un sinistre) à la BONNE date,
+// à partir de l'historique d'affectation daté (FP.affectations) — JAMAIS le chauffeur actuel par défaut,
+// JAMAIS un rapprochement par prénom (on garde la clé unique FP.condGroupKey). Renvoie :
+//   { statut:'certain'|'ambigu'|'inconnu', key, nom }
+//   • 'certain' : une SEULE clé conducteur couvre la date → préremplissage sûr (nom = libellé de la période).
+//   • 'ambigu'  : plusieurs conducteurs distincts couvrent la date (chevauchement / changement le jour même)
+//                 → NE PAS choisir, demander une vérification manuelle.
+//   • 'inconnu' : aucune période ne couvre la date (historique absent/incomplet, ou plaque/date inconnue)
+//                 → « conducteur à vérifier », ne rien deviner.
+// Un véhicule inchangé depuis l'infraction renvoie naturellement 'certain' sur le conducteur courant
+// (sa période ouverte couvre la date) — ce n'est donc jamais « le conducteur actuel par défaut », mais
+// bien celui qui conduisait ce jour-là.
+FP.conducteurHistoriqueVeh = (immat, date) => {
+  const res = { statut: 'inconnu', key: null, nom: '' };
+  try {
+    if (!immat || !date || !FP.affectations || !FP.affectations.forVeh) return res;
+    const veh = FP.vehByImmat ? FP.vehByImmat(immat) : null;
+    if (!veh || veh.id == null) return res;
+    const d = String(date).slice(0, 10);
+    const periods = (FP.affectations.forVeh(veh.id) || []).filter(p => p && p.conducteur &&
+      (!p.debut || String(p.debut).slice(0, 10) <= d) && (!p.fin || d <= String(p.fin).slice(0, 10)));
+    if (!periods.length) return res;
+    const byKey = {};
+    periods.forEach(p => { const k = FP.condGroupKey ? FP.condGroupKey(p.conducteur) : String(p.conducteur || '').trim(); if (k && !byKey[k]) byKey[k] = p; });
+    const keys = Object.keys(byKey);
+    if (keys.length === 1) { res.statut = 'certain'; res.key = keys[0]; res.nom = String(byKey[keys[0]].conducteur || '').trim(); }
+    else if (keys.length > 1) { res.statut = 'ambigu'; }
+    return res;
+  } catch (e) { return res; }
+};
+
 // ⚠️ SOURCE UNIQUE — un n° de carte/badge est-il un badge PERSONNEL (enregistré sur la fiche PROPRE du
 // conducteur : condBadgeUlys / condCarteTotal) ? Consigne explicite utilisateur : un badge Ulys/carte
 // carburant appartient à la PERSONNE et la SUIT quand elle change de voiture (ex. « Ahmed » garde son

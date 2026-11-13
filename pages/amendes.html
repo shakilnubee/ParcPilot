@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113k">
 <style>
   .kpi-link { cursor: pointer; transition: transform .12s, box-shadow .12s; }
   .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15,23,42,.10); }
@@ -468,6 +468,7 @@
       <div>
         <div class="field-label">Conducteur *</div>
         <div class="ac-wrap"><input class="field-input" id="am-prenom" placeholder="Prénom Nom — choisir ou créer" required autocomplete="off" /></div>
+        <div id="am-cond-hint" class="text-xs mt-1"></div>
       </div>
       <div>
         <div class="field-label">Véhicule concerné (plaque)</div>
@@ -538,8 +539,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113j"></script>
-<script src="../assets/js/supabase-client.js?v=20261113j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113k"></script>
+<script src="../assets/js/supabase-client.js?v=20261113k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -555,12 +556,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113j"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261113j" defer></script>
+<script src="../assets/js/app.min.js?v=20261113k"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261113k" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2426,9 +2427,10 @@
     const motifsList = [...new Set(data.amendes.map(a => a.motif).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
     // Conducteur : choisir dans la liste OU créer en tapant (règle projet). Repli sur l'ancien
     // autocomplete si le helper global n'est pas encore chargé.
-    if (window.FP && FP.conducteurPicker) FP.conducteurPicker($('am-prenom'), { onPick: () => { try { majAmVehChoix(); } catch (e) {} } });
+    if (window.FP && FP.conducteurPicker) FP.conducteurPicker($('am-prenom'), { onPick: () => { try { if ($('am-cond-hint')) $('am-cond-hint').textContent = ''; majAmVehChoix(); } catch (e) {} } });
     else attachAutocomplete($('am-prenom'), prenoms);
     attachAutocomplete($('am-motif'), motifsList);
+    if ($('am-cond-hint')) $('am-cond-hint').textContent = '';
     $('am-prenom').value = ''; $('am-motif').value = ''; $('am-montant').value = '';
     $('am-points').value = '0'; $('am-date').value = new Date().toISOString().slice(0, 10);
     $('am-statut').value = 'à payer'; $('am-avis').value = '';
@@ -2915,7 +2917,27 @@
         // La plaque LUE SUR L'AVIS désigne la voiture réellement verbalisée → on la stocke (prioritaire,
         // même si le conducteur a plusieurs véhicules). On garde le format fiche s'il existe.
         if ($('am-immat') && !$('am-immat').value) { $('am-immat').value = (veh && veh.immat) ? veh.immat : parsed.immat; filled.push('plaque'); }
-        if (veh && veh.chauffeur && !$('am-prenom').value) { $('am-prenom').value = veh.chauffeur; filled.push('conducteur (via la plaque)'); }
+        // Conducteur = celui affecté au véhicule À LA DATE DE L'INFRACTION (historique daté), JAMAIS le
+        // chauffeur actuel par défaut. On ne préremplit que si l'affectation historique est CERTAINE ;
+        // sinon (ambigu / inconnu / date manquante) on laisse vide + « conducteur à vérifier » (on ne devine
+        // pas). Une saisie/validation manuelle déjà présente n'est jamais écrasée.
+        const hintEl = $('am-cond-hint');
+        if (!$('am-prenom').value) {
+          const plaqueDes = (veh && veh.immat) ? veh.immat : parsed.immat;
+          const hist = (window.FP && FP.conducteurHistoriqueVeh) ? FP.conducteurHistoriqueVeh(plaqueDes, parsed.date) : { statut: 'inconnu' };
+          if (parsed.date && hist.statut === 'certain' && hist.nom) {
+            $('am-prenom').value = hist.nom;
+            filled.push('conducteur (affecté au ' + FP.date(parsed.date) + ')');
+            if (hintEl) { hintEl.style.color = '#15803d'; hintEl.textContent = '✓ Conducteur affecté au ' + FP.date(parsed.date) + ' (vérifie puis confirme).'; }
+          } else if (hintEl) {
+            hintEl.style.color = '#B45309';
+            hintEl.textContent = !parsed.date
+              ? '⚠️ Date d\'infraction non lue — conducteur à vérifier (saisis-le manuellement).'
+              : (hist.statut === 'ambigu'
+                ? '⚠️ Plusieurs conducteurs affectés au ' + FP.date(parsed.date) + ' — conducteur à vérifier.'
+                : '⚠️ Aucune affectation connue au ' + FP.date(parsed.date) + ' — conducteur à vérifier.');
+          }
+        }
       }
       if (parsed.motif      && !$('am-motif').value)   { $('am-motif').value   = parsed.motif;      filled.push('motif'); }
       if (parsed.points != null && !_pointsTouched && !$('am-etrangere').checked) { $('am-points').value = parsed.points; filled.push('points retirés'); }
@@ -3042,7 +3064,7 @@
   });
   $('am-etrangere').addEventListener('change', refreshAmAnomalies);
   // Véhicule concerné : quand on (ou l'IA) renseigne le conducteur → proposer son/ses véhicule(s).
-  if ($('am-prenom')) { $('am-prenom').addEventListener('change', majAmVehChoix); $('am-prenom').addEventListener('blur', majAmVehChoix); }
+  if ($('am-prenom')) { const _clrHint = () => { if ($('am-cond-hint')) $('am-cond-hint').textContent = ''; }; $('am-prenom').addEventListener('input', _clrHint); $('am-prenom').addEventListener('change', majAmVehChoix); $('am-prenom').addEventListener('blur', majAmVehChoix); }
   if ($('am-immat')) $('am-immat').addEventListener('input', () => { const b = $('am-veh-choix'); if (b && String($('am-immat').value || '').trim()) b.innerHTML = ''; });
   // Clic sur une puce « choisir le véhicule » (conducteur à 2+ voitures).
   if ($('am-veh-choix')) $('am-veh-choix').addEventListener('click', (e) => { const b = e.target.closest('[data-am-veh]'); if (!b) return; $('am-immat').value = b.getAttribute('data-am-veh') || ''; $('am-veh-choix').innerHTML = ''; });
