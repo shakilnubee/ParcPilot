@@ -8108,7 +8108,7 @@ FP.settings = {
       // — Historique & données par VÉHICULE :
       'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef', 'revSuivi',
       // — Données par SINISTRE :
-      'sinistreAssurance', 'sinistreDocSub', 'sinistreSous', 'sinistreEtapeIgnore',
+      'sinistreAssurance', 'sinistreDocSub', 'sinistreSous', 'sinistreEtapeIgnore', 'sinistreDocCat',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
       'localeaseContrats', 'prestatairesPerso',
       // — Accusés de lecture des alertes « ✓ Vu » (map muteKey→signature) : sans ça, un enregistrement

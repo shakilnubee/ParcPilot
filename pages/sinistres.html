@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113e">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -576,8 +576,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113d"></script>
-<script src="../assets/js/supabase-client.js?v=20261113d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113e"></script>
+<script src="../assets/js/supabase-client.js?v=20261113e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -593,12 +593,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261113d" defer></script>
+<script src="../assets/js/app.min.js?v=20261113e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261113e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1035,9 +1035,32 @@
     if (list.length > 1) o[kUrls] = list; else delete o[kUrls];   // 1 seul doc → champ unique (compat)
     if (list.length) o[kUrl] = list[0]; else delete o[kUrl];      // champ unique = 1er doc (lu par checklist/PDF)
   }
+  // ── Catégories de documents (§6) : [code, libellé, étape rattachée]. Classement non destructif — une
+  // ÉTIQUETTE par document (settings.sinistreDocCat[key][url]), proposée par défaut selon le type déposé
+  // (courrier/constat) et CORRIGEABLE manuellement. Le document n'est jamais dupliqué : c'est une métadonnée.
+  const SIN_DOC_CATS = [
+    ['declaration-constat', 'Déclaration / constat', 'Déclaration'],
+    ['photos', 'Photos du sinistre', 'Déclaration'],
+    ['ar-assureur', 'Accusé de réception assureur', 'Déclaration'],
+    ['devis', 'Devis de réparation', 'Chiffrage'],
+    ['expertise', 'Rapport d’expertise', 'Chiffrage'],
+    ['courrier-pec', 'Courrier de prise en charge', 'Décision'],
+    ['ordre-reparation', 'Ordre de réparation', 'Facture'],
+    ['facture', 'Facture définitive', 'Facture'],
+    ['justificatif-reglement', 'Justificatif de règlement', 'Règlements'],
+    ['courrier-cloture', 'Courrier de clôture', 'Clôture'],
+  ];
+  const SIN_DOC_CAT_LABEL = Object.fromEntries(SIN_DOC_CATS.map(c => [c[0], c[1]]));
+  const SIN_DOC_CAT_STEP = Object.fromEntries(SIN_DOC_CATS.map(c => [c[0], c[2]]));
+  // Catégorie d'un document : étiquette enregistrée (prioritaire) sinon proposition par défaut selon le type.
+  function sinDocCatOf(key, url, kind) {
+    try { const m = (FP.settings.get().sinistreDocCat || {})[key]; if (m && m[url]) return m[url]; } catch (e) {}
+    return kind === 'constat' ? 'declaration-constat' : 'courrier-pec';   // proposition par défaut (modifiable)
+  }
   function sinDocRowHTML(g, s, kind, lbl, url, withRescan, big) {
     const safe = escapeHtml(url || ''), immat = escapeHtml(s.vehiculeImmat || '');
     if (url) {
+      const cat = sinDocCatOf(g.key, url, kind);                        // catégorie (étiquette proposée, modifiable)
       const isImg = /\.(png|jpe?g|gif|webp|bmp|heic|heif)(\?|$)/i.test(url);
       // Vignette (petite) ou aperçu (grand) : la vraie source est une URL SIGNÉE (bucket privé), injectée
       // après rendu par sinHydrateThumbs. Cliquer l'image = « Voir » (grand format) via la classe sin-doc-view.
@@ -1048,6 +1071,13 @@
             <span style="font-weight:700;color:#334155;margin-right:auto"><i data-lucide="file-check-2" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px;color:#059669"></i> ${lbl}</span>
             <button type="button" class="sin-doc-view" data-url="${safe}" style="${SIN_DOC_ACT}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
             <button type="button" class="sin-doc-menu" title="Autres actions (télécharger, remplacer, supprimer…)" data-key="${g.key}" data-kind="${kind}" data-url="${safe}" data-name="${escapeHtml(kind + '-' + (s.vehiculeImmat || ''))}" data-immat="${immat}" data-sindate="${escapeHtml(String(s.date || '').slice(0, 10))}" data-rescan="${withRescan ? '1' : '0'}" data-lbl="${escapeHtml(lbl)}" style="${SIN_DOC_ACT};padding:3px 6px"><i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i></button>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap" style="margin-top:4px;font-size:11px">
+            <span style="color:#94a3b8">Catégorie&nbsp;:</span>
+            <select class="sin-doc-cat" data-key="${g.key}" data-url="${safe}" title="Catégorie proposée automatiquement — corrige-la si besoin (le document n'est pas dupliqué)" style="font-size:11px;border:1px solid var(--fp-border);border-radius:6px;padding:2px 20px 2px 7px;cursor:pointer;color:#334155;font-weight:600">
+              ${SIN_DOC_CATS.map(c => `<option value="${c[0]}" ${cat === c[0] ? 'selected' : ''}>${c[1]}</option>`).join('')}
+            </select>
+            <span style="color:#cbd5e1">→ ${escapeHtml(SIN_DOC_CAT_STEP[cat] || '')}</span>
           </div>
           ${big && thumb ? `<div style="margin-top:8px">${thumb}</div>` : ''}
         </div>`;
@@ -1712,6 +1742,17 @@
 
   // Changements (statut de remboursement, stade devis/facture)
   $('timeline').addEventListener('change', (e) => {
+    // Catégorie d'un document (étiquette, non destructive) : settings.sinistreDocCat[key][url] = code.
+    const catSel = e.target.closest('.sin-doc-cat');
+    if (catSel) {
+      const key = catSel.dataset.key, url = catSel.dataset.url;
+      const s = FP.settings.get(); s.sinistreDocCat = s.sinistreDocCat || {};
+      const m = s.sinistreDocCat[key] = s.sinistreDocCat[key] || {};
+      m[url] = catSel.value;
+      FP.settings.save(s);
+      if (FP.toast) FP.toast('✓ Catégorie : ' + (SIN_DOC_CAT_LABEL[catSel.value] || catSel.value));
+      renderTimeline(); return;
+    }
     const sel = e.target.closest('.sin-stat');
     if (sel) {
       const s = FP.settings.get(); s.sinistreStatut = s.sinistreStatut || {};
