@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113g">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -315,8 +315,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113f"></script>
-<script src="../assets/js/supabase-client.js?v=20261113f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113g"></script>
+<script src="../assets/js/supabase-client.js?v=20261113g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -332,11 +332,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113f"></script>
+<script src="../assets/js/app.min.js?v=20261113g"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -369,7 +369,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261113f';
+        s.src = '../assets/js/fleet-views.min.js?v=20261113g';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -1724,10 +1724,16 @@
       if (p.builtin) {
         actions = '<span style="font-size:11px;font-weight:700;color:#334155;background:#e2e8f0;border-radius:9999px;padding:2px 9px" title="Prestataire intégré, permanent">Intégré</span>';
       } else if (canManage) {
-        actions = (p.statut==='desactive'
+        // Prestataire perso AVEC données rattachées (factures / cartes / conducteurs) → « permanent de fait » :
+        // on masque « Supprimer » (évite toute perte d'historique) et on garde « Désactiver » (archivage
+        // réversible). Générique : vaut pour le prestataire de CHAQUE client (DKV, Shell, AS24…).
+        const hasData = _prestaHasData(p);   // source unique (mêmes données que le garde de suppression)
+        const desact = (p.statut==='desactive'
             ? '<button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px" data-presta-statut="'+esc(p.id)+'" data-to="actif">Réactiver</button>'
-            : '<button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px" data-presta-statut="'+esc(p.id)+'" data-to="desactive">Désactiver</button>')
-          + ' <button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px;color:#B91C1C;border-color:#FCA5A5" data-rm-presta="'+esc(p.id)+'"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>';
+            : '<button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px" data-presta-statut="'+esc(p.id)+'" data-to="desactive">Désactiver</button>');
+        actions = desact + (hasData
+          ? ' <span style="font-size:11px;font-weight:700;color:#334155;background:#e2e8f0;border-radius:9999px;padding:2px 9px" title="Des données (factures, cartes, conducteurs rattachés) existent → suppression bloquée pour ne rien perdre. Utilise « Désactiver » pour archiver.">Permanent · données rattachées</span>'
+          : ' <button type="button" class="btn btn-outline" style="padding:3px 10px;font-size:12px;color:#B91C1C;border-color:#FCA5A5" data-rm-presta="'+esc(p.id)+'"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>');
       } else {
         actions = '<span style="font-size:12px;color:var(--fp-muted)">lecture seule</span>';
       }
@@ -1739,7 +1745,7 @@
     box.innerHTML = '<div class="card p-3 mb-3"><div class="text-sm font-extrabold mb-2" style="color:var(--fp-primary)">Prestataires'
       + (canManage ? '' : ' <span style="font-weight:500;color:var(--fp-muted)">(réservé à l\'administrateur)</span>')
       + '</div><div style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>'
-      + '<div class="text-xs text-slate-400 mt-2">Les prestataires <b>intégrés</b> (TotalEnergies, Ulys) sont permanents. Pour les autres : <b>Désactiver</b> = archiver (onglet &amp; colonne masqués, données conservées, réactivable) ; <b>Supprimer</b> = retirer la définition ; les <b>factures, transactions et n° déjà saisis ne sont PAS effacés</b>.</div></div>';
+      + '<div class="text-xs text-slate-400 mt-2">Les prestataires <b>intégrés</b> (TotalEnergies, Ulys) sont permanents. Un prestataire qui a des <b>données rattachées</b> (factures, cartes, conducteurs) devient <b>permanent de fait</b> : « Supprimer » est masqué pour ne rien perdre — utilise <b>Désactiver</b> (archiver : onglet &amp; colonne masqués, données conservées, réactivable). « Supprimer » ne reste proposé que pour un prestataire <b>sans aucune donnée</b> (et n\'efface jamais de factures/transactions/n°).</div></div>';
     if (window.lucide) lucide.createIcons();
   }
   // Clics de gestion (statut / suppression) — gardés par les droits, non destructifs.

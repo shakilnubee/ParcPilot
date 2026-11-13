@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113g">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -789,6 +789,8 @@
         <div class="man-zone">Sous-onglet « 💳 Cartes &amp; badges »</div>
         <div class="man-item">Gère au même endroit les <b>n° de carte carburant</b> et <b>badge de péage</b> de <b>tous les conducteurs</b> (avec leur(s) véhicule(s), cliquables), <b>une colonne par prestataire</b>. C'est la <b>même donnée</b> que la fiche véhicule (la « maison » du n°) — modifiable <b>ici</b> et sur la <b>fiche véhicule</b>, affichée en <b>lecture seule</b> sur la fiche conducteur, le tout <b>synchronisé</b> : changer un n° ici le change <b>partout</b>. Ces numéros <b>rattachent la conso au bon conducteur</b> par numéro — c'est la clé pour que les alertes (dont « conso pendant un congé ») tombent sur la bonne personne.</div>
         <div class="man-item">La case <b>« Avec un n° attribué seulement »</b> filtre la liste pour ne montrer que les conducteurs qui ont <b>déjà au moins un n°</b> de carte ou de badge renseigné (pratique pour vérifier d'un coup d'œil qui est bien rattaché, sans dérouler toute la flotte). Décoche-la pour revoir tout le monde.</div>
+        <div class="man-item">📇 <b>« Choisir une carte » pour TOUS les prestataires</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le sélecteur recherchable « Choisir une carte / un badge » (au lieu de recopier le numéro) fonctionne désormais pour <b>tous les prestataires</b>, pas seulement TotalEnergies : <b>DKV</b>, <b>Shell</b>, <b>AS24</b>, Ulys… Sous chaque prestataire (fiche conducteur et <b>Cartes &amp; badges</b>), clique <b>« 📇 Choisir une carte… »</b> : la liste propose les numéros <b>déjà vus dans les relevés</b> de CE prestataire, avec leur statut (disponible / attribuée). Sélection = rattachement sans ressaisie ; si la carte est déjà à quelqu'un d'autre, l'assistant de <b>réattribution</b> s'ouvre (date réelle, anciennes dépenses conservées). La saisie manuelle reste en repli.</div>
+        <div class="man-item">🔒 <b>Prestataire « permanent » dès qu'il a des données</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — TotalEnergies et Ulys sont des prestataires <b>intégrés</b> permanents. <b>Ton prestataire à toi</b> (DKV, Shell…) devient <b>permanent de fait</b> dès qu'il a des <b>données rattachées</b> (factures, cartes, conducteurs) : le bouton <b>« Supprimer » est alors masqué</b> pour éviter toute perte d'historique. Tu peux toujours le <b>« Désactiver »</b> (archiver : onglet &amp; colonne masqués, données conservées, réactivable à tout moment). « Supprimer » ne reste proposé que pour un prestataire <b>créé par erreur, sans aucune donnée</b>.</div>
         <div class="man-item"><b>Deux affichages</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — bascule <b>Cartes</b> / <b>Tableau</b> (en haut à droite, choix mémorisé). En vue <b>Cartes</b> : une carte par conducteur (nom + véhicules + ses numéros) ; clique le <b>✏️</b> de la carte pour déverrouiller tous ses numéros d'un coup, saisis, ça s'enregistre en sortant du champ. En vue <b>Tableau</b> : une ligne par conducteur, une colonne par prestataire.</div>
         <div class="man-item">🔒 <b>Champs verrouillés</b> — pour éviter de modifier un n° par erreur, chaque case est <b>bloquée</b> par défaut : <b>double-clique</b> dessus (ou clique le crayon <b>✏️</b>) pour la modifier. Elle se <b>re-verrouille toute seule</b> dès que tu quittes le champ (l'enregistrement est automatique).</div>
         <div class="man-zone">➕ Ajouter un prestataire (au-delà de Total &amp; Ulys) <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
@@ -1166,8 +1168,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113f"></script>
-<script src="../assets/js/supabase-client.js?v=20261113f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113g"></script>
+<script src="../assets/js/supabase-client.js?v=20261113g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1183,10 +1185,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261113f"></script>
+<script src="../assets/js/app.min.js?v=20261113g"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

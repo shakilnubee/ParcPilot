@@ -5761,10 +5761,12 @@ FP.badgeChipsHTML = function (o) {
   const attrs = 'data-bc-scope="' + esc(o.scope) + '" data-bc-numkey="' + esc(o.numkey) + '"'
     + (o.key ? (' data-bc-key="' + esc(o.key) + '"') : '')
     + (o.vehid != null ? (' data-bc-vehid="' + esc(o.vehid) + '"') : '');
-  // Carte TotalEnergies sur une FICHE (scope 'cond') : sélecteur des cartes connues (depuis les factures)
-  // comme méthode PRINCIPALE ; la saisie libre « + Ajouter » reste en repli contrôlé (consigne utilisateur).
-  const isTotalCond = o.scope === 'cond' && o.numkey === 'condCarteTotal';
-  const pickBtn = isTotalCond ? '<button type="button" class="fp-bc-addbtn fp-bc-pickbtn" data-bc-pick>📇 Choisir une carte…</button>' : '';
+  // Sur une FICHE conducteur (scope 'cond') : sélecteur des cartes/badges CONNUS du prestataire (depuis les
+  // relevés) comme méthode principale ; la saisie libre « + Ajouter » reste en repli. GÉNÉRIQUE : fonctionne
+  // pour TOUT prestataire (Total, Ulys, DKV, perso…), plus seulement Total. Libellé adapté carte/badge.
+  const isCondPick = o.scope === 'cond' && !!o.numkey;
+  const pickLbl = (o.placeholder && /badge/i.test(o.placeholder)) ? '📇 Choisir un badge…' : '📇 Choisir une carte…';
+  const pickBtn = isCondPick ? '<button type="button" class="fp-bc-addbtn fp-bc-pickbtn" data-bc-pick>' + pickLbl + '</button>' : '';
   return '<div class="fp-badgechips" ' + attrs + '>'
     + '<div class="fp-bc-chips">' + chips + empty + '</div>'
     + '<div class="fp-bc-add">' + pickBtn + '<input class="fp-bc-input" type="text" inputmode="numeric" placeholder="' + esc(o.placeholder || 'N° de badge…') + '">'
@@ -6000,10 +6002,14 @@ FP.conducteurPicker = function (input, opts) {
 // mise en cache (invalidée après une association). Chaque carte : n° (le + complet connu), nom sur la
 // DERNIÈRE facture, titulaire actuel (par n°), statut picker (disponible / attribuée / à vérifier=homonyme),
 // dernière transaction. Ne crée/charge aucun nouveau moteur : réutilise l'existant.
-FP._cartesConnuesCache = null;
-FP.invalidateCartesConnues = function () { FP._cartesConnuesCache = null; };
-FP.cartesConnues = async function (force) {
-  if (!force && FP._cartesConnuesCache) return FP._cartesConnuesCache;
+FP._cartesConnuesCache = {};
+FP.invalidateCartesConnues = function () { FP._cartesConnuesCache = {}; };
+// ⚠️ GÉNÉRIQUE PAR PRESTATAIRE (numKey) : fonctionne pour TOUT prestataire (Total, Ulys, DKV, perso…), pas
+// seulement Total. Rétrocompat : cartesConnues() / cartesConnues(true) = Total. Cache par numKey.
+FP.cartesConnues = async function (numKey, force) {
+  if (typeof numKey === 'boolean') { force = numKey; numKey = 'condCarteTotal'; }
+  numKey = numKey || 'condCarteTotal';
+  if (!force && FP._cartesConnuesCache[numKey]) return FP._cartesConnuesCache[numKey];
   let rows = [];
   try {
     const soc = FP.activeSociete ? FP.activeSociete() : null;
@@ -6012,13 +6018,20 @@ FP.cartesConnues = async function (force) {
     if (FP.selectAllPaged) { const r = await FP.selectAllPaged('total_conso_tx', null, 'id', cols); rows = ((r && r.data) || []).filter(inSoc); }
     else if (FP.supabase) { const r = await FP.supabase.from('total_conso_tx').select(cols); rows = ((r && r.data) || []).filter(inSoc); }
   } catch (e) { rows = []; }
-  const last = {};
-  rows.forEach(t => { const c = t && t.carte; if (!c || /^ULYS/i.test(String(c))) return; const k = FP._cartePeriodeKey('condCarteTotal', c); const d = String(t.date_tx || ''); if (!last[k] || d > last[k].d) last[k] = { d, nom: t.conducteur || '' }; });
-  const reg = (FP.cartesRegistre ? FP.cartesRegistre(rows) : []).filter(c => c.mapKey === 'condCarteTotal');
-  const prenomPartage = (nom) => { try { const np = FP.normPrenom ? FP.normPrenom(nom) : String(nom || '').toLowerCase().trim(); if (!np) return false; const all = FP.conducteursTous ? FP.conducteursTous() : []; let n = 0; all.forEach(c => { const dn = FP.conducteurs.displayName(c) || ''; const p = FP.normPrenom ? FP.normPrenom(dn) : dn.toLowerCase(); if (p === np) n++; }); return n >= 2; } catch (e) { return false; } };
-  reg.forEach(c => { const ln = last[c.key]; c.nomFacture = ln ? ln.nom : ''; c.statutPicker = c.titulaireKey ? 'attribuee' : (prenomPartage(c.nomFacture) ? 'averifier' : 'disponible'); });
+  // cartesRegistre range chaque carte sous le numKey de SON prestataire (via facnum→prestataire) → on filtre.
+  const reg = (FP.cartesRegistre ? FP.cartesRegistre(rows) : []).filter(c => c.mapKey === numKey);
+  if (numKey === 'condCarteTotal') {
+    // Total : repli historique « nom sur la dernière facture » + statut homonyme (« à vérifier ») — inchangé.
+    const last = {};
+    rows.forEach(t => { const c = t && t.carte; if (!c || /^ULYS/i.test(String(c))) return; const k = FP._cartePeriodeKey('condCarteTotal', c); const d = String(t.date_tx || ''); if (!last[k] || d > last[k].d) last[k] = { d, nom: t.conducteur || '' }; });
+    const prenomPartage = (nom) => { try { const np = FP.normPrenom ? FP.normPrenom(nom) : String(nom || '').toLowerCase().trim(); if (!np) return false; const all = FP.conducteursTous ? FP.conducteursTous() : []; let n = 0; all.forEach(c => { const dn = FP.conducteurs.displayName(c) || ''; const p = FP.normPrenom ? FP.normPrenom(dn) : dn.toLowerCase(); if (p === np) n++; }); return n >= 2; } catch (e) { return false; } };
+    reg.forEach(c => { const ln = last[c.key]; c.nomFacture = ln ? ln.nom : ''; c.statutPicker = c.titulaireKey ? 'attribuee' : (prenomPartage(c.nomFacture) ? 'averifier' : 'disponible'); });
+  } else {
+    // Autres prestataires : statut simple (attribuée / disponible), sans repli « nom facture » (pas nécessaire).
+    reg.forEach(c => { c.nomFacture = ''; c.statutPicker = c.titulaireKey ? 'attribuee' : 'disponible'; });
+  }
   reg.sort((a, b) => String(a.statutPicker).localeCompare(String(b.statutPicker)) || String(b.dernier).localeCompare(String(a.dernier)));
-  FP._cartesConnuesCache = reg;
+  FP._cartesConnuesCache[numKey] = reg;
   return reg;
 };
 // Overlay « Choisir une carte TotalEnergies ». opts = { condKey, numKey, onPick, onManual }. Associe sans
@@ -6030,6 +6043,11 @@ FP.cartePicker = function (opts) {
   if (!condKey) return;
   const esc = FP.esc || (x => String(x == null ? '' : x));
   const nameOfKey = (k) => { try { const all = FP.conducteursTous ? FP.conducteursTous() : []; const c = all.find(x => x.key === k); return c ? (FP.conducteurs.displayName(c) || k) : k; } catch (e) { return k; } };
+  // Prestataire courant (pour le titre + le libellé carte/badge) — générique, plus seulement Total.
+  const _prov = ((FP.prestataires ? FP.prestataires() : []) || []).find(p => p && p.numKey === numKey) || null;
+  const _provNom = _prov ? _prov.nom : (numKey === 'condBadgeUlys' ? 'Ulys' : (numKey === 'condCarteTotal' ? 'TotalEnergies' : ''));
+  const _objet = (_prov && _prov.type === 'peage') || numKey === 'condBadgeUlys' ? 'un badge' : 'une carte';
+  const _titre = 'Choisir ' + _objet + (_provNom ? (' ' + _provNom) : '');
   if (!document.getElementById('fp-cp2-style')) {
     const st = document.createElement('style'); st.id = 'fp-cp2-style';
     st.textContent = [
@@ -6054,7 +6072,7 @@ FP.cartePicker = function (opts) {
   }
   const back = document.createElement('div'); back.className = 'fp-cp2-back';
   back.innerHTML = '<div class="fp-cp2-card" role="dialog" aria-modal="true">'
-    + '<div class="fp-cp2-h"><h3>Choisir une carte TotalEnergies</h3><button type="button" class="fp-cp2-x" data-cp-close title="Fermer">✕</button></div>'
+    + '<div class="fp-cp2-h"><h3>' + esc(_titre) + '</h3><button type="button" class="fp-cp2-x" data-cp-close title="Fermer">✕</button></div>'
     + '<input type="text" class="fp-cp2-search" placeholder="🔍 Chercher par n° ou nom…">'
     + '<div class="fp-cp2-list"><div style="padding:1rem;color:#94A3B8">Chargement des cartes…</div></div>'
     + '<div class="fp-cp2-foot"><button type="button" class="fp-cp2-manual" data-cp-manual>✎ Saisir manuellement</button></div>'
@@ -6068,7 +6086,7 @@ FP.cartePicker = function (opts) {
     const nq = String(q || '').trim().toLowerCase();
     let items = cards;
     if (nq) items = cards.filter(c => String(c.numAffiche).toLowerCase().includes(nq) || String(c.nomFacture || '').toLowerCase().includes(nq) || String(c.titulaireName || '').toLowerCase().includes(nq));
-    if (!items.length) { listEl.innerHTML = '<div style="padding:1rem;color:#94A3B8">Aucune carte connue' + (nq ? ' pour « ' + esc(q) + ' »' : '') + '. Importe un relevé TotalEnergies, ou clique « Saisir manuellement ».</div>'; return; }
+    if (!items.length) { listEl.innerHTML = '<div style="padding:1rem;color:#94A3B8">Aucun numéro connu' + (nq ? ' pour « ' + esc(q) + ' »' : '') + (_provNom ? ' pour ' + esc(_provNom) : '') + '. Importe un relevé, ou clique « Saisir manuellement ».</div>'; return; }
     listEl.innerHTML = items.map(c => {
       const chip = c.statutPicker === 'attribuee' ? '<span class="fp-cp2-st at">attribuée' + (c.titulaireName ? ' · ' + esc(c.titulaireName) : '') + '</span>'
         : c.statutPicker === 'averifier' ? '<span class="fp-cp2-st av">à vérifier</span>'
@@ -6079,7 +6097,7 @@ FP.cartePicker = function (opts) {
         + '<span class="fp-cp2-nom">' + esc(c.nomFacture || c.titulaireName || '—') + '</span>' + chip + d + '</button>';
     }).join('');
   };
-  FP.cartesConnues().then(list => { cards = list || []; render(''); }).catch(() => { listEl.innerHTML = '<div style="padding:1rem;color:#B91C1C">Impossible de charger les cartes.</div>'; });
+  FP.cartesConnues(numKey).then(list => { cards = list || []; render(''); }).catch(() => { listEl.innerHTML = '<div style="padding:1rem;color:#B91C1C">Impossible de charger les cartes.</div>'; });
   searchEl.addEventListener('input', () => render(searchEl.value));
   back.addEventListener('click', (e) => {
     if (e.target === back || e.target.closest('[data-cp-close]')) { close(); return; }
