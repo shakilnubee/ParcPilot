@@ -5269,17 +5269,20 @@ FP.totalInventaire = function (txRows) {
 FP.cartesRegistre = function (txRows, opts) {
   const pres = (FP.prestataires ? FP.prestataires() : []) || [];
   const provByNumKey = {}; pres.forEach(p => { if (p && p.numKey) provByNumKey[p.numKey] = p; });
-  // ⚠️ VRAI prestataire d'une transaction via SA FACTURE (source='presta-<id>') : sans ça, toute carte
-  // non-ULYS était rangée d'office sous Total (condCarteTotal) → les cartes DKV / tout prestataire perso
-  // apparaissaient comme « TotalEnergies » et n'étaient JAMAIS proposées sous leur propre prestataire
-  // (stock condNum_<id> jamais alimenté → « Conducteurs rattachés : 0 », consos « — »). On mappe donc
-  // facnum (= numeroFacture) → numKey du prestataire ; repli sur l'heuristique ULYS/Total si inconnu.
-  const facToNumKey = {};
+  // ⚠️ VRAI prestataire d'une transaction via SA FACTURE : sans ça, toute carte non-ULYS était rangée
+  // d'office sous Total (condCarteTotal) → les cartes DKV / tout prestataire perso apparaissaient comme
+  // « TotalEnergies » et n'étaient JAMAIS proposées sous leur propre prestataire (stock condNum_<id>
+  // jamais alimenté → « Conducteurs rattachés : 0 », consos « — »). On mappe donc facnum (= numeroFacture)
+  // → numKey du prestataire ; repli sur l'heuristique ULYS/Total si inconnu.
+  // ⚠️ SOURCE UNIQUE : l'appelant (controle.html) passe `opts.facToNumKey` construit avec la MÊME règle
+  // que `_prestaFacs` (rattachement par source='presta-<id>' OU par NOM DE FOURNISSEUR). On la prend telle
+  // quelle (prioritaire), et on complète ici par la détection `source` pour les appelants sans opts.
+  const facToNumKey = Object.assign({}, (opts && opts.facToNumKey) || {});
   try {
     const provById = {}; pres.forEach(p => { if (p && p.id != null) provById[String(p.id)] = p; });
     const facs = (opts && opts.factures) || (window.FP_DATA && FP_DATA.factures) || (window.data && window.data.factures) || [];
     facs.forEach(f => {
-      const fn = String((f.numeroFacture != null ? f.numeroFacture : f.numero_facture) || '').trim(); if (!fn) return;
+      const fn = String((f.numeroFacture != null ? f.numeroFacture : f.numero_facture) || '').trim(); if (!fn || facToNumKey[fn]) return;
       const m = String(f.source || '').match(/^presta-(.+)$/);
       if (m) { const p = provById[m[1]]; if (p && p.numKey) facToNumKey[fn] = p.numKey; }
     });
