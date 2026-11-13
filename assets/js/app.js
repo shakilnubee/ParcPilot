@@ -23088,6 +23088,51 @@ FP.sendMailTest = async function (key, to, lang) {
       }
     });
   });
+
+  // ── Messages rapides « Prévenir » (fiche véhicule → SMS/WhatsApp/E-mail) : l'e-mail brandé utilise le
+  //    modèle éditable choisi (accès, carte grise, état des lieux, annonce). On les ajoute au testeur pour
+  //    qu'AUCUN e-mail envoyé par la plateforme ne manque. Rendu fidèle = mailBrand + texte du modèle.
+  [
+    { key: 'prev-acces',      mkey: 'mailModelePrevAcces',      dkey: 'prevAcces',      label: 'Prévenir — Accès véhicule (espace QR)', title: 'Accès à ton véhicule',  titleEn: 'Your vehicle access' },
+    { key: 'prev-cartegrise', mkey: 'mailModelePrevCarteGrise', dkey: 'prevCarteGrise', label: 'Prévenir — Carte grise',               title: 'Carte grise',           titleEn: 'Registration document' },
+    { key: 'prev-edl',        mkey: 'mailModelePrevEdl',        dkey: 'prevEdl',        label: 'Prévenir — État des lieux (photos + km)', title: 'État des lieux',     titleEn: 'Vehicle condition report' },
+    { key: 'prev-annonce',    mkey: 'mailModelePrevAnnonce',    dkey: 'prevAnnonce',    label: 'Prévenir — Annonce de vente',          title: 'Ton véhicule est à vendre', titleEn: 'Your vehicle is for sale' },
+  ].forEach(function (r) {
+    FP.registerMail({
+      key: r.key, label: r.label, group: 'Prévenir',
+      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', lien: '#' }),
+      build: (d) => {
+        const en = (d.lang === 'en'), lg = en ? 'en' : 'fr';
+        const t = tpl(r.mkey, r.dkey, { prenom: d.prenom, immat: d.immat, lien: d.lien || '#' }, lg);
+        return {
+          subject: (en ? 'Your vehicle ' : 'Ton véhicule ') + (d.immat || ''),
+          html: FP.mailBrand({ title: en ? r.titleEn : r.title, prenom: d.prenom, plaque: d.immat, nomSoc: d.nomSoc, logoUrl: d.logoUrl, lang: lg, bodyHtml: bodyText(t) }),
+          text: t
+        };
+      }
+    });
+  });
+
+  // ── Révision : « Demander un RDV » (1re demande) et « Relancer » (sans RDV après 5 j) — boutons
+  //    Entretiens/Tâches. Modèles éditables présents dans Paramètres mais absents du testeur jusqu'ici.
+  [
+    { key: 'demande-rdv',  mkey: 'mailModeleDemandeRdv',  dkey: 'demandeRdv',  label: 'Révision — Demander un RDV (1ʳᵉ demande)', title: 'Rendez-vous garage à prendre', titleEn: 'Service appointment to book' },
+    { key: 'relance-rdv',  mkey: 'mailModeleRelanceRdv',  dkey: 'relanceRdv',  label: 'Révision — Relancer (sans RDV)',          title: 'Relance rendez-vous garage',   titleEn: 'Service appointment reminder' },
+  ].forEach(function (r) {
+    FP.registerMail({
+      key: r.key, label: r.label, group: 'Relances',
+      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', motif: 'Révision' }),
+      build: (d) => {
+        const en = (d.lang === 'en'), lg = en ? 'en' : 'fr';
+        const t = tpl(r.mkey, r.dkey, { prenom: d.prenom, immat: d.immat, motif: d.motif }, lg);
+        return {
+          subject: (en ? r.titleEn : r.title) + (d.immat ? ' — ' + d.immat : ''),
+          html: FP.mailBrand({ title: en ? r.titleEn : r.title, prenom: '', plaque: d.immat, nomSoc: d.nomSoc, logoUrl: d.logoUrl, lang: lg, bodyHtml: bodyText(t) }),
+          text: t
+        };
+      }
+    });
+  });
 })();
 
 // ===== TESTEUR D'E-MAILS (modale) — aperçu + envoi de test, liste auto depuis FP.mails =====
