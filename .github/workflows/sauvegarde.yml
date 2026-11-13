@@ -183,10 +183,22 @@ jobs:
           echo "Règles d'accès du stockage : $n_src sauvegardées, $n_rest présentes après restauration."
           [ "$n_rest" -ge "$n_src" ] || { echo "::error::Règles d'accès du stockage manquantes après restauration."; exit 1; }
           psql "$LOCAL" -At -v ON_ERROR_STOP=1 -f scripts/sauvegarde/compter.sql > sauvegarde/base/comptes-restauration.txt
-          if diff -u sauvegarde/base/comptes-source.txt sauvegarde/base/comptes-restauration.txt; then
-            echo "✅ Restauration d'essai : les $(wc -l < sauvegarde/base/comptes-source.txt) tables ont exactement le même nombre de lignes."
+          # ⚠️ Tables de LOGS à forte rotation (écrites en continu par les tâches planifiées / l'app) : leur
+          # nombre de lignes BOUGE PENDANT la sauvegarde (quelques lignes ajoutées entre le comptage de la
+          # source et la copie restaurée) → un écart de quelques lignes n'est PAS une sauvegarde cassée (leur
+          # CONTENU est bien copié). On les RETIRE de la comparaison STRICTE, mais on AFFICHE leurs comptes
+          # pour garder la visibilité. Toutes les AUTRES tables (données métier) restent comparées à
+          # l'identique : une seule ligne d'écart = échec (on ne masque pas un vrai problème).
+          VOLATILES='^(public\.cron_runs|public\.audit_log)\|'
+          grep -vE "$VOLATILES" sauvegarde/base/comptes-source.txt       > sauvegarde/base/comptes-source.cmp
+          grep -vE "$VOLATILES" sauvegarde/base/comptes-restauration.txt > sauvegarde/base/comptes-restauration.cmp
+          echo "Tables de logs (hors comparaison stricte, variation normale) :"
+          grep -E "$VOLATILES" sauvegarde/base/comptes-source.txt       | sed 's/^/  source · /' || true
+          grep -E "$VOLATILES" sauvegarde/base/comptes-restauration.txt | sed 's/^/  copie  · /' || true
+          if diff -u sauvegarde/base/comptes-source.cmp sauvegarde/base/comptes-restauration.cmp; then
+            echo "✅ Restauration d'essai : les $(wc -l < sauvegarde/base/comptes-source.cmp) tables de données ont exactement le même nombre de lignes (tables de logs exclues : variation en continu normale)."
           else
-            echo "::error::Les nombres de lignes diffèrent entre la base et la restauration (voir ci-dessus)."
+            echo "::error::Les nombres de lignes diffèrent entre la base et la restauration (hors tables de logs ; voir ci-dessus)."
             exit 1
           fi
           nb_objets=$(grep '^storage.objects|' sauvegarde/base/comptes-source.txt | cut -d'|' -f2)
