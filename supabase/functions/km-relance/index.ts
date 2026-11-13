@@ -318,7 +318,7 @@ function buildMail(opts: { prenom: string; immat: string; marque: string; link: 
   // Message ÉDITABLE (Paramètres → E-mails). {prenom} {immat}. Repli = texte par défaut (langue conducteur).
   const msg = fillTags((opts.modele && String(opts.modele).trim()) ? String(opts.modele) : (en ? DEF_RELEVEKM_EN : DEF_RELEVEKM), { prenom, immat });
   const plate = immat
-    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;margin:0 auto;white-space:nowrap"><tr>'
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + esc(immat) + "</td></tr></table>"
     : "";
@@ -382,7 +382,7 @@ function buildCtMail(opts: { prenom: string; immat: string; marque: string; date
       + (icsB64 ? '<p style="font-size:12px;color:#8A93A3;text-align:center;margin:6px 0 0">' + (en ? "Or open the attached calendar file (Apple / Outlook)." : "Ou ouvre le fichier agenda joint (Apple / Outlook).") + '</p>' : '')
     : "";
   const plate = immat
-    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;margin:0 auto;white-space:nowrap"><tr>'
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + esc(immat) + "</td></tr></table>"
     : "";

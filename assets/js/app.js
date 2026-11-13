@@ -3817,7 +3817,7 @@ FP.kmCollecte = {
     // FP.hostSocieteLogo() appelé dans send() AVANT la construction du mail.
     let logoUrl = ''; try { const lu = (FP.settings.get().profil || {}).logoUrl; if (/^https?:\/\//.test(String(lu || ''))) logoUrl = String(lu); } catch (e) {}
     // Plaque façon immatriculation (table = compatible e-mail), forcée sur UNE seule ligne.
-    const plateBadge = plaque ? ('<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;white-space:nowrap"><tr>'
+    const plateBadge = plaque ? ('<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="border-collapse:separate;margin:0 auto;white-space:nowrap"><tr>'
       + '<td style="background:#1B48C4;color:#fff;font-family:Arial,sans-serif;font-weight:800;font-size:11px;padding:8px 7px;border:2px solid #0b0b0b;border-right:none;border-radius:7px 0 0 7px;white-space:nowrap">F</td>'
       + '<td style="background:#fff;color:#0b0b0b;font-family:Arial,sans-serif;font-weight:800;font-size:18px;letter-spacing:2px;padding:6px 14px;border:2px solid #0b0b0b;border-radius:0 7px 7px 0;white-space:nowrap">' + plaque + '</td>'
       + '</tr></table>') : '';
