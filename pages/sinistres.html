@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113b">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -571,8 +571,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113a"></script>
-<script src="../assets/js/supabase-client.js?v=20261113a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113b"></script>
+<script src="../assets/js/supabase-client.js?v=20261113b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -588,12 +588,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113a"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261113a" defer></script>
+<script src="../assets/js/app.min.js?v=20261113b"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261113b" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -987,9 +987,10 @@
       </div>
       <div class="grid grid-cols-3 gap-2 mt-3 text-center">
         <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à recevoir</div><div style="margin-top:3px">${synth(fin.resteARecevoir)}</div></div>
-        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge prévisionnel</div><div style="margin-top:3px">${synth(fin.resteChargePrev)}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge prévisionnel</div><div style="margin-top:3px">${fin.resteChargeIncertain ? ('<b style="color:#b45309">' + eur(fin.resteChargeMin) + ' – ' + eur(fin.resteChargeMax) + '</b><div class="text-[9px] text-slate-400 normal-case" style="font-weight:600;line-height:1.3">fourchette — sous réserve de confirmation</div>') : synth(fin.resteChargePrev)}</div></div>
         <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px;background:#fafbfc"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge définitif</div><div style="margin-top:3px">${fin.solde ? synth(fin.resteChargeDef) : '<span class="text-xs text-slate-400 italic">dossier non soldé</span>'}</div></div>
       </div>
+      <label class="flex items-center gap-2 mt-2 text-xs text-slate-600" style="cursor:pointer" title="Coche-la quand l'assureur a répondu (ex. prise en charge sous conditions) sans encore chiffrer les montants. L'étape 3 passe à « Décision reçue » et le reste à charge s'affiche en fourchette, sans rien inventer."><input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="decisionRecue" type="checkbox" ${fin.decisionRecue ? 'checked' : ''}> Décision d'assurance reçue (montants à confirmer)</label>
       <label class="flex items-center gap-2 mt-2 text-xs text-slate-600" style="cursor:pointer"><input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="solde" type="checkbox" ${fin.solde ? 'checked' : ''}> Dossier financièrement soldé (affiche le reste à charge définitif)</label>
       <div class="text-[11px] text-slate-400 mt-2" style="line-height:1.5">Légende : ${td} = information inconnue (jamais 0) · <b style="color:#047857">0 €</b> = valeur confirmée. La plateforme n'invente aucun montant.</div>
     `;
@@ -1167,8 +1168,12 @@
       { t: 'Chiffrage (devis / coût)', done: coutKnown, cur: false,
         d: (facture ? ('Coût facturé : ' + eur(fin.coutFacture) + '.') : (fin.coutEstime != null ? ('Coût estimé : ' + eur(fin.coutEstime) + '.') : ((g.cost || 0) > 0 ? ('Coût estimé (devis) : ' + eur(g.cost) + '.') : 'Dépose un devis / une facture, ou saisis le coût estimé dans « Suivi financier ».'))) + stageCtrl,
         act: `<button type="button" class="btn p" data-sin-depose="${s.id}" data-key="${g.key}"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> Déposer un devis / une facture</button>` },
-      { t: 'Décision de l’assurance', done: pecConf || !!dv.resp, cur: false,
-        d: pecConf ? ('Prise en charge confirmée : ' + eur(fin.pecConfirmee) + '.') : (dv.resp ? ('Responsabilité : ' + escapeHtml(respLbl) + '. Prise en charge à confirmer.') : 'Franchise appliquée · prise en charge annoncée puis confirmée — uniquement si le document le confirme.'),
+      { t: 'Décision de l’assurance', done: pecConf || !!dv.resp || !!dv.decisionRecue, cur: false,
+        tag: (!pecConf && dv.decisionRecue) ? 'Décision reçue' : null,
+        d: pecConf ? ('Prise en charge confirmée : ' + eur(fin.pecConfirmee) + '.')
+          : (dv.decisionRecue ? ('Décision reçue — montants à confirmer.' + (fin.franchiseContractuelle != null ? ' Franchise contractuelle : ' + eur(fin.franchiseContractuelle) + ' (appliquée à confirmer).' : ''))
+          : (dv.resp ? ('Responsabilité : ' + escapeHtml(respLbl) + '. Prise en charge à confirmer.')
+          : 'Franchise appliquée · prise en charge annoncée puis confirmée — uniquement si le document le confirme.')),
         act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Compléter</button>` },
       { t: 'Facture définitive', done: facture, cur: false,
         d: facture ? ('Facturé : ' + eur(fin.coutFacture) + '.') : 'Associe la facture (module Factures) — jamais recréée, jamais additionnée au devis.',
@@ -1183,7 +1188,7 @@
     let curIdx = steps.findIndex(st => !st.done); if (curIdx === -1) curIdx = -1; else steps[curIdx].cur = true;
     return steps.map((st, i) => {
       const cls = st.done ? 'done' : (st.cur ? 'cur' : 'wait');
-      const tag = st.done ? 'Fait' : (st.cur ? 'À faire' : 'En attente');
+      const tag = st.tag || (st.done ? 'Fait' : (st.cur ? 'À faire' : 'En attente'));
       return `<div class="sin-jstep ${cls}">
         <div class="sin-jbadge">${st.done ? '✓' : (i + 1)}</div>
         <div class="sin-jmain">
@@ -1275,7 +1280,7 @@
             <div class="sin-k"><div class="l">Prise en charge</div><div class="v">${kv(fin.pecConfirmee)}</div></div>
             <div class="sin-k"><div class="l">Remboursé</div><div class="v">${kv(fin.encaisse == null ? 0 : fin.encaisse)}</div></div>
             <div class="sin-k"><div class="l">Reste à recevoir</div><div class="v">${kv(fin.resteARecevoir)}</div></div>
-            <div class="sin-k"><div class="l">Reste à charge</div><div class="v">${kv(fin.resteChargePrev)}</div></div>
+            <div class="sin-k"><div class="l">Reste à charge</div><div class="v">${fin.resteChargeIncertain ? (FP.euroPrecis(fin.resteChargeMin) + ' – ' + FP.euroPrecis(fin.resteChargeMax) + ' <span style="color:#94a3b8;font-weight:600;font-size:11px">(sous réserve)</span>') : kv(fin.resteChargePrev)}</div></div>
           </div>
         </div>
 
@@ -1377,7 +1382,7 @@
           <div class="pv-fc"><div class="k">Coût facturé</div><div class="v">${kv(coutAperc)}</div></div>
           <div class="pv-fc"><div class="k">Prise en charge</div><div class="v">${kv(fin.pecConfirmee)}</div></div>
           <div class="pv-fc"><div class="k">Remboursé</div><div class="v">${kv(fin.encaisse == null ? 0 : fin.encaisse)}</div></div>
-          <div class="pv-fc"><div class="k">Reste à charge</div><div class="v">${kv(fin.resteChargePrev)}</div></div>
+          <div class="pv-fc"><div class="k">Reste à charge</div><div class="v">${fin.resteChargeIncertain ? (FP.euroPrecis(fin.resteChargeMin) + ' – ' + FP.euroPrecis(fin.resteChargeMax) + ' (sous réserve)') : kv(fin.resteChargePrev)}</div></div>
         </div></div>
         <div><div class="sin-det-sec" style="padding:0 0 5px">Parcours du dossier</div>${sinTimelineHTML(sinSteps(g, i.dv, i.cur))}</div>
         <div><div class="sin-det-sec" style="padding:0 0 5px">Documents</div>${sinPreviewDocsHTML(i.dv)}</div>

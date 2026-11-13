@@ -2061,21 +2061,41 @@ FP.sinistreFin = function (incidentKey, factures) {
   const pecConfirmee = num(dv.pecConfirmee);
   const versements = FP.sinistreVersements(dv);
   const encaisse = versements.reduce((a, v) => a + (Number(v.montant) || 0), 0);
+  // ⚠️ « Décision reçue — montants à confirmer » : drapeau léger (comme `solde`). Une décision d'assurance
+  // existe (courrier reçu) mais SANS montant confirmé (ni franchise appliquée, ni PEC confirmée). On ne doit
+  // alors PAS présenter un reste à charge CERTAIN. On n'invente aucun montant.
+  const decisionRecue = !!dv.decisionRecue;
   const coutEco = (coutFacture != null) ? coutFacture : coutEstime;        // facturé prioritaire, sinon estimé
   const resteARecevoir = (pecConfirmee != null) ? Math.max(0, pecConfirmee - encaisse) : null;
-  let resteChargePrev = null;
+  // Reste à charge prévisionnel (+ FOURCHETTE d'incertitude). Priorité aux valeurs CONFIRMÉES ; sinon, si une
+  // décision est reçue mais non chiffrée → fourchette [franchise probable ; coût total au pire]. resteChargePrev
+  // garde la borne BASSE (franchise) comme valeur « probable » pour les agrégats — jamais le coût total présenté
+  // comme sûr. Les dossiers au statut « pris en charge » (isPec) gardent leur comportement d'avant (inchangé).
+  let resteChargePrev = null, resteChargeMin = null, resteChargeMax = null, resteChargeIncertain = false;
   if (franchiseAppliquee != null) resteChargePrev = Math.max(0, franchiseAppliquee);
   else if (coutEco != null && pecConfirmee != null) resteChargePrev = Math.max(0, coutEco - pecConfirmee);
   else if (isPec) resteChargePrev = Math.max(0, franchiseContractuelle != null ? franchiseContractuelle : 0); // pris en charge → franchise (ou 0 confirmé)
+  else if (decisionRecue) {                                                                                    // décision reçue, montants non confirmés → fourchette
+    const fr = (franchiseContractuelle != null) ? Math.max(0, franchiseContractuelle) : 0;
+    if (coutEco != null) {
+      resteChargeMin = Math.min(fr, coutEco);
+      resteChargeMax = Math.max(0, coutEco);
+      resteChargeIncertain = (resteChargeMax > resteChargeMin);
+      resteChargePrev = resteChargeMin;                                                                        // valeur probable (franchise) pour les agrégats
+    } else {
+      resteChargePrev = fr;                                                                                    // coût inconnu → au moins la franchise (ou 0 confirmé)
+    }
+  }
   else if (coutEco != null) resteChargePrev = Math.max(0, coutEco - encaisse);                                // legacy : coût − encaissé
   const solde = !!dv.solde;
   return {
-    incidentKey: incidentKey, statut: statut, isPec: isPec,
+    incidentKey: incidentKey, statut: statut, isPec: isPec, decisionRecue: decisionRecue,
     coutEstime: coutEstime, coutFacture: coutFacture, coutEco: coutEco,
     franchiseContractuelle: franchiseContractuelle, franchiseAppliquee: franchiseAppliquee,
     pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee,
     versements: versements, encaisse: encaisse,
     resteARecevoir: resteARecevoir, resteChargePrev: resteChargePrev,
+    resteChargeMin: resteChargeMin, resteChargeMax: resteChargeMax, resteChargeIncertain: resteChargeIncertain,
     solde: solde, resteChargeDef: (solde ? resteChargePrev : null),
     garage: dv.garage || ''
   };
