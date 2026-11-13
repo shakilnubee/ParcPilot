@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112r">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112r"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112r">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -403,7 +403,7 @@
       <summary><i data-lucide="car" class="w-5 h-5"></i> Véhicules <i data-lucide="chevron-down" class="w-5 h-5 chev"></i></summary>
       <div class="acc-body">
         <div class="man-item"><b>🔽 Les rubriques de la fiche se replient</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur la fiche d'un véhicule (et d'un conducteur), chaque bulle (Technique, Documents, États des lieux, Coûts…) se <b>replie/déplie</b> d'un clic sur son <b>titre</b> (petite flèche à droite). Les fiches restent <b>ouvertes par défaut</b> ; si tu replies une rubrique, l'appli <b>s'en souvient</b> et la garde repliée la prochaine fois (sur cet appareil). Pratique pour n'afficher que ce qui t'intéresse.</div>
-        <div class="man-item"><b>🧾 Relevé PDF / Excel (colonnes au choix)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le bouton <b>« Relevé PDF »</b> (barre du haut) exporte la liste des véhicules : il prend les <b>véhicules cochés</b> si tu en as sélectionné, sinon le <b>groupe affiché</b> (ex. « À vendre »). Tu <b>choisis les colonnes</b>, tu peux les <b>réordonner en glissant ⠿</b>, puis tu télécharges en <b>PDF</b> « sauce Parc Pilot », <b>Excel</b> ou <b>CSV</b> — exactement comme le relevé des Amendes ou des Conducteurs. <b>Nouveau&nbsp;: la « dernière révision »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> peut aussi sortir dans le relevé, en <b>3 colonnes à cocher</b> (non cochées par défaut)&nbsp;: <b>libellé</b> (ex. « Révision + vidange »), <b>date</b> et <b>km</b>. Ce sont <b>exactement</b> les mêmes valeurs que la tuile « Dernière révision » de la fiche véhicule&nbsp;: la plus récente entre la date saisie à la main et la <b>facture de révision</b> détectée (révision / vidange / service — jamais un simple pneu ou une géométrie).</div>
+        <div class="man-item"><b>🧾 Relevé PDF / Excel (colonnes au choix)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le bouton <b>« Relevé PDF »</b> (barre du haut) exporte la liste des véhicules : il prend les <b>véhicules cochés</b> si tu en as sélectionné, sinon le <b>groupe affiché</b> (ex. « À vendre »). Tu <b>choisis les colonnes</b>, tu peux les <b>réordonner en glissant ⠿</b>, puis tu télécharges en <b>PDF</b> « sauce Parc Pilot », <b>Excel</b> ou <b>CSV</b> — exactement comme le relevé des Amendes ou des Conducteurs. <b>Nouveau&nbsp;: la « dernière révision »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> peut aussi sortir dans le relevé, en <b>3 colonnes à cocher</b> (non cochées par défaut)&nbsp;: <b>libellé</b> (ex. « Révision + vidange »), <b>date</b> et <b>km</b>. Ce sont <b>exactement</b> les mêmes valeurs que la tuile « Dernière révision » de la fiche véhicule&nbsp;: la plus récente entre la date saisie à la main et la <b>facture de révision</b> détectée (révision / vidange / service — jamais un simple pneu ou une géométrie). <b>Aperçu toujours au premier plan</b>&nbsp;: quand tu cliques « Exporter en PDF », l'aperçu s'ouvre <b>au-dessus</b> de la fenêtre d'export (qui reste ouverte derrière). Tu le fermes avec la croix ou <b>Échap</b> (qui ne ferme QUE l'aperçu, pas la fenêtre d'export) et tu retrouves tes colonnes/filtres intacts. Même comportement partout (sinistres, entretiens, factures…).</div>
         <div class="man-zone">🛠️ Scan du contrôle technique → prochain CT automatique <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
         <div class="man-item">Quand tu ajoutes un document de type <b>« Contrôle technique »</b> sur une fiche véhicule (section Documents), l'IA <b>lit le PV</b> et met à jour tout seul le <b>« Prochain CT »</b> (et le « Dernier CT ») — même pipeline de lecture que les factures. Si le PV n'indique que la date du contrôle et un résultat favorable, l'app ajoute automatiquement <b>2 ans</b>.</div>
         <div class="man-item"><b>💶 Rubrique « Fiscalité &amp; TCO »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur la fiche d'un véhicule, une bulle « Fiscalité &amp; TCO » résume, en un coup d'œil : le <b>coût économique annuel (TCO)</b> et la part réellement <b>décaissée</b>, le <b>coût au mois</b>, les <b>taxes annuelles</b> (CO₂ + polluants, ex‑TVS), la <b>TVA récupérable</b> (selon véhicule de tourisme / utilitaire et énergie), l'<b>amortissement</b> (véhicule acheté : annuel + part non déductible au‑delà du plafond fiscal) ou la <b>part de loyer non déductible</b> (leasing), le <b>coût employeur de l'avantage en nature</b> (cotisations estimées) et l'<b>économie d'impôt estimée</b>. ⚠️ Ce sont des <b>estimations</b> à barèmes <b>paramétrables</b> (à faire valider par votre expert‑comptable) ; l'avantage en nature lui‑même reste affiché dans « Technique » et n'est <b>jamais</b> ajouté au coût du véhicule (seul le surcoût de cotisations l'est, pour ne pas compter deux fois).</div>
@@ -1154,8 +1154,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112r"></script>
-<script src="../assets/js/supabase-client.js?v=20261112r"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113a"></script>
+<script src="../assets/js/supabase-client.js?v=20261113a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1171,10 +1171,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112r"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261112r"></script>
+<script src="../assets/js/app.min.js?v=20261113a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
