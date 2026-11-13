@@ -21010,7 +21010,9 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-modal input,.fp-xc-modal select{font:inherit;font-size:14px;width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;color:#0f172a;background:#fff}
     .fp-xc-search{position:relative;margin-bottom:7px}.fp-xc-search input{padding-left:28px}.fp-xc-search .i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px}
     .fp-xc-cols{border:1px solid #eef2f7;border-radius:10px;overflow:hidden;max-height:240px;overflow-y:auto}
-    .fp-xc-colrow{display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #f1f5f9;background:#fff;cursor:grab}
+    .fp-xc-colrow{display:flex;align-items:center;gap:8px;padding:9px;border-bottom:1px solid #f1f5f9;background:#fff;cursor:pointer}
+    .fp-xc-colrow:hover{background:#f6f8fb}
+    body.fp-dark .fp-xc-colrow:hover{background:#1b2740}
     .fp-xc-colrow:last-child{border-bottom:none}.fp-xc-colrow.over{border-top:2px solid #f97316}
     .fp-xc-colrow .g{color:#cbd5e1;cursor:grab}
     .fp-xc-colrow input[type=checkbox]{width:15px;height:15px;accent-color:#f97316;flex:0 0 auto}
@@ -21159,6 +21161,13 @@ FP.ficheColsFromExport = function (cols) {
       const row = document.createElement('div'); row.className = 'fp-xc-colrow'; row.draggable = true; row.dataset.id = c.id;
       row.innerHTML = `<span class="g" aria-hidden="true">⠿</span><input type="checkbox" ${c.on ? 'checked' : ''} aria-label="${esc(c.label)}"><span class="lb">${esc(c.label)}</span><span class="mv"><button data-up aria-label="Monter">↑</button><button data-dn aria-label="Descendre">↓</button></span>`;
       row.querySelector('input').addEventListener('change', e => { c.on = e.target.checked; renderAll(); });
+      // Toute la LIGNE est cliquable (coche/décoche) — SAUF les flèches ↑↓ et la poignée de glisser, et
+      // sans double-toggle quand on clique directement sur la case (le `change` natif gère déjà ce cas).
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.mv') || e.target.closest('.g')) return;      // réorganisation : ne pas (dé)cocher
+        const cb = row.querySelector('input[type=checkbox]'); if (!cb || e.target === cb) return;
+        cb.checked = !cb.checked; c.on = cb.checked; renderAll();            // clic sur le libellé / l'espace vide
+      });
       row.querySelector('[data-up]').addEventListener('click', () => { const i = cur.cols.indexOf(c); if (i > 0) { cur.cols.splice(i, 1); cur.cols.splice(i - 1, 0, c); renderCols(); renderAll(); } });
       row.querySelector('[data-dn]').addEventListener('click', () => { const i = cur.cols.indexOf(c); if (i < cur.cols.length - 1) { cur.cols.splice(i, 1); cur.cols.splice(i + 1, 0, c); renderCols(); renderAll(); } });
       host.appendChild(row);
@@ -21238,13 +21247,26 @@ FP.ficheColsFromExport = function (cols) {
   function unlockBg() { try { FP.scrollLock.off(); } catch (e) {} }
   function doExport() {
     const rows = filteredRows(), cols = chosenCols();
-    if (!rows.length || !cols.length) return;
+    if (!rows.length || !cols.length) { if (FP.toast) FP.toast(!cols.length ? 'Coche au moins une colonne.' : 'Aucune ligne pour ces filtres.'); return; }
+    // Anti double-clic : neutralise brièvement le bouton (évite 2 téléchargements sur un double-clic).
+    const btn = modal.querySelector('#fp-xc-do');
+    if (btn) { if (btn._xcBusy) return; btn._xcBusy = true; btn.disabled = true; setTimeout(() => { btn._xcBusy = false; btn.disabled = false; }, 1200); }
     // Persistance des colonnes (partagée avec FP.fiche) : cases + ordre.
     try { const s = FP.settings.get(); s.ficheCols = s.ficheCols || {}; s.ficheColsOrder = s.ficheColsOrder || {}; s.ficheCols[cur.key] = cols.map(c => c.id); s.ficheColsOrder[cur.key] = cur.cols.map(c => c.id); FP.settings.save(s); } catch (e) {}
     const c = ctxFor(), opts = optsOf();
-    modal.style.display = 'none'; unlockBg();
-    if (fmt === 'pdf') { if (FP.fiche && FP.fiche.pdfPreview) FP.fiche.pdfPreview(c, opts); }
-    else if (FP.fiche && FP.fiche.exportFile) FP.fiche.exportFile(fmt, c);
+    // ⚠️ La fenêtre RESTE OUVERTE (plus de `modal.style.display='none'`) → on enchaîne PDF/Excel/CSV sans
+    // reconfigurer (format, filtres, colonnes, titre, options, aperçu conservés). Fermeture UNIQUEMENT
+    // volontaire (Annuler / ✕ / Échap). Confirmation discrète ; en cas d'échec, message visible + fenêtre gardée.
+    try {
+      if (fmt === 'pdf') {
+        if (FP.fiche && FP.fiche.pdfPreview) { FP.fiche.pdfPreview(c, opts); if (FP.toast) FP.toast('Aperçu PDF ouvert'); }
+      } else if (FP.fiche && FP.fiche.exportFile) {
+        FP.fiche.exportFile(fmt, c); if (FP.toast) FP.toast('Téléchargement ' + (fmt === 'xlsx' ? 'Excel' : 'CSV') + ' démarré ✓');
+      }
+    } catch (e) {
+      console.warn('[exportCenter doExport]', e);
+      if (FP.notifyError) FP.notifyError('Export impossible — réessaie.'); else if (FP.toast) FP.toast('Export impossible — réessaie.');
+    }
   }
   function renderImports() {
     const host = modal.querySelector('#fp-xc-imp-list'); const imps = cur.imports || [];
