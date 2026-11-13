@@ -5594,6 +5594,14 @@
     { id:'co2',             label:'CO₂',             def:false, align:'right', get:v=>(v.co2!=null&&v.co2!=='')?FP.num(v.co2)+' g/km':'—' },
     { id:'critAir',         label:"Crit'Air",        def:false, align:'left',  get:v=>(!v.critAir||v.critAir==='-'||v.critAir==='0')?'—':String(v.critAir) },
     { id:'dateDernierCT',   label:'Dernier CT',      def:false, align:'left',  get:v=>v.dateDernierCT?FP.dateNum(v.dateDernierCT):'—' },
+    // DERNIÈRE RÉVISION (libellé / date / km) — SOURCE UNIQUE = FP.derniereRevision (même valeur que la
+    // tuile fiche, le panneau Entretien et la colonne du tableau). Ancrée sur le LIBELLÉ (FP.estRevision :
+    // révision/vidange/service — jamais pneu/géométrie/clim) + override manuel ; km stable via FP.kmRevision.
+    // Non cochées par défaut (def:false) pour ne pas changer le relevé standard. factures non passées → le
+    // helper retombe sur FP_DATA.factures (comme la colonne tableau), l'index plaque est mémorisé.
+    { id:'revisionLabel',   label:'Dernière révision — libellé', def:false, align:'left', get:v=>{ try{ const r=FP.derniereRevision?FP.derniereRevision(v):null; const f=r&&r.facture; const lib=f&&String(f.description||'').trim(); return lib || (r&&r.date?'Révision':'—'); }catch(e){ return '—'; } } },
+    { id:'revisionDate',    label:'Dernière révision — date',    def:false, align:'left', get:v=>{ try{ const d=FP.derniereRevision?FP.derniereRevision(v).date:v.derniereRevision; return d?FP.dateNum(d):'—'; }catch(e){ return '—'; } } },
+    { id:'revisionKm',      label:'Dernière révision — km',      def:false, align:'right', get:v=>{ try{ const k=FP.derniereRevision?FP.derniereRevision(v).km:null; return (k!=null)?FP.num(k)+' km':'—'; }catch(e){ return '—'; } } },
     { id:'statut',          label:'Statut',          def:false, align:'left',  get:v=>v.statut||'—' },
     { id:'chauffeur',       label:'Conducteur',      def:false, align:'left',  get:v=>(v.chauffeur&&v.chauffeur!=='—')?(FP.prenomAffiche?FP.prenomAffiche(v.chauffeur):v.chauffeur):'—' },
     { id:'couleur',         label:'Couleur',         def:false, align:'left',  get:v=>v.couleur||'—' },
