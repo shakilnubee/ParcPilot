@@ -16064,6 +16064,22 @@ FP.courrierAssureurPrompt = function (plaque) {
     'Recopie conducteur / plaque / dates UNIQUEMENT s\'ils sont écrits ; sinon chaîne vide. N\'invente rien.',
   ].join('\n');
 };
+// ⚠️ RESPONSABILITÉ — lecture DÉTERMINISTE depuis le TEXTE d'un courrier (renfort de l'IA, jamais un
+// remplacement). Gère explicitement les NÉGATIONS (« responsabilité n'est pas engagée » → NON responsable,
+// jamais « responsable »). Ne DEVINE JAMAIS depuis la franchise ou l'existence d'une prise en charge.
+// Renvoie 'responsable' | 'non-responsable' | 'partagee' | '' (inconnu / ne tranche pas). Réutilisable partout.
+FP.respDepuisTexte = function (texte) {
+  let t = (texte || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (!t) return '';
+  t = t.replace(/['’`’]/g, ' ').replace(/\s+/g, ' ');           // apostrophes → espace (gère « n'est »)
+  // 1) Partagée / contestée / indéterminée → on ne force pas un oui/non.
+  if (/responsabilite partagee|torts?[^.]{0,15}partages?|partage des torts|responsabilite contestee/.test(t)) return 'partagee';
+  // 2) NON responsable (négations) — TESTÉ AVANT « responsable » pour ne jamais inverser une négation.
+  if (/responsabilite n est pas engagee|responsabilite non engagee|n est pas (tenu(e)? )?responsable|vous n etes pas responsable|non responsable|aucune responsabilite|degagee? de (toute )?responsabilite/.test(t)) return 'non-responsable';
+  // 3) Responsable (affirmations) — les négations ci-dessus ont déjà court-circuité « pas engagée ».
+  if (/responsabilite (est )?engagee|responsabilite (est )?retenue|vous etes (tenu(e)? )?responsable|etes responsable/.test(t)) return 'responsable';
+  return '';
+};
 // Extrait la COUCHE TEXTE d'un PDF (reconstruite PAR POSITION, comme ulysPdfToText) → '' si PDF scanné
 // (pas de couche texte) ou pdf.js indisponible. Helper central réutilisé par FP.scanIA (toutes les pages).
 FP._pdfTextLayer = async function (file) {

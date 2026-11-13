@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113f">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -662,6 +662,7 @@
           • <b>Étape 3 (Décision)</b> — dépose le courrier de prise en charge, mets <b>« Décision de l'assurance » = Accord conditionnel reçu</b>, saisis <b>Franchise contractuelle = 1 500 €</b> et renseigne la <b>PEC payée au garage</b> (le montant réglé directement au garage). Le <b>reste à charge</b> s'affiche alors en <b>fourchette</b> (≈ 1 500 € de franchise), <b>sans fausse créance « à recevoir »</b> puisque l'assureur paie le garage, pas toi. ✓<br>
           • <b>Étapes 4-5-6</b> — restent <b>en attente</b> (facture définitive → règlements → clôture). Tu peux <b>ignorer</b> une étape qui ne s'applique pas (ex. pas d'expertise) sans bloquer le reste.<br>
           Résultat : le dossier reflète la réalité (accord reçu mais non définitif) <b>sans inventer de montant</b>.</div>
+        <div class="man-item"><b>✨ Analyser les documents existants</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans l'onglet <b>Documents</b> d'un sinistre, le bouton <b>« Analyser les documents existants »</b> relit par l'IA <b>tous les courriers déjà importés</b> (sans rien re-déposer) et <b>regroupe</b> les informations trouvées dans <b>une seule fenêtre de validation</b> : responsabilité, n° de dossier, <b>n° de police</b>, courtier, date, franchise, PEC annoncée. Pratique quand les infos sont réparties sur <b>plusieurs courriers</b> (ex. l'accusé de réception donne la police et la responsabilité, le courrier de prise en charge donne la franchise). Les <b>champs déjà remplis ne sont jamais écrasés</b> (seuls les champs vides sont pré-cochés), et si deux courriers se <b>contredisent</b>, c'est <b>signalé</b> — tu gardes le dernier mot. <br><b>Responsabilité lue automatiquement</b> : les phrases claires sont reconnues, <b>négations comprises</b> — « votre responsabilité n'est pas engagée » → <b>Non responsable</b> (jamais l'inverse) ; « vous êtes responsable » → <b>Responsable</b> ; torts partagés → <b>Partagée</b>. En cas de doute, le champ reste à compléter — rien n'est deviné depuis la franchise ou la prise en charge.</div>
         <div class="man-item"><b>Alertes automatiques</b> : « <b>sinistre sans réponse de l'assureur</b> » (déclaré depuis plus de 3 semaines sans responsabilité ni réponse → relance l'assureur) et « en attente de remboursement ». Elles s'éteignent dès que tu remplis la suite du dossier, scannes le courrier, <b>ou passes le suivi en « Remboursé » / « Prise en charge » / « Refusé »</b> (dans tous ces cas l'assureur a répondu → le sinistre n'est plus compté « sans réponse »), ou dès qu'un montant remboursé est saisi.</div>
 
         <div class="man-zone">Les 6 chiffres du haut</div>
@@ -1165,8 +1166,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113e"></script>
-<script src="../assets/js/supabase-client.js?v=20261113e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113f"></script>
+<script src="../assets/js/supabase-client.js?v=20261113f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1182,10 +1183,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261113e"></script>
+<script src="../assets/js/app.min.js?v=20261113f"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
