@@ -2064,9 +2064,16 @@ FP.sinistreFin = function (incidentKey, factures) {
   // ⚠️ « Décision reçue — montants à confirmer » : drapeau léger (comme `solde`). Une décision d'assurance
   // existe (courrier reçu) mais SANS montant confirmé (ni franchise appliquée, ni PEC confirmée). On ne doit
   // alors PAS présenter un reste à charge CERTAIN. On n'invente aucun montant.
-  const decisionRecue = !!dv.decisionRecue;
+  // Statut de la DÉCISION d'assurance (SOURCE UNIQUE) : '' en attente | 'conditionnel' | 'confirme' | 'refus'
+  // | 'sans-pec'. Rétrocompatible avec le drapeau decisionRecue (Lot 1) → traité comme 'conditionnel'.
+  const decisionStatut = (dv.decisionStatut || (dv.decisionRecue ? 'conditionnel' : '')).toString();
+  const decisionRecue = (decisionStatut === 'conditionnel');
+  const decisionRefus = (decisionStatut === 'refus' || decisionStatut === 'sans-pec');   // aucune prise en charge
+  const pecGarage = num(dv.pecGarage);                                                    // PEC payée DIRECTEMENT au garage
   const coutEco = (coutFacture != null) ? coutFacture : coutEstime;        // facturé prioritaire, sinon estimé
-  const resteARecevoir = (pecConfirmee != null) ? Math.max(0, pecConfirmee - encaisse) : null;
+  // Reste à RECEVOIR par l'ENTREPRISE = PEC confirmée − déjà encaissé − part payée directement au garage
+  // (un paiement direct au garage n'est JAMAIS « à recevoir » par l'entreprise → pas de fausse créance).
+  const resteARecevoir = (pecConfirmee != null) ? Math.max(0, pecConfirmee - encaisse - (pecGarage || 0)) : null;
   // Reste à charge prévisionnel (+ FOURCHETTE d'incertitude). Priorité aux valeurs CONFIRMÉES ; sinon, si une
   // décision est reçue mais non chiffrée → fourchette [franchise probable ; coût total au pire]. resteChargePrev
   // garde la borne BASSE (franchise) comme valeur « probable » pour les agrégats — jamais le coût total présenté
@@ -2074,6 +2081,7 @@ FP.sinistreFin = function (incidentKey, factures) {
   let resteChargePrev = null, resteChargeMin = null, resteChargeMax = null, resteChargeIncertain = false;
   if (franchiseAppliquee != null) resteChargePrev = Math.max(0, franchiseAppliquee);
   else if (coutEco != null && pecConfirmee != null) resteChargePrev = Math.max(0, coutEco - pecConfirmee);
+  else if (decisionRefus) resteChargePrev = (coutEco != null) ? Math.max(0, coutEco) : null;                   // refus / sans PEC → coût total à charge
   else if (isPec) resteChargePrev = Math.max(0, franchiseContractuelle != null ? franchiseContractuelle : 0); // pris en charge → franchise (ou 0 confirmé)
   else if (decisionRecue) {                                                                                    // décision reçue, montants non confirmés → fourchette
     const fr = (franchiseContractuelle != null) ? Math.max(0, franchiseContractuelle) : 0;
@@ -2089,10 +2097,11 @@ FP.sinistreFin = function (incidentKey, factures) {
   else if (coutEco != null) resteChargePrev = Math.max(0, coutEco - encaisse);                                // legacy : coût − encaissé
   const solde = !!dv.solde;
   return {
-    incidentKey: incidentKey, statut: statut, isPec: isPec, decisionRecue: decisionRecue,
+    incidentKey: incidentKey, statut: statut, isPec: isPec,
+    decisionRecue: decisionRecue, decisionStatut: decisionStatut, decisionRefus: decisionRefus,
     coutEstime: coutEstime, coutFacture: coutFacture, coutEco: coutEco,
     franchiseContractuelle: franchiseContractuelle, franchiseAppliquee: franchiseAppliquee,
-    pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee,
+    pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee, pecGarage: pecGarage,
     versements: versements, encaisse: encaisse,
     resteARecevoir: resteARecevoir, resteChargePrev: resteChargePrev,
     resteChargeMin: resteChargeMin, resteChargeMax: resteChargeMax, resteChargeIncertain: resteChargeIncertain,
