@@ -2839,6 +2839,184 @@ FP.loueurOf = (v) => {
   return String(prof.loueurNom || '').trim();
 };
 
+// ============================================================
+// RÉFÉRENTIEL DES PROPRIÉTAIRES JURIDIQUES (titulaire carte grise, repère C.1)
+// ------------------------------------------------------------
+// Source UNIQUE partagée par la fiche véhicule, le filtre « propriétaire juridique » et les exports.
+// Évite qu'une variante de saisie (« PXPR GE » vs « PXPR GE GmbH ») crée une NOUVELLE entité fantôme.
+// Stocké PAR SOCIÉTÉ dans settings.proprietaires (app_settings → synchro tous appareils ; ajouté à
+// COLLECTION_KEYS → fusion fine par id, jamais écrasé en bloc par un cache en retard).
+//   Chaque entité : { id, nom (officiel), alias:[], forme, pays, idJuridique, note }.
+// ⚠️ Ne RÉÉCRIT JAMAIS v.proprietaire en silence : un ancien libellé reste relié à la bonne entité via
+//    ses alias (FP.proprioCanon). La « normalisation » d'un véhicule (changer la valeur stockée) est une
+//    action OPT-IN explicite. La valeur carte grise d'origine reste la donnée documentaire (repère C.1).
+// À ne pas confondre avec `entite_rattachement` (rattachement interne) ni `societe` (locataire SaaS).
+// ============================================================
+FP.normProprio = (s) => (FP.norm ? FP.norm(s) : String(s == null ? '' : s).toLowerCase()).replace(/\s+/g, ' ').trim();
+FP.proprietaires = () => { try { const s = FP.settings.get(); return Array.isArray(s.proprietaires) ? s.proprietaires : []; } catch (e) { return []; } };
+// Tous les libellés d'une entité (nom officiel + alias) — pour le rapprochement.
+FP._proprioLabels = (e) => { const out = []; if (!e) return out; if (e.nom) out.push(e.nom); (Array.isArray(e.alias) ? e.alias : []).forEach(a => { if (a) out.push(a); }); return out; };
+// Entité du référentiel qui correspond à un libellé (match nom OU alias, insensible casse/accents/espaces).
+FP.proprioEntite = (label) => { const n = FP.normProprio(label); if (!n) return null; return FP.proprietaires().find(e => FP._proprioLabels(e).some(l => FP.normProprio(l) === n)) || null; };
+// Libellé OFFICIEL (canonique) d'un propriétaire : si le libellé correspond à une entité (nom ou alias),
+// renvoie son NOM officiel ; sinon renvoie le libellé d'origine (nettoyé). Source unique pour filtre/affichage.
+FP.proprioCanon = (label) => { const e = FP.proprioEntite(label); if (e && e.nom) return e.nom; return String(label == null ? '' : label).trim(); };
+// Enregistre (ajout si pas d'id, sinon mise à jour par id) une entité. Persisté + synchronisé.
+FP.saveProprietaire = (ent) => {
+  if (!ent || !String(ent.nom || '').trim()) return null;
+  const s = FP.settings.get();
+  const list = Array.isArray(s.proprietaires) ? s.proprietaires.slice() : [];
+  const clean = {
+    id: ent.id || ('pr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+    nom: String(ent.nom).trim(),
+    alias: Array.from(new Set((Array.isArray(ent.alias) ? ent.alias : []).map(a => String(a || '').trim()).filter(Boolean))),
+    forme: String(ent.forme || '').trim(),
+    pays: String(ent.pays || '').trim(),
+    idJuridique: String(ent.idJuridique || '').trim(),
+    note: String(ent.note || '').trim()
+  };
+  const i = list.findIndex(e => e && e.id === clean.id);
+  if (i >= 0) list[i] = { ...list[i], ...clean }; else list.push(clean);
+  s.proprietaires = list; FP.settings.save(s);
+  return clean;
+};
+FP.removeProprietaire = (id) => { const s = FP.settings.get(); if (!Array.isArray(s.proprietaires)) return; s.proprietaires = s.proprietaires.filter(e => e && e.id !== id); FP.settings.save(s); };
+// Ajoute un alias à une entité existante (idempotent) — utilisé par l'assistant de rapprochement.
+FP.addProprioAlias = (id, alias) => {
+  const a = String(alias || '').trim(); if (!a) return null;
+  const s = FP.settings.get(); const list = Array.isArray(s.proprietaires) ? s.proprietaires : [];
+  const e = list.find(x => x && x.id === id); if (!e) return null;
+  e.alias = Array.from(new Set([...(e.alias || []), a].map(x => String(x || '').trim()).filter(Boolean)));
+  FP.settings.save(s); return e;
+};
+// Valeurs de propriétaire RÉELLEMENT présentes dans la flotte (live), dédupliquées par libellé brut,
+// avec le compte de véhicules et l'entité de référentiel reconnue (ou null = non rattaché).
+// Sert à l'assistant de rapprochement (lit les données live, aucune écriture).
+FP.proprioValeursFlotte = (vehicules) => {
+  const vs = Array.isArray(vehicules) ? vehicules : [];
+  const map = new Map();
+  vs.forEach(v => {
+    const brut = String((v && v.proprietaire) || '').trim();
+    if (!brut) return;
+    const cur = map.get(brut) || { label: brut, count: 0 };
+    cur.count++; map.set(brut, cur);
+  });
+  return Array.from(map.values()).map(x => ({ ...x, entite: FP.proprioEntite(x.label) }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'fr'));
+};
+
+// Modale « Nouvelle / Modifier entité (propriétaire juridique) » — renvoie l'entité enregistrée, ou null.
+// `prefill` = chaîne (création, nom pré-rempli) OU objet entité { id, nom, alias, forme, pays, idJuridique }
+// (modification : on garde son id). Anti-doublon à la création : si le nom correspond déjà à une entité
+// (nom ou alias), on la réutilise plutôt que d'en créer une 2ᵉ.
+FP.newProprietaireModal = function (prefill) {
+  const edit = (prefill && typeof prefill === 'object') ? prefill : null;
+  return new Promise(resolve => {
+    let ov = document.getElementById('fp-newprop-ov');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'fp-newprop-ov';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.5);display:none;align-items:center;justify-content:center;z-index:10001;padding:1rem';
+      ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#111A2B);border-radius:1rem;max-width:480px;width:100%;max-height:90vh;overflow:auto;padding:1.5rem">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem"><h2 id="fp-np-title" style="font-size:1.2rem;font-weight:800;color:var(--fp-primary,#0F1E3D)">Nouvelle entité (propriétaire juridique)</h2>'
+        + '<button type="button" id="fp-np-x" style="border:none;background:none;cursor:pointer;font-size:1.3rem;color:var(--fp-muted);line-height:1">✕</button></div>'
+        + '<p style="font-size:.8rem;color:var(--fp-muted);margin-bottom:1rem">Le titulaire de la carte grise (repère C.1). Les identifiants sont facultatifs (documentaires).</p>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">'
+        + '<div style="grid-column:1/3"><div class="field-label">Nom officiel *</div><input class="field-input" id="fp-np-nom" placeholder="ex. PXPR GE GmbH"></div>'
+        + '<div><div class="field-label">Forme juridique</div><input class="field-input" id="fp-np-forme" placeholder="GmbH, SARL, SAS…"></div>'
+        + '<div><div class="field-label">Pays</div><input class="field-input" id="fp-np-pays" placeholder="FR, DE, IT, NL…"></div>'
+        + '<div style="grid-column:1/3"><div class="field-label">Identifiant juridique <span style="color:var(--fp-muted);font-weight:400;text-transform:none">(SIREN / n° TVA / Handelsregister — facultatif)</span></div><input class="field-input" id="fp-np-id"></div>'
+        + '<div style="grid-column:1/3"><div class="field-label">Autres appellations (alias) <span style="color:var(--fp-muted);font-weight:400;text-transform:none">séparées par des virgules</span></div><input class="field-input" id="fp-np-alias" placeholder="ex. PXPR GE, Project X Paris Retail Germany"></div>'
+        + '</div>'
+        + '<div style="display:flex;gap:.5rem;margin-top:1.1rem"><button type="button" class="btn btn-outline" id="fp-np-cancel" style="flex:1;justify-content:center">Annuler</button>'
+        + '<button type="button" class="btn btn-dark" id="fp-np-save" style="flex:1;justify-content:center">Enregistrer</button></div></div>';
+      document.body.appendChild(ov);
+    }
+    const g = id => document.getElementById(id);
+    g('fp-np-title').textContent = edit ? 'Modifier l\'entité (propriétaire juridique)' : 'Nouvelle entité (propriétaire juridique)';
+    g('fp-np-nom').value = edit ? String(edit.nom || '').trim() : String(prefill || '').trim();
+    g('fp-np-forme').value = edit ? String(edit.forme || '') : '';
+    g('fp-np-pays').value = edit ? String(edit.pays || '') : '';
+    g('fp-np-id').value = edit ? String(edit.idJuridique || '') : '';
+    g('fp-np-alias').value = edit ? (Array.isArray(edit.alias) ? edit.alias.join(', ') : '') : '';
+    ov.style.display = 'flex';
+    setTimeout(() => g('fp-np-nom').focus(), 50);
+    const done = (r) => { ov.style.display = 'none'; g('fp-np-save').onclick = g('fp-np-cancel').onclick = g('fp-np-x').onclick = null; resolve(r); };
+    g('fp-np-cancel').onclick = () => done(null);
+    g('fp-np-x').onclick = () => done(null);
+    g('fp-np-save').onclick = () => {
+      const nom = g('fp-np-nom').value.trim();
+      if (!nom) { if (FP.toast) FP.toast('Indique le nom officiel de l\'entité.'); else alert('Nom requis'); return; }
+      const alias = g('fp-np-alias').value.split(',').map(a => a.trim()).filter(Boolean);
+      if (!edit) {
+        const exist = FP.proprioEntite(nom);
+        if (exist) { done(exist); return; }  // anti-doublon à la création
+      }
+      const ent = FP.saveProprietaire({ id: edit ? edit.id : undefined, nom, forme: g('fp-np-forme').value.trim(), pays: g('fp-np-pays').value.trim(), idJuridique: g('fp-np-id').value.trim(), alias });
+      done(ent);
+    };
+  });
+};
+
+// Combobox PROPRIÉTAIRE JURIDIQUE sur un <input> : tape pour filtrer le référentiel (nom + alias),
+// choisis une entité (→ écrit son NOM officiel), vide, gardes la valeur existante (hors référentiel),
+// ou crées une entité (« ➕ Créer », gardé par FP.canManageSociete → config société).
+// opts : { onPick(nom, {isNew, entite}), current, allowCreate }.
+FP.proprioPicker = function (input, opts) {
+  try {
+    if (!input || input.dataset.ppDone === '1') return;
+    input.dataset.ppDone = '1';
+    opts = opts || {};
+    input.autocomplete = 'off';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const norm = FP.normProprio;
+    const canCreate = () => (opts.allowCreate !== false) && (FP.canManageSociete ? FP.canManageSociete() : true);
+    const menu = document.createElement('div');
+    menu.className = 'fp-jsmenu';
+    menu.style.cssText = 'position:fixed;z-index:10000;background:var(--fp-surface,#fff);color:var(--fp-text,#111A2B);border:1px solid var(--fp-border,#E3E8F0);border-top:3px solid var(--fp-accent,#F97316);border-radius:12px;box-shadow:0 18px 44px -16px rgba(11,18,32,.34);max-height:280px;overflow:auto;display:none;padding:5px';
+    document.body.appendChild(menu);
+    const place = () => { const r = input.getBoundingClientRect(); menu.style.left = r.left + 'px'; menu.style.top = (r.bottom + 3) + 'px'; menu.style.width = Math.max(r.width, 220) + 'px'; };
+    const close = () => { menu.style.display = 'none'; };
+    const pick = (nom, meta) => { input.value = nom; close(); if (opts.onPick) opts.onPick(nom, meta || {}); };
+    async function createFrom(name) { const e = await FP.newProprietaireModal(name); if (e) pick(e.nom, { isNew: true, entite: e }); else input.focus(); }
+    function open(q) {
+      const nq = norm(q);
+      const ents = FP.proprietaires().filter(e => { if (!nq) return true; return FP._proprioLabels(e).some(l => norm(l).includes(nq)); }).slice(0, 60);
+      const exact = FP.proprioEntite(q);
+      let html = '<div class="fp-pp-none" style="padding:.5rem .7rem;cursor:pointer;color:var(--fp-muted,#5A6577)">— Aucun (vider) —</div>';
+      // Garder la valeur actuelle hors référentiel (ne jamais forcer un choix / ne pas perdre un ancien libellé).
+      const cur = String(opts.current || '').trim();
+      if (cur && !FP.proprioEntite(cur)) html += `<div class="fp-pp-keep" style="padding:.5rem .7rem;cursor:pointer"><span style="color:var(--fp-muted,#5A6577)">Garder</span> « ${esc(cur)} » <span style="font-size:.7rem;color:var(--fp-muted,#5A6577)">(hors référentiel)</span></div>`;
+      html += ents.map(e => { const hint = [e.forme, e.pays].filter(Boolean).join(' · '); const al = (e.alias && e.alias.length) ? ` <span style="font-size:.7rem;color:var(--fp-muted,#5A6577)">alias : ${esc(e.alias.join(', '))}</span>` : ''; return `<div class="fp-pp-it" data-id="${esc(e.id)}" style="padding:.5rem .7rem;cursor:pointer">${esc(e.nom)}${hint ? ` <span style="font-size:.7rem;color:var(--fp-muted,#5A6577)">(${esc(hint)})</span>` : ''}${al}</div>`; }).join('');
+      if (q && q.trim() && !exact && canCreate()) {
+        html = `<div class="fp-pp-new" style="padding:.55rem .7rem;cursor:pointer;font-weight:700;color:var(--fp-accent,#F97316);border-bottom:1px solid var(--fp-border,#E3E8F0)">➕ Créer « ${esc(q.trim())} »</div>` + html;
+      }
+      menu.innerHTML = html;
+      place(); menu.style.display = 'block';
+    }
+    input.addEventListener('focus', () => open(input.value));
+    input.addEventListener('input', () => open(input.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const v = input.value.trim();
+        const ent = FP.proprioEntite(v);
+        if (ent) { e.preventDefault(); pick(ent.nom, { entite: ent }); return; }
+        if (v && canCreate()) { e.preventDefault(); close(); createFrom(v); }
+      } else if (e.key === 'Escape') { close(); }
+    });
+    menu.addEventListener('pointerdown', e => {
+      if (e.target.closest('.fp-pp-none')) { e.preventDefault(); pick('', { cleared: true }); return; }
+      const keep = e.target.closest('.fp-pp-keep'); if (keep) { e.preventDefault(); pick(String(opts.current || '').trim(), { kept: true }); return; }
+      const nw = e.target.closest('.fp-pp-new'); if (nw) { e.preventDefault(); const v = input.value.trim(); close(); createFrom(v); return; }
+      const it = e.target.closest('.fp-pp-it'); if (!it) return; e.preventDefault();
+      const ent = FP.proprietaires().find(x => x.id === it.getAttribute('data-id')); if (ent) pick(ent.nom, { entite: ent });
+    });
+    input.addEventListener('blur', () => setTimeout(close, 150));
+    window.addEventListener('scroll', () => { if (menu.style.display !== 'none') place(); }, true);
+    window.addEventListener('resize', () => { if (menu.style.display !== 'none') place(); });
+  } catch (e) { /* en cas de souci, l'input reste un champ texte normal */ }
+};
+
 // Masses en ORDRE DE MARCHE (champ G de la carte grise, en kg) — c'est le champ qu'utilise
 // la règle de stationnement de Paris (≤ 2 t), PAS le poids à vide G.1. Valeurs LUES DIRECTEMENT
 // dans les cartes grises Drive de la flotte. Sert de repli quand la masse n'a pas encore été
@@ -8129,6 +8307,10 @@ FP.settings = {
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous', 'sinistreEtapeIgnore', 'sinistreDocCat',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
       'localeaseContrats', 'prestatairesPerso',
+      // — Référentiel des PROPRIÉTAIRES JURIDIQUES (tableau d'entités à id : nom officiel + alias + identifiants) :
+      //   source unique du champ « Propriétaire juridique (C.1) ». Fusion fine PAR ID (un ajout concurrent
+      //   multi-appareils ne doit jamais écraser l'autre, comme prestatairesPerso / contratsCadre).
+      'proprietaires',
       // — Accusés de lecture des alertes « ✓ Vu » (map muteKey→signature) : sans ça, un enregistrement
       //   d'un autre appareil écrasait TOUT le « déjà vu » → les alertes réapparaissaient.
       'alertesVues',
@@ -11240,7 +11422,9 @@ FP.restaurerReglages = (data) => {
   const a = R.parCle(avant.affectations, data.affectations, l => l.filter(x => x && typeof x === 'object' && x.conducteur));
   const l = R.parId(avant.localeaseContrats, data.localeaseContrats);
   const f = R.parCle(avant.leasingContrats, data.leasingContrats);
-  data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur; data.leasingContrats = f.valeur;
+  // Référentiel des propriétaires juridiques : fusion PAR ID (jamais perdre une entité à la restauration).
+  const pr = R.parId(avant.proprietaires, data.proprietaires);
+  data.condConges = c.valeur; data.affectations = a.valeur; data.localeaseContrats = l.valeur; data.leasingContrats = f.valeur; data.proprietaires = pr.valeur;
   // Collections en table générique (assurances…) : même règle par élément ; l'envoi à la table se fait ensuite
   // tout seul à l'enregistrement (FP.elementsReglages.apresSauvegarde).
   let nElements = 0;

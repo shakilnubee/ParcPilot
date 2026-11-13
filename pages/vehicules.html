@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113j">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113j"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113j">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113i"></script>
-<script src="../assets/js/supabase-client.js?v=20261113i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113j"></script>
+<script src="../assets/js/supabase-client.js?v=20261113j"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261113i"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261113i"></script>
+<script src="../assets/js/fleet-docs.js?v=20261113j"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261113j"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113i"></script><script>
+<script src="../assets/js/app.min.js?v=20261113j"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2962,8 +2962,9 @@
       if (state.entite !== 'all' && (v.entiteRattachement || '') !== state.entite) return false;
       if (state.detention !== 'all' && (v.modeDetention || '') !== state.detention) return false;
       if (state.pays !== 'all' && (v.paysImmat || '') !== state.pays) return false;
-      // Propriétaire juridique = champ v.proprietaire EXACT (jamais le loueur/bailleur). '__none__' = non renseigné.
-      if (state.proprio !== 'all') { const pr = (v.proprietaire || '').trim(); if (state.proprio === '__none__') { if (pr) return false; } else if (pr !== state.proprio) return false; }
+      // Propriétaire juridique = champ v.proprietaire (jamais le loueur/bailleur), comparé via son ENTITÉ
+      // CANONIQUE (alias regroupés). '__none__' = non renseigné.
+      if (state.proprio !== 'all') { const pr = (v.proprietaire || '').trim(); if (state.proprio === '__none__') { if (pr) return false; } else { const pc = (window.FP && FP.proprioCanon) ? FP.proprioCanon(pr) : pr; if (pc !== state.proprio) return false; } }
       if (q && !(FP.norm(`${v.immat} ${v.marque} ${v.modele} ${v.chauffeur}`).includes(q))) return false;
       return true;
     });
@@ -3998,7 +3999,7 @@
             return `<div class="flex justify-between items-center gap-2"><span class="text-slate-600">Assurance</span><span class="flex items-center gap-2 justify-end" style="min-width:0"><span class="font-medium text-right" data-df="assurance" data-dt="text" style="overflow:hidden;text-overflow:ellipsis">${val}</span>${voir}</span></div>`;
           })()}
           ${(function(){ try { const num = (window.FP && FP.assistanceOf) ? FP.assistanceOf(v) : ''; return num ? `<div class="flex justify-between items-center"><span class="text-slate-600">Assistance 24/7</span><a class="font-medium text-right" href="tel:${escapeHtml(String(num).replace(/\s/g,''))}" style="color:var(--fp-accent)">${escapeHtml(String(num).replace(/\s/g,''))}</a></div>` : ''; } catch(e){ return ''; } })()}
-          <div class="flex justify-between items-center"><span class="text-slate-600">Propriétaire juridique <span class="text-slate-400 text-xs" title="Titulaire de la carte grise (repère C.1) — qui possède juridiquement le véhicule (société, loueur…)">(C.1)</span></span><span class="font-medium text-right" data-df="proprietaire" data-dt="text">${v.proprietaire ? escapeHtml(v.proprietaire) : '<span class="text-slate-400">—</span>'}</span></div>
+          <div class="flex justify-between items-center"><span class="text-slate-600">Propriétaire juridique <span class="text-slate-400 text-xs" title="Titulaire de la carte grise (repère C.1) — qui possède juridiquement le véhicule (société, loueur…)">(C.1)</span></span><span class="font-medium text-right flex items-center gap-1 justify-end" style="min-width:0">${(function () { try { if (window.FP && FP.proprioEntite) { const raw = (v.proprietaire || '').trim(); if (raw) { const e = FP.proprioEntite(raw); if (e && FP.normProprio(e.nom) !== FP.normProprio(raw)) return `<button type="button" class="pp-normalize-proprio" data-nom="${escapeHtml(e.nom)}" title="Harmoniser avec le libellé officiel du référentiel" style="border:1px solid var(--fp-border);background:var(--fp-surface);color:var(--fp-accent);border-radius:6px;padding:0 .35rem;font-size:.68rem;font-weight:700;cursor:pointer;white-space:nowrap">↺ ${escapeHtml(e.nom)}</button>`; } } } catch (_) {} return ''; })()}<span data-df="proprietaire" data-dt="text" style="overflow:hidden;text-overflow:ellipsis">${v.proprietaire ? escapeHtml(v.proprietaire) : '<span class="text-slate-400">—</span>'}</span></span></div>
           <div class="flex justify-between items-center"><span class="text-slate-600">Entité de rattachement <span class="text-slate-400 text-xs" title="À quelle entité/établissement ce véhicule est rattaché en interne (indépendant du propriétaire juridique)">?</span></span><span class="font-medium text-right" data-df="entiteRattachement" data-dt="text">${v.entiteRattachement ? escapeHtml(v.entiteRattachement) : '<span class="text-slate-400">—</span>'}</span></div>
           ${(function(){
             const cur = v.modeDetention ? escapeHtml(v.modeDetention) : '';
@@ -4323,6 +4324,14 @@
     if (riEl) {
       const v = data.vehicules.find(x => x.id === drawerVehId); if (!v) return;
       editRevInterval(v);
+      return;
+    }
+    // ↺ Normaliser le propriétaire juridique (OPT-IN) : remplace le libellé stocké par le NOM OFFICIEL du
+    //    référentiel quand la fiche porte un alias (« PXPR GE » → « PXPR GE GmbH »). Jamais automatique.
+    const normBtn = e.target.closest('.pp-normalize-proprio');
+    if (normBtn) {
+      const v = data.vehicules.find(x => x.id === drawerVehId);
+      if (v) { const nom = normBtn.getAttribute('data-nom') || ''; if (nom) { FP.history.commit(); v.proprietaire = nom; commitVehField(v, 'proprietaire'); if (FP.toast) FP.toast('✓ Propriétaire harmonisé : ' + nom); } }
       return;
     }
     // ✏️ Édition inline des champs [data-df] du CORPS de la fiche (Technique, Entretien & échéances :
@@ -5264,7 +5273,10 @@
     //    + option « Non renseigné » si des véhicules n'ont pas de propriétaire. Dynamique, aucun nom codé en dur.
     (function () {
       const sel = $('filter-proprio'); if (!sel) return;
-      const uniq = [...new Set(vs.map(v => (v.proprietaire || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+      // Regroupe par ENTITÉ CANONIQUE (FP.proprioCanon) : les alias (« PXPR GE » → « PXPR GE GmbH ») comptent
+      // sous un seul libellé officiel. Si le référentiel est vide, canon = valeur brute → comportement identique.
+      const canon = (x) => (window.FP && FP.proprioCanon) ? FP.proprioCanon(x) : String(x || '').trim();
+      const uniq = [...new Set(vs.map(v => canon(v.proprietaire)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
       const hasVide = vs.some(v => !(v.proprietaire || '').trim());
       if (uniq.length + (hasVide ? 1 : 0) < 2) {   // rien à filtrer → masqué + neutralisé (barre épurée)
         sel.style.display = 'none'; if (state.proprio !== 'all') state.proprio = 'all';
@@ -5470,6 +5482,21 @@
     if (type === 'bool') { FP.history.commit(); v[field] = !v[field]; commitVehField(v, field); return; }
     const cur = v[field] != null ? v[field] : '';
     let html;
+    // Propriétaire juridique (C.1) : combobox recherchable alimenté par le RÉFÉRENTIEL partagé (source unique)
+    // + « ➕ Créer » (gardé canManageSociete). Plus de saisie libre qui crée une entité fantôme ; une valeur
+    // hors référentiel reste conservable (« Garder »). Jamais d'enregistrement sans choix explicite.
+    if (field === 'proprietaire' && window.FP && FP.proprioPicker) {
+      td.innerHTML = `<input class="cell-edit" type="text" value="${String(cur).replace(/"/g, '&quot;')}" placeholder="Rechercher ou créer une entité…" style="width:100%;min-width:140px;border:1px solid var(--fp-accent);border-radius:6px;padding:.25rem .4rem">`;
+      const el = td.querySelector('.cell-edit');
+      let picked = false;
+      const commitP = (nom) => { picked = true; FP.history.commit(); v.proprietaire = (nom && String(nom).trim()) ? String(nom).trim() : null; commitVehField(v, 'proprietaire'); };
+      const restore = () => { if (picked) return; renderTable(); if (drawerVehId && $('drawer').classList.contains('open')) openDrawer(drawerVehId); };
+      FP.proprioPicker(el, { current: cur, onPick: (nom) => commitP(nom) });
+      el.addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); restore(); } });
+      el.addEventListener('blur', () => setTimeout(restore, 250));
+      try { el.focus(); } catch (e) {}
+      return;
+    }
     // Carburant : liste canonique déroulante (jamais de saisie libre → pas d'incohérence entre véhicules).
     if (field === 'carburant' && window.FP && FP.CARBURANTS) {
       const curN = FP.normCarburant ? (FP.normCarburant(cur) || '') : cur;
