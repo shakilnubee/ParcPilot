@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113i">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113j">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113i"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261113j"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113i">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261113j">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -212,6 +212,7 @@
       <button class="set-tab" data-sec="documents"><i data-lucide="file-check"></i> Documents obligatoires</button>
       <button class="set-tab" data-sec="automatisations"><i data-lucide="zap"></i> Automatisations</button>
       <button class="set-tab" data-sec="societe"><i data-lucide="building-2"></i> Société</button>
+      <button class="set-tab" data-sec="proprietaires"><i data-lucide="landmark"></i> Propriétaires</button>
       <button class="set-tab" data-sec="emails"><i data-lucide="mail"></i> E-mails</button>
       <button class="set-tab" data-sec="donnees"><i data-lucide="database"></i> Données</button>
       <button class="set-tab" data-sec="journal"><i data-lucide="history"></i> Journal</button>
@@ -543,6 +544,33 @@
         <div id="aen-import-status" class="text-xs mt-2"></div>
       </div>
       </div><!-- /.set-sub AEN -->
+    </div>
+
+    <!-- Section Propriétaires juridiques (référentiel unique du champ « Propriétaire juridique (C.1) ») -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="proprietaires">
+      <div class="set-head">
+        <h2><i data-lucide="landmark"></i> Propriétaires juridiques</h2>
+        <p>Le référentiel unique du champ « Propriétaire juridique (C.1) » des fiches véhicules (titulaire de la carte grise). Identique partout — fiches, filtres, exports — pour éviter les doublons de libellés.</p>
+      </div>
+      <div class="text-xs text-slate-500 mb-4" style="background:var(--fp-bg,#f1f5f9);border-radius:.6rem;padding:.65rem .85rem;line-height:1.5">
+        ℹ️ À ne pas confondre avec l'<b>entité de rattachement</b> (rattachement interne du véhicule). Les <b>identifiants</b> (SIREN / n° TVA / Handelsregister) sont <b>facultatifs</b> et documentaires. Modifier le référentiel ne réécrit <b>jamais</b> les fiches : un ancien libellé reste relié à la bonne entité via ses <b>alias</b>.
+      </div>
+
+      <!-- Assistant de rapprochement : lit les valeurs réellement saisies et propose de les rattacher -->
+      <div class="mb-6">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <button class="btn btn-dark text-sm" id="btn-proprio-analyse"><i data-lucide="search-check" class="w-4 h-4"></i> Analyser les propriétaires de ma flotte</button>
+          <span class="text-xs text-slate-500">Détecte les libellés en double (« PXPR GE » vs « PXPR GE GmbH »).</span>
+        </div>
+        <div id="proprio-analyse" class="text-sm"></div>
+      </div>
+
+      <!-- Référentiel : liste des entités -->
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-bold text-sm">Entités du référentiel</h3>
+        <button class="btn btn-outline text-sm" id="btn-proprio-add"><i data-lucide="plus" class="w-4 h-4"></i> Ajouter une entité</button>
+      </div>
+      <div id="proprio-list" class="text-sm"></div>
     </div>
 
     <!-- Section Données -->
@@ -948,8 +976,8 @@
 <!-- Toast -->
 <div class="toast" id="toast">Enregistré ✓</div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113i"></script>
-<script src="../assets/js/supabase-client.js?v=20261113i"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261113j"></script>
+<script src="../assets/js/supabase-client.js?v=20261113j"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -965,10 +993,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261113i"></script>
+<script src="../assets/js/app.min.js?v=20261113j"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -2802,6 +2830,72 @@
         b.parentNode.insertBefore(note, b.nextSibling);
       }
     });
+  })();
+
+  // ===== Référentiel des PROPRIÉTAIRES JURIDIQUES (config société — admin ; caché au gestionnaire) =====
+  // Source unique du champ « Propriétaire juridique (C.1) ». L'assistant lit les valeurs RÉELLEMENT saisies
+  // dans les fiches (window.FP_DATA.vehicules) et propose de les rattacher — jamais de fusion automatique.
+  (function initProprietaires() {
+    const g = id => document.getElementById(id);
+    const listEl = g('proprio-list'); if (!listEl) return;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const canEdit = () => !(window.FP && FP.canManageSociete && !FP.canManageSociete());
+    const ents = () => (window.FP && FP.proprietaires) ? FP.proprietaires() : [];
+
+    function renderList() {
+      const list = ents().slice().sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+      if (!list.length) { listEl.innerHTML = '<div class="text-slate-500" style="padding:.6rem 0">Aucune entité pour l\'instant. Clique sur « Analyser les propriétaires de ma flotte » pour bâtir le référentiel à partir de tes véhicules, ou « Ajouter une entité ».</div>'; return; }
+      listEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:.5rem">' + list.map(e => {
+        const meta = [e.forme, e.pays, e.idJuridique].filter(Boolean).map(esc).join(' · ');
+        const alias = (e.alias && e.alias.length) ? `<div class="text-xs text-slate-500" style="margin-top:2px">Alias : ${esc(e.alias.join(', '))}</div>` : '';
+        return `<div class="flex items-start justify-between gap-2" style="border:1px solid var(--fp-border);border-radius:.6rem;padding:.6rem .75rem">
+          <div style="min-width:0"><div class="font-semibold">${esc(e.nom)}</div>${meta ? `<div class="text-xs text-slate-500" style="margin-top:2px">${meta}</div>` : ''}${alias}</div>
+          <div class="flex items-center gap-1 shrink-0"><button type="button" class="btn btn-outline text-xs proprio-edit" data-id="${esc(e.id)}" title="Modifier"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button><button type="button" class="btn btn-outline text-xs proprio-del" data-id="${esc(e.id)}" title="Supprimer"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></div>
+        </div>`;
+      }).join('') + '</div>';
+      try { if (window.lucide) lucide.createIcons(); } catch (_) {}
+    }
+
+    function renderAnalyse() {
+      const box = g('proprio-analyse'); if (!box) return;
+      const vs = (window.FP_DATA && FP_DATA.vehicules) || [];
+      const vals = (window.FP && FP.proprioValeursFlotte) ? FP.proprioValeursFlotte(vs) : [];
+      if (!vals.length) { box.innerHTML = '<div class="text-slate-500">Aucun propriétaire saisi dans les fiches véhicules.</div>'; return; }
+      const list = ents();
+      const nonRatt = vals.filter(x => !x.entite);
+      let html = `<div class="text-xs text-slate-600 mb-2">${vals.length} libellé(s) distinct(s) dans la flotte · <b style="color:${nonRatt.length ? '#B45309' : '#059669'}">${nonRatt.length} à rattacher</b></div>`;
+      html += '<div style="display:flex;flex-direction:column;gap:.45rem">' + vals.map(x => {
+        if (x.entite) {
+          const isAlias = FP.normProprio(x.entite.nom) !== FP.normProprio(x.label);
+          return `<div class="flex flex-wrap items-center gap-2" style="padding:.35rem .6rem;border-radius:.5rem;background:var(--fp-bg,#f1f5f9)"><span style="color:#059669">✓</span><span class="font-semibold">${esc(x.label)}</span><span class="text-xs text-slate-500">(${x.count} véh.)</span>${isAlias ? `<span class="text-xs text-slate-500">→ ${esc(x.entite.nom)}</span>` : '<span class="text-xs text-slate-500">entité référencée</span>'}</div>`;
+        }
+        const nl = FP.normProprio(x.label);
+        const sug = list.find(e => FP._proprioLabels(e).some(l => { const n = FP.normProprio(l); return n && (n.includes(nl) || nl.includes(n)); }));
+        const attach = list.length ? `<select class="field-input proprio-attach-sel" style="width:auto;max-width:200px;font-size:.8rem;padding:.25rem .4rem"><option value="">— Rattacher à… —</option>${list.map(e => `<option value="${esc(e.id)}"${(sug && e.id === sug.id) ? ' selected' : ''}>${esc(e.nom)}</option>`).join('')}</select><button type="button" class="btn btn-outline text-xs proprio-attach-go">Rattacher (alias)</button>` : '';
+        return `<div class="flex flex-wrap items-center gap-2" data-prow="1" style="padding:.4rem .6rem;border-radius:.5rem;border:1px dashed var(--fp-border)"><span style="color:#B45309">⚠</span><span class="font-semibold">${esc(x.label)}</span><span class="text-xs text-slate-500">(${x.count} véh.)</span>${attach}<button type="button" class="btn btn-dark text-xs proprio-create" data-label="${esc(x.label)}">Créer l'entité</button></div>`;
+      }).join('') + '</div>';
+      box.innerHTML = html;
+      try { if (window.lucide) lucide.createIcons(); } catch (_) {}
+    }
+
+    const analyseBtn = g('btn-proprio-analyse'); if (analyseBtn) analyseBtn.addEventListener('click', renderAnalyse);
+    const addBtn = g('btn-proprio-add'); if (addBtn) addBtn.addEventListener('click', async () => {
+      if (!canEdit()) { if (FP.toast) FP.toast('Réservé à l\'administrateur.'); return; }
+      const e = await FP.newProprietaireModal(); if (e) { renderList(); renderAnalyse(); if (FP.toast) FP.toast('✓ Entité enregistrée'); }
+    });
+    listEl.addEventListener('click', async (ev) => {
+      const ed = ev.target.closest('.proprio-edit'); const del = ev.target.closest('.proprio-del');
+      if (ed) { if (!canEdit()) { if (FP.toast) FP.toast('Réservé à l\'administrateur.'); return; } const e = ents().find(x => x.id === ed.getAttribute('data-id')); if (e) { const r = await FP.newProprietaireModal(e); if (r) { renderList(); renderAnalyse(); if (FP.toast) FP.toast('✓ Entité mise à jour'); } } return; }
+      if (del) { if (!canEdit()) { if (FP.toast) FP.toast('Réservé à l\'administrateur.'); return; } const id = del.getAttribute('data-id'); const e = ents().find(x => x.id === id); const ok = window.confirm(`Supprimer l'entité « ${e ? e.nom : ''} » du référentiel ?\n\nLes fiches véhicules ne sont PAS modifiées (leur libellé reste tel quel).`); if (ok) { FP.removeProprietaire(id); renderList(); renderAnalyse(); } return; }
+    });
+    const anBox = g('proprio-analyse'); if (anBox) anBox.addEventListener('click', async (ev) => {
+      const go = ev.target.closest('.proprio-attach-go'); const cr = ev.target.closest('.proprio-create');
+      if (go) { if (!canEdit()) { if (FP.toast) FP.toast('Réservé à l\'administrateur.'); return; } const row = go.closest('[data-prow]'); const sel = row && row.querySelector('.proprio-attach-sel'); const labelEl = row && row.querySelector('.proprio-create'); const label = labelEl ? labelEl.getAttribute('data-label') : ''; const id = sel && sel.value; if (!id) { if (FP.toast) FP.toast('Choisis une entité de rattachement.'); return; } FP.addProprioAlias(id, label); if (FP.toast) FP.toast('✓ Rattaché comme alias'); renderList(); renderAnalyse(); return; }
+      if (cr) { if (!canEdit()) { if (FP.toast) FP.toast('Réservé à l\'administrateur.'); return; } const label = cr.getAttribute('data-label'); const e = await FP.newProprietaireModal(label); if (e) { renderList(); renderAnalyse(); } return; }
+    });
+
+    renderList();
+    document.addEventListener('fp:data-ready', renderList);
   })();
 
   // ===== Gestion des comptes / accès (CEO · Admin) via la fonction serveur manage-users =====
