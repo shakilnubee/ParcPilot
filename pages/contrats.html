@@ -943,7 +943,11 @@
     const old = v.chauffeur; const val = (name && String(name).trim()) || '—';
     if (FP.normNomComplet && FP.normNomComplet(old || '') === FP.normNomComplet(val === '—' ? '' : val)) return false; // pas de changement réel
     v.chauffeur = val;
-    try { if (FP.persist && FP.persist.upsert) FP.persist.upsert('vehicules', { id: v.id, chauffeur: v.chauffeur }); else if (FP.db && FP.db.upsert) FP.db.upsert('vehicules', { id: v.id, chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
+    // ⚠️ UPDATE (pas upsert) — même correctif que setVehLoueur : un upsert partiel { id, chauffeur } tente
+    // un INSERT qui échoue (colonnes NOT NULL immat/société + RLS) → l'affectation « prenait » à l'écran
+    // puis REVENAIT à « Dépôt » au rechargement (écriture serveur jamais passée). L'UPDATE ne touche que
+    // la colonne chauffeur de la ligne véhicule déjà présente.
+    try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); else if (FP.db && FP.db.update) FP.db.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
     try { if (FP.affectations && FP.affectations.record) FP.affectations.record(v.id, v.chauffeur, null, old, v.km); } catch (e) {}
     try { const CK = window.FP_CACHE_KEY; const c = CK && JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Array.isArray(c.vehicules)) { const cv = c.vehicules.find(x => x.id === v.id); if (cv) { cv.chauffeur = v.chauffeur; localStorage.setItem(CK, JSON.stringify(c)); } } } catch (e) {}
     return true;
