@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112o">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261112p">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261112o"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261112p"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261112o">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261112p">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -782,6 +782,7 @@
         <div class="man-zone">➕ Ajouter un prestataire (au-delà de Total &amp; Ulys) <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
         <div class="man-item">Tu as un <b>autre fournisseur</b> de carte carburant (Shell, DKV, AS24…) ou de badge de péage (Eurotoll, DKV…) que Total et Ulys ? Dans <b>💳 Cartes &amp; badges</b>, clique <b>« ➕ Prestataire »</b> : indique son <b>nom</b> et son <b>type</b> (carte carburant ou badge péage). Tout se branche <b>automatiquement</b> :</div>
         <div class="man-item">• un <b>nouveau sous-onglet</b> apparaît dans Contrôle (avec ses factures reconnues, le total TTC et le nombre de conducteurs rattachés) ;<br>• une <b>colonne</b> s'ajoute dans « Cartes &amp; badges » ;<br>• une <b>zone à remplir</b> apparaît sur <b>chaque fiche conducteur</b> pour saisir son n° de carte/badge de ce prestataire.<br>Comme pour les <b>loueurs de leasing</b> (plusieurs loueurs possibles par société), chaque société gère <b>ses propres prestataires</b>.</div>
+        <div class="man-item"><b>💳 Cartes d'un prestataire (DKV, Shell…) reconnues sous SON nom</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand tu importes un relevé d'un prestataire (ex. DKV), les <b>n° de cartes</b> lus sur la facture apparaissent maintenant dans <b>💳 Cartes &amp; badges → vue « Par carte »</b> sous le <b>bon fournisseur</b> (ex. « DKV »), avec le statut <b>« ⚠️ vue sur relevés »</b> (= à attribuer) tant que personne n'est relié. <i>(Avant, une carte qui ne venait pas d'Ulys était rangée à tort sous « TotalEnergies » — donc les cartes DKV n'étaient jamais proposées sous DKV et « Conducteurs rattachés » restait à 0.)</i> Pour attribuer : sur la <b>fiche du conducteur</b> (ou la vue par conducteur de « Cartes &amp; badges »), saisis son n° dans la <b>colonne du prestataire</b> → sa consommation se rattache alors <b>par numéro</b>, avec <b>historique par période</b> (un changement de titulaire ne réattribue jamais l'ancien historique). Rien n'est jamais rattaché automatiquement à la légère : un numéro inconnu reste « à attribuer », jamais inventé.</div>
         <div class="man-item"><b>🔧 Gérer un prestataire (statut, archivage, suppression)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — la gestion est regroupée dans <b>💳 Cartes &amp; badges</b> (panneau « Prestataires — gestion »), <b>réservée à l'administrateur</b>. Chaque prestataire a un <b>statut</b> : <b>Actif</b> (visible partout), <b>Brouillon</b>, ou <b>Désactivé</b>. <b>Désactiver = archiver</b> : son onglet et sa colonne disparaissent, mais <b>ses factures, transactions et n° de carte sont conservés</b> et réapparaissent si tu le réactives. <b>Supprimer</b> retire seulement la définition (onglet + colonne) ; là encore, <b>aucune facture, transaction ni n° saisi n'est effacé</b>. Quand un prestataire a des données, Parc Pilot <b>recommande de l'archiver</b> plutôt que de le supprimer.</div>
         <div class="man-item"><b>Même socle que Total &amp; Ulys</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — un prestataire que tu ajoutes (ex. <b>DKV</b>) bénéficie désormais du <b>même socle</b> que Total et Ulys : son n° peut se gérer <b>par conducteur</b> comme <b>par véhicule</b> (synchronisés), et il a son <b>historique daté d'affectation des cartes</b> (assistant « changement de titulaire » → les anciennes consos restent à l'ancien porteur). <i>Reste propre à chaque fournisseur : la <b>lecture automatique de ses relevés</b> (comme les parseurs Total/Ulys). Quand tu fourniras un <b>vrai relevé</b> du prestataire, son lecteur est ajouté une fois ; d'ici là, ses factures se saisissent dans <b>Factures</b>.</i></div>
         <div class="man-item"><b>⛽ Import d'un relevé (PDF) — lecture fiable, avec repli IA</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans le sous-onglet du prestataire (ex. <b>DKV</b>), bouton <b>« Importer un relevé (PDF) »</b>. Le relevé est d'abord lu <b>automatiquement</b> ; si sa mise en page empêche la lecture directe, <b>l'IA prend le relais</b> (elle lit l'image du document) — un petit badge « Lu par IA » l'indique dans l'aperçu. La facture (n°, date, HT/TVA/TTC — un relevé France en <b>autoliquidation</b> a une TVA 0 %, donc HT = TTC) et chaque <b>transaction</b> (date, carte, produit, litres, montant) s'affichent dans un <b>aperçu à confirmer</b>. Si <b>HT + TVA ≠ TTC</b>, un avertissement s'affiche. À l'import : une <b>facture</b> est créée (comptée une seule fois dans le coût) et le <b>détail par carte</b> est enregistré, <b>rattaché au bon conducteur par son n° de carte/badge</b> (renseigne-les dans « Cartes & badges »). Ré-importer le même relevé ne crée pas de doublon.</div>
@@ -1153,8 +1154,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261112o"></script>
-<script src="../assets/js/supabase-client.js?v=20261112o"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261112p"></script>
+<script src="../assets/js/supabase-client.js?v=20261112p"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1170,10 +1171,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112o"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261112p"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261112o"></script>
+<script src="../assets/js/app.min.js?v=20261112p"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
