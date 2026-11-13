@@ -477,19 +477,21 @@
     const st = pane._st = pane._st || { mois: 'all', from: '', to: '', q: '', view: 'table' };
     const facs = _prestaFacs(p);
     const facnums = new Set(facs.map(f => String(f.numeroFacture || f.numero_facture || '')).filter(Boolean));
-    let nCond = 0; try { (FP.conducteurs.list() || []).forEach(c => { if (FP.condNum && FP.condNum(c.key, p.numKey)) nCond++; }); } catch (e) {}
-    const kpi = (l, v, id2) => '<div class="ctrl-kpi"><div class="lbl">' + l + '</div><div class="val"' + (id2 ? ' id="' + id2 + '"' : '') + '>' + v + '</div></div>';
+    // (nCond + helper kpi() retirés : les 4 KPIs utilisent le composant commun .kpi comme Total Fleet/Ulys ;
+    //  Type / Transactions / Conducteurs rattachés sont calculés dans _paintPresta et affichés en ligne secondaire.)
     // Options de mois (union factures + transactions connues du cache).
     const moisSet = new Set(facs.map(f => String(f.date || '').slice(0, 7)).filter(Boolean));
     (_prestaTx[id] || []).forEach(t => { if (t.dateTx) moisSet.add(String(t.dateTx).slice(0, 7)); });
     const MOISN = ['', 'Janv.', 'Févr.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
     const moisOpts = ['<option value="all">Tous les mois</option>'].concat(Array.from(moisSet).sort().reverse().map(m => { const pp = m.split('-'); return '<option value="' + m + '"' + (st.mois === m ? ' selected' : '') + '>' + (MOISN[+pp[1]] || '') + ' ' + pp[0] + '</option>'; })).join('');
     pane.innerHTML =
-      '<div class="grid gap-3 mb-4" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'
-        + kpi('Type', isPeage ? 'Badge péage' : 'Carte carburant')
-        + kpi('Total TTC', '…', 'pk-ttc-' + id) + kpi('HT', '…', 'pk-ht-' + id) + kpi('TVA', '…', 'pk-tva-' + id)
-        + kpi('Factures', '…', 'pk-nf-' + id) + kpi('Transactions', '…', 'pk-nt-' + id) + kpi('Conducteurs rattachés', nCond)
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">'
+        + '<div class="kpi"><div class="kpi-label">Total TTC</div><div class="kpi-value" id="pk-ttc-' + id + '">…</div><div class="kpi-delta">toutes périodes</div></div>'
+        + '<div class="kpi"><div class="kpi-label">Total HT</div><div class="kpi-value" id="pk-ht-' + id + '">…</div><div class="kpi-delta">hors taxe</div></div>'
+        + '<div class="kpi"><div class="kpi-label">TVA</div><div class="kpi-value" id="pk-tva-' + id + '">…</div><div class="kpi-delta">récupérable</div></div>'
+        + '<div class="kpi"><div class="kpi-label">Factures</div><div class="kpi-value" id="pk-nf-' + id + '">…</div><div class="kpi-delta">distinctes</div></div>'
       + '</div>'
+      + '<div id="pk-meta-' + id + '" class="text-xs text-slate-500 mb-3">' + esc(isPeage ? 'Badge péage' : 'Carte carburant') + '</div>'
       // Barre d'actions
       + '<div class="flex flex-wrap items-center gap-2 mb-3">'
         + '<button type="button" data-presta-import="' + esc(p.id) + '" class="btn btn-dark text-sm"><i data-lucide="file-up" class="w-4 h-4"></i> Importer un relevé (PDF)</button>'
@@ -560,7 +562,9 @@
     const ht = htVals.length ? htVals.reduce((a, b) => a + b, 0) : null; const tva = tvaVals.length ? tvaVals.reduce((a, b) => a + b, 0) : null;
     const setK = (kid, v) => { const el = $(kid + '-' + id); if (el) el.textContent = v; };
     setK('pk-ttc', euro(ttc)); setK('pk-ht', ht != null ? euro(ht) : '—'); setK('pk-tva', tva != null ? euro(tva) : '—');
-    setK('pk-nf', String(facs.length)); setK('pk-nt', loading ? '…' : String(tx.length));
+    setK('pk-nf', String(facs.length));
+    // Détails secondaires (déplacés hors des 4 KPIs principaux) : type · transactions · conducteurs rattachés.
+    try { let nCond = 0; (FP.conducteurs.list() || []).forEach(c => { if (FP.condNum && FP.condNum(c.key, p.numKey)) nCond++; }); const meta = $('pk-meta-' + id); if (meta) meta.textContent = (isPeage ? 'Badge péage' : 'Carte carburant') + ' · ' + (loading ? '…' : tx.length) + ' transaction' + (!loading && tx.length > 1 ? 's' : '') + ' · ' + nCond + ' conducteur' + (nCond > 1 ? 's' : '') + ' rattaché' + (nCond > 1 ? 's' : ''); } catch (e) {}
     // ===== Consommation par conducteur — MÊME tableau par CATÉGORIES que Total Fleet =====
     // Chaque transaction porte UNE catégorie (FP.txCat) + son TTC → on somme par conducteur et par catégorie.
     // La somme des colonnes = Total TTC (pas de double comptage facture↔transaction). Litres/HT/TVA ne sont
