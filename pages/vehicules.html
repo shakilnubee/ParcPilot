@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261114a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261114a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261114a">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113k"></script>
-<script src="../assets/js/supabase-client.js?v=20261113k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261114a"></script>
+<script src="../assets/js/supabase-client.js?v=20261114a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261114a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261113k"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261113k"></script>
+<script src="../assets/js/fleet-docs.js?v=20261114a"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261114a"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261113k"></script><script>
+<script src="../assets/js/app.min.js?v=20261114a"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2570,17 +2570,20 @@
     // doit PAS afficher « CT dépassé » en rouge ici alors qu'il n'alerte nulle part ailleurs. On montre juste
     // la date, en neutre. (Avant : la colonne colorait sans tester ces exemptions → rouge « dépassé » à tort.)
     if (v && ((FP.horsFlotte && FP.horsFlotte(v)) || (FP.ctIgnored && FP.ctIgnored(v)))) return `<span class="text-slate-400">${label}</span>`;
+    // Contre-visite en attente (PV défavorable scanné) : la date affichée EST l'échéance de repassage →
+    // on le signale explicitement (source unique FP.contreVisiteInfo).
+    const cvTag = (v && FP.contreVisiteInfo && FP.contreVisiteInfo(v)) ? ' · contre-visite' : '';
     // SOURCE UNIQUE de l'urgence/couleur du CT = FP.echeanceStatut (seuils = réglage ctJours) → même
     // couleur que la fiche, Contrats et les Alertes. (Avant : seuils 30/45 figés ici → incohérence.)
     const st = FP.echeanceStatut ? FP.echeanceStatut(iso, 'ct') : null;
-    if (!st || st.statut === 'inconnu') return label;
-    if (st.statut === 'expire') return `<span class="ct-danger">${label} · dépassé</span>`;
-    if (st.statut === 'urgent') return `<span class="ct-danger">${label}</span>`;
-    if (st.statut === 'bientot') return `<span class="ct-warn">${label}</span>`;
+    if (!st || st.statut === 'inconnu') return label + (cvTag ? `<span class="ct-danger">${cvTag}</span>` : '');
+    if (st.statut === 'expire') return `<span class="ct-danger">${label} · dépassé${cvTag}</span>`;
+    if (st.statut === 'urgent') return `<span class="ct-danger">${label}${cvTag}</span>`;
+    if (st.statut === 'bientot') return `<span class="ct-warn">${label}${cvTag}</span>`;
     // Valide (vert) : on garde l'info « cette année » (même couleur, juste un repère), sans en faire un palier.
     const d = new Date(iso);
-    if (!isNaN(d) && d.getFullYear() === new Date().getFullYear()) return `<span class="ct-ok">${label} · cette année</span>`;
-    return `<span class="ct-ok">${label}</span>`;
+    if (!isNaN(d) && d.getFullYear() === new Date().getFullYear()) return `<span class="ct-ok">${label} · cette année</span>` + (cvTag ? `<span class="ct-danger">${cvTag}</span>` : '');
+    return `<span class="ct-ok">${label}</span>` + (cvTag ? `<span class="ct-danger">${cvTag}</span>` : '');
   }
 
   const checkCell = (b) => b
@@ -4061,6 +4064,7 @@
             return `<span title="${det}"><b>${FP.euro(aen.netMensuel)}</b>/mois <span class="text-slate-400 text-xs">(${FP.euro(aen.netAnnuel)}/an · ${aen.bareme === 'ancien' ? 'ancien bar.' : 'nouv. bar.'})</span></span>`;
           })()}</span></div>
           <div class="flex justify-between"><span class="text-slate-600">Dernier CT</span><span class="font-medium" data-df="dateDernierCT" data-dt="date">${v.dateDernierCT ? FP.dateNum(v.dateDernierCT) : '<span class="text-slate-400">—</span>'}</span></div>
+          ${(() => { try { const cv = FP.contreVisiteInfo && FP.contreVisiteInfo(v); if (cv) return `<div class="flex justify-between items-center"><span class="text-slate-600">Contre-visite</span><span class="font-medium text-right" style="color:#B91C1C">⚠️ requise${cv.date ? ' avant ' + FP.dateNum(cv.date) : ' (date à préciser)'}</span></div>`; } catch (e) {} return ''; })()}
           <div class="flex justify-between"><span class="text-slate-600">Prochain anti-pollution${isUtilitaire ? ' <span style="color:var(--fp-accent);font-size:.68rem;font-weight:700">• concerné</span>' : ''}</span><span class="font-medium" data-df="antiPollution" data-dt="date">${v.antiPollution ? FP.dateNum(v.antiPollution) : '<span class="text-slate-400">—</span>'}</span></div>
           ${(() => {
             let ap = ''; try { ap = (FP.settings.get().antiPollDates || {})[v.immat] || ''; } catch (e) {}
@@ -6755,6 +6759,7 @@
                 "date : la DATE a laquelle le controle technique a ete effectue (passage au centre), format AAAA-MM-JJ.",
                 "controleTechniqueProchain : la date limite du PROCHAIN controle technique. Cherche les libelles 'prochain controle technique', 'prochaine visite', 'valable jusqu au', 'a renouveler avant le'. Format AAAA-MM-JJ. Si SEULE la date du controle figure et que le resultat est favorable, mets null (l'application ajoutera 2 ans).",
                 "resultat : 'favorable', 'defavorable' ou 'contre-visite' si c'est indique, sinon null.",
+                "dateLimiteContrevisite : si le controle est 'defavorable' ou impose une 'contre-visite', la DATE LIMITE pour repasser la contre-visite (souvent ~2 mois apres le controle). Format AAAA-MM-JJ, sinon null.",
                 "Ne le confonds pas avec une date d'edition, un numero de PV, une immatriculation ou un kilometrage. Ne recopie QUE ce qui est ecrit, n'invente aucune date."
               ].join("\n");
               try {
@@ -6769,14 +6774,40 @@
                 const upd = {};
                 const today = new Date().toISOString().slice(0, 10);
                 const addYears = (iso, n) => { const d = new Date(iso); if (isNaN(d)) return null; d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0, 10); };
-                // --- Contrôle technique : met à jour le PROCHAIN CT (on AVANCE la date, même si déjà remplie) ---
+                // --- Contrôle technique : met à jour le PROCHAIN CT selon le RÉSULTAT du PV ---
                 if (type === 'controle-technique') {
                   const insp = (ia && ia.date) || det.date || null;
+                  const addMonths = (iso, n) => { const d = new Date(iso); if (isNaN(d)) return null; d.setMonth(d.getMonth() + n); return d.toISOString().slice(0, 10); };
+                  const resultat = String((ia && ia.resultat) || '').toLowerCase();
+                  // ⚠️ PV DÉFAVORABLE / CONTRE-VISITE : surtout PAS +2 ans. Le véhicule doit REPASSER sous ~2 mois.
+                  const estEchec = /defavorable|défavorable|contre.?visite/.test(resultat);
                   let next = (ia && ia.controleTechniqueProchain) || null;
                   if (!next && det.type === 'controle-technique' && det.date) next = det.date; // detectDoc lit déjà le « prochain contrôle »
-                  if (!next && insp) next = insp > today ? insp : addYears(insp, 2);
-                  if (next && (!v.prochainCT || v.prochainCT === '—' || next > v.prochainCT)) { upd.prochainCT = next; allGot.add('prochain CT'); }
-                  if (insp && insp <= today && (!v.dateDernierCT || insp > v.dateDernierCT)) upd.dateDernierCT = insp;
+                  if (estEchec) {
+                    // Échéance = date limite de contre-visite LUE, sinon le « prochain » lu, sinon +2 mois après le contrôle.
+                    const dl = (ia && ia.dateLimiteContrevisite) || next || (insp ? addMonths(insp, 2) : null);
+                    // La contre-visite PRIME (échéance courte) : on écrase un « prochain CT » lointain existant.
+                    if (dl) { upd.prochainCT = dl; allGot.add('contre-visite (échéance)'); }
+                    // Mémorise la contre-visite EN ATTENTE (affichage fiche + colonne) — jamais écrasée en silence.
+                    try {
+                      const s = FP.settings.get();
+                      s.vehContreVisite = (s.vehContreVisite && typeof s.vehContreVisite === 'object') ? s.vehContreVisite : {};
+                      s.vehContreVisite[v.immat] = { date: dl || null, resultat: resultat || 'contre-visite', depuis: insp || today };
+                      FP.settings.save(s);
+                    } catch (e) {}
+                    if (insp && insp <= today && (!v.dateDernierCT || insp > v.dateDernierCT)) upd.dateDernierCT = insp;
+                  } else {
+                    // Favorable (ou résultat non précisé) : comportement habituel (+2 ans si seule la date figure).
+                    if (!next && insp) next = insp > today ? insp : addYears(insp, 2);
+                    if (next && (!v.prochainCT || v.prochainCT === '—' || next > v.prochainCT)) { upd.prochainCT = next; allGot.add('prochain CT'); }
+                    if (insp && insp <= today && (!v.dateDernierCT || insp > v.dateDernierCT)) upd.dateDernierCT = insp;
+                    // Un CT FAVORABLE lève une éventuelle contre-visite en attente sur ce véhicule.
+                    try {
+                      const s = FP.settings.get(); const m = s.vehContreVisite || {}; let changed = false;
+                      Object.keys(m).forEach(key => { const same = FP.normImmat ? (FP.normImmat(key) === FP.normImmat(v.immat)) : (key === v.immat); if (same) { delete m[key]; changed = true; } });
+                      if (changed) { s.vehContreVisite = m; FP.settings.save(s); }
+                    } catch (e) {}
+                  }
                 }
                 // --- Facture d'entretien/réparation : met à jour la dernière révision + km ---
                 const maintTxt = `${(ia && ia.description) || ''} ${det.description || ''} ${file.name || ''}`.toLowerCase();
