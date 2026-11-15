@@ -76,7 +76,7 @@ multi-sociétés** est-elle respectée ? (9) les **automatisations** existantes 
 | **Galerie photos** | `FP.galerie3d` / lightbox existante |
 | **Documents d'une fiche** | `FP.docsFolder` |
 | **Échappement HTML (XSS)** | `FP.esc` sur toute donnée saisie/scannée/Supabase |
-| **Clavier** | Entrée = valide (helper global `FP.enterValide` déjà installé) · Échap ferme · Tab · focus visible |
+| **Clavier** | Entrée = valide (helper global `FP.enterValide(container, {button\|onValid})` — à **appliquer** sur chaque fenêtre/formulaire ; délégué, ignore textarea sauf Ctrl/⌘, select/combobox et `data-no-enter`) · Échap ferme · Tab · focus visible |
 | **Persistance** | Supabase = source de vérité (via `FP.db`/`FP.persist`) ; `localStorage` = cache d'affichage **seulement** ; toute map keyée → `COLLECTION_KEYS` |
 | **Plaque / prénom / vendu / montant dû / coût mois** | `FP.normImmat`·`immatEq`·`vehByImmat` / `FP.prenomDeCle`·`normPrenom` / `FP.estVendu` / `FP.montantDu` / `FP.coutMois`·`dedupeFactures`·`coutFactureExploit` |
 

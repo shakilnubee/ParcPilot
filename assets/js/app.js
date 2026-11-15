@@ -2951,6 +2951,7 @@ FP.newProprietaireModal = function (prefill) {
       document.body.appendChild(ov);
     }
     const g = id => document.getElementById(id);
+    try { FP.enterValide(ov, { button: '#fp-np-save' }); } catch (e) {}   // ⏎ Entrée = Enregistrer
     g('fp-np-title').textContent = edit ? 'Modifier l\'entité (propriétaire juridique)' : 'Nouvelle entité (propriétaire juridique)';
     g('fp-np-nom').value = edit ? String(edit.nom || '').trim() : String(prefill || '').trim();
     g('fp-np-forme').value = edit ? String(edit.forme || '') : '';
@@ -3269,6 +3270,42 @@ FP.isJisOwner = () => FP.isSuperAdmin() && FP.JIS_OWNERS.indexOf((FP.userEmail |
 
 // === Sélecteur CHERCHABLE (RÈGLE PROJET) =====================================
 // Tout choix de véhicule / conducteur / plaque DOIT être filtrable au clavier (taper pour
+// ===== ⏎ « Entrée = valider » — helper global (délégation clavier) =============================
+// Pose UN listener keydown délégué sur `container` : quand on appuie sur Entrée dans un champ de saisie
+// SIMPLE (input texte), on empêche le comportement par défaut et on VALIDE :
+//   • opts.onValid(e) si fourni, SINON on clique le bouton d'action (opts.button = sélecteur/élément,
+//     sinon le 1er [data-enter] / [type=submit] / .btn-dark / .btn-primary du container).
+// Règles de sûreté : <textarea> garde Entrée pour le retour à la ligne (SAUF Ctrl/⌘+Entrée) ; un <select>
+// natif, une combobox (role=combobox) ou un item de menu déroulant (.fp-jsmenu) gardent leur rôle (Entrée
+// = choisir) ; les boutons/cases/fichiers gardent le défaut ; un champ marqué data-no-enter est ignoré.
+// Idempotent (une seule pose par container via data-enter-done). But : une SOURCE UNIQUE pour « Entrée
+// valide » (jusqu'ici chaque écran réimplémentait if(e.key==='Enter') à la main).
+FP.enterValide = function (container, opts) {
+  try {
+    const el = (typeof container === 'string') ? document.querySelector(container) : container;
+    if (!el || el.dataset.enterDone === '1') return;
+    el.dataset.enterDone = '1';
+    opts = opts || {};
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const t = e.target; if (!t) return;
+      const tag = (t.tagName || '').toLowerCase();
+      if (tag === 'textarea' && !(e.ctrlKey || e.metaKey)) return;          // retour à la ligne
+      if (tag === 'select') return;                                          // choix natif
+      if (t.getAttribute && t.getAttribute('role') === 'combobox') return;   // combobox recherchable
+      if (t.closest && t.closest('.fp-jsmenu')) return;                      // item de menu déroulant
+      if (t.dataset && t.dataset.noEnter === '1') return;
+      if (!(tag === 'input' || tag === 'textarea')) return;
+      if (tag === 'input' && /^(button|submit|reset|checkbox|radio|file)$/.test((t.type || 'text').toLowerCase())) return;
+      e.preventDefault();
+      if (typeof opts.onValid === 'function') { opts.onValid(e); return; }
+      let btn = opts.button ? ((typeof opts.button === 'string') ? el.querySelector(opts.button) : opts.button) : null;
+      if (!btn) btn = el.querySelector('[data-enter],[type="submit"],.btn-dark,.btn-primary');
+      if (btn && !btn.disabled) btn.click();
+    });
+  } catch (e) { /* le champ reste un champ normal */ }
+};
+
 // retrouver par plaque, nom, modèle…). FP.searchSelect(<select>) transforme un menu déroulant
 // en champ de recherche + liste déroulante, au style du site, SANS changer le reste du code :
 // la valeur choisie reste lisible via le <select> d'origine (.value) et l'événement 'change'.
@@ -6154,6 +6191,7 @@ FP.newConducteurModal = function (prefillName) {
       document.body.appendChild(ov);
     }
     const g = id => document.getElementById(id);
+    try { FP.enterValide(ov, { button: '#fp-nc-save' }); } catch (e) {}   // ⏎ Entrée = Enregistrer
     const parts = String(prefillName || '').trim().split(/\s+/).filter(Boolean);
     g('fp-nc-prenom').value = parts.shift() || '';
     g('fp-nc-nom').value = parts.join(' ');
