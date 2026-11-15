@@ -281,7 +281,7 @@
         <div class="chart-wrap"><canvas id="fournChart"></canvas></div>
       </div>
       <div class="card p-6">
-        <h3 class="font-bold text-slate-900 mb-4">Coût par société</h3>
+        <h3 class="font-bold text-slate-900 mb-4">Coût par propriétaire juridique</h3>
         <div class="chart-wrap"><canvas id="societeChart"></canvas></div>
       </div>
     </div>
@@ -715,7 +715,7 @@
     });
 
     // Par société
-    const perSociete = {}; fact.forEach(f => { const veh = _vehByImmat.get(FP.normImmat(f.vehiculeImmat)); const soc = veh ? (veh.proprietaire || 'Inconnu') : 'Inconnu'; perSociete[soc] = (perSociete[soc] || 0) + coutReel(f); });
+    const perSociete = {}; fact.forEach(f => { const veh = _vehByImmat.get(FP.normImmat(f.vehiculeImmat)); const soc = veh ? ((FP.proprioCanon ? FP.proprioCanon(veh.proprietaire) : veh.proprietaire) || 'Inconnu') : 'Inconnu'; perSociete[soc] = (perSociete[soc] || 0) + coutReel(f); });
     charts.soc = new Chart($('societeChart'), {
       type: 'doughnut',
       data: { labels: Object.keys(perSociete), datasets: [{ data: Object.values(perSociete), backgroundColor: [(FP.chartInk?FP.chartInk():'#0F1E3D'), '#F97316', '#F59E0B', '#94A3B8'], borderWidth: 0 }] },

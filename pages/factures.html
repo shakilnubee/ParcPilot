@@ -1603,12 +1603,12 @@
   // avec Société (déduite du propriétaire du véhicule) et Mois — Excel/CSV, vue courante ou période.
   (function () {
     const normP = s => FP.normImmat(s); // source unique (retire tirets ET espaces)
-    const soc = (immat) => { const map = {}; (window.FP_DATA.vehicules || []).forEach(v => { map[normP(v.immat)] = v; }); const v = map[normP(immat)]; return v ? (v.proprietaire || '') : ''; };
+    const soc = (immat) => { const map = {}; (window.FP_DATA.vehicules || []).forEach(v => { map[normP(v.immat)] = v; }); const v = map[normP(immat)]; return v ? ((window.FP && FP.proprioCanon ? FP.proprioCanon(v.proprietaire) : v.proprietaire) || '') : ''; };
     const num = (v) => (v === null || v === undefined || v === '' || isNaN(v)) ? null : Number(v);
     const colDefs = [
       { label: 'Date',        value: r => r.date || '' },
       { label: 'Mois',        value: r => (r.date || '').slice(0, 7) },
-      { label: 'Société',     value: r => soc(r.vehiculeImmat) },
+      { label: 'Propriétaire', value: r => soc(r.vehiculeImmat) },
       { label: 'Véhicule',    value: r => r.vehiculeImmat || '' },
       { label: 'Fournisseur', value: r => r.fournisseur || '' },
       { label: 'N° facture',  value: r => r.numeroFacture || '' },
