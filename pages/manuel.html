@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261115a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261115b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261115a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261115b">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -235,7 +235,7 @@
 
         <div class="man-zone">Le bouton « ⚡ Raccourcis » (personnalisable)</div>
         <div class="man-item">Un menu d'<b>actions rapides</b> dont <b>tu choisis le contenu</b> — clique le petit <b>⚙️</b> à côté (ou « Configurer les raccourcis… » dans le menu) pour cocher ce que tu veux afficher, et ne garder que ce qui te sert. Actions dispo : nouveau véhicule/amende/facture/sinistre/conducteur/emprunt/tâche, scanner un document, échéances de la semaine, « À compléter », relancer les amendes, rapport direction, sauvegarde, recherche plaque, mode écran, <b>les 4 checklists</b> (entrée flotte / remise / reprise / cession — elles demandent d'abord pour quel véhicule, puis ouvrent le process guidé), et surtout :</div>
-        <div class="man-item"><b>🚗 Mettre à jour le km (lot)</b> — un seul écran pour saisir le kilométrage de <b>tous</b> les véhicules d'un coup (le km ne peut que monter). <b>📷 Km par photo</b> — choisis un véhicule, prends le compteur en photo, l'<b>IA lit le kilométrage</b> et met la fiche à jour (tu confirmes). <b>🅿️ Marquer un véhicule immobilisé</b> — signale qu'un véhicule est au garage / hors service ; une alerte apparaîtra s'il le reste trop longtemps.</div>
+        <div class="man-item"><b>🚗 Mettre à jour le km (lot)</b> — un seul écran pour saisir le kilométrage de <b>tous</b> les véhicules d'un coup (le km ne peut que monter). <b>📷 Km par photo</b> — choisis un véhicule, prends le compteur en photo, l'<b>IA lit le kilométrage</b> et met la fiche à jour (tu confirmes). <b>🅿️ Marquer un véhicule immobilisé</b> — signale qu'un véhicule est au garage / hors service ; une alerte apparaîtra s'il le reste trop longtemps. <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> <b>Km suspect signalé</b> : si tu saisis (ou si une photo lit) un km <b>inférieur</b> au km déjà connu — compteur qui recule, faute de frappe « 12 000 » au lieu de « 120 000 », mauvaise plaque — Parc Pilot <b>ne modifie rien</b> (le km ne recule jamais tout seul) et t'<b>avertit</b> « km inférieur au km actuel — à vérifier », au lieu d'ignorer en silence.</div>
         <div class="man-item"><b>🌴 Enregistrer un congé salarié</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — un pop-up : choisis le <b>salarié</b> (recherche au clavier), les <b>dates début/fin</b> et un motif. Le congé est <b>le même partout</b> (fiche du conducteur, contrôle des consos) : il sert à repérer toute dépense (carburant, péage…) faite <b>pendant l'absence</b> et remonte dans <b>Suivi &amp; alertes → Points à vérifier</b>. <b>Saisie encore plus rapide dans la fiche</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — la fiche conducteur a une carte dédiée <b>« 🌴 Congés / absences »</b> : laisse la <b>date de fin vide = congé d'UN jour</b>, ou clique un bouton rapide <b>« Aujourd'hui / Demain / Cette semaine »</b>, et tu peux <b>taper une date puis appuyer sur Entrée</b> pour l'ajouter. <b>Astuce dates</b> : <b>double-clique</b> sur un champ de date pour <b>taper la date directement</b> (ex. 15/03/2026) au lieu d'ouvrir le calendrier.</div>
 
         <div class="man-zone">Le bouton « Scanner un document » (transversal)</div>
@@ -267,6 +267,7 @@
       <summary><i data-lucide="bell" class="w-5 h-5"></i> Suivi &amp; alertes <i data-lucide="chevron-down" class="w-5 h-5 chev"></i></summary>
       <div class="acc-body">
         <p>Tout ce qui demande votre attention. Onglets : <b>🔔 Alertes</b> (ouvert par défaut), <b>🔄 Renouvellements</b>, <b>📝 À compléter</b>, puis <b>💡 Décisions</b>. Un véhicule sorti de la flotte (vendu, cédé, hors service…) ne génère <b>aucune</b> alerte. <i>(Les anomalies de consommation — conso pendant un congé, après un départ, carte carburant inhabituelle — sont désormais <b>toutes centralisées dans l'onglet Contrôle</b>, source unique.)</i></p>
+        <div class="man-item"><b>🧾 Factures à vérifier (HT + TVA ≠ TTC)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — l'onglet <b>📝 À compléter</b> liste désormais aussi les <b>factures incohérentes</b> : celles dont <b>HT + TVA ne fait pas le TTC</b> (tolérance 2 centimes). Avant, l'incohérence n'était visible que sur la page Factures (petite pastille) ; elle remonte maintenant <b>ici aussi</b>, chaque ligne cliquable vers la facture pour corriger. (Une facture dont un montant est simplement <b>manquant</b> n'est pas comptée comme « incohérente » — juste à compléter.)</div>
         <div class="man-item">🔴 <b>Pastille sur le menu « Suivi &amp; alertes »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — une <b>pastille rouge</b> (avec un chiffre) apparaît sur le menu <b>Suivi &amp; alertes</b> dès qu'il y a quelque chose de <b>nouveau à traiter</b> venant des conducteurs ou des signatures : <b>relevé km</b> envoyé, <b>photos d'état des lieux</b> reçues, <b>question</b> posée depuis le QR, ou un <b>état des lieux en attente de signature</b>. Elle se met à jour <b>toute seule</b>, même quand tu es sur une autre page — tu sais donc en un coup d'œil qu'il y a du nouveau. (La pastille du menu <b>Sinistres</b>, elle, ne compte que les <b>sinistres/problèmes</b> déclarés au QR.)</div>
         <div class="man-item">🔎 <b>Anomalies de consommation → dans l'onglet « Contrôle »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Mis à jour</span> — l'ancien onglet « Points à vérifier » a été retiré pour éviter le doublon. Toutes les anomalies sont maintenant <b>au même endroit, dans l'onglet Contrôle</b> : (1) <b>dépenses inhabituelles de la carte carburant</b> (repas élevés, achats hors carburant, plusieurs pleins/jour, <b>gazole/diesel</b>…), (2) <b>conso pendant un congé</b> (avec les dates), (3) <b>conso après le départ d'un salarié</b> (carte/badge restée active). Chaque ligne renvoie vers la fiche concernée pour vérifier / classer. <b>Une seule liste, un seul endroit.</b> <b>Traiter en lot</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — au lieu de changer chaque ligne une par une : une barre en haut permet de <b>« Marquer tout »</b> ce qui est affiché d'un coup (choisis le statut Justifié / Classé / Fraude / À vérifier), ou de cliquer <b>« ☑️ Sélectionner »</b> pour <b>cocher plusieurs lignes</b> (bouton « Tout cocher », ou <b>cocher un conducteur entier</b> via la case sur son en-tête en vue groupée) et leur appliquer le statut ensemble. Astuce : filtre d'abord sur « À vérifier », puis « Marquer tout comme Justifié ».</div>
 
@@ -1175,8 +1176,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261115a"></script>
-<script src="../assets/js/supabase-client.js?v=20261115a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261115b"></script>
+<script src="../assets/js/supabase-client.js?v=20261115b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1192,10 +1193,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261115a"></script>
+<script src="../assets/js/app.min.js?v=20261115b"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261115a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261115b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261115a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261115b">
 <style>
   .notif { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--fp-border); background: var(--fp-surface, #fff); text-decoration: none; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; box-shadow: 0 1px 2px rgba(15,30,61,.04); }
   .notif + .notif { margin-top: .55rem; }
@@ -162,8 +162,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261115a"></script>
-<script src="../assets/js/supabase-client.js?v=20261115a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261115b"></script>
+<script src="../assets/js/supabase-client.js?v=20261115b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -179,11 +179,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261115a"></script>
+<script src="../assets/js/app.min.js?v=20261115b"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -994,7 +994,20 @@
     const leaseItems = leasingChampsManquants(actifs);
     const cadreItems = contratsCadreItems();
     const dupG = dupDocGroups();
-    const total = vehItems.length + condItems.length + amItems.length + cfg.length + dupG.length + pdfItems.length + leaseItems.length + cadreItems.length + clItems.length;
+    // Factures incohérentes (HT + TVA ≠ TTC) — source unique FP.factureIncoherente. Repère persistant ici,
+    // en plus de la pastille de la page Factures (l'utilisateur voit l'anomalie sans ouvrir Factures).
+    const factIncoh = [];
+    try {
+      (data.factures || []).forEach(f => {
+        if (window.FP && FP.factureIncoherente && FP.factureIncoherente(f)) {
+          const h = Number(f.montantHT), t = Number(f.montantTVA), c = Number(f.montantTTC);
+          factIncoh.push({ fileId: f.fileId || '', label: `${f.fournisseur || 'Facture'}${f.date ? ' · ' + FP.date(f.date) : ''} — HT ${FP.euroPrecis(h)} + TVA ${FP.euroPrecis(t)} ≠ TTC ${FP.euroPrecis(c)}` });
+        }
+      });
+    } catch (e) {}
+    const factIncohHTML = factIncoh.length ? `<div class="mb-6"><h2 class="font-bold text-slate-900 mb-3 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Factures à vérifier (HT + TVA ≠ TTC) <span class="badge badge-danger">${factIncoh.length}</span></h2><div class="space-y-2" style="max-width:840px">`
+      + factIncoh.map(x => `<a href="${x.fileId ? 'factures.html?facture=' + encodeURIComponent(x.fileId) : 'factures.html'}" class="notif" style="text-decoration:none"><div class="flex-1 min-w-0"><div class="font-semibold text-slate-900">${esc(x.label)}</div></div><span class="text-xs font-semibold self-center" style="color:var(--fp-accent);white-space:nowrap">Vérifier →</span></a>`).join('') + `</div></div>` : '';
+    const total = vehItems.length + condItems.length + amItems.length + cfg.length + dupG.length + pdfItems.length + leaseItems.length + cadreItems.length + clItems.length + factIncoh.length;
     // Pastille sur l'onglet « 📝 À compléter » (comme « 📣 Relances ») → l'utilisateur voit qu'il reste des
     // infos à saisir sans avoir à ouvrir l'onglet. Mise à jour à chaque rendu (source unique = ce total).
     try { const _tc = document.getElementById('tab-complet'); if (_tc) _tc.innerHTML = '📝 À compléter' + (total ? ' <span style="background:#EF4444;color:#fff;border-radius:9999px;padding:1px 7px;font-size:11px;font-weight:800">' + total + '</span>' : ''); } catch (e) {}
@@ -1033,7 +1046,7 @@
           <button type="button" id="complet-restore" class="text-xs mt-1" style="color:#64748b;background:none;border:none;cursor:pointer;text-decoration:underline">Tout réafficher</button>
         </div>
       </details>` : '';
-    box.innerHTML = intro + cgFillBanner() + dupDocsHTML(dupG) + cfgHTML
+    box.innerHTML = intro + cgFillBanner() + dupDocsHTML(dupG) + cfgHTML + factIncohHTML
       + sectionCompHTML('Véhicules à compléter', 'car', vehItems)
       + sectionCompHTML('Conducteurs à compléter', 'users', condItems)
       + sectionCompHTML('Amendes à compléter', 'ticket', amItems)
