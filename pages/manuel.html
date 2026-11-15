@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261113k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261114a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261113k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261114a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261113k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261114a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -408,7 +408,8 @@
         <div class="man-item">Le champ <b>« Propriétaire juridique (C.1) »</b> d'une fiche (le <b>titulaire de la carte grise</b>) se choisit désormais dans une <b>liste déroulante recherchable</b> : tu tapes le début du nom et tu <b>sélectionnes</b> l'entité, au lieu de la retaper à chaque fois. Fini les doublons dus à une variante de saisie (ex. « PXPR GE » et « PXPR GE GmbH » qui se retrouvaient comptés séparément). Si l'entité n'existe pas encore, <b>« ➕ Créer »</b> l'ajoute au référentiel (réservé à l'<b>administrateur</b>). Le <b>filtre</b> « Propriétaires juridiques » de la page regroupe automatiquement les <b>alias</b> sous le même nom officiel.</div>
         <div class="man-item"><b>↺ Harmoniser un ancien libellé</b> — si une fiche porte encore un ancien libellé reconnu comme un <b>alias</b> d'une entité officielle, un petit bouton <b>« ↺ Nom officiel »</b> apparaît à côté du propriétaire : un clic remplace le libellé stocké par le nom officiel. C'est <b>toi qui décides</b> (jamais automatique) — rien n'est modifié tant que tu ne cliques pas. ⚠️ À ne pas confondre avec l'<b>« Entité de rattachement »</b> juste en dessous, qui est le rattachement <b>interne</b> du véhicule (indépendant du propriétaire juridique). Le référentiel se gère dans <b>Paramètres → Propriétaires</b>.</div>
         <div class="man-zone">🛠️ Scan du contrôle technique → prochain CT automatique <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
-        <div class="man-item">Quand tu ajoutes un document de type <b>« Contrôle technique »</b> sur une fiche véhicule (section Documents), l'IA <b>lit le PV</b> et met à jour tout seul le <b>« Prochain CT »</b> (et le « Dernier CT ») — même pipeline de lecture que les factures. Si le PV n'indique que la date du contrôle et un résultat favorable, l'app ajoute automatiquement <b>2 ans</b>.</div>
+        <div class="man-item">Quand tu ajoutes un document de type <b>« Contrôle technique »</b> sur une fiche véhicule (section Documents), l'IA <b>lit le PV</b> et met à jour tout seul le <b>« Prochain CT »</b> (et le « Dernier CT ») — même pipeline de lecture que les factures. Si le PV n'indique que la date du contrôle et un résultat <b>favorable</b>, l'app ajoute automatiquement <b>2 ans</b>.</div>
+        <div class="man-item"><b>🔁 Contre-visite (PV défavorable)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — si le PV est <b>défavorable</b> ou impose une <b>contre-visite</b>, l'app ne met <b>plus</b> « +2 ans » (erreur corrigée) : le <b>« Prochain CT » devient l'échéance de la contre-visite</b> (la date limite lue sur le PV, sinon <b>2 mois</b> après le contrôle) — tu es donc alerté à temps. La fiche affiche en rouge <b>« Contre-visite requise avant le … »</b> et la colonne « Prochain CT » porte la mention <b>« · contre-visite »</b>. Quand tu scannes ensuite un <b>nouveau PV favorable</b>, la contre-visite est <b>automatiquement levée</b> et l'échéance repart à 2 ans. (La date limite reste modifiable à la main sur la fiche.)</div>
         <div class="man-item"><b>💶 Rubrique « Fiscalité &amp; TCO »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur la fiche d'un véhicule, une bulle « Fiscalité &amp; TCO » résume, en un coup d'œil : le <b>coût économique annuel (TCO)</b> et la part réellement <b>décaissée</b>, le <b>coût au mois</b>, les <b>taxes annuelles</b> (CO₂ + polluants, ex‑TVS), la <b>TVA récupérable</b> (selon véhicule de tourisme / utilitaire et énergie), l'<b>amortissement</b> (véhicule acheté : annuel + part non déductible au‑delà du plafond fiscal) ou la <b>part de loyer non déductible</b> (leasing), le <b>coût employeur de l'avantage en nature</b> (cotisations estimées) et l'<b>économie d'impôt estimée</b>. ⚠️ Ce sont des <b>estimations</b> à barèmes <b>paramétrables</b> (à faire valider par votre expert‑comptable) ; l'avantage en nature lui‑même reste affiché dans « Technique » et n'est <b>jamais</b> ajouté au coût du véhicule (seul le surcoût de cotisations l'est, pour ne pas compter deux fois).</div>
         <div class="man-item"><b>🏷️ Genre fiscal (VP / Utilitaire / Moto)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la bulle « Fiscalité &amp; TCO », un menu <b>« Genre fiscal (carte grise) »</b> indique si le véhicule est une <b>voiture particulière (VP)</b>, un <b>utilitaire</b> ou une <b>moto</b>. C'est <b>décisif</b> pour la fiscalité : seules les <b>VP</b> paient les taxes CO₂/polluants (ex‑TVS) et subissent le <b>plafond d'amortissement</b> ; les <b>utilitaires et motos</b> ne paient pas ces taxes et sont <b>intégralement déductibles</b>. Par défaut Parc Pilot <b>devine</b> le genre d'après le modèle/segment (et la marque pour les motos) ; si c'est écrit <b>« à vérifier »</b>, choisis le bon genre dans le menu (ou laisse « Auto »). <b>Rempli automatiquement au scan d'une carte grise</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> : à chaque lecture d'une carte grise (ajout d'un véhicule, import en lot, ou « Compléter les cartes grises »), le <b>genre national (champ J.1 : VP, CTTE, VASP, MTL…)</b> est lu et le genre fiscal renseigné tout seul — <b>sans jamais écraser</b> un choix que tu aurais fait à la main. Réglage <b>synchronisé</b> sur tous tes appareils.</div>
         <div class="man-item"><b>🔎 « à compléter » plutôt qu'un faux « 0 € »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — si une donnée de coût manque (<b>prix d'achat</b> d'un véhicule acheté, <b>loyer</b> d'un leasing), le TCO s'affiche en <b>« partiel — à compléter »</b> au lieu de montrer un total faussement rassurant. De même, un genre fiscal indéterminé affiche <b>« à vérifier »</b>. Objectif : ne jamais présenter une estimation incomplète comme un chiffre certain.</div>
@@ -1173,8 +1174,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261113k"></script>
-<script src="../assets/js/supabase-client.js?v=20261113k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261114a"></script>
+<script src="../assets/js/supabase-client.js?v=20261114a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1190,10 +1191,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261113k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261114a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261113k"></script>
+<script src="../assets/js/app.min.js?v=20261114a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

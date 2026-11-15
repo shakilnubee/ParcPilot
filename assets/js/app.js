@@ -8352,6 +8352,9 @@ FP.settings = {
       // — Saisies manuelles / historique PAR VÉHICULE : masse (champ G → stationnement Paris + checklist),
       //   notes libres (historique, irrécupérable), restitution/EDL, dates entrée/cession, budget par véh.
       'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'budgets', 'vehDin', 'vehGenreFiscal',
+      // — Contre-visite CT en attente PAR VÉHICULE (posée au scan d'un PV défavorable/contre-visite) :
+      //   { immat → { date, resultat, depuis } }. Donnée de travail keyée → fusion fine (jamais écrasée en bloc).
+      'vehContreVisite',
       // — « lecture auto du km EDL déjà tentée » (par véhicule) : évite de re-scanner un EDL illisible
       //   sur chaque appareil (sinon gaspillage de crédits). Map keyée par vehId → doit être synchronisée.
       'edlAutoTried',
@@ -8776,6 +8779,22 @@ FP.alertesOffSet = (v, on) => { try { if (!v || !v.id || !FP.ignore) return; FP.
 // CT / assurance « ignoré » : par la conformité OU par l'interrupteur global ci-dessus (source unique).
 FP.ctIgnored    = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:ct:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
 FP.assurIgnored = (v) => !!(v && FP.ignore && (FP.ignore.has('conf:assur:' + v.id) || FP.ignore.has('veh:all:' + v.id)));
+// Contre-visite CT EN ATTENTE pour un véhicule (posée au scan d'un PV « défavorable » ou « contre-visite ») :
+// { date: échéance de repassage, resultat, depuis }. Stockée dans settings.vehContreVisite (map keyée par
+// immat TELLE QU'ENREGISTRÉE — lecture TOLÉRANTE au format de plaque, cf. règle plaques ; la clé n'est jamais
+// réécrite). Source unique affichée par la fiche + la colonne CT. null = aucune contre-visite en attente.
+FP.contreVisiteInfo = (v) => {
+  try {
+    if (!v || !v.immat) return null;
+    const m = (FP.settings.get().vehContreVisite) || {};
+    const k = FP.normImmat ? FP.normImmat(v.immat) : String(v.immat).toUpperCase();
+    for (const key in m) {
+      const same = FP.normImmat ? (FP.normImmat(key) === k) : (key === v.immat);
+      if (same) { const info = m[key]; return (info && (info.date || info.resultat)) ? info : null; }
+    }
+    return null;
+  } catch (e) { return null; }
+};
 // ⚠️ SOURCE UNIQUE — « cette tâche AUTO (CT / révision) est-elle devenue CADUQUE ? ». Même règle que la
 // purge de la page Tâches (autoTachesCT). Sert à AFFICHER LA MÊME LISTE partout : la page Tâches purge les
 // tâches auto obsolètes, mais le widget « Tâches à faire » du tableau de bord lisait la liste BRUTE → une
