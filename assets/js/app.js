@@ -2631,6 +2631,15 @@ FP.kmActuel = (v) => Math.max(Number(v && v.km) || 0, Number(v && v.kmDernierRel
 // JAMAIS à v.km brut (sinon un relevé plus récent est écrasé → bug vécu : EDL/remise qui baissent le km).
 // opts.force = correction MANUELLE assumée (gestionnaire) : autorise la baisse ET recale kmDernierReleve.
 // Persiste (override local + Supabase) et renvoie true si le km a changé. À utiliser PARTOUT où l'on écrit un km.
+// Incohérence de montants d'une facture : HT + TVA ≠ TTC (tolérance 2 cts). SOURCE UNIQUE réutilisée par la
+// page Factures (pastille) ET la checklist « À compléter » (notifications). Ne signale QUE les triplets
+// COMPLETS et faux (un montant manquant = « à compléter », pas « incohérent »).
+FP.factureIncoherente = (f) => {
+  if (!f || f.montantHT == null || f.montantTVA == null || f.montantTTC == null) return false;
+  const h = Number(f.montantHT), t = Number(f.montantTVA), c = Number(f.montantTTC);
+  if (![h, t, c].every(Number.isFinite)) return false;
+  return Math.abs((h + t) - c) > 0.02;
+};
 FP.setVehKm = function (v, newKm, opts) {
   try {
     opts = opts || {};
@@ -2638,7 +2647,16 @@ FP.setVehKm = function (v, newKm, opts) {
     const n = parseInt(String(newKm == null ? '' : newKm).replace(/[^\d]/g, ''), 10);
     if (!Number.isFinite(n) || n < 0) return false;
     const cur = FP.kmActuel(v);
-    if (!opts.force && !(n > cur)) return false;   // ne monte pas → on ne touche à rien
+    if (!opts.force && !(n > cur)) {
+      // Ne monte pas → on ne touche à rien. Mais un km STRICTEMENT INFÉRIEUR au km actuel est SUSPECT
+      // (compteur qui recule, faute de frappe « 12000 » au lieu de « 120000 », mauvaise plaque) : on le
+      // SIGNALE (toast non bloquant) au lieu de l'ignorer en silence. Le km stocké ne recule JAMAIS ici
+      // (correction vers le bas = opts.force). opts.silent coupe le signalement pour les flux automatiques.
+      if (!opts.silent && Number.isFinite(n) && n > 0 && n < cur) {
+        try { if (FP.toast) FP.toast('⚠️ Km saisi (' + FP.num(n) + ') inférieur au km actuel (' + FP.num(cur) + ') — relevé ignoré, à vérifier.'); } catch (e) {}
+      }
+      return false;
+    }
     const patch = { km: n };
     v.km = n;
     // Correction forcée VERS LE BAS : il faut aussi redescendre kmDernierReleve, sinon FP.kmActuel garde l'ancien max.
