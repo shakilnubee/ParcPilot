@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261115d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261115e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261115d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261115e">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261115d"></script>
-<script src="../assets/js/supabase-client.js?v=20261115d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261115e"></script>
+<script src="../assets/js/supabase-client.js?v=20261115e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261115d"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261115d"></script>
+<script src="../assets/js/fleet-docs.js?v=20261115e"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261115e"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261115d"></script><script>
+<script src="../assets/js/app.min.js?v=20261115e"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -3931,7 +3931,7 @@
       </div>
 
       <div class="fp-panel">
-      <div class="fiche-title" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-muted);margin-bottom:.5rem">Entretien &amp; échéances</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem"><div class="fiche-title" style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-muted)">Entretien &amp; échéances</div><button type="button" data-carnet class="btn btn-outline" style="font-size:.7rem;padding:.18rem .55rem;white-space:nowrap" title="Historique d'entretien complet de ce véhicule">📖 Carnet</button></div>
       <div class="grid grid-cols-2 gap-3">
         <div class="kpi p-3 cursor-pointer" data-rev-edit title="Cliquer pour saisir la date ET le km de la dernière révision"><div class="kpi-label">Dernière révision <span style="color:var(--fp-accent)">✏️</span></div><div class="kpi-value" style="font-size:1rem">${drRevDate ? FP.dateNum(drRevDate) : (estNeuf ? '<span class="text-emerald-600" style="font-size:.85rem">Véhicule neuf</span>' : '<span class="text-slate-400">à saisir</span>')}</div><div class="text-xs text-slate-500" style="margin-top:1px">${estNeuf && !drRevDate ? 'pas encore de révision' : 'à ' + ((drRevKm != null) ? FP.num(drRevKm) + ' km' : '— km')}</div></div>
         <div class="kpi p-3"><div class="kpi-label">Prochaine révision (est.)</div><div class="kpi-value" style="font-size:1rem;${revColor}">${revProchaine}${rev.niveau ? ' ⚠️' : ''}</div>${revStatutPill}</div>
@@ -4336,6 +4336,13 @@
     if (normBtn) {
       const v = data.vehicules.find(x => x.id === drawerVehId);
       if (v) { const nom = normBtn.getAttribute('data-nom') || ''; if (nom) { FP.history.commit(); v.proprietaire = nom; commitVehField(v, 'proprietaire'); if (FP.toast) FP.toast('✓ Propriétaire harmonisé : ' + nom); } }
+      return;
+    }
+    // 📖 Carnet d'entretien (lecture seule) — ouvre l'historique complet du véhicule.
+    const carnetBtn = e.target.closest('[data-carnet]');
+    if (carnetBtn) {
+      const v = data.vehicules.find(x => x.id === drawerVehId);
+      if (v && window.FP && FP.carnetEntretienModal) FP.carnetEntretienModal(v);
       return;
     }
     // ✏️ Édition inline des champs [data-df] du CORPS de la fiche (Technique, Entretien & échéances :

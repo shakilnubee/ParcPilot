@@ -2631,6 +2631,77 @@ FP.kmActuel = (v) => Math.max(Number(v && v.km) || 0, Number(v && v.kmDernierRel
 // JAMAIS à v.km brut (sinon un relevé plus récent est écrasé → bug vécu : EDL/remise qui baissent le km).
 // opts.force = correction MANUELLE assumée (gestionnaire) : autorise la baisse ET recale kmDernierReleve.
 // Persiste (override local + Supabase) et renvoie true si le km a changé. À utiliser PARTOUT où l'on écrit un km.
+// ===== 📖 CARNET D'ENTRETIEN par véhicule (lecture seule, agrégation de l'existant) ==============
+// Historique chronologique (du + récent au + ancien) d'un véhicule, agrégé depuis les données DÉJÀ
+// présentes (aucune nouvelle donnée, aucune écriture) : factures d'entretien/réparation (via
+// FP.facturesParImmat + FP.estEntretien ; révision repérée par FP.estRevision) + jalons CT et pneus.
+// SOURCE UNIQUE pour la vue/l'export d'un carnet. Chaque événement :
+//   { date, type, label, montant, fournisseur, km, fileId, revision, jalon }.
+FP.carnetEntretien = function (v, factures) {
+  const out = [];
+  try {
+    if (!v) return out;
+    const nk = FP.normImmat ? FP.normImmat(v.immat) : String(v.immat || '').toUpperCase();
+    const list = FP.facturesParImmat ? (FP.facturesParImmat(factures).get(nk) || []) : [];
+    list.forEach(f => {
+      if (!FP.estEntretien || !FP.estEntretien(f)) return;
+      out.push({
+        date: String(f.date || '').slice(0, 10),
+        type: (f.type || 'entretien'),
+        label: f.description || (String(f.type) === 'reparation' ? 'Réparation' : 'Entretien'),
+        montant: (f.montantTTC != null && f.montantTTC !== '') ? Number(f.montantTTC) : null,
+        fournisseur: f.fournisseur || '',
+        km: (f.km != null && f.km !== '') ? Number(f.km) : null,
+        fileId: f.fileId || '',
+        revision: !!(FP.estRevision && FP.estRevision(f))
+      });
+    });
+    if (v.dateDernierCT) out.push({ date: String(v.dateDernierCT).slice(0, 10), type: 'ct', label: 'Contrôle technique', jalon: true });
+    if (v.dateChangementPneus) out.push({ date: String(v.dateChangementPneus).slice(0, 10), type: 'pneus', label: 'Changement de pneus', jalon: true });
+  } catch (e) {}
+  out.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  return out;
+};
+// Modale « Carnet d'entretien » (lecture seule) — réutilise FP.carnetEntretien. Fermable par le garde
+// Échap global (role=dialog + bouton fermer). Chaque facture renvoie vers sa fiche (factures.html?facture=fileId).
+FP.carnetEntretienModal = function (v) {
+  try {
+    if (!v) return;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const ev = FP.carnetEntretien(v);
+    const facts = ev.filter(e => !e.jalon);
+    const total = facts.reduce((s, e) => s + (e.montant || 0), 0);
+    const pref = (location.pathname.indexOf('/pages/') !== -1) ? '' : 'pages/';
+    const icon = (e) => e.type === 'ct' ? '🛠️' : e.type === 'pneus' ? '🛞' : e.revision ? '🔧' : e.type === 'reparation' ? '⚙️' : '🧰';
+    const dOf = (d) => d ? (FP.dateNum ? FP.dateNum(d) : d) : '—';
+    const rows = ev.length ? ev.map(e => {
+      const right = e.jalon ? '' : `<div style="text-align:right;white-space:nowrap">${e.montant != null ? '<b>' + (FP.euroPrecis ? FP.euroPrecis(e.montant) : e.montant + ' €') + '</b>' : '<span style="color:var(--fp-muted)">—</span>'}${(e.km != null) ? `<div style="font-size:.72rem;color:var(--fp-muted)">${FP.num ? FP.num(e.km) : e.km} km</div>` : ''}</div>`;
+      const sub = [e.fournisseur, e.revision ? 'révision' : ''].filter(Boolean).map(esc).join(' · ');
+      const open = (!e.jalon && e.fileId) ? ` data-carnet-fid="${esc(e.fileId)}" style="cursor:pointer"` : '';
+      return `<div class="carnet-row" ${open}><div style="min-width:0;flex:1"><div style="font-weight:600">${icon(e)} ${esc(e.label)}</div><div style="font-size:.74rem;color:var(--fp-muted)">${dOf(e.date)}${sub ? ' · ' + sub : ''}</div></div>${right}</div>`;
+    }).join('') : '<div style="color:var(--fp-muted);padding:1rem 0;text-align:center">Aucun entretien enregistré pour ce véhicule.</div>';
+    let ov = document.getElementById('fp-carnet-ov');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'fp-carnet-ov'; ov.setAttribute('role', 'dialog');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.5);display:none;align-items:center;justify-content:center;z-index:10001;padding:1rem';
+      document.body.appendChild(ov);
+      if (!document.getElementById('fp-carnet-css')) { const st = document.createElement('style'); st.id = 'fp-carnet-css'; st.textContent = '.carnet-row{display:flex;gap:.6rem;align-items:center;padding:.55rem .2rem;border-bottom:1px solid var(--fp-border,#E3E8F0)}.carnet-row:last-child{border-bottom:0}.carnet-row[data-carnet-fid]:hover{background:var(--fp-bg,#EEF1F6)}'; document.head.appendChild(st); }
+      ov.addEventListener('click', (e) => { if (e.target === ov) ov.style.display = 'none'; });
+      ov.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#fp-carnet-x')) { ov.style.display = 'none'; return; }
+        const r = e.target.closest('[data-carnet-fid]'); if (r) { const fid = r.getAttribute('data-carnet-fid'); if (fid) location.href = ov.dataset.pref + 'factures.html?facture=' + encodeURIComponent(fid); }
+      });
+    }
+    ov.dataset.pref = pref;
+    ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#111A2B);border-radius:1rem;max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;padding:1.25rem 1.4rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.3rem"><div><h2 style="font-size:1.15rem;font-weight:800;color:var(--fp-primary,#0F1E3D)">📖 Carnet d\'entretien</h2><div style="font-size:.8rem;color:var(--fp-muted)">' + esc(v.immat || '') + (v.marque || v.modele ? ' · ' + esc([v.marque, v.modele].filter(Boolean).join(' ')) : '') + '</div></div>'
+      + '<button type="button" id="fp-carnet-x" style="border:none;background:none;cursor:pointer;font-size:1.3rem;color:var(--fp-muted);line-height:1">✕</button></div>'
+      + '<div style="font-size:.8rem;color:var(--fp-muted);margin-bottom:.6rem">' + facts.length + ' intervention' + (facts.length > 1 ? 's' : '') + ' · total entretien ' + (FP.euro ? FP.euro(total) : total + ' €') + ' <span style="opacity:.7">(hors leasing/sinistre/achat)</span></div>'
+      + '<div style="overflow:auto;flex:1 1 auto;min-height:0">' + rows + '</div></div>';
+    ov.style.display = 'flex';
+  } catch (e) { if (FP.toast) FP.toast('Carnet indisponible'); }
+};
+
 // Incohérence de montants d'une facture : HT + TVA ≠ TTC (tolérance 2 cts). SOURCE UNIQUE réutilisée par la
 // page Factures (pastille) ET la checklist « À compléter » (notifications). Ne signale QUE les triplets
 // COMPLETS et faux (un montant manquant = « à compléter », pas « incohérent »).
