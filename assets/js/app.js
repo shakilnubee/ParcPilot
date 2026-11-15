@@ -4151,6 +4151,11 @@ FP.prestatairesActifs = () => (FP.prestataires() || []).filter(p => p.builtin ||
 FP.prestataireById = (id) => FP.prestataires().find(p => p.id === id) || null;
 FP.addPrestataire = (nom, type, statut) => {
   nom = String(nom || '').trim(); if (!nom) return null;
+  // ANTI-DOUBLON : si un prestataire (natif OU perso) porte déjà ce nom (insensible casse/accents/ponctuation),
+  // on le RÉUTILISE au lieu d'en créer un 2e (ex. « Shell » ajouté deux fois → 2 onglets). Marqueur `_reuse`
+  // pour que l'appelant adapte son message (« existe déjà » vs « créé »). Ne crée donc jamais de doublon.
+  const normNom = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  try { const n = normNom(nom); if (n) { const ex = (FP.prestataires() || []).find(p => normNom(p.nom) === n); if (ex) return Object.assign({}, ex, { _reuse: true }); } } catch (e) {}
   const s = FP.settings.get(); const list = Array.isArray(s.prestatairesPerso) ? s.prestatairesPerso.slice() : [];
   const base = (nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '') || 'presta').slice(0, 14);
   let id = 'p_' + base, n = 1; const taken = new Set(list.map(x => x.id).concat(['total', 'ulys']));
