@@ -9753,6 +9753,21 @@ FP.normNomComplet = (s) => (s || '').toString().trim().toLowerCase().normalize('
 FP.DRIVE_CONDUCTEURS = new Set(["ahmed","akram","ambre","andrea","anna","bram","charles","conu","daniel","david","diana","enguerrand","eugénie","farah","frédéric","fx","gionata","guerric","halim","ilhem","jérémie","jérémy","jimmy","jocelyn","johanna","léopold","lucie","martin","maxime","mégane","mickaël","mona","monsieur","mr","nacim","nawelle","nicolas","pauline","raphaël","romuald","samira","sergio","shakil","shaohui","sofiane","thomas","xavi","yannis","youssouf"]);
 // Étiquettes de chauffeur qui ne sont PAS des personnes
 FP.NON_CHAUFFEURS = ['Siège', 'Navette', 'VENDU', 'x', 'X', 'Fenwick']; // « Dépôt » retiré : c'est un VRAI conducteur (vraie fiche) → compté comme une personne partout.
+// ⚠️ SOURCE UNIQUE — EMPLACEMENTS (lieu de stationnement/état, PAS une personne physique) : « Dépôt »,
+// « Siège », « Navette ». Un véhicule peut être « affecté » à un emplacement comme à un conducteur, mais
+// sans identité de personne (pas de permis, pas de fiche conducteur). `FP.estEmplacement(x)` renvoie une
+// CLÉ CANONIQUE stable ('depot'/'siege'/'navette') ou '' — tolérante accents/casse/suffixe de site
+// (« Dépôt PXP » → 'depot »). À utiliser PARTOUT (leasing, fiche, formulaire, affectations, filtres) pour
+// que « Dépôt » soit interprété de façon IDENTIQUE dans toute l'app (plus de texte libre divergent).
+FP.EMPLACEMENTS = [{ cle: 'depot', label: 'Dépôt' }, { cle: 'siege', label: 'Siège' }, { cle: 'navette', label: 'Navette' }];
+FP.estEmplacement = (x) => {
+  const n = (x == null ? '' : String(x)).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (!n) return '';
+  const premier = n.split(/[\s\-]+/)[0];   // 1er mot → « depot pxp » == « depot »
+  const found = FP.EMPLACEMENTS.find(e => e.cle === premier);
+  return found ? found.cle : '';
+};
+FP.emplacementLabel = (cle) => { const e = (FP.EMPLACEMENTS || []).find(x => x.cle === cle); return e ? e.label : ''; };
 // Comptage des conducteurs ENREGISTRÉS : uniquement les personnes ayant un véhicule
 // attribué dans la flotte. On n'inclut PAS les personnes connues seulement via une amende
 // (emprunteur ponctuel, ancien conducteur…), conformément à la demande.
@@ -11697,6 +11712,16 @@ FP.restaurerReglages.texte = (b) => {
 };
 FP.affectations = {
   _norm(n) { return (n == null ? '' : String(n)).trim(); },
+  // ⚠️ CLÉ CANONIQUE pour COMPARER deux affectations (jamais le libellé brut affiché) : un EMPLACEMENT
+  // (Dépôt/Siège/Navette, suffixe de site inclus) → 'lieu:<cle>' ; une PERSONNE → FP.condGroupKey
+  // (homonyme-safe, tolérant accents/casse/espaces). Réaffecter à l'identique = MÊME clé = AUCUNE nouvelle
+  // période (corrige la duplication « Dépôt » : « Dépôt »/« Dépôt PXP »/casse ne sont plus vus comme un changement).
+  _cle(x) {
+    const n = this._norm(x); if (!n || n === '—') return '';
+    const lieu = (FP.estEmplacement) ? FP.estEmplacement(n) : '';
+    if (lieu) return 'lieu:' + lieu;
+    return (FP.condGroupKey ? FP.condGroupKey(n) : n.toLowerCase());
+  },
   // Enregistre : réglages (affichage immédiat + copie de transition) PUIS table (source), véhicule par véhicule.
   _sauver(s, vehIds) {
     FP.settings.save(s);
@@ -11869,13 +11894,16 @@ FP.affectations = {
     // Rattrapage : un conducteur était déjà sur la fiche AVANT que l'historique n'existe
     // (aucune entrée ouverte) → on trace sa sortie pour ne rien perdre au moment du retrait/
     // changement. Début inconnu (null → affiché « depuis l'origine »).
+    // ⚠️ COMPARAISON CANONIQUE (clé), jamais le libellé : « Dépôt » réaffecté à l'identique (ou « Dépôt PXP »,
+    // ou une variante de casse) = MÊME clé → on ne clôt rien et on n'ouvre aucune période (idempotent).
+    const cleNew = vide ? '' : this._cle(nom);
     const ancien = this._norm(ancienConducteur);
-    if (!encours && ancien && ancien !== '—' && ancien.toLowerCase() !== (vide ? '' : nom.toLowerCase())) {
+    if (!encours && ancien && ancien !== '—' && this._cle(ancien) !== cleNew) {
       list.push({ conducteur: ancien, debut: null, fin: jour, kmFin: kmN });
       changed = true;
     }
-    const actuel = encours ? this._norm(encours.conducteur) : '';
-    if (actuel !== (vide ? '' : nom)) {   // vrai changement
+    const cleCur = encours ? this._cle(encours.conducteur) : '';
+    if (cleCur !== cleNew) {   // vrai changement (clé canonique, pas le libellé affiché)
       if (encours) { encours.fin = jour; if (kmN != null && encours.kmFin == null) encours.kmFin = kmN; changed = true; } // on clôt l'affectation précédente
       if (!vide) { list.push({ conducteur: nom, debut: jour, fin: null, kmDebut: kmN }); changed = true; }
     }
@@ -15490,18 +15518,47 @@ FP.lienConducteur = function (name, label, key) {
   // Règle GLOBALE : on affiche le PRÉNOM SEUL du conducteur (source unique FP.prenomAffiche) — sauf si
   // l'appelant impose un `label`. Le lien pointe toujours vers la fiche complète du conducteur.
   const txt = FP._escLien(label != null ? label : (FP.prenomAffiche ? FP.prenomAffiche(raw) : raw));
-  // EMPLACEMENTS (lieu/état, PAS une personne) : « Dépôt », « Siège », « Navette ». Rendus NON cliquables
-  // — il n'existe pas de fiche à ouvrir — mais CLAIREMENT identifiés comme un emplacement (📍 + grisé +
-  // info-bulle) pour qu'on ne les confonde pas avec un conducteur « cassé ». Pour affecter une vraie
-  // personne, on utilise le ✏️ de la ligne (fiche véhicule / Leasing). Source unique → cohérent partout.
-  const LIEUX = ['Siège', 'Dépôt', 'Navette'];
-  if (LIEUX.includes(raw)) return `<span class="fp-emplacement" title="Emplacement — pas un conducteur. Utilisez ✏️ pour affecter une personne." style="color:var(--fp-muted,#94a3b8);font-style:italic;white-space:nowrap">📍 ${txt}</span>`;
+  // EMPLACEMENTS (lieu/état, PAS une personne) : « Dépôt », « Siège », « Navette ». Identifiés 📍 + grisé,
+  // et désormais CLIQUABLES → ouvrent une FICHE EMPLACEMENT (liste des véhicules rattachés) au lieu d'une
+  // fiche conducteur inexistante. Source unique FP.estEmplacement → interprétation IDENTIQUE partout.
+  const _lieu = (FP.estEmplacement) ? FP.estEmplacement(raw) : '';
+  if (_lieu) return `<span class="fp-emplacement" data-emplacement="${FP._escLien(raw)}" title="Emplacement — véhicules rattachés (cliquer). Pour affecter une personne, utilisez ✏️." style="color:var(--fp-muted,#94a3b8);font-style:italic;white-space:nowrap;cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();window.FP&&FP.ficheEmplacement&&FP.ficheEmplacement(this.getAttribute('data-emplacement'))">📍 ${txt}</span>`;
   const excl = ['', '—', 'x', 'X', 'VENDU', 'Fenwick'];
   if (excl.includes(raw)) return txt;
   // HOMONYMES : si l'appelant connaît la CLÉ unique du conducteur (ex. clé de l'affectation EN COURS),
   // on cible cette fiche précise — sinon repli sur le prénom (1er mot), qui peut tomber sur un homonyme.
   const target = (key != null && String(key).trim()) ? String(key).trim() : raw.split(/\s+/)[0].toLowerCase();
   return `<a class="fp-lien" href="${FP._pagePrefix()}conducteurs.html?cond=${encodeURIComponent(target)}" title="Voir la fiche conducteur" onclick="event.stopPropagation()">${txt}</a>`;
+};
+
+// FICHE EMPLACEMENT (Dépôt/Siège/Navette) — lecture seule, ouverte au clic sur un 📍. Un emplacement n'est
+// PAS une personne (ni permis ni identité) : on montre uniquement les véhicules actuellement rattachés.
+// Fermable par le garde Échap GLOBAL (role=dialog + z-index élevé + bouton de fermeture).
+FP.ficheEmplacement = function (nom) {
+  const cle = FP.estEmplacement ? FP.estEmplacement(nom) : '';
+  if (!cle) return;
+  const label = (FP.emplacementLabel && FP.emplacementLabel(cle)) || (nom || 'Emplacement');
+  const esc = FP.esc || (s => String(s == null ? '' : s));
+  const vehs = (((window.FP_DATA && FP_DATA.vehicules) || [])).filter(v => v && FP.estEmplacement(v.chauffeur) === cle);
+  const rows = vehs.length ? vehs.map(v => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--fp-border,#e3e8f0);border-radius:9px">
+      <span style="min-width:0"><b>${esc(v.immat || '—')}</b> <span style="color:var(--fp-muted,#64748b)">${esc(((v.marque || '') + ' ' + (v.modele || '')).trim())}</span></span>
+      <a class="fp-lien" href="${FP._pagePrefix()}vehicules.html?focus=${encodeURIComponent((FP.normImmat ? FP.normImmat(v.immat) : (v.immat || '')))}" title="Ouvrir la fiche véhicule" style="white-space:nowrap">Ouvrir →</a>
+    </div>`).join('') : '<div style="color:var(--fp-muted,#64748b);font-style:italic">Aucun véhicule rattaché à cet emplacement.</div>';
+  const ov = document.createElement('div');
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10060;display:flex;align-items:center;justify-content:center;padding:14px';
+  ov.innerHTML = `<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:460px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--fp-border,#e3e8f0);display:flex;align-items:center;gap:10px">
+        <div style="font-size:15px;font-weight:800">📍 ${esc(label)} <span style="font-weight:600;color:var(--fp-muted,#64748b);font-size:12.5px">— emplacement</span></div>
+        <button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;line-height:1;color:var(--fp-muted,#64748b)">✕</button>
+      </div>
+      <div style="padding:14px 16px;overflow:auto">
+        <p style="font-size:12.5px;color:var(--fp-muted,#475569);margin:0 0 10px">Lieu de stationnement, <b>pas une personne</b> (ni permis ni identité). Véhicules actuellement rattachés (<b>${vehs.length}</b>) :</p>
+        <div style="display:flex;flex-direction:column;gap:7px">${rows}</div>
+      </div></div>`;
+  document.body.appendChild(ov);
+  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+  ov.addEventListener('click', e => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) { try { ov.remove(); } catch (_) {} } });
 };
 
 // SOURCE UNIQUE — lien vers la fiche du conducteur EN COURS d'un véhicule. Résout la CLÉ de l'affectation
