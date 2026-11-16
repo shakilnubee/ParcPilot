@@ -3759,11 +3759,20 @@ FP.bulkSelect = function (opts) {
     if (act === 'delete') {
       const ids = [...sel]; if (!ids.length) return;
       const label = ids.length > 1 ? nounP : noun;
-      const ok = FP.confirm ? await FP.confirm(`Supprimer ${ids.length} ${label} ?`) : window.confirm('Supprimer ?');
-      if (!ok) return;
+      // Flux PERSONNALISÉ optionnel (ex. « Déclasser » vs « Supprimer définitivement ») : remplace le
+      // confirm binaire intégré. Retour falsy → on abandonne ; sinon la décision est passée à onDelete,
+      // et le flux gère lui-même son toast/undo (libellé adapté). Les appelants sans confirmDelete sont inchangés.
+      const custom = (typeof opts.confirmDelete === 'function');
+      let decision = true;
+      if (custom) { decision = await opts.confirmDelete(ids); if (!decision) return; }
+      else {
+        const ok = FP.confirm ? await FP.confirm(`Supprimer ${ids.length} ${label} ?`) : window.confirm('Supprimer ?');
+        if (!ok) return;
+      }
       let undo = null;
-      try { if (typeof opts.onDelete === 'function') undo = await opts.onDelete(ids); } catch (err) { console.error('[FP.bulkSelect.onDelete]', err); }
+      try { if (typeof opts.onDelete === 'function') undo = await opts.onDelete(ids, decision); } catch (err) { console.error('[FP.bulkSelect.onDelete]', err); }
       sel.clear(); rerender();
+      if (custom) return; // le flux personnalisé a déjà affiché son propre toast/undo
       // Si onDelete renvoie une fonction, on l'utilise comme action « Annuler ».
       if (typeof undo === 'function' && FP.undoToast) FP.undoToast(`🗑 ${ids.length} ${label} supprimé(s)`, undo);
       else if (FP.toast) FP.toast(`🗑 ${ids.length} ${label} supprimé(s)`);
@@ -14557,6 +14566,8 @@ FP.dialog = function (opts) {
       '.fp-dlg-btn:active{transform:translateY(1px)}',
       '.fp-dlg-cancel{background:#EEF1F6;color:var(--fp-primary,#0B1220)}',
       '.fp-dlg-cancel:hover{background:#E3E8F0}',
+      '.fp-dlg-alt{background:rgba(249,115,22,.12);color:var(--fp-accent,#F97316)}',
+      '.fp-dlg-alt:hover{background:rgba(249,115,22,.2)}',
       '.fp-dlg-ok{background:var(--fp-accent,#F97316);color:#fff;box-shadow:0 10px 22px -10px rgba(249,115,22,.7)}',
       '.fp-dlg-ok:hover{filter:brightness(1.05)}',
       '.fp-dlg-ok.danger{background:var(--fp-danger,#EF4444);box-shadow:0 10px 22px -10px rgba(239,68,68,.7)}',
@@ -14601,6 +14612,14 @@ FP.dialog = function (opts) {
       cancelBtn.className = 'fp-dlg-btn fp-dlg-cancel'; cancelBtn.textContent = cancelText;
       actions.appendChild(cancelBtn);
     }
+    // Bouton SECONDAIRE optionnel (3ᵉ choix, ex. « Déclasser » vs « Supprimer ») : rétro-compatible,
+    // résout avec opts.extraValue. Les appels existants (sans extraText) sont inchangés.
+    let extraBtn = null;
+    if (opts.extraText) {
+      extraBtn = document.createElement('button');
+      extraBtn.className = 'fp-dlg-btn fp-dlg-alt'; extraBtn.textContent = opts.extraText;
+      actions.appendChild(extraBtn);
+    }
     const okBtn = document.createElement('button');
     okBtn.className = 'fp-dlg-btn fp-dlg-ok' + (danger ? ' danger' : ''); okBtn.textContent = okText;
     actions.appendChild(okBtn);
@@ -14618,8 +14637,10 @@ FP.dialog = function (opts) {
     };
     const done = (val) => { cleanup(); resolve(val); };
     const onOk = () => done(type === 'prompt' ? (input ? input.value : '') : true);
+    const onExtra = () => done(opts.extraValue != null ? opts.extraValue : 'extra');
     const onCancel = () => done(type === 'prompt' ? null : (type === 'alert' ? undefined : false));
     okBtn.addEventListener('click', onOk);
+    if (extraBtn) extraBtn.addEventListener('click', onExtra);
     if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
     back.addEventListener('click', (e) => { if (e.target === back) onCancel(); });
     const onKey = (e) => {
@@ -14627,11 +14648,14 @@ FP.dialog = function (opts) {
       else if (e.key === 'Enter') {
         // Dans une zone de texte (multiline), Entrée = saut de ligne ; on ne valide qu'avec Ctrl/⌘+Entrée.
         if (opts.multiline && e.target === input) { if (e.ctrlKey || e.metaKey) { e.preventDefault(); onOk(); } return; }
+        if (extraBtn && e.target === extraBtn) { e.preventDefault(); onExtra(); return; } // Entrée sur l'option secondaire = elle (jamais la suppression)
         if (type === 'alert' || type === 'prompt' || e.target !== cancelBtn) { e.preventDefault(); onOk(); }
       }
     };
     document.addEventListener('keydown', onKey, true);
-    setTimeout(() => { try { (input || okBtn).focus(); } catch (e) {} }, 40);
+    // Focus par défaut : l'option NON destructive (bouton secondaire) quand elle existe → une Entrée réflexe
+    // ne déclenche jamais la suppression. Sinon le champ de saisie, sinon le bouton principal.
+    setTimeout(() => { try { (input || extraBtn || okBtn).focus(); } catch (e) {} }, 40);
   });
 };
 // Confirmation : détecte automatiquement les suppressions → bouton rouge « Supprimer ».

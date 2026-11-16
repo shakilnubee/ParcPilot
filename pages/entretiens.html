@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116b">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .ct-card { border-left: 4px solid; padding: .85rem 1rem; border-radius: .65rem; background: white; border: 1px solid var(--fp-border); }
@@ -583,8 +583,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116a"></script>
-<script src="../assets/js/supabase-client.js?v=20261116a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116b"></script>
+<script src="../assets/js/supabase-client.js?v=20261116b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -600,11 +600,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261116a"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261116a" defer></script>
+<script src="../assets/js/app.min.js?v=20261116b"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261116b" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1267,22 +1267,55 @@
     }).join('');
   }
 
-  // Sélection multiple (supprimer plusieurs interventions = factures d'entretien/réparation)
+  // Sélection multiple. ⚠️ ANTI-PERTE : une « intervention » EST une FACTURE. La supprimer l'effaçait
+  // PARTOUT (Factures, stats, coût au km, TCO) sans alternative. Désormais 2 choix : « Déclasser »
+  // (reclasse la facture en « Autre » → elle QUITTE le carnet d'entretien mais RESTE dans Factures,
+  // réversible) ou « Supprimer définitivement » (ancien comportement, irréversible).
+  const _reRender = () => { renderKPIs(); renderCTList(); renderRevList(); renderPodium(); renderCoutParVeh(); renderTable(); renderCharts(); };
   if (FP.bulkSelect) entBulk = FP.bulkSelect({
     mount: 'ent-bulk-mount', tbody: 'tbody', noun: 'intervention', nounPlural: 'interventions',
     getFilteredIds: () => filtered().filter(f => f.id != null).map(f => f.id),
-    onDelete: async (ids) => {
+    confirmDelete: async (ids) => {
+      const n = ids.length;
+      return FP.dialog({
+        type: 'confirm', danger: true,
+        title: n > 1 ? `${n} interventions sélectionnées` : 'Cette intervention',
+        message: 'Ces lignes sont des FACTURES.\n\n« Déclasser » garde la facture dans Factures mais la retire du carnet d\'entretien (reclassée « Autre ») — réversible.\n\n« Supprimer définitivement » l\'efface PARTOUT (Factures, statistiques, coût au km, TCO) — irréversible.',
+        extraText: '↩ Déclasser (garder la facture)', extraValue: 'declass',
+        okText: 'Supprimer définitivement', cancelText: 'Annuler',
+      });
+    },
+    onDelete: async (ids, decision) => {
       const set = new Set(ids.map(String));
-      const removed = (data.factures || []).filter(f => set.has(String(f.id)));
+      const concern = (data.factures || []).filter(f => set.has(String(f.id)));
+      if (decision === 'declass') {
+        // DÉCLASSER : la facture reste, on la sort juste du carnet (type → 'autre'). Réversible.
+        const before = concern.map(f => ({ id: f.id, type: f.type }));
+        concern.forEach(f => { f.type = 'autre'; if (FP.persist && FP.persist.update) { try { FP.persist.update('factures', f.id, { type: 'autre' }); } catch (e) {} } });
+        interventions = (data.factures || []).filter(f => FP.estEntretien(f));
+        _reRender();
+        const undo = () => {
+          before.forEach(b => { const f = (data.factures || []).find(x => String(x.id) === String(b.id)); if (f) { f.type = b.type; if (FP.persist && FP.persist.update) { try { FP.persist.update('factures', b.id, { type: b.type }); } catch (e) {} } } });
+          interventions = (data.factures || []).filter(f => FP.estEntretien(f));
+          _reRender();
+        };
+        if (FP.undoToast) FP.undoToast(`↩ ${ids.length} facture(s) déclassée(s) — conservée(s) dans Factures`, undo);
+        else if (FP.toast) FP.toast(`↩ ${ids.length} facture(s) déclassée(s)`);
+        return;
+      }
+      // SUPPRIMER DÉFINITIVEMENT (comportement d'origine, irréversible sauf « Annuler » immédiat).
+      const removed = concern;
       ids.forEach(id => { if (FP.persist && FP.persist.delete) FP.persist.delete('factures', id); });
       if (Array.isArray(data.factures)) data.factures = data.factures.filter(f => !set.has(String(f.id)));
       interventions = (data.factures || []).filter(f => FP.estEntretien(f));
-      renderKPIs(); renderCTList(); renderRevList(); renderPodium(); renderCoutParVeh(); renderTable(); renderCharts();
-      return () => { // Annuler : ré-insère les interventions supprimées
+      _reRender();
+      const undo = () => { // Annuler : ré-insère les factures supprimées
         removed.forEach(rec => { data.factures.push(rec); if (FP.persist) FP.persist.insert('factures', rec); });
         interventions = (data.factures || []).filter(f => FP.estEntretien(f));
-        renderKPIs(); renderCTList(); renderRevList(); renderPodium(); renderCoutParVeh(); renderTable(); renderCharts();
+        _reRender();
       };
+      if (FP.undoToast) FP.undoToast(`🗑 ${ids.length} intervention(s) supprimée(s)`, undo);
+      else if (FP.toast) FP.toast(`🗑 ${ids.length} intervention(s) supprimée(s)`);
     },
   });
 
