@@ -1817,6 +1817,14 @@
         const _cur = String(s.sinistreStatut[key] || '').toLowerCase();
         if (!_cur || _cur === 'attente') s.sinistreStatut[key] = 'rembourse';
       }
+      // ⚠️ Décision « Sans prise en charge » / « Refus » → aucun remboursement attendu : on bascule le suivi
+      // de remboursement sur « Refusé » (il SORT ainsi du filtre/compteur « En attente »). On ne touche QUE
+      // s'il était vide ou « En attente » (jamais un choix explicite pec/remboursé/refusé déjà posé).
+      if (fld === 'decisionStatut' && (val === 'sans-pec' || val === 'refus')) {
+        s.sinistreStatut = s.sinistreStatut || {};
+        const _cur = String(s.sinistreStatut[key] || '').toLowerCase();
+        if (!_cur || _cur === 'attente') s.sinistreStatut[key] = 'refuse';
+      }
       // ⚠️ refreshAll (pas seulement renderTimeline) : les KPI « Sinistres responsables » / « Reste à charge »
       // vivent dans renderKPIs → sans ça, le haut de page reste périmé après un changement de dossier.
       FP.settings.save(s); refreshAll(); return;
