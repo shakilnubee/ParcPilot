@@ -41,6 +41,8 @@ jobs:
         run: node tests/unit/conges-table.mjs
       - name: Tests de la projection des affectations
         run: node tests/unit/affectations-table.mjs
+      - name: Conducteur actuel déterministe (historique corrompu)
+        run: node tests/unit/affectations-courante.mjs
       - name: Tests de la projection des contrats LLD
         run: node tests/unit/contrats-lld-table.mjs
       - name: Tests de la projection des forfaits de leasing

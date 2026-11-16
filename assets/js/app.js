@@ -11734,7 +11734,20 @@ FP.affectations = {
   all() { const s = FP.settings.get(); return (s.affectations && typeof s.affectations === 'object') ? s.affectations : {}; },
   forVeh(vehId) { const a = this.all()[vehId]; return Array.isArray(a) ? a.slice() : []; },
   // Affectation EN COURS (fin === null) d'un véhicule, ou null.
-  courante(vehId) { const o = this.forVeh(vehId).filter(x => !x.fin); return o.length ? o[o.length - 1] : null; },
+  // ⚠️ CONDUCTEUR ACTUEL — DÉTERMINISTE même si l'historique est corrompu (plusieurs périodes restées
+  // OUVERTES — séquelle du bug de duplication « Dépôt »). On renvoie l'affectation ouverte au DÉBUT LE PLUS
+  // RÉCENT (à égalité : la dernière du tableau), JAMAIS « la dernière de la liste » dont l'ordre varie après
+  // un aller-retour serveur → un conducteur fraîchement affecté (début = aujourd'hui) l'emporte TOUJOURS sur
+  // une période « Dépôt »/emplacement résiduelle restée ouverte (sinon le conducteur « revenait » à Dépôt).
+  // LECTURE PURE : ne modifie aucune donnée (le nettoyage des doublons = assistant « Régulariser », qui
+  // propose avant toute modif). Cas normal (1 seule période ouverte) : comportement strictement identique.
+  courante(vehId) {
+    const o = this.forVeh(vehId).filter(x => !x.fin);
+    if (!o.length) return null;
+    let best = o[0];
+    for (let i = 1; i < o.length; i++) { if (String(o[i].debut || '').localeCompare(String(best.debut || '')) >= 0) best = o[i]; }
+    return best;
+  },
   // ===== RÉGULARISATION des périodes en DOUBLON (lot 2) =====
   // ⚠️ LECTURE SEULE. Détecte, par véhicule, les groupes de périodes du MÊME conducteur/emplacement
   // canonique (_cle) où ≥1 période « vide » (aucun vrai trajet km, pas de saisie manuelle, pas de clé
