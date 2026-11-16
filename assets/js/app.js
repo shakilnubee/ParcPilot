@@ -2071,9 +2071,20 @@ FP.sinistreFin = function (incidentKey, factures) {
   const decisionRefus = (decisionStatut === 'refus' || decisionStatut === 'sans-pec');   // aucune prise en charge
   const pecGarage = num(dv.pecGarage);                                                    // PEC payée DIRECTEMENT au garage
   const coutEco = (coutFacture != null) ? coutFacture : coutEstime;        // facturé prioritaire, sinon estimé
-  // Reste à RECEVOIR par l'ENTREPRISE = PEC confirmée − déjà encaissé − part payée directement au garage
+  // ⚠️ « Sans PEC » / « Refus » = DÉCISION EXPLICITE que la prise en charge est NULLE → PEC effective = 0 €
+  // (valeur CONNUE, pas « à déterminer »). On ne touche jamais la valeur stockée (pecConfirmee) : on dérive.
+  const pecConfirmeeEff = decisionRefus ? 0 : pecConfirmee;
+  // PEC « résolue » = montant connu : soit saisi, soit fixé à 0 par un refus/sans-pec. Sert aux parcours
+  // (étape « Prise en charge » faite) et évite de réclamer une PEC qui n'existe pas.
+  const pecResolue = (pecConfirmee != null) || decisionRefus;
+  // Reste à RECEVOIR par l'ENTREPRISE = PEC effective − déjà encaissé − part payée directement au garage
   // (un paiement direct au garage n'est JAMAIS « à recevoir » par l'entreprise → pas de fausse créance).
-  const resteARecevoir = (pecConfirmee != null) ? Math.max(0, pecConfirmee - encaisse - (pecGarage || 0)) : null;
+  // Sur un sans-pec/refus, PEC effective = 0 → reste à recevoir = 0 (plus « à déterminer »).
+  const resteARecevoir = (pecConfirmeeEff != null) ? Math.max(0, pecConfirmeeEff - encaisse - (pecGarage || 0)) : null;
+  // Un remboursement est-il ATTENDU ? Non si la PEC est résolue à 0 (sans-pec/refus, hors part garage) → l'étape
+  // « Remboursement » devient SANS OBJET (jamais une étape manquante). Tant que la PEC n'est pas résolue, on
+  // ne préjuge pas (attendu = true). Jamais déduit de la seule absence de courrier (il faut decisionStatut).
+  const remboursementAttendu = !pecResolue || (((pecConfirmeeEff || 0) - (pecGarage || 0)) > 0);
   // Reste à charge prévisionnel (+ FOURCHETTE d'incertitude). Priorité aux valeurs CONFIRMÉES ; sinon, si une
   // décision est reçue mais non chiffrée → fourchette [franchise probable ; coût total au pire]. resteChargePrev
   // garde la borne BASSE (franchise) comme valeur « probable » pour les agrégats — jamais le coût total présenté
@@ -2101,7 +2112,8 @@ FP.sinistreFin = function (incidentKey, factures) {
     decisionRecue: decisionRecue, decisionStatut: decisionStatut, decisionRefus: decisionRefus,
     coutEstime: coutEstime, coutFacture: coutFacture, coutEco: coutEco,
     franchiseContractuelle: franchiseContractuelle, franchiseAppliquee: franchiseAppliquee,
-    pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee, pecGarage: pecGarage,
+    pecAnnoncee: pecAnnoncee, pecConfirmee: pecConfirmee, pecConfirmeeEff: pecConfirmeeEff,
+    pecResolue: pecResolue, remboursementAttendu: remboursementAttendu, pecGarage: pecGarage,
     versements: versements, encaisse: encaisse,
     resteARecevoir: resteARecevoir, resteChargePrev: resteChargePrev,
     resteChargeMin: resteChargeMin, resteChargeMax: resteChargeMax, resteChargeIncertain: resteChargeIncertain,
