@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -334,6 +334,7 @@
         <div class="man-item">Une bannière « <b>Compléter depuis les cartes grises</b> » remplit d'un coup les champs vides depuis les cartes grises déjà scannées. La petite croix ✕ « non concerné » masque durablement une info qui ne s'applique pas (ex. véhicule étranger sans CT). Ces infos masquées se <b>consultent et se réaffichent une par une</b> (volet « N info(s) marquée(s) non concerné »), sans devoir tout réafficher.</div>
         <div class="man-item"><b>Remplir sur place, en 1 clic</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque <b>puce d'info manquante</b> (ex. « Téléphone ✎ », « CO₂ ✎ ») s'ouvre directement en <b>petit éditeur ici même</b> : tu tapes, Entrée, c'est enregistré — plus besoin d'ouvrir la fiche et de chercher le champ. Le bouton <b>« Remplir en rafale »</b> enchaîne, lui, toutes les infos manquantes d'affilée.</div>
         <div class="man-item">✅ <b>Checklists à terminer</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — si tu as <b>commencé à cocher</b> une checklist (entrée flotte / remise / reprise / cession) sans la <b>finir</b>, le véhicule apparaît ici avec la progression (ex. « Remise à un conducteur (3/8) »). Un clic <b>rouvre directement la checklist</b> du véhicule pour la terminer. <i>(Seules les checklists déjà entamées remontent — pas celles jamais touchées.)</i></div>
+        <div class="man-item">⚠️ <b>Factures à vérifier (HT + TVA ≠ TTC)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — liste les factures dont les <b>trois montants ne tombent pas juste</b> (souvent une erreur de lecture du scan). Deux actions par ligne : <b>« Vérifier → »</b> ouvre la facture pour <b>corriger</b> les montants (clique sur HT / TVA / TTC) ; <b>« ✓ C'est normal »</b> l'<b>acquitte</b> quand l'écart est <b>légitime</b> (malus écologique, carte grise, taxe non soumise à TVA, arrondi…) → la facture <b>sort de la liste</b> et le petit ⚠️ disparaît aussi dans la page Factures. Le choix est <b>mémorisé et synchronisé</b> sur tous tes appareils ; un bandeau <b>« Annuler »</b> permet de revenir en arrière juste après.</div>
         <div class="man-item">Dès que vous complétez une info (dans la fiche, ou ici en rafale), elle <b>disparaît immédiatement de la liste sur tous les écrans</b> : la checklist et les fiches lisent la <b>même source</b>, plus de décalage entre « Suivi & alertes » et la fiche du véhicule. Le <b>forfait leasing</b> se règle dans <b>Contrats</b> : sa ligne renvoie directement au bon écran.</div>
 
         <div class="man-zone">Onglet « 💡 Décisions » <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
@@ -1180,8 +1181,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116c"></script>
-<script src="../assets/js/supabase-client.js?v=20261116c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116d"></script>
+<script src="../assets/js/supabase-client.js?v=20261116d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1197,10 +1198,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261116c"></script>
+<script src="../assets/js/app.min.js?v=20261116d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

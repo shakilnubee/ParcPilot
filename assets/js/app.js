@@ -2711,6 +2711,25 @@ FP.factureIncoherente = (f) => {
   if (![h, t, c].every(Number.isFinite)) return false;
   return Math.abs((h + t) - c) > 0.02;
 };
+// ⚠️ « Incohérence HT+TVA≠TTC VÉRIFIÉE » — l'utilisateur a confirmé que l'écart est NORMAL (malus, carte
+// grise, taxe hors TVA, arrondi…) → on ne la re-signale plus. Mémorisé par société dans
+// settings.factVerifIncoh (keyé par id de facture, repli fileId), synchronisé tous appareils, et INSCRIT
+// dans COLLECTION_KEYS (anti-perte). `factureIncoherente` reste le calcul PUR ; `factureAVerifier` = la
+// SOURCE UNIQUE des listes/pastilles « à vérifier » (incohérente ET pas encore acquittée).
+FP._factVerifKey = (f) => (f && (f.id != null ? 'id:' + String(f.id) : (f.fileId ? 'fid:' + String(f.fileId) : ''))) || '';
+FP.factureVerifIncoh = (f) => {
+  try { const k = FP._factVerifKey(f); if (!k) return false; const m = (FP.settings.get().factVerifIncoh) || {}; return !!m[k]; } catch (e) { return false; }
+};
+FP.setFactureVerifIncoh = (f, val) => {
+  try {
+    const k = FP._factVerifKey(f); if (!k || !FP.settings) return;
+    const o = FP.settings.get(); const m = (o.factVerifIncoh && typeof o.factVerifIncoh === 'object') ? o.factVerifIncoh : {};
+    if (val) m[k] = { le: new Date().toISOString(), par: (FP.userEmail || '').trim() || 'inconnu' };
+    else delete m[k];
+    o.factVerifIncoh = m; FP.settings.save(o);
+  } catch (e) {}
+};
+FP.factureAVerifier = (f) => FP.factureIncoherente(f) && !FP.factureVerifIncoh(f);
 FP.setVehKm = function (v, newKm, opts) {
   try {
     opts = opts || {};
@@ -8504,8 +8523,8 @@ FP.settings = {
       // — Points de permis SAISIS À LA MAIN par conducteur (donnée perso non reconstituable) :
       'pointsManuel',
       // — Acquittements togglés MULTI-APPAREILS (même profil de perte que condConges) : rapprochements
-      //   « déjà traités », anomalies conso « OK », lignes ignorées du TCO.
-      'rapprIgnore', 'tfAnomOk', 'ignores',
+      //   « déjà traités », anomalies conso « OK », lignes ignorées du TCO, factures incohérentes « vérifiées ».
+      'rapprIgnore', 'tfAnomOk', 'ignores', 'factVerifIncoh',
       // — Échéances de documents + surveillances/corbeilles synchronisées (jumeaux de docStatus/docTypes) :
       'docExpire', 'assuranceIgnore', 'amendesJustifWatch', 'docTrash', 'sinistreDossiers', 'sinistreDossiersSupprimes', 'recoverHidden', 'docRequisNA',
       // — Notes de zone libres (irrécupérables, sans miroir local), liste des prestataires (garages /

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116d">
 <style>
   .notif { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 14px; border: 1px solid var(--fp-border); background: var(--fp-surface, #fff); text-decoration: none; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; box-shadow: 0 1px 2px rgba(15,30,61,.04); }
   .notif + .notif { margin-top: .55rem; }
@@ -162,8 +162,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116c"></script>
-<script src="../assets/js/supabase-client.js?v=20261116c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116d"></script>
+<script src="../assets/js/supabase-client.js?v=20261116d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -179,11 +179,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261116c"></script>
+<script src="../assets/js/app.min.js?v=20261116d"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -999,14 +999,19 @@
     const factIncoh = [];
     try {
       (data.factures || []).forEach(f => {
-        if (window.FP && FP.factureIncoherente && FP.factureIncoherente(f)) {
+        // SOURCE UNIQUE « à vérifier » = incohérente ET pas encore marquée « c'est normal » (FP.factureAVerifier).
+        if (window.FP && FP.factureAVerifier && FP.factureAVerifier(f)) {
           const h = Number(f.montantHT), t = Number(f.montantTVA), c = Number(f.montantTTC);
-          factIncoh.push({ fileId: f.fileId || '', label: `${f.fournisseur || 'Facture'}${f.date ? ' · ' + FP.date(f.date) : ''} — HT ${FP.euroPrecis(h)} + TVA ${FP.euroPrecis(t)} ≠ TTC ${FP.euroPrecis(c)}` });
+          factIncoh.push({ id: (f.id != null ? String(f.id) : ''), fileId: f.fileId || '', label: `${f.fournisseur || 'Facture'}${f.date ? ' · ' + FP.date(f.date) : ''} — HT ${FP.euroPrecis(h)} + TVA ${FP.euroPrecis(t)} ≠ TTC ${FP.euroPrecis(c)}` });
         }
       });
     } catch (e) {}
     const factIncohHTML = factIncoh.length ? `<div class="mb-6"><h2 class="font-bold text-slate-900 mb-3 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Factures à vérifier (HT + TVA ≠ TTC) <span class="badge badge-danger">${factIncoh.length}</span></h2><div class="space-y-2" style="max-width:840px">`
-      + factIncoh.map(x => `<a href="${x.fileId ? 'factures.html?facture=' + encodeURIComponent(x.fileId) : 'factures.html'}" class="notif" style="text-decoration:none"><div class="flex-1 min-w-0"><div class="font-semibold text-slate-900">${esc(x.label)}</div></div><span class="text-xs font-semibold self-center" style="color:var(--fp-accent);white-space:nowrap">Vérifier →</span></a>`).join('') + `</div></div>` : '';
+      + factIncoh.map(x => { const href = x.fileId ? 'factures.html?facture=' + encodeURIComponent(x.fileId) : 'factures.html'; return `<div class="notif" style="gap:8px">`
+        + `<a href="${href}" class="flex-1 min-w-0" style="text-decoration:none;color:inherit"><div class="font-semibold text-slate-900">${esc(x.label)}</div></a>`
+        + `<a href="${href}" class="text-xs font-semibold self-center" style="color:var(--fp-accent);white-space:nowrap;text-decoration:none">Vérifier →</a>`
+        + `<button type="button" data-fact-verif="${esc(x.id)}" data-fact-fid="${esc(x.fileId)}" title="L'écart est normal (malus, carte grise, taxe hors TVA, arrondi…) — ne plus signaler" class="text-xs font-semibold self-center" style="white-space:nowrap;border:1px solid var(--fp-border);background:var(--fp-card,#fff);border-radius:7px;padding:3px 9px;cursor:pointer;color:#16a34a">✓ C'est normal</button>`
+        + `</div>`; }).join('') + `</div></div>` : '';
     const total = vehItems.length + condItems.length + amItems.length + cfg.length + dupG.length + pdfItems.length + leaseItems.length + cadreItems.length + clItems.length + factIncoh.length;
     // Pastille sur l'onglet « 📝 À compléter » (comme « 📣 Relances ») → l'utilisateur voit qu'il reste des
     // infos à saisir sans avoir à ouvrir l'onglet. Mise à jour à chaque rendu (source unique = ce total).
@@ -1990,6 +1995,22 @@
     // Clic sur une puce « info manquante » → éditeur en ligne PILE sur ce champ (1 clic → on tape)
     const rafOne = e.target.closest('[data-raf]');
     if (rafOne) { e.preventDefault(); const p = (rafOne.getAttribute('data-raf') || '').split('|'); if (p.length >= 3) openRafOne(p[0], p.slice(1, p.length - 1).join('|'), p[p.length - 1]); return; }
+    // ✓ « C'est normal » sur une facture incohérente (écart HT+TVA≠TTC légitime : malus, carte grise, taxe…) :
+    // on l'acquitte (FP.setFactureVerifIncoh, mémorisé/synchronisé) → elle sort de la liste et n'est plus
+    // re-signalée (ici ET sur la pastille Factures, via la source unique FP.factureAVerifier). Undo immédiat.
+    const fv = e.target.closest('[data-fact-verif]');
+    if (fv) {
+      e.preventDefault(); e.stopPropagation();
+      const id = fv.getAttribute('data-fact-verif') || '';
+      const fid = fv.getAttribute('data-fact-fid') || '';
+      let f = (data.factures || []).find(x => (id && String(x.id) === id) || (fid && x.fileId === fid));
+      if (!f) f = { id: id || null, fileId: fid || '' };
+      if (window.FP && FP.setFactureVerifIncoh) FP.setFactureVerifIncoh(f, true);
+      renderComplet();
+      if (window.FP && FP.undoToast) FP.undoToast('✓ Facture marquée « vérifiée » — retirée de la liste', () => { try { FP.setFactureVerifIncoh(f, false); } catch (er) {} renderComplet(); });
+      else if (window.FP && FP.toast) FP.toast('✓ Facture marquée « vérifiée »');
+      return;
+    }
     // « Voir tout » / « Réduire » sur une section trop longue (> 10 lignes)
     const vt = e.target.closest('[data-voirtout]');
     if (vt) {
