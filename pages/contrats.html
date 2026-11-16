@@ -2151,7 +2151,10 @@
         const total = effDebut && FP.leasingTotalVerse ? FP.leasingTotalVerse({ debut: effDebut, dureeMois: durEff || c.dureeMois, loyer: baseLoyer, avenants: c.avenants }) : null;
         units.push({
           source: 'lld', vehicule: linkedV || null, immat: autoImmat || '', marque: c.marque || '', modele: c.modele || '',
-          chauffeur: c.conducteur || '', loueur: (c.loueur || '').toString().trim() || localeaseLabel(),
+          // ⚠️ SOURCE UNIQUE : si le contrat est lié à un véhicule de la flotte, le conducteur = le CHAUFFEUR
+          // ACTUEL du véhicule (fiche = leasing = export), jamais le champ figé du contrat (qui « restait » à
+          // Dépôt après un changement sur la fiche). Hors flotte : repli sur le conducteur saisi sur le contrat.
+          chauffeur: (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—') ? linkedV.chauffeur : (c.conducteur || ''), loueur: (c.loueur || '').toString().trim() || localeaseLabel(),
           debut: effDebut, finContrat: (effFinDate && !isNaN(effFinDate)) ? effFinDate : null,
           dureeMois: durEff || c.dureeMois || null, kmContrat: c.kmTotal || null, km: (kmAct != null ? kmAct : null),
           projectionFin: (proj != null ? proj : null), depassementProjete: (over > 0 ? over : 0),
@@ -4115,8 +4118,14 @@
       const vehHtml = `${escC(c.marque)} ${escC(c.modele)}${c.malus?` <span class="text-amber-600 text-xs">· malus ${FP.euro(c.malus)}</span>`:''}${c.offre?`<div class="text-xs text-slate-400">offre ${escC(c.offre)}</div>`:''}`;
       // PARITÉ BPCE : le nom du conducteur est un LIEN vers sa fiche + un ✏️ pour le changer (avant :
       // simple texte pointillé non cliquable vers la fiche).
-      const condHtml = c.conducteur
-        ? `${FP.lienConducteur(c.conducteur)} <button type="button" data-loc-cond="${i}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`
+      // ⚠️ SOURCE UNIQUE : contrat lié à un véhicule de la flotte → on affiche le CHAUFFEUR ACTUEL du
+      // véhicule (fiche = leasing), jamais le champ figé du contrat (qui « restait » à Dépôt après un
+      // changement sur la fiche). Hors flotte → repli sur le conducteur saisi sur le contrat.
+      const condLien = (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—')
+        ? (FP.lienChauffeurVeh ? FP.lienChauffeurVeh(linkedV) : FP.lienConducteur(linkedV.chauffeur))
+        : (c.conducteur ? FP.lienConducteur(c.conducteur) : '');
+      const condHtml = condLien
+        ? `${condLien} <button type="button" data-loc-cond="${i}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`
         : `<button type="button" data-loc-cond="${i}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem">+ affecter</button>`;
       const loueurTxt = escC((c.loueur || '').toString().trim() || localeaseLabel());
       const kmTotalHtml = c.kmTotal ? FP.num(c.kmTotal) + ' km' : '<span class="text-slate-400">—</span>';
@@ -4443,10 +4452,20 @@
       if(plaque){ const v=(data.vehicules||[]).find(x=>FP.normImmat(x.immat)===FP.normImmat(plaque)); if(v && v.chauffeur && v.chauffeur!=='—' && !String(list[i].conducteur||'').trim()){ list[i].conducteur=v.chauffeur; } }
       save(); return; }
     const cd=e.target.closest('[data-loc-cond]'); if(cd){ const i=+cd.dataset.locCond; const td=cd.closest('td'); if(!td) return;
-      td.innerHTML=`<input class="field-input" style="font-size:.9rem;padding:.4rem .6rem;width:100%;min-width:150px;border:1px solid var(--fp-accent);border-radius:.5rem" id="loc-cond-edit" autocomplete="off" placeholder="Rechercher ou créer…" value="${escC(list[i].conducteur||'')}">`;
+      // ⚠️ SOURCE UNIQUE : si le contrat est lié à un véhicule de la flotte, éditer le conducteur ICI écrit le
+      // CHAUFFEUR du VÉHICULE (via setVehChauffeur → UPDATE + historique d'affectation, comme la fiche et les
+      // lignes BPCE) et PAS le champ figé du contrat (qui « restait » à Dépôt après un changement sur la fiche).
+      // Hors flotte (pas de véhicule lié) : on édite le champ conducteur du contrat.
+      const _plq = list[i].immat || (typeof autoImmatLoc==='function'?autoImmatLoc(list[i]):'') || '';
+      const _lv = _plq ? (data.vehicules||[]).find(x=>FP.normImmat(x.immat)===FP.normImmat(_plq)) : null;
+      const _curVal = _lv ? ((_lv.chauffeur && _lv.chauffeur!=='—') ? _lv.chauffeur : '') : (list[i].conducteur||'');
+      const _commit=(name)=>{ const val=(name||'').trim();
+        if(_lv){ try{ if(typeof setVehChauffeur==='function' && setVehChauffeur(_plq, val)){ refreshAllContrats(); } }catch(e){ console.warn('[loc-cond veh]',e); } }
+        else { list[i].conducteur=val||null; save(); } };
+      td.innerHTML=`<input class="field-input" style="font-size:.9rem;padding:.4rem .6rem;width:100%;min-width:150px;border:1px solid var(--fp-accent);border-radius:.5rem" id="loc-cond-edit" autocomplete="off" placeholder="Rechercher ou créer…" value="${escC(_curVal)}">`;
       const inp=document.getElementById('loc-cond-edit'); if(!inp) return; inp.focus(); inp.select();
-      if(FP.conducteurPicker) FP.conducteurPicker(inp,{ onPick:(c)=>{ list[i].conducteur=(c&&(c.name||c.prenom))||inp.value.trim(); save(); } });
-      inp.addEventListener('blur',()=>setTimeout(()=>{ if(document.getElementById('loc-cond-edit')===inp){ list[i].conducteur=inp.value.trim()||null; save(); } },200));
+      if(FP.conducteurPicker) FP.conducteurPicker(inp,{ onPick:(c)=>{ _commit((c&&(c.name||c.prenom))||inp.value.trim()); } });
+      inp.addEventListener('blur',()=>setTimeout(()=>{ if(document.getElementById('loc-cond-edit')===inp){ _commit(inp.value.trim()); } },200));
       return; }
     const da=e.target.closest('[data-loc-doc-assur]'); if(da){ const [i,di]=da.dataset.locDocAssur.split(':').map(Number); const c=list[i]||{}; const immat=String(c.immat||(typeof autoImmatLoc==='function'?autoImmatLoc(c):'')||'').toUpperCase(); const doc=(c.docs||[])[di]; if(!doc) return;
       if(!immat){ alert('Lie d\'abord la plaque du contrat (colonne Immatriculation) pour savoir sur quel véhicule ranger le mémo assurance.'); return; }
