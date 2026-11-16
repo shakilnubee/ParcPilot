@@ -8506,7 +8506,7 @@ FP.settings = {
       // — Données par CONDUCTEUR (mêmes maps que condDocs, oubliées → d'où la perte des congés) :
       'condConges', 'condSortie', 'condArrivee', 'condLangues', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements',
       // — Historique & données par VÉHICULE :
-      'affectations', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef', 'revSuivi',
+      'affectations', 'affectationsArchive', 'antiPollDates', 'leasingDocs', 'leasingNumero', 'restitutionChecklist', 'controleStatuts', 'suiviFlotte', 'suiviColsPerso', 'vehRdvGarage', 'revisionKmRef', 'revSuivi',
       // — Données par SINISTRE :
       'sinistreAssurance', 'sinistreDocSub', 'sinistreSous', 'sinistreEtapeIgnore', 'sinistreDocCat',
       // — Contrats LLD (tableau ; ids stables ajoutés à la lecture) + prestataires perso (tableau à id) :
@@ -11735,6 +11735,71 @@ FP.affectations = {
   forVeh(vehId) { const a = this.all()[vehId]; return Array.isArray(a) ? a.slice() : []; },
   // Affectation EN COURS (fin === null) d'un véhicule, ou null.
   courante(vehId) { const o = this.forVeh(vehId).filter(x => !x.fin); return o.length ? o[o.length - 1] : null; },
+  // ===== RÉGULARISATION des périodes en DOUBLON (lot 2) =====
+  // ⚠️ LECTURE SEULE. Détecte, par véhicule, les groupes de périodes du MÊME conducteur/emplacement
+  // canonique (_cle) où ≥1 période « vide » (aucun vrai trajet km, pas de saisie manuelle, pas de clé
+  // d'identité) coexiste avec une période « riche » (vrai km parcouru, dates saisies, EDL rattaché par
+  // date). Renvoie [{cle,label,keep,archive:[idx],all:[idx]}]. Les EDL/photos vivent dans inspections/
+  // documents (JAMAIS dans la période) → les archiver ne touche aucun EDL ni photo.
+  _spanKm(a) { const d = this._km(a.kmDebut), f = this._km(a.kmFin); return (d != null && f != null && f - d > 0) ? (f - d) : 0; },
+  _riche(a) { return this._spanKm(a) > 0 || !!(a.debutManuel || a.finManuel || a.kmDebutManuel || a.kmFinManuel) || !!a.conducteurKey; },
+  _complet(a) { return (a.debut ? 1 : 0) + (a.fin ? 1 : 0) + (this._km(a.kmDebut) != null ? 1 : 0) + (this._km(a.kmFin) != null ? 1 : 0); },
+  periodesRedondantes(vehId) {
+    const list = this.forVeh(vehId); if (list.length < 2) return [];
+    const groupes = {};
+    list.forEach((a, i) => { const c = this._cle(a.conducteur); if (!c) return; (groupes[c] = groupes[c] || []).push(i); });
+    const out = [];
+    Object.keys(groupes).forEach(c => {
+      const idxs = groupes[c]; if (idxs.length < 2) return;
+      const riches = idxs.filter(i => this._riche(list[i]));
+      const pauvres = idxs.filter(i => !this._riche(list[i]));
+      if (!pauvres.length) return;   // rien à nettoyer (toutes « riches » → vrai historique)
+      let keep;
+      if (riches.length) keep = riches.slice().sort((x, y) => (this._spanKm(list[y]) - this._spanKm(list[x])) || (this._complet(list[y]) - this._complet(list[x])))[0];
+      else keep = idxs.slice().sort((x, y) => this._complet(list[y]) - this._complet(list[x]))[0];
+      const archive = idxs.filter(i => i !== keep && !this._riche(list[i]));
+      if (archive.length) out.push({ cle: c, label: list[keep].conducteur, keep, archive, all: idxs });
+    });
+    return out;
+  },
+  // Applique la régularisation : ARCHIVE (réversible) les périodes `archiveIdx`, et ROUVRE éventuellement
+  // la période gardée `keep` (retire sa date de fin → affectation active). Rien d'autre n'est touché.
+  regulariser(vehId, opts) {
+    opts = opts || {};
+    const s = FP.settings.get();
+    s.affectations = (s.affectations && typeof s.affectations === 'object') ? s.affectations : {};
+    const list = Array.isArray(s.affectations[vehId]) ? s.affectations[vehId].slice() : [];
+    if (!list.length) return;
+    const toArch = (opts.archiveIdx || []).filter(i => list[i]);
+    const keepRec = (opts.keep != null) ? list[opts.keep] : null;
+    if (toArch.length) {   // stash RÉVERSIBLE (pas une suppression définitive)
+      s.affectationsArchive = (s.affectationsArchive && typeof s.affectationsArchive === 'object') ? s.affectationsArchive : {};
+      const bucket = s.affectationsArchive[vehId] = Array.isArray(s.affectationsArchive[vehId]) ? s.affectationsArchive[vehId] : [];
+      toArch.forEach(i => bucket.push(Object.assign({ _archiveLe: new Date().toISOString().slice(0, 10) }, list[i])));
+    }
+    const rm = new Set(toArch);
+    const kept = list.filter((_, i) => !rm.has(i));
+    if (opts.reopenKeep && keepRec) {
+      const ki = kept.indexOf(keepRec);
+      if (ki !== -1) { kept.forEach(p => { if (p !== keepRec && !p.fin) p.fin = new Date().toISOString().slice(0, 10); }); delete kept[ki].fin; }
+    }
+    s.affectations[vehId] = kept;
+    this._sauver(s, [vehId]);
+  },
+  archivees(vehId) { const m = (FP.settings.get().affectationsArchive) || {}; return Array.isArray(m[vehId]) ? m[vehId] : []; },
+  // Restaure (ré-insère) toutes les périodes archivées d'un véhicule → annule une régularisation.
+  restaurerArchive(vehId) {
+    const s = FP.settings.get();
+    const bucket = (s.affectationsArchive && Array.isArray(s.affectationsArchive[vehId])) ? s.affectationsArchive[vehId] : [];
+    if (!bucket.length) return 0;
+    s.affectations = (s.affectations && typeof s.affectations === 'object') ? s.affectations : {};
+    const list = Array.isArray(s.affectations[vehId]) ? s.affectations[vehId].slice() : [];
+    bucket.forEach(p => { const q = Object.assign({}, p); delete q._archiveLe; list.push(q); });
+    const n = bucket.length;
+    s.affectations[vehId] = list; s.affectationsArchive[vehId] = [];
+    this._sauver(s, [vehId]);
+    return n;
+  },
   // Garantit qu'une affectation EN COURS existe pour le chauffeur actuel du véhicule. Si aucune n'est
   // ouverte (véhicules d'avant l'historique, imports…), on en crée une avec pour DATE D'ENTRÉE (par
   // défaut) la 1re mise en circulation du véhicule. Consigne explicite : toujours afficher une date
@@ -15559,6 +15624,76 @@ FP.ficheEmplacement = function (nom) {
   document.body.appendChild(ov);
   try { if (window.lucide) lucide.createIcons(); } catch (e) {}
   ov.addEventListener('click', e => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) { try { ov.remove(); } catch (_) {} } });
+};
+
+// ASSISTANT de RÉGULARISATION des périodes d'affectation en DOUBLON (lot 2). Montre les groupes détectés
+// (FP.affectations.periodesRedondantes), propose d'ARCHIVER (réversible, coché par défaut) les périodes
+// VIDES et de ROUVRIR la période conservée. RIEN ne s'exécute sans le clic « Appliquer ». Les EDL/photos
+// (inspections/documents) ne sont JAMAIS touchés. Fermable par le garde Échap global (role=dialog + ✕).
+FP.regulAffectationsModal = function (veh, onDone) {
+  if (!veh || veh.id == null || !FP.affectations) return;
+  const groupes = FP.affectations.periodesRedondantes(veh.id);
+  if (!groupes.length) { if (FP.toast) FP.toast('Aucune période en doublon à régulariser pour ce véhicule.'); return; }
+  const list = FP.affectations.forVeh(veh.id);
+  const esc = FP.esc || (s => String(s == null ? '' : s));
+  const dnum = d => d ? (FP.dateNum ? FP.dateNum(String(d).slice(0, 10)) : String(d).slice(0, 10)) : null;
+  const kmv = v => (v == null || v === '') ? '—' : (FP.num ? FP.num(v) : v);
+  const ligne = (i) => { const a = list[i] || {}; const sp = FP.affectations._spanKm(a); return (a.debut ? dnum(a.debut) : 'origine') + ' → ' + (a.fin ? dnum(a.fin) : 'en cours') + ' · ' + kmv(a.kmDebut) + ' → ' + kmv(a.kmFin) + (sp > 0 ? ' · ' + FP.num(sp) + ' km' : ''); };
+  const curCle = FP.affectations._cle(veh.chauffeur);
+  const nbAvant = list.length;
+  const nbArchTot = groupes.reduce((n, g) => n + g.archive.length, 0);
+  const groupHTML = groupes.map((g, gi) => {
+    const keepClosed = !!(list[g.keep] && list[g.keep].fin);
+    const estCur = (g.cle === curCle);   // la période conservée correspond au chauffeur ACTUEL → rouvrable
+    const archRows = g.archive.map(i => `<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 9px;border:1px solid var(--fp-border,#e3e8f0);border-radius:9px;cursor:pointer;margin-top:6px">
+        <input type="checkbox" class="rg-arch" data-i="${i}" checked style="margin-top:2px">
+        <span style="min-width:0"><b>🗄️ Archiver</b> <span style="color:var(--fp-muted,#64748b)">— période vide (réversible)</span><br><span style="font-size:12px;color:var(--fp-muted,#475569)">${esc(ligne(i))}</span></span>
+      </label>`).join('');
+    const icon = (FP.estEmplacement && FP.estEmplacement(g.label)) ? '📍' : '👤';
+    return `<div style="border:1px solid var(--fp-border,#e3e8f0);border-radius:12px;padding:12px;margin-bottom:10px">
+        <div style="font-weight:800;margin-bottom:7px">${icon} ${esc(g.label)} <span style="font-weight:600;color:var(--fp-muted,#64748b);font-size:12.5px">— ${g.all.length} périodes détectées</span></div>
+        <div style="padding:7px 9px;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:9px"><b style="color:#047857">✅ À conserver</b> <span style="color:var(--fp-muted,#475569);font-size:12px">— EDL, photos et km intacts</span><br><span style="font-size:12px;color:#334155">${esc(ligne(g.keep))}</span></div>
+        ${archRows}
+        ${(keepClosed && estCur) ? `<label style="display:flex;gap:8px;align-items:center;margin-top:9px;cursor:pointer"><input type="checkbox" class="rg-reopen" data-keep="${g.keep}" checked> <span style="font-size:13px">🔓 Rouvrir la période conservée (<b>${esc(g.label)}</b> redevient l'affectation active)</span></label>` : ''}
+      </div>`;
+  }).join('');
+  const ov = document.createElement('div');
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10062;display:flex;align-items:center;justify-content:center;padding:14px';
+  ov.innerHTML = `<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:560px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--fp-border,#e3e8f0);display:flex;align-items:center;gap:10px">
+        <div style="font-size:15px;font-weight:800">🧹 Régulariser les périodes en double</div>
+        <button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;line-height:1;color:var(--fp-muted,#64748b)">✕</button>
+      </div>
+      <div style="padding:14px 16px;overflow:auto">
+        <p style="font-size:12.5px;color:var(--fp-muted,#475569);margin:0 0 12px"><b>${esc(veh.immat || '')}</b> — on <b>conserve</b> la période réelle (celle qui porte l'EDL, les photos et les km) et on <b>archive</b> les périodes vides créées par erreur. <b>Rien n'est supprimé définitivement</b> (archivage réversible) et <b>aucun état des lieux ni photo n'est touché</b>.</p>
+        ${groupHTML}
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--fp-border,#e3e8f0);display:flex;gap:8px;justify-content:flex-end;align-items:center">
+        <span style="font-size:12px;color:var(--fp-muted,#64748b);margin-right:auto" data-rg-recap></span>
+        <button type="button" data-close class="btn btn-outline text-xs">Annuler</button>
+        <button type="button" data-rg-apply class="btn btn-dark text-xs"><i data-lucide="check" class="w-3.5 h-3.5"></i> Appliquer</button>
+      </div></div>`;
+  document.body.appendChild(ov);
+  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+  const q = s => ov.querySelector(s);
+  const recap = () => { const n = ov.querySelectorAll('.rg-arch:checked').length; const el = q('[data-rg-recap]'); if (el) el.textContent = nbAvant + ' période(s) → ' + (nbAvant - n) + ' après (' + n + ' archivée(s))'; };
+  ov.addEventListener('change', e => { if (e.target.classList && e.target.classList.contains('rg-arch')) recap(); });
+  recap();
+  const close = () => { try { ov.remove(); } catch (e) {} };
+  ov.addEventListener('click', e => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) close(); });
+  q('[data-rg-apply]').addEventListener('click', () => {
+    const btn = q('[data-rg-apply]'); btn.disabled = true;   // anti double-clic
+    const archiveIdx = [...ov.querySelectorAll('.rg-arch:checked')].map(c => parseInt(c.getAttribute('data-i'), 10)).filter(x => !isNaN(x));
+    const reopenEl = ov.querySelector('.rg-reopen:checked');
+    const keep = reopenEl ? parseInt(reopenEl.getAttribute('data-keep'), 10) : null;
+    try {
+      FP.affectations.regulariser(veh.id, { archiveIdx, keep: (keep != null && !isNaN(keep)) ? keep : null, reopenKeep: !!reopenEl });
+      if (FP.toast) FP.toast('✓ ' + archiveIdx.length + ' période(s) archivée(s)' + (reopenEl ? ' · période active rouverte' : '') + ' — annulable');
+    } catch (e) { if (FP.notifyError) FP.notifyError('Échec de la régularisation.'); btn.disabled = false; return; }
+    close();
+    if (typeof onDone === 'function') { try { onDone(); } catch (e) {} }
+  });
 };
 
 // SOURCE UNIQUE — lien vers la fiche du conducteur EN COURS d'un véhicule. Résout la CLÉ de l'affectation

@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116g">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116f"></script>
-<script src="../assets/js/supabase-client.js?v=20261116f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116g"></script>
+<script src="../assets/js/supabase-client.js?v=20261116g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261116f"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261116f"></script>
+<script src="../assets/js/fleet-docs.js?v=20261116g"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261116g"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261116f"></script><script>
+<script src="../assets/js/app.min.js?v=20261116g"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2288,7 +2288,7 @@
         </summary>
         <div class="pt-2" id="veh-affect-body" data-veh-id="${v.id}">${affectRowsHTML(v.id, null)}</div>
         <div id="veh-affect-add" class="pt-2"></div>
-        <div class="mt-2"><button type="button" class="btn btn-dark text-xs" data-cc-btn="${v.id}" title="Parcours guidé : restituer l'ancien conducteur, choisir le nouveau, état des lieux, confirmation"><i data-lucide="repeat" class="w-3.5 h-3.5"></i> Changer de conducteur</button></div>
+        <div class="mt-2 flex flex-wrap gap-2 items-center"><button type="button" class="btn btn-dark text-xs" data-cc-btn="${v.id}" title="Parcours guidé : restituer l'ancien conducteur, choisir le nouveau, état des lieux, confirmation"><i data-lucide="repeat" class="w-3.5 h-3.5"></i> Changer de conducteur</button>${(window.FP && FP.affectations && FP.affectations.periodesRedondantes && FP.affectations.periodesRedondantes(v.id).length) ? `<button type="button" class="btn btn-outline text-xs" data-cc-regul="${v.id}" style="color:#b45309;border-color:#fed7aa" title="Des périodes en double ont été détectées (même conducteur/emplacement) — nettoyer en gardant l'historique réel (EDL et photos intacts)">🧹 Régulariser les périodes en double</button>` : ''}</div>
         <button type="button" class="text-xs font-semibold mt-1" style="color:var(--fp-accent)" data-affect-addbtn><i data-lucide="plus" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> Ajouter une période à la main</button>
         <button type="button" class="text-xs font-semibold mt-1 ml-4" style="color:var(--fp-primary)" data-edl-btn="${v.id}" title="Générer l'état des lieux de remise (pré-rempli, logo société, envoi e-mail)"><i data-lucide="clipboard-list" class="w-3.5 h-3.5" style="display:inline;vertical-align:-2px"></i> État des lieux (remise)</button>
         <div class="flex flex-wrap gap-2 mt-3">
@@ -2332,6 +2332,14 @@
       }
       // Assistant « Changer de conducteur » (parcours guidé 5 étapes) — section « Conducteurs — historique ».
       // onDone persiste le conducteur actuel par le chemin ÉPROUVÉ de la page (persistVehFields) + re-render.
+      const rgB = e.target.closest('[data-cc-regul]');
+      if (rgB) {
+        const vId = rgB.getAttribute('data-cc-regul');
+        const veh = (data.vehicules || []).find(x => x.id === vId);
+        if (veh && FP.regulAffectationsModal) FP.regulAffectationsModal(veh, () => { try { refreshAffect(vId, null); } catch (e) {} try { renderTable(); } catch (e) {} });
+        else if (FP.toast) FP.toast('Assistant indisponible (connexion requise).');
+        return;
+      }
       const ccB = e.target.closest('[data-cc-btn]');
       if (ccB) {
         const v = (data.vehicules || []).find(x => x.id === ccB.dataset.ccBtn);
