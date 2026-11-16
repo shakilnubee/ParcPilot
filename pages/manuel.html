@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116e">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -663,6 +663,7 @@
         <div class="man-item"><b>🟠 Décision d'assurance reçue (montants à confirmer)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand l'assureur a <b>répondu</b> (ex. accord de prise en charge <b>sous conditions</b>) mais <b>sans encore chiffrer</b> les montants, coche <b>« Décision d'assurance reçue (montants à confirmer) »</b> dans l'onglet <b>Suivi financier</b>. L'<b>étape 3 « Décision de l'assurance »</b> passe alors à <b>« Décision reçue »</b> (distinct de « Fait ») <b>sans t'obliger à inventer une PEC</b>. Tant que la franchise appliquée ou la PEC confirmée ne sont pas saisies, le <b>Reste à charge prévisionnel</b> s'affiche en <b>fourchette</b> (« franchise probable → coût total, sous réserve de confirmation ») au lieu d'un montant présenté comme certain. Les étapes 4 (facture), 5 (règlements) et 6 (solde) restent <b>en attente</b>. Rien n'est inventé : PEC annoncée et PEC confirmée restent deux champs distincts.</div>
         <div class="man-item"><b>⊘ Ignorer / Réactiver une étape du parcours</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur chaque étape du parcours (Courrier → Chiffrage → Décision → Facture → Remboursements → Solde), un bouton <b>« Ignorer »</b> permet de <b>passer volontairement</b> cette étape (ex. pas de courrier papier, pas d'expertise). L'étape prend alors le statut <b>« Ignorée »</b> (badge ⊘, grisé, barré) — <b>bien distinct de « Fait »</b> — et la date, le motif (facultatif, on te le demande) et l'auteur sont <b>tracés</b> sous l'étape. Une étape ignorée <b>ne bloque pas</b> les suivantes, n'est <b>jamais comptée comme accomplie</b>, et tes <b>informations/documents déjà saisis sont conservés</b>. Tu peux la <b>« Réactiver »</b> à tout moment (elle redevient « à faire »). Tu n'es <b>pas obligé de suivre l'ordre</b> : tu peux enregistrer la facture avant le courrier de l'assureur. Le choix est <b>synchronisé sur tous tes appareils</b>. ⚠️ Ignorer une étape ne met <b>jamais</b> un montant à 0 € et ne clôture pas le dossier : un montant inconnu reste <b>« À déterminer »</b>.</div>
         <div class="man-item"><b>📋 Statut de la décision d'assurance (5 états)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans l'onglet <b>Suivi financier</b>, un menu <b>« Décision de l'assurance »</b> distingue : <b>En attente</b> · <b>Accord conditionnel reçu</b> (décision reçue sans montant définitif → reste à charge en <b>fourchette</b>) · <b>Accord confirmé</b> (tu saisis la PEC confirmée) · <b>Refus de prise en charge</b> · <b>Sans prise en charge</b>. Un <b>refus</b> ou un <b>« sans prise en charge »</b> met le <b>reste à charge = coût total</b> (l'assureur ne couvre rien). <b>PEC annoncée</b> et <b>PEC confirmée</b> restent deux montants séparés ; rien n'est inventé.</div>
+        <div class="man-item"><b>✅ « Sans prise en charge » = dossier cohérent de bout en bout</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — quand la décision est <b>« Sans prise en charge »</b> (ou <b>Refus</b>), la plateforme comprend que la <b>prise en charge = 0 €</b> : la tuile « Prise en charge » affiche <b>« Sans PEC · 0 €»</b> (plus « À déterminer »), le <b>« Reste à recevoir » = 0 €</b>, et l'étape <b>« Remboursement » devient « Sans objet »</b> (aucun versement attendu, aucune alerte de remboursement manquant). L'étape <b>« Réponse assureur »</b> est <b>marquée faite</b> dès qu'une décision est enregistrée (plus de « en attente » alors que la réponse est là). Le <b>résumé/aperçu</b> et la <b>fiche complète</b> affichent désormais <b>exactement la même chose</b> (même source de calcul). Un dossier dont tout est réglé passe au badge <b>« ✓ Soldé »</b> (au lieu de « En attente ») ; <b>soldé ≠ clôturé</b> : le bouton <b>« Clôturer le dossier »</b> reste proposé tant que tu ne l'as pas fait (jamais de clôture automatique). <i>Les étapes volontairement ignorées restent « Ignorées » et réactivables ; aucune donnée ni aucun montant n'est modifié.</i></div>
         <div class="man-item"><b>🏼 PEC payée directement au garage</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — nouveau champ <b>« PEC payée au garage (€) »</b> dans le Suivi financier : le montant que l'assureur règle <b>directement au garage</b> (il ne transite pas par ton entreprise). Il est donc <b>déduit du « reste à recevoir »</b> de l'entreprise (plus de fausse créance « à recevoir » quand l'assureur paie le garage à ta place), tout en restant distinct des <b>remboursements encaissés</b> par l'entreprise.</div>
         <div class="man-item"><b>🏷️ Catégorie des documents (classement)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque document déposé (courrier, constat…) porte une <b>catégorie</b> proposée automatiquement, que tu peux <b>corriger</b> d'un clic via le petit menu sous le document. Catégories : <i>Déclaration/constat, Photos, Accusé de réception assureur, Devis, Rapport d'expertise, Courrier de prise en charge, Ordre de réparation, Facture définitive, Justificatif de règlement, Courrier de clôture</i>. La catégorie indique à quelle <b>étape</b> le document se rattache (→ Déclaration / Chiffrage / Décision…). ⚠️ C'est une simple <b>étiquette</b> : le document n'est <b>pas dupliqué</b> et tes factures déjà enregistrées ne sont pas recomptées.</div>
         <div class="man-item"><b>📘 Exemple concret — accord conditionnel + paiement direct au garage</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Exemple</span> — cas typique : l'assureur envoie un <b>accusé de réception</b> (« déclaration enregistrée, responsabilité non engagée »), puis un <b>courrier « PRISE EN CHARGE »</b> qui dit « nous réglons <b>directement le garage</b>, sous déduction d'une <b>franchise de 1 500 €</b> », sous conditions (expert, plafond). Le devis du garage est de <b>1 603,55 € TTC</b>. Voici comment le saisir&nbsp;:<br>
@@ -1181,8 +1182,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116d"></script>
-<script src="../assets/js/supabase-client.js?v=20261116d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116e"></script>
+<script src="../assets/js/supabase-client.js?v=20261116e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1198,10 +1199,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261116d"></script>
+<script src="../assets/js/app.min.js?v=20261116e"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

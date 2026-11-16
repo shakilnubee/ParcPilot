@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116e">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -576,8 +576,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116d"></script>
-<script src="../assets/js/supabase-client.js?v=20261116d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116e"></script>
+<script src="../assets/js/supabase-client.js?v=20261116e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -593,12 +593,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261116d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261116d" defer></script>
+<script src="../assets/js/app.min.js?v=20261116e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261116e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -868,15 +868,22 @@
 
   // ---- Suivi d'étapes d'un dossier sinistre (déclaration → réponse assureur → réparation → remboursement → clôture) ----
   const RESP_LABEL = { 'responsable': 'Responsable', 'non-responsable': 'Non responsable', 'partagee': 'Partagée', 'en-cours': 'En cours' };
-  function sinSteps(g, dv, cur) {
+  function sinSteps(g, dv, cur, fin) {
+    fin = fin || {};
     const repaired = (g.cost || 0) > 0;
+    // Une DÉCISION d'assurance (y compris « sans PEC » / refus) = réponse reçue → l'étape est faite même sans
+    // date de réponse saisie. Source unique : fin.decisionStatut (FP.sinistreFin).
+    const decided = !!(dv.resp || dv.dateReponse || fin.decisionStatut);
+    const decExtra = dv.resp ? RESP_LABEL[dv.resp] : (fin.decisionStatut === 'sans-pec' ? 'Sans PEC' : (fin.decisionStatut === 'refus' ? 'Refus' : ''));
     const reimbursed = (FP.sinistreEncaisse ? FP.sinistreEncaisse(dv) : (Number(dv.rembourse) || 0)) > 0 || cur === 'rembourse' || cur === 'pec';
+    // Remboursement SANS OBJET quand aucun versement n'est attendu (PEC résolue à 0 : sans-pec/refus).
+    const rembSansObjet = (fin.remboursementAttendu === false);
     return [
       { label: 'Déclaré', done: true, date: g.rep.date },
       { label: 'Envoyé assurance', done: !!(dv.dateDeclaration || dv.numeroDossier), date: dv.dateDeclaration },
-      { label: 'Réponse assureur', done: !!(dv.resp || dv.dateReponse), date: dv.dateReponse, extra: dv.resp ? RESP_LABEL[dv.resp] : '' },
+      { label: 'Réponse assureur', done: decided, date: dv.dateReponse, extra: decExtra },
       { label: 'Réparation', done: repaired },
-      { label: 'Remboursement', done: reimbursed },
+      rembSansObjet ? { label: 'Remboursement', done: true, extra: 'sans objet' } : { label: 'Remboursement', done: reimbursed },
       { label: 'Clôturé', done: !!dv.dateCloture, date: dv.dateCloture },
     ];
   }
@@ -897,6 +904,22 @@
       + '</div>';
   }
 
+  // 🏷️ BADGE D'ÉTAT du dossier — SOURCE UNIQUE (aperçu, fiche, liste, tableau). Priorité à l'état RÉEL :
+  // clôturé > soldé > suivi de remboursement manuel. Évite un faux « En attente » sur un dossier soldé/sans-pec.
+  function sinStatutChip(fin, dv, cur) {
+    if (dv && dv.dateCloture) return { lbl: '✓ Clôturé', col: '#047857' };
+    if (fin && fin.solde) return { lbl: '✓ Soldé', col: '#047857' };
+    return { lbl: (STAT_LABELS[cur] || 'À suivre'), col: statColor(cur) };
+  }
+  // 💶 Affichage de la « Prise en charge » — SOURCE UNIQUE : un refus/sans-pec = PEC connue à 0 € (« Sans PEC »),
+  // jamais « À déterminer ». `wrap` = 'b' pour <b> (aperçu) ou 'span' (fiche/tableau).
+  function pecDisplay(fin, wrap) {
+    const tag = wrap === 'b' ? 'b' : 'span';
+    if (fin && fin.decisionRefus && fin.pecConfirmee == null) return `<${tag} style="color:#047857" title="Décision de l’assurance : sans prise en charge">Sans PEC · 0 €</${tag}>`;
+    const v = fin ? fin.pecConfirmee : null;
+    if (v == null) return '<span class="sin-det-td">À déterminer</span>';
+    return `<${tag}${v === 0 ? ' style="color:#047857"' : ''}>${FP.euroPrecis(v)}</${tag}>`;
+  }
   // 🧭 PARCOURS FINANCIER guidé (6 étapes) + « prochaine action » contextuelle.
   //   Lecture seule : déduit l'état du dossier des données existantes (FP.sinistreFin + dossier) — aucune
   //   nouvelle donnée, aucune écriture. But : montrer d'un coup d'œil où en est l'argent et QUOI faire ensuite.
@@ -904,12 +927,15 @@
     fin = fin || {}; dv = dv || {};
     const eur = v => FP.euroPrecis(v);
     const coutKnown = (fin.coutFacture != null) || (fin.coutEstime != null) || ((g.cost || 0) > 0);
-    const answered = !!(dv.resp || dv.dateReponse);
+    // Une DÉCISION d'assurance (y compris sans-pec/refus) vaut « réponse reçue ».
+    const answered = !!(dv.resp || dv.dateReponse || fin.decisionStatut);
     // Une réponse de l'assureur implique que le sinistre a été déclaré → on considère l'étape « Déclaré »
     // franchie même si le n° de dossier n'a pas (encore) été saisi, pour ne pas guider à contre-sens.
     const declared = !!(dv.dateDeclaration || dv.numeroDossier) || answered;
-    const pecConf = fin.pecConfirmee != null;
-    const encaisse = (fin.encaisse || 0) > 0;
+    // PEC « confirmée » au sens parcours = montant connu (saisi) OU fixé à 0 par refus/sans-pec (fin.pecResolue).
+    const pecConf = !!fin.pecResolue || (fin.pecConfirmee != null);
+    // Encaissement « réglé » = un versement reçu, OU aucun versement attendu (PEC résolue à 0 → sans objet).
+    const encaisse = (fin.encaisse || 0) > 0 || (fin.remboursementAttendu === false);
     const solde = !!fin.solde;
     const reste = fin.resteARecevoir;   // null = inconnu
     const steps = [
@@ -1276,8 +1302,8 @@
     const eur = v => FP.euroPrecis(v);
     const td = '<span class="sin-det-td">À déterminer</span>';
     const kv = v => (v == null) ? td : `<span${v === 0 ? ' style="color:#047857"' : ''}>${eur(v)}</span>`;
-    const chipLbl = dv.dateCloture ? '✓ Clôturé' : (STAT_LABELS[cur] || '— à suivre');
-    const chipCol = dv.dateCloture ? '#047857' : statColor(cur);
+    const _chip = sinStatutChip(fin, dv, cur);
+    const chipLbl = _chip.lbl, chipCol = _chip.col;
     const nDocs = sinDocUrls(dv, 'courrier').length + sinDocUrls(dv, 'constat').length;
     const toneCss = { do: 'sin-cta-do', wait: 'sin-cta-wait', done: 'sin-cta-done' };
     const tab = sinDetailTab || 'fin';
@@ -1317,7 +1343,7 @@
       + '<button type="button" class="btn" data-sin-pdf="' + s.id + '"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Rapport PDF</button>'
       + (multi ? '' : '<button type="button" class="btn" style="color:var(--fp-danger);border-color:color-mix(in srgb,var(--fp-danger) 40%,transparent)" data-sin-del="' + s.id + '"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button>')
       + '</div>';
-    const histoPane = infoBlock + '<div class="mt-3">' + sinTimelineHTML(sinSteps(g, dv, cur)) + '</div>' + histoBody + histoActions + assocPanel;
+    const histoPane = infoBlock + '<div class="mt-3">' + sinTimelineHTML(sinSteps(g, dv, cur, fin)) + '</div>' + histoBody + histoActions + assocPanel;
     return `
       <div class="sin-detail">
         <button type="button" class="sin-detail-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Retour à la liste</button>
@@ -1340,7 +1366,7 @@
           </div>
           <div class="sin-kpis">
             <div class="sin-k"><div class="l">Coût</div><div class="v">${kv(coutKpi)}</div></div>
-            <div class="sin-k"><div class="l">Prise en charge</div><div class="v">${kv(fin.pecConfirmee)}</div></div>
+            <div class="sin-k"><div class="l">Prise en charge</div><div class="v">${pecDisplay(fin, 'span')}</div></div>
             <div class="sin-k"><div class="l">Remboursé</div><div class="v">${kv(fin.encaisse == null ? 0 : fin.encaisse)}</div></div>
             <div class="sin-k"><div class="l">Reste à recevoir</div><div class="v">${kv(fin.resteARecevoir)}</div></div>
             <div class="sin-k"><div class="l">Reste à charge</div><div class="v">${fin.resteChargeIncertain ? (FP.euroPrecis(fin.resteChargeMin) + ' – ' + FP.euroPrecis(fin.resteChargeMax) + ' <span style="color:#94a3b8;font-weight:600;font-size:11px">(sous réserve)</span>') : kv(fin.resteChargePrev)}</div></div>
@@ -1406,8 +1432,7 @@
     return { s, veh, vm, cur, dv, fin, cond, parc, clot };
   }
   function sinMiniRowHTML(g) {
-    const i = sinRowInfo(g); const col = i.clot ? '#047857' : statColor(i.cur);
-    const lab = i.clot ? 'Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+    const i = sinRowInfo(g); const _chip = sinStatutChip(i.fin, i.dv, i.cur); const col = _chip.col, lab = _chip.lbl;
     return `<button type="button" class="sin-mini${g.key === sinSelKey ? ' sel' : ''}" data-sel="${escapeHtml(g.key)}" style="border-left-color:${col}">
         <div class="grow"><div class="l1"><span class="sin-plate-l">${escapeHtml(i.s.vehiculeImmat || '—')}</span> <span class="sin-mini-badge" style="color:${col}">${escapeHtml(lab)}</span></div>
         <div class="l2">${FP.date(i.s.date)} · ${escapeHtml(i.cond || '—')}${i.vm ? ' · ' + escapeHtml(i.vm) : ''}</div></div>
@@ -1432,7 +1457,7 @@
     const eur = v => FP.euroPrecis(v);
     const td = '<span class="sin-det-td">À déterminer</span>';
     const kv = v => (v == null) ? td : `<b${v === 0 ? ' style="color:#047857"' : ''}>${eur(v)}</b>`;
-    const chipCol = i.clot ? '#047857' : statColor(i.cur), chipLbl = i.clot ? '✓ Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+    const _chip = sinStatutChip(fin, i.dv, i.cur), chipCol = _chip.col, chipLbl = _chip.lbl;
     const coutAperc = (fin.coutFacture != null) ? fin.coutFacture : (fin.coutEstime != null ? fin.coutEstime : null);
     return `<div class="pv-head"><button class="pv-close" data-closepv title="Fermer l'aperçu">✕</button>
         <h3><span class="sin-plate">${escapeHtml(s.vehiculeImmat || '—')}</span> ${escapeHtml(i.vm || '')}</h3>
@@ -1443,11 +1468,11 @@
         ${s.description ? `<div class="pv-desc">${escapeHtml(s.description)}</div>` : ''}
         <div><div class="sin-det-sec" style="padding:0 0 5px">Résumé financier</div><div class="pv-fin">
           <div class="pv-fc"><div class="k">Coût facturé</div><div class="v">${kv(coutAperc)}</div></div>
-          <div class="pv-fc"><div class="k">Prise en charge</div><div class="v">${kv(fin.pecConfirmee)}</div></div>
+          <div class="pv-fc"><div class="k">Prise en charge</div><div class="v">${pecDisplay(fin, 'b')}</div></div>
           <div class="pv-fc"><div class="k">Remboursé</div><div class="v">${kv(fin.encaisse == null ? 0 : fin.encaisse)}</div></div>
           <div class="pv-fc"><div class="k">Reste à charge</div><div class="v">${fin.resteChargeIncertain ? (FP.euroPrecis(fin.resteChargeMin) + ' – ' + FP.euroPrecis(fin.resteChargeMax) + ' (sous réserve)') : kv(fin.resteChargePrev)}</div></div>
         </div></div>
-        <div><div class="sin-det-sec" style="padding:0 0 5px">Parcours du dossier</div>${sinTimelineHTML(sinSteps(g, i.dv, i.cur))}</div>
+        <div><div class="sin-det-sec" style="padding:0 0 5px">Parcours du dossier</div>${sinTimelineHTML(sinSteps(g, i.dv, i.cur, i.fin))}</div>
         <div><div class="sin-det-sec" style="padding:0 0 5px">Documents</div>${sinPreviewDocsHTML(i.dv)}</div>
       </div>
       <div class="pv-foot"><button type="button" class="pv-open" data-sin-open="${escapeHtml(g.key)}"><i data-lucide="maximize-2" class="w-4 h-4"></i> Ouvrir la fiche complète</button></div>`;
@@ -1463,8 +1488,8 @@
   function sinTableHTML(shown) {
     const money = v => v == null ? '<span class="sin-det-td">À déterminer</span>' : (v === 0 ? '<span style="color:#047857;font-weight:700">0 €</span>' : FP.euroPrecis(v));
     const rows = shown.map(g => {
-      const i = sinRowInfo(g), s = i.s, fin = i.fin, col = i.clot ? '#047857' : statColor(i.cur);
-      const lab = i.clot ? 'Clôturé' : (STAT_LABELS[i.cur] || 'À suivre');
+      const i = sinRowInfo(g), s = i.s, fin = i.fin;
+      const _chip = sinStatutChip(fin, i.dv, i.cur), col = _chip.col, lab = _chip.lbl;
       const due = fin.resteChargePrev;
       const dueTxt = due == null ? '<span class="sin-det-td">À déterminer</span>' : (due > 0 ? '<span style="color:#B45309;font-weight:700">' + FP.euroPrecis(due) + '</span>' : '<span style="color:#047857;font-weight:700">0 €</span>');
       return `<tr class="${sinBulk && sinBulk.has(g.key) ? 'row-selected' : ''}">
