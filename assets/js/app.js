@@ -11327,6 +11327,20 @@ FP.leasingTermine = (c, when) => {
 };
 FP.leasingActif = (c, when) => !FP.leasingTermine(c, when);
 
+// ⚠️ HELPER CANONIQUE — km RÉELLEMENT parcourus SOUS un contrat de leasing =
+// compteur actuel du véhicule − compteur au DÉBUT du contrat (`kmDebut`, facultatif).
+// kmDebut absent/invalide/0 → on retombe sur le compteur total (contrat réputé parti de 0 :
+// comportement historique, inchangé). À utiliser PARTOUT où l'on projette un dépassement de forfait
+// km (BPCE via FP.leasingInfo ET contrats LLD/Ayvens) — une seule règle, pas deux calculs divergents.
+// Sert à corriger le biais où un véhicule déjà kilométré au départ (occasion, contrat repris en cours)
+// paraissait « en dépassement » alors que seuls les km roulés depuis le début comptent dans le forfait.
+FP.kmSousContrat = (kmActuel, kmDebut) => {
+  const a = Number(kmActuel); if (!Number.isFinite(a)) return null;
+  const d = Number(kmDebut);
+  if (Number.isFinite(d) && d > 0) return Math.max(0, a - d);
+  return a;
+};
+
 // Suivi du forfait : rythme autorisé vs réel, projection en fin de contrat,
 // risque de dépassement. Renvoie null si le véhicule n'a pas de contrat connu.
 FP.leasingInfo = (v) => {
@@ -11336,13 +11350,16 @@ FP.leasingInfo = (v) => {
   const debut = new Date(c.debut);
   const finContrat = new Date(debut); finContrat.setMonth(finContrat.getMonth() + c.dureeMois);
   const moisEcoules = Math.max(0, (today - debut) / (1000 * 60 * 60 * 24 * 30.44));
-  const km = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0); // km réel (max saisi / dernier relevé) — source unique
+  const km = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0); // compteur réel total (max saisi / dernier relevé) — source unique
+  // Km au compteur au DÉBUT du contrat (facultatif) → km réellement roulés SOUS le forfait. Vide = contrat parti de 0.
+  const kmDepart = (c.kmDebut != null && c.kmDebut !== '' && Number.isFinite(Number(c.kmDebut)) && Number(c.kmDebut) > 0) ? Number(c.kmDebut) : null;
+  const kmParcouru = FP.kmSousContrat(km, kmDepart);                   // base de TOUTE la projection (pas le compteur brut)
   const kmParMoisAutorise = c.kmContrat / c.dureeMois;
   const kmAutoriseAJour = Math.min(c.kmContrat, Math.round(kmParMoisAutorise * moisEcoules));
-  const kmParMoisReel = moisEcoules >= 0.3 ? km / moisEcoules : null;
+  const kmParMoisReel = moisEcoules >= 0.3 ? kmParcouru / moisEcoules : null;
   const projectionFin = kmParMoisReel !== null ? Math.round(kmParMoisReel * c.dureeMois) : null;
   const ratio = projectionFin !== null ? projectionFin / c.kmContrat : null;
-  const ecartAJour = Math.round(km - kmAutoriseAJour);                 // > 0 = en avance (à risque)
+  const ecartAJour = Math.round(kmParcouru - kmAutoriseAJour);         // > 0 = en avance (à risque)
   const depassementProjete = projectionFin !== null ? projectionFin - c.kmContrat : null;
   let niveau = null;
   if (ratio !== null && moisEcoules >= 1) {
@@ -11351,7 +11368,7 @@ FP.leasingInfo = (v) => {
     else if (ratio >= 0.90) niveau = 'info';
   }
   return { kmContrat: c.kmContrat, dureeMois: c.dureeMois, kmSupp: c.kmSupp, kmTolerance: c.kmTolerance, debut, finContrat,
-           moisEcoules, km, kmParMoisAutorise, kmAutoriseAJour, kmParMoisReel,
+           moisEcoules, km, kmDepart, kmParcouru, kmParMoisAutorise, kmAutoriseAJour, kmParMoisReel,
            projectionFin, ratio, ecartAJour, depassementProjete, niveau,
            loyer: (c.loyer != null ? Number(c.loyer) : null), avenants: Array.isArray(c.avenants) ? c.avenants : [] };
 };

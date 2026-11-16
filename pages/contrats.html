@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261115e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261115e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261115e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116a">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -677,6 +677,9 @@
           <input id="lease-duree" type="number" min="1" step="1" class="field-input w-full mt-1" placeholder="ex. 36"></label>
         <label class="block"><span class="field-label">Date de début (mise à disposition)</span>
           <input id="lease-debut" type="date" class="field-input w-full mt-1"></label>
+        <label class="block"><span class="field-label">Km au compteur au début du contrat <span class="text-slate-400">— opt.</span></span>
+          <input id="lease-kmdebut" type="number" min="0" step="1000" class="field-input w-full mt-1" placeholder="ex. 15000 (occasion) — vide = parti de 0">
+          <span class="text-xs text-slate-400 mt-1 block">À remplir seulement si le véhicule roulait déjà au début du contrat (occasion, contrat repris). Le forfait km ne compte alors que les km parcourus <b>depuis</b> ce relevé. Laissé vide, la projection part de 0 comme avant.</span></label>
         <div class="grid grid-cols-2 gap-3">
           <label class="block"><span class="field-label">Coût du km sup. (€/km) <span class="text-slate-400">— opt.</span></span>
             <input id="lease-kmsupp" type="number" min="0" step="0.001" class="field-input w-full mt-1" placeholder="ex. 0.099"></label>
@@ -794,6 +797,9 @@
             <input id="locadd-fin" type="date" class="field-input w-full mt-1"></label>
         </div>
         <p class="text-xs text-slate-400" style="margin-top:-.35rem">Dates &amp; durée se complètent toutes seules : <b>fin + durée → début</b>, <b>début + durée → fin</b>, ou <b>début + fin → durée</b>.</p>
+        <label class="block"><span class="field-label">Km au compteur au début du contrat <span class="text-slate-400">(opt.)</span></span>
+          <input id="locadd-kmdebut" type="number" min="0" step="1000" class="field-input w-full mt-1" placeholder="ex. 15000 (occasion) — vide = parti de 0">
+          <span class="text-xs text-slate-400 mt-1 block">Seulement si le véhicule roulait déjà au début du contrat. Le forfait km ne compte alors que les km <b>depuis</b> ce relevé.</span></label>
         <div>
           <div class="flex items-center justify-between gap-3"><span class="text-sm font-medium text-slate-700 min-w-0">Avenants — changement de loyer <span class="text-slate-400">(opt.)</span></span>
             <button id="locadd-avenant-add" type="button" class="text-xs font-semibold flex-shrink-0 whitespace-nowrap" style="color:var(--fp-accent)">+ Ajouter un avenant</button></div>
@@ -825,8 +831,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261115e"></script>
-<script src="../assets/js/supabase-client.js?v=20261115e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116a"></script>
+<script src="../assets/js/supabase-client.js?v=20261116a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -842,11 +848,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261115e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261115e"></script>
+<script src="../assets/js/app.min.js?v=20261116a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1954,7 +1960,8 @@
       if (!l) return '<span class="text-slate-400 text-xs">contrat non renseigné</span>';
       if (l.projectionFin === null) return '<span class="badge" style="background:#E0E7FF;color:#3730A3">contrat récent</span>';
       const pct = Math.round(l.ratio * 100);
-      const pctKm = l.kmContrat ? (l.km / l.kmContrat * 100) : 0; // consommé réel (pour la barre)
+      const kmConso = (l.kmParcouru != null ? l.kmParcouru : l.km); // km roulés SOUS le forfait (déduit le km au départ si saisi)
+      const pctKm = l.kmContrat ? (kmConso / l.kmContrat * 100) : 0; // consommé réel (pour la barre)
       const pen = (l.niveau === 'danger' || l.niveau === 'warn') ? penaltyHtml(l.depassementProjete, l.kmSupp, immat ? `data-edit-lease="${FP.esc(immat)}"` : '', l.kmTolerance) : '';
       if (l.niveau === 'danger') return `<span class="badge" style="background:#FEE2E2;color:#991B1B">⚠️ Risque dépassement (${pct}%)</span>${pen}${kmBar(pctKm, 'var(--fp-danger)')}`;
       if (l.niveau === 'warn')   return `<span class="badge" style="background:#FEF3C7;color:#92400E">À surveiller (${pct}%)</span>${pen}${kmBar(pctKm, 'var(--fp-warn)')}`;
@@ -2132,7 +2139,8 @@
         const effFinDate = c.fin ? new Date(c.fin) : (effDebut && dur ? addMonths(effDebut, dur) : null);
         let moisEcoules = null;
         if (effDebut) { const d = new Date(effDebut); if (!isNaN(d)) { const now = new Date(); let m = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth()); if (now.getDate() < d.getDate()) m--; moisEcoules = Math.max(0, durEff ? Math.min(m, durEff) : m); } }
-        const rate = (kmAct != null && moisEcoules && moisEcoules > 0) ? kmAct / moisEcoules : null;
+        const kmParc = (kmAct != null && FP.kmSousContrat) ? FP.kmSousContrat(kmAct, c.kmDebut) : kmAct; // km sous forfait (déduit km au départ)
+        const rate = (kmParc != null && moisEcoules && moisEcoules > 0) ? kmParc / moisEcoules : null;
         const proj = (rate != null && durEff) ? Math.round(rate * durEff) : null;
         const ratio = (proj != null && c.kmTotal) ? proj / c.kmTotal : null;
         const over = (proj != null && c.kmTotal) ? proj - c.kmTotal : null;
@@ -2292,6 +2300,7 @@
     _setv('lease-residuelle', c.valeurResiduelle);
     _setv('lease-optionachat', c.optionAchat);
     _setv('lease-loyernondeduct', c.loyerNonDeductible);
+    _setv('lease-kmdebut', c.kmDebut);
     renderAvenantRows(Array.isArray(c.avenants) ? c.avenants : []);
     if ($('lease-scan-status')) { $('lease-scan-status').textContent = "Dépose le PDF de l'offre du loueur → malus, loyer, forfait km et durée lus automatiquement (à vérifier)."; $('lease-scan-status').style.color = ''; }
     const m = $('lease-modal'); m.classList.remove('hidden'); m.classList.add('flex');
@@ -2585,8 +2594,10 @@
     const valeurResiduelle = _numf('lease-residuelle');
     const optionAchat = _numf('lease-optionachat');
     const loyerNonDeductible = _numf('lease-loyernondeduct');
+    const kmdebutRaw = ($('lease-kmdebut') && $('lease-kmdebut').value !== '') ? parseInt($('lease-kmdebut').value, 10) : null;
+    const kmDebut = (kmdebutRaw != null && !isNaN(kmdebutRaw) && kmdebutRaw > 0) ? kmdebutRaw : null;
     if (!km || !debut) { alert('Renseigne au moins le forfait km et la date de début.'); return; }
-    FP.saveLeasingOverride(leaseEditImmat, { kmContrat: km, dureeMois: duree, debut, kmSupp: kmsupp, kmTolerance: (tol != null && !isNaN(tol)) ? tol : null, loyer: (loyer != null && !isNaN(loyer)) ? loyer : null, malus: (malus != null && !isNaN(malus)) ? malus : null, loyerMajore: loyerMajore, depotGarantie: depotGarantie, valeurResiduelle: valeurResiduelle, optionAchat: optionAchat, loyerNonDeductible: loyerNonDeductible, avenants: collectAvenants() });
+    FP.saveLeasingOverride(leaseEditImmat, { kmContrat: km, dureeMois: duree, debut, kmDebut: kmDebut, kmSupp: kmsupp, kmTolerance: (tol != null && !isNaN(tol)) ? tol : null, loyer: (loyer != null && !isNaN(loyer)) ? loyer : null, malus: (malus != null && !isNaN(malus)) ? malus : null, loyerMajore: loyerMajore, depotGarantie: depotGarantie, valeurResiduelle: valeurResiduelle, optionAchat: optionAchat, loyerNonDeductible: loyerNonDeductible, avenants: collectAvenants() });
     closeLeaseModal(); renderKPIs(); renderLeasing();
   });
   if ($('lease-avenant-add')) $('lease-avenant-add').addEventListener('click', () => { $('lease-avenants').insertAdjacentHTML('beforeend', avenantRowHTML('', '')); });
@@ -4021,8 +4032,11 @@
       // Mois écoulés depuis le début (théorique), plafonné à la durée du contrat.
       let moisEcoules = null;
       if (effDebut){ const d = new Date(effDebut); if (!isNaN(d)){ const now = new Date(); let m = (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth()); if (now.getDate() < d.getDate()) m--; moisEcoules = Math.max(0, durEff ? Math.min(m, durEff) : m); } }
+      // Km réellement roulés SOUS le forfait = compteur − km au départ du contrat (c.kmDebut, facultatif) —
+      // même règle que BPCE (FP.kmSousContrat). Vide → compteur total (contrat parti de 0, inchangé).
+      const kmParc = (kmAct != null && FP.kmSousContrat) ? FP.kmSousContrat(kmAct, c.kmDebut) : kmAct;
       // Projection km en fin de contrat (extrapolation linéaire) + statut, comme BPCE.
-      const rate = (kmAct != null && moisEcoules && moisEcoules > 0) ? kmAct / moisEcoules : null;
+      const rate = (kmParc != null && moisEcoules && moisEcoules > 0) ? kmParc / moisEcoules : null;
       const proj = (rate != null && durEff) ? Math.round(rate * durEff) : null;
       const ratio = (proj != null && c.kmTotal) ? proj / c.kmTotal : null;
       let statutCell = '<span class="text-slate-400 text-xs">contrat non renseigné</span>';
@@ -4030,7 +4044,7 @@
         const over = (proj != null && c.kmTotal) ? proj - c.kmTotal : null;
         const pen = (ratio > 0.9 && over > 0) ? penaltyHtml(over, c.kmSupp, `data-loc-kmsupp="${i}"`, c.kmTolerance) : '';
         statutCell = ratio > 1 ? `<span class="badge" style="background:#FEE2E2;color:#991B1B">⚠️ Risque dépassement (${pct}%)</span>${pen}` : ratio > 0.9 ? `<span class="badge" style="background:#FEF3C7;color:#92400E">À surveiller (${pct}%)</span>${pen}` : `<span class="badge badge-ok">OK (${pct}%)</span>`; }
-      else if (c.kmTotal && kmAct != null){ statutCell = `<span class="badge badge-ok">OK (${Math.round(kmAct/c.kmTotal*100)}%)</span>`; }
+      else if (c.kmTotal && kmParc != null){ statutCell = `<span class="badge badge-ok">OK (${Math.round(kmParc/c.kmTotal*100)}%)</span>`; }
       // Début & Fin — cliquer ouvre la fenêtre d'édition (date-pickers sûrs, plus de saisie libre qui casse tout).
       const _dbtHint = debutSource === 'mec' ? 'Date de mise en circulation (carte grise) du véhicule lié — cliquer pour saisir la vraie date de début du contrat'
         : debutSource === 'histo' ? "Date d'entrée du véhicule (historique d'affectation) — cliquer pour saisir la vraie date de début du contrat"
@@ -4044,7 +4058,8 @@
       if (effFinDate && !isNaN(effFinDate)){ const j = (FP.joursRestants ? FP.joursRestants(effFinDate) : Math.round((effFinDate - new Date())/86400000)); const badge = j<0 ? `<span style="color:#B91C1C;font-weight:700">terminé</span>` : (j<=90 ? `<span style="color:#B45309;font-weight:700">dans ${j} j</span>` : `<span class="text-xs text-slate-500">dans ${Math.round(j/30)} mois</span>`); finCell = `<span class="cursor-pointer underline decoration-dotted" data-loc-fin="${i}" title="Modifier la date de fin">${FP.dateNum(effFinDate.toISOString().slice(0,10))}</span><div>${badge}</div>`; }
       // Km actuel (éditable) + reste.
       let kmActCell = (kmAct != null ? FP.num(kmAct) + ' km' : '<span class="text-slate-400">—</span>');
-      if (c.kmTotal && kmAct != null){ const reste = c.kmTotal - kmAct; kmActCell += reste<0 ? `<div style="color:#B91C1C;font-weight:700">dépassé ${FP.num(-reste)}</div>` : (reste<5000 ? `<div style="color:#B45309;font-weight:700">reste ${FP.num(reste)}</div>` : `<div class="text-xs text-slate-500">reste ${FP.num(reste)}</div>`); }
+      if (kmAct != null && c.kmDebut && Number(c.kmDebut) > 0) kmActCell += `<div class="text-xs text-slate-400">dont ${FP.num(kmParc)} sous contrat</div>`;
+      if (c.kmTotal && kmParc != null){ const reste = c.kmTotal - kmParc; kmActCell += reste<0 ? `<div style="color:#B91C1C;font-weight:700">dépassé ${FP.num(-reste)}</div>` : (reste<5000 ? `<div style="color:#B45309;font-weight:700">reste ${FP.num(reste)}</div>` : `<div class="text-xs text-slate-500">reste ${FP.num(reste)}</div>`); }
       kmActCell += ` <button type="button" data-loc-km="${i}" class="text-xs underline decoration-dotted text-slate-500">${kmAct!=null?'maj':'+ km'}</button>`;
       const mensPayees = (moisEcoules != null) ? `${moisEcoules}${durEff?`<span class="text-xs text-slate-400"> / ${durEff}</span>`:''}` : '<span class="text-slate-400">—</span>';
       // Total & loyer courant via le MÊME moteur que BPCE (offre + avenants + prorata au jour).
@@ -4180,7 +4195,7 @@
       const def = (leasingLoueurFilter && leasingLoueurFilter !== 'all') ? leasingLoueurFilter : LOCALEASE_VAL;
       lsel.value = [...lsel.options].some(o => o.value === def) ? def : (lsel.options[0] ? lsel.options[0].value : LOCALEASE_VAL);
     }
-    ['locadd-cond','locadd-modele','locadd-loyer','locadd-duree','locadd-km','locadd-debut','locadd-fin','locadd-offre','locadd-kmsupp','locadd-tol'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+    ['locadd-cond','locadd-modele','locadd-loyer','locadd-duree','locadd-km','locadd-kmdebut','locadd-debut','locadd-fin','locadd-offre','locadd-kmsupp','locadd-tol'].forEach(id => { const el = $(id); if (el) el.value = ''; });
     renderLocAvenantRows([]);   // repart sans avenant
     // Conducteur : combobox des conducteurs DÉJÀ enregistrés (+ « ➕ Créer ») — règle plateforme.
     { const cinp = $('locadd-cond'); if (cinp && window.FP && FP.conducteurPicker && !cinp.dataset.picker) { cinp.dataset.picker = '1'; try { FP.conducteurPicker(cinp, { onPick: function () {} }); } catch (e) {} } }
@@ -4204,6 +4219,7 @@
     setv('locadd-loyer', c.loyerTTC != null ? String(c.loyerTTC).replace('.', ',') : '');
     setv('locadd-duree', c.dureeMois);
     setv('locadd-km', c.kmTotal);
+    setv('locadd-kmdebut', c.kmDebut);
     setv('locadd-debut', c.debut || '');
     setv('locadd-fin', c.fin || '');
     setv('locadd-offre', c.offre);
@@ -4332,6 +4348,7 @@
         c.loyerTTC = loyer;
         c.dureeMois = dureeV;
         c.kmTotal = parseInt($('locadd-km').value, 10) || null;
+        { const kd = parseInt($('locadd-kmdebut').value, 10); if (Number.isFinite(kd) && kd > 0) c.kmDebut = kd; else delete c.kmDebut; }
         c.debut = debutV;
         if (finV) c.fin = finV; else delete c.fin;
         c.offre = ($('locadd-offre').value || '').trim();
@@ -4354,6 +4371,7 @@
       debut: debutV, offre: ($('locadd-offre').value || '').trim(), docs: _locAddDoc ? [{ url: _locAddDoc.url, name: _locAddDoc.name }] : [],
     };
     if (finV) rec.fin = finV;
+    { const kd = parseInt($('locadd-kmdebut').value, 10); if (Number.isFinite(kd) && kd > 0) rec.kmDebut = kd; }
     { const ks = locNum($('locadd-kmsupp').value); if (ks != null && ks > 0) rec.kmSupp = ks; }
     { const tl = parseInt($('locadd-tol').value, 10); if (Number.isFinite(tl) && tl > 0) rec.kmTolerance = tl; }
     { const avs = collectLocAvenants(); if (avs.length) rec.avenants = avs; }
