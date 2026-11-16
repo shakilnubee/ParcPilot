@@ -12423,6 +12423,14 @@ FP.edlCompl = {
   },
   // Droit d'ajout : tout rôle qui gère des données (jamais le chauffeur / lecture seule).
   _peut() { try { return !(FP.role && FP.role() === 'chauffeur'); } catch (e) { return true; } },
+  // ⚠️ NOM DE FICHIER UNIQUE PAR PHOTO (anti-écrasement). BUG CORRIGÉ : toutes les photos d'un même lot
+  // partageaient le nom « edl-compl-<sens>-<date> » → FP.uploadScan range un fichier NOMMÉ à un chemin
+  // DÉTERMINISTE avec upsert → chaque photo écrasait la précédente (8 lignes documents → 1 seule image).
+  // On ajoute un suffixe unique par photo (horodatage + index + aléatoire) → chemins distincts, zéro écrasement.
+  _nomPhoto(sens, isoDate, i) {
+    const rand = Math.random().toString(36).slice(2, 7);
+    return 'edl-compl-' + sens + '-' + isoDate + '-' + Date.now().toString(36) + '-' + i + '-' + rand;
+  },
   // MODAL d'ajout. opts = { veh, sens, date, apresSignature, periode:{conducteurKey,debut,fin}, onDone }
   open(opts) {
     opts = opts || {}; const veh = opts.veh; if (!veh) return;
@@ -12475,7 +12483,7 @@ FP.edlCompl = {
       for (let i = 0; i < files.length; i++) {
         if (busy) busy.update('Ajout des photos… ' + (i + 1) + '/' + files.length);
         try {
-          const url = await FP.uploadScan(files[i].file, 'documents', { name: 'edl-compl-' + sens + '-' + isoDate });
+          const url = await FP.uploadScan(files[i].file, 'documents', { name: this._nomPhoto(sens, isoDate, i) });
           if (!url) { ko++; continue; }
           const meta = { source: 'ajout-photo', apresSignature: !!opts.apresSignature, priseDeVue: pdv, auteur: auteur, commentaire: com, ajouteLe: new Date().toISOString(), periode: { conducteurKey: per.conducteurKey || '', debut: per.debut || '', fin: per.fin || '' } };
           const doc = { id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), vehiculeId: veh.id, type: 'etat-des-lieux', label: sensLabel + ' — ' + isoDate + ' · 📎 complémentaire', url: url, driveId: null, meta: meta };

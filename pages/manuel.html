@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261116c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261116b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261116c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261116b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261116c">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -501,6 +501,7 @@
         <div class="man-item"><b>📋 État des lieux — remise ET restitution</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand tu <b>affectes un conducteur</b> à un véhicule, le site te propose de <b>générer l'état des lieux</b> (aussi dispo via le bouton <b>« État des lieux (remise) »</b> dans « Conducteurs — historique » de la fiche). En haut du formulaire, tu choisis le <b>Type : 📥 Remise (entrée)</b> ou <b>📤 Restitution (sortie)</b> — <b>le même outil sert quand tu rends le véhicule</b>. Un formulaire <b>pré-rempli</b> (employé, modèle, immat, km, date) te laisse noter l'état (carrosserie, rayures, pneus, intérieur, accessoires…).
           <br>📷 <b>Photos</b> : le bouton <b>« Ajouter des photos »</b> (appareil ou galerie) joint des photos de l'état du véhicule — elles apparaissent <b>dans le PDF</b> ET se rangent dans la fiche (section État des lieux, bloc <b>Entrée</b> pour une remise / <b>Sortie</b> pour une restitution, comme les photos envoyées par le conducteur via le QR). <b>Fortement recommandé à la restitution</b> pour prouver l'état du véhicule.
           <br>📎 <b>Reprendre les photos déjà enregistrées</b> : si le véhicule a déjà des photos d'état des lieux, un bouton <b>« Reprendre les N photos déjà enregistrées »</b> apparaît — pratique pour un <b>premier</b> état des lieux sans tout re-photographier. <i>Pour un nouveau conducteur, ne clique pas dessus : prends de nouvelles photos (celles de l'ancien conducteur ne sont pas reprises automatiquement).</i>
+          <br>📎 <b>Photos complémentaires (même après signature)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — tu peux ajouter des photos à un état des lieux <b>après coup</b> (y compris une fois le PDF signé) via <b>« ＋ Ajouter des photos »</b> : elles s'affichent dans une section <b>« Photos complémentaires »</b> (le document signé n'est pas modifié). <b>Chaque photo est désormais conservée séparément</b> : si tu en ajoutes huit, tu retrouves bien tes <b>huit photos différentes</b> (chacune a son propre fichier). <i>Auparavant, les photos d'un même lot pouvaient se remplacer entre elles et afficher la même image — c'est corrigé. ⚠️ Les photos ajoutées AVANT ce correctif qui apparaissent en double n'ont hélas pas pu être récupérées : il suffit de les ré-ajouter, elles seront maintenant gardées une à une.</i>
           <br>📊 <b>Le km + la date remontent tout seuls dans « Conducteurs — historique »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dès que tu génères un état des lieux, le <b>kilométrage</b> et la <b>date</b> que tu y mets sont enregistrés pour la période d'affectation : une <b>remise</b> remplit automatiquement le <b>« Km au début »</b> (et la date de prise en main) de la période en cours ; le km d'une <b>restitution</b> est lui aussi mémorisé et sert au calcul des <b>km parcourus</b> de la période. Plus besoin de recopier le km à la main. <i>On ne remplace jamais une valeur que tu as déjà saisie ou corrigée.</i>
           <br>✍️ <b>Signature électronique</b> : un menu <b>« Signature électronique »</b> propose 3 modes :
           <ul style="margin:.3rem 0 0 1rem;padding:0;list-style:disc">
@@ -1179,8 +1180,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261116b"></script>
-<script src="../assets/js/supabase-client.js?v=20261116b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261116c"></script>
+<script src="../assets/js/supabase-client.js?v=20261116c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1196,10 +1197,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261116c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261116b"></script>
+<script src="../assets/js/app.min.js?v=20261116c"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
