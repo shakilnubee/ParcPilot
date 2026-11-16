@@ -30,6 +30,13 @@ input, textarea, select, [contenteditable="true"], [contenteditable=""] {
    collision avec l'infobulle .fp-tip du site, cf. plus bas) ===== */
 .fp-nf { position: fixed; left: 1.1rem; bottom: 1.1rem; z-index: 9996; width: 300px; max-width: calc(100vw - 2rem); background: #fff; border: 1px solid var(--fp-border); border-left: 4px solid var(--fp-accent); border-radius: 12px; box-shadow: 0 16px 40px -14px rgba(15,30,61,.35); padding: .85rem 1rem; animation: fp-pop-in .2s ease; }
 .fp-nf-head { display: flex; align-items: center; justify-content: space-between; font-weight: 800; color: var(--fp-primary); font-size: .92rem; margin-bottom: .35rem; }
+/* ═══ EMPILEMENT DES POP-UPS FLOTTANTS (source unique — voir l'échelle z-index sur :root) ═══
+   Tous les menus/listes/calendriers ancrés au <body> (searchSelect, conducteurPicker, proprioPicker,
+   calendrier .fp-dp) doivent passer AU-DESSUS de n'importe quelle fenêtre modale qui les ouvre.
+   Cette règle unique (!important) SUPPLANTE les anciennes valeurs z-index posées en inline par app.js
+   (9999 / 10000 / 2147483000), toutes INFÉRIEURES à certaines fenêtres → c'est la cause du bug « la liste
+   s'affiche derrière la fenêtre ». Un seul point à maintenir ici ; plus jamais de liste masquée. */
+.fp-jsmenu, .fp-dp { z-index: var(--z-popover) !important; }
 .fp-nf-x { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: .9rem; }
 .fp-nf-body { font-size: .82rem; color: #475569; line-height: 1.45; }
 .fp-nf-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .7rem; }
@@ -135,6 +142,17 @@ input, textarea, select, [contenteditable="true"], [contenteditable=""] {
 }
 
 :root {
+  /* ═══ ÉCHELLE D'EMPILEMENT (z-index) — SOURCE UNIQUE ═══
+     But : un menu / une liste / un calendrier rattaché à la surface active doit TOUJOURS
+     s'afficher AU-DESSUS de la fenêtre qui l'ouvre (bug « liste derrière la fenêtre »).
+     Ces pop-ups (.fp-jsmenu de searchSelect/conducteurPicker/proprioPicker, calendrier .fp-dp)
+     sont ancrés au <body> en position:fixed → aucun ancêtre ne crée de contexte d'empilement,
+     donc un z-index suffit (pas besoin de portail : ils le sont déjà). Repères des fenêtres
+     existantes : fenêtres modales jusqu'à ~2147483540 ; dialogues (confirm/alerte/saisie) 2147483600.
+     On place la couche « popover » JUSTE au-dessus du plafond des fenêtres et SOUS les dialogues. */
+  --z-modal:   2147483540;  /* repère : plafond des fenêtres modales existantes */
+  --z-popover: 2147483560;  /* menus / listes / calendriers de la surface active (au-dessus de TOUTE fenêtre) */
+  --z-dialog:  2147483600;  /* repère : confirmation / alerte / saisie (reste au sommet) */
   /* Direction « cockpit » : ardoise-nuit pour la structure, orange marque en accent,
      neutres gris-bleu FROIDS (choisis, pas gris pur) et chiffres en monospace tabulaire. */
   --fp-primary:    #0B1220;  /* ardoise-nuit — barre latérale, titres, boutons sombres (le "cockpit") */
