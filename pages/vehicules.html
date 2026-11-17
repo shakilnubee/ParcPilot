@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261117e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261117f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261117e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261117f">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261117e"></script>
-<script src="../assets/js/supabase-client.js?v=20261117e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261117f"></script>
+<script src="../assets/js/supabase-client.js?v=20261117f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261117e"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261117e"></script>
+<script src="../assets/js/fleet-docs.js?v=20261117f"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261117f"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261117e"></script><script>
+<script src="../assets/js/app.min.js?v=20261117f"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2359,6 +2359,9 @@
         if (v && window._openChecklist) window._openChecklist(clB.getAttribute('data-checklist'), v);
         return;
       }
+      // Pneumatiques — ouvrir la mini-fenêtre de modification (av/arr, type, 3PMSF).
+      const pneusBtn = e.target.closest('[data-pneus-edit]');
+      if (pneusBtn) { const vid = pneusBtn.getAttribute('data-pneus-edit'); if (vid) openPneusModal(vid); return; }
       // Rendez-vous garage (CT / révision / entretien) — enregistrer / retirer (source FP.rdvGarage).
       const rdvg = e.target.closest('[data-rdvg]');
       if (rdvg && e.target.closest('#rdvg-done')) {
@@ -4115,9 +4118,34 @@
       </div>
 
       <div>
-        <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1">Pneus</div>
+        <div class="font-semibold mb-2 text-slate-900 border-b border-slate-200 pb-1 flex items-center justify-between">
+          <span>Pneumatiques</span>
+          <button type="button" data-pneus-edit="${escapeHtml(v.id)}" class="text-xs font-medium text-slate-500 hover:text-slate-900" title="Modifier les pneus" style="background:none;border:none;cursor:pointer">✏️ Modifier</button>
+        </div>
         <div class="text-sm space-y-1.5 mt-3">
-          <div class="flex justify-between"><span class="text-slate-600">Dimension</span><span class="font-medium" data-df="dimensionPneus" data-dt="text">${escapeHtml(v.dimensionPneus) || '<span class="text-slate-400">—</span>'}</span></div>
+          ${(() => {
+            try {
+              const st = (window.FP && FP.pneus) ? FP.pneus.get(v) : null;
+              if (!st) return `<div class="flex justify-between"><span class="text-slate-600">Dimension</span><span class="font-medium" data-df="dimensionPneus" data-dt="text">${escapeHtml(v.dimensionPneus) || '<span class="text-slate-400">—</span>'}</span></div>`;
+              const idc = (s) => (s && s.indice) ? ` <span class="text-slate-400 text-xs">${escapeHtml(s.indice)}</span>` : '';
+              const typ = (s) => FP.pneus.typeLabel(s && s.type) ? ` — ${escapeHtml(FP.pneus.typeLabel(s.type))}` : '';
+              const hasAv = !!(st.av && st.av.dim), hasAr = !!(st.ar && st.ar.dim);
+              let dimRows = '';
+              if (!hasAv && !hasAr) {
+                dimRows = `<div class="flex justify-between"><span class="text-slate-600">Dimension</span><span class="text-slate-400">non renseignée</span></div>`;
+              } else if (st.meme && hasAv) {
+                dimRows = `<div class="flex justify-between"><span class="text-slate-600">Pneus</span><span class="font-medium text-right">${escapeHtml(st.av.dim)}${idc(st.av)}${typ(st.av)} <span class="text-slate-400 text-xs">— Avant / Arrière</span></span></div>`;
+              } else {
+                dimRows = `<div class="flex justify-between"><span class="text-slate-600">Avant</span><span class="font-medium text-right">${hasAv ? escapeHtml(st.av.dim) + idc(st.av) + typ(st.av) : '<span class="text-slate-400">—</span>'}</span></div>
+                  <div class="flex justify-between"><span class="text-slate-600">Arrière</span><span class="font-medium text-right">${hasAr ? escapeHtml(st.ar.dim) + idc(st.ar) + typ(st.ar) : '<span class="text-slate-400">—</span>'}</span></div>`;
+              }
+              const m3v = (st.av && st.av.m3pmsf === st.ar.m3pmsf) ? st.av.m3pmsf : null;
+              const m3mix = (st.av && st.ar && st.av.m3pmsf !== st.ar.m3pmsf);
+              const m3lbl = m3mix ? `Av. ${st.av.m3pmsf === true ? 'Oui' : st.av.m3pmsf === false ? 'Non' : '—'} · Arr. ${st.ar.m3pmsf === true ? 'Oui' : st.ar.m3pmsf === false ? 'Non' : '—'}` : (m3v === true ? 'Oui' : m3v === false ? 'Non' : 'Non renseigné');
+              const m3row = `<div class="flex justify-between"><span class="text-slate-600">Marquage 3PMSF <span class="text-slate-400 text-xs">(hiver)</span></span><span class="font-medium ${m3v === true ? 'text-emerald-600' : ''}">${escapeHtml(m3lbl)}</span></div>`;
+              return dimRows + m3row;
+            } catch (e) { return `<div class="flex justify-between"><span class="text-slate-600">Dimension</span><span class="font-medium" data-df="dimensionPneus" data-dt="text">${escapeHtml(v.dimensionPneus) || '<span class="text-slate-400">—</span>'}</span></div>`; }
+          })()}
           <div class="flex justify-between"><span class="text-slate-600">Dernier changement</span><span class="font-medium" data-df="dateChangementPneus" data-dt="date">${v.dateChangementPneus ? FP.dateNum(v.dateChangementPneus) : '<span class="text-slate-400">—</span>'}</span></div>
         </div>
       </div>
@@ -4577,6 +4605,69 @@
       cgOrigSiege: !!v.cgOrigSiege,
       cgOrigSalarie: !!v.cgOrigSalarie,
     };
+  }
+  // ═══ PNEUMATIQUES — mini-fenêtre « Modifier » (Lot 2) ══════════════════════════════════════════════
+  // Compacte · clavier (Entrée = valider via FP.enterValide ; Échap / clic-fond = ferme, garde GLOBAL) ·
+  // mobile (colonnes qui se replient) · clair/sombre (tokens var(--fp-*)). La case « Même dimension » ne
+  // synchronise QUE la dimension arrière (type/indice/3PMSF restent indépendants — consigne). Enregistre
+  // dans app_settings (FP.pneus.save) ET met à jour la colonne héritée dimensionPneus (cohérence tableau/
+  // exports) via persistVehicleUpsert, sans jamais perdre les anciennes valeurs.
+  function openPneusModal(vehId) {
+    const v = (data.vehicules || []).find(x => x.id === vehId);
+    if (!v || !(window.FP && FP.pneus)) return;
+    const st = FP.pneus.get(v);
+    const esc = escapeHtml;
+    const typeOpts = (sel) => ['', 'ete', 'hiver', '4s'].map(t => `<option value="${t}"${(sel || '') === t ? ' selected' : ''}>${t ? FP.pneus.typeLabel(t) : 'Non renseigné'}</option>`).join('');
+    const m3str = (b) => b === true ? 'oui' : b === false ? 'non' : '';
+    const m3Opts = (sel) => [['', 'Non renseigné'], ['oui', 'Oui'], ['non', 'Non']].map(([val, lbl]) => `<option value="${val}"${m3str(sel) === val ? ' selected' : ''}>${lbl}</option>`).join('');
+    const col = (pos, s) => `<div style="flex:1;min-width:150px">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:6px;color:var(--fp-text,#0f1e3d)">${pos === 'av' ? 'Pneus avant' : 'Pneus arrière'}</div>
+        <label style="display:block;font-size:11.5px;color:var(--fp-muted,#64748b);margin-bottom:8px">Dimension<br><input type="text" id="pn-${pos}-dim" value="${esc((s && s.dim) || '')}" placeholder="245/45 R19" autocomplete="off" class="field-input" style="width:100%"></label>
+        <label style="display:block;font-size:11.5px;color:var(--fp-muted,#64748b);margin-bottom:8px">Indice charge/vitesse<br><input type="text" id="pn-${pos}-ind" value="${esc((s && s.indice) || '')}" placeholder="98W" autocomplete="off" class="field-input" style="width:100%"></label>
+        <label style="display:block;font-size:11.5px;color:var(--fp-muted,#64748b);margin-bottom:8px">Type<br><select id="pn-${pos}-type" class="field-input" style="width:100%">${typeOpts(s && s.type)}</select></label>
+        <label style="display:block;font-size:11.5px;color:var(--fp-muted,#64748b)">Marquage 3PMSF<br><select id="pn-${pos}-m3" class="field-input" style="width:100%">${m3Opts(s && s.m3pmsf)}</select></label>
+      </div>`;
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,30,61,.55);z-index:10060;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.innerHTML = `<div style="background:var(--fp-card,#fff);color:var(--fp-text,#0f1e3d);border-radius:16px;max-width:520px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">
+        <div style="padding:13px 16px;border-bottom:1px solid var(--fp-border,#e3e8f0);display:flex;align-items:center;gap:10px">
+          <div style="font-size:15px;font-weight:800">🛞 Pneumatiques <span style="font-weight:600;color:var(--fp-muted,#64748b);font-size:12.5px">— ${esc(v.immat || '')}</span></div>
+          <button type="button" data-close aria-label="Fermer" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:20px;line-height:1;color:var(--fp-muted,#64748b)">✕</button>
+        </div>
+        <div style="padding:14px 16px;overflow:auto">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="pn-meme"${st.meme ? ' checked' : ''}> Même dimension à l'avant et à l'arrière</label>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">${col('av', st.av)}${col('ar', st.ar)}</div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--fp-border,#e3e8f0);display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" data-close class="btn btn-outline text-sm">Annuler</button>
+          <button type="button" id="pn-save" class="btn btn-dark text-sm">Enregistrer</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const $id = (x) => ov.querySelector('#' + x);
+    const avDim = $id('pn-av-dim'), arDim = $id('pn-ar-dim'), meme = $id('pn-meme');
+    let lastAr = (st.ar && st.ar.dim) || '';
+    const applyMeme = () => {
+      if (meme.checked) { if (!arDim.disabled) lastAr = arDim.value || lastAr; arDim.value = avDim.value; arDim.disabled = true; arDim.style.opacity = '.55'; }
+      else { arDim.disabled = false; arDim.style.opacity = ''; if (!arDim.value) arDim.value = lastAr; }
+    };
+    meme.addEventListener('change', applyMeme);
+    avDim.addEventListener('input', () => { if (meme.checked) arDim.value = avDim.value; });
+    applyMeme();
+    const close = () => { try { ov.remove(); } catch (e) {} };
+    ov.addEventListener('click', (e) => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) close(); });
+    const slot = (pos) => ({ dim: $id('pn-' + pos + '-dim').value, indice: $id('pn-' + pos + '-ind').value, type: $id('pn-' + pos + '-type').value, m3pmsf: ($id('pn-' + pos + '-m3').value === 'oui') ? true : ($id('pn-' + pos + '-m3').value === 'non') ? false : null });
+    const save = () => {
+      try { FP.pneus.save(vehId, { meme: meme.checked, av: slot('av'), ar: slot('ar') }); } catch (e) { console.warn('[pneus save]', e); }
+      try { const comb = FP.pneus.toCombined(FP.pneus.get(v)); if ((v.dimensionPneus || '') !== comb) { v.dimensionPneus = comb || null; persistVehicleUpsert(v, false); } } catch (e) {}
+      close();
+      if (FP.toast) FP.toast('✓ Pneumatiques enregistrés');
+      try { if (drawerVehId === vehId && $('drawer') && $('drawer').classList.contains('open')) openDrawer(vehId); } catch (e) {}
+    };
+    $id('pn-save').addEventListener('click', save);
+    try { FP.enterValide(ov, { button: '#pn-save' }); } catch (e) {}
+    setTimeout(() => { try { avDim.focus(); } catch (e) {} }, 30);
   }
   // Enregistre un véhicule (ajout OU édition de la ligne complète).
   // ⚠️ DURABILITÉ (piège #6 du CLAUDE.md) : on passe par FP.persist (file optimiste enfilée AVANT le réseau,
