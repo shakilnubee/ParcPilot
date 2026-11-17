@@ -4148,7 +4148,9 @@
               const m3mix = (st.av && st.ar && st.av.m3pmsf !== st.ar.m3pmsf);
               const m3lbl = m3mix ? `Av. ${st.av.m3pmsf === true ? 'Oui' : st.av.m3pmsf === false ? 'Non' : '—'} · Arr. ${st.ar.m3pmsf === true ? 'Oui' : st.ar.m3pmsf === false ? 'Non' : '—'}` : (m3v === true ? 'Oui' : m3v === false ? 'Non' : 'Non renseigné');
               const m3row = `<div class="flex justify-between"><span class="text-slate-600">Marquage 3PMSF <span class="text-slate-400 text-xs">(hiver)</span></span><span class="font-medium ${m3v === true ? 'text-emerald-600' : ''}">${escapeHtml(m3lbl)}</span></div>`;
-              return dimRows + m3row;
+              const EQUIP = { chaines: 'Chaînes', chaussettes: 'Chaussettes', aucun: 'Aucun équipement' };
+              const equipRow = (st.equipHiver && EQUIP[st.equipHiver]) ? `<div class="flex justify-between"><span class="text-slate-600">Équipements hiver</span><span class="font-medium">${escapeHtml(EQUIP[st.equipHiver])}</span></div>` : '';
+              return dimRows + m3row + equipRow;
             } catch (e) { return `<div class="flex justify-between"><span class="text-slate-600">Dimension</span><span class="font-medium" data-df="dimensionPneus" data-dt="text">${escapeHtml(v.dimensionPneus) || '<span class="text-slate-400">—</span>'}</span></div>`; }
           })()}
           ${(() => {
@@ -4656,6 +4658,7 @@
         <div style="padding:14px 16px;overflow:auto">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="pn-meme"${st.meme ? ' checked' : ''}> Même dimension à l'avant et à l'arrière</label>
           <div style="display:flex;gap:16px;flex-wrap:wrap">${col('av', st.av)}${col('ar', st.ar)}</div>
+          <label style="display:block;font-size:11.5px;color:var(--fp-muted,#64748b);margin-top:12px">Équipements antidérapants disponibles <span style="color:var(--fp-muted,#94a3b8)">(loi Montagne)</span><br><select id="pn-equip" class="field-input" style="width:100%">${[['', 'Non renseigné'], ['chaines', 'Chaînes'], ['chaussettes', 'Chaussettes'], ['aucun', 'Aucun équipement']].map(([val, lbl]) => `<option value="${val}"${(st.equipHiver || '') === val ? ' selected' : ''}>${lbl}</option>`).join('')}</select></label>
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--fp-border,#e3e8f0);display:flex;gap:8px;justify-content:flex-end">
           <button type="button" data-close class="btn btn-outline text-sm">Annuler</button>
@@ -4677,7 +4680,7 @@
     ov.addEventListener('click', (e) => { if (e.target === ov || (e.target.closest && e.target.closest('[data-close]'))) close(); });
     const slot = (pos) => ({ dim: $id('pn-' + pos + '-dim').value, indice: $id('pn-' + pos + '-ind').value, type: $id('pn-' + pos + '-type').value, m3pmsf: ($id('pn-' + pos + '-m3').value === 'oui') ? true : ($id('pn-' + pos + '-m3').value === 'non') ? false : null });
     const save = () => {
-      try { FP.pneus.save(vehId, { meme: meme.checked, av: slot('av'), ar: slot('ar') }); } catch (e) { console.warn('[pneus save]', e); }
+      try { FP.pneus.save(vehId, { meme: meme.checked, av: slot('av'), ar: slot('ar'), equipHiver: ($id('pn-equip') ? $id('pn-equip').value : '') }); } catch (e) { console.warn('[pneus save]', e); }
       try { const comb = FP.pneus.toCombined(FP.pneus.get(v)); if ((v.dimensionPneus || '') !== comb) { v.dimensionPneus = comb || null; persistVehicleUpsert(v, false); } } catch (e) {}
       close();
       if (FP.toast) FP.toast('✓ Pneumatiques enregistrés');
@@ -5898,6 +5901,18 @@
     { id:'paysImmat',       label:"Pays d'immat.",   def:false, align:'left',  get:v=>v.paysImmat||'—' },
     { id:'valeurAchat',     label:'Valeur d\'achat', def:false, align:'right', get:v=>v.valeurAchat?FP.euro(v.valeurAchat):'—' },
     { id:'prixVente',       label:'Prix de vente',   def:false, align:'right', get:v=>v.prixVente?FP.euro(v.prixVente):'—' },
+    // — Pneumatiques (optionnelles) : source unique FP.pneus.get (repli sur l'ancienne chaîne). Jamais inventé.
+    { id:'pneuDimAv',   label:'Pneus — dimension avant',   def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.get(v).av.dim:'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneuDimAr',   label:'Pneus — dimension arrière', def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.get(v).ar.dim:'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneuIndAv',   label:'Pneus — indice avant',      def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.get(v).av.indice:'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneuIndAr',   label:'Pneus — indice arrière',    def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.get(v).ar.indice:'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneuTypeAv',  label:'Pneus — type avant',        def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.typeLabel(FP.pneus.get(v).av.type):'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneuTypeAr',  label:'Pneus — type arrière',      def:false, align:'left',  get:v=>{ try{ return (FP.pneus?FP.pneus.typeLabel(FP.pneus.get(v).ar.type):'')||'—'; }catch(e){ return '—'; } } },
+    { id:'pneu3pmsfAv', label:'Pneus — 3PMSF avant',       def:false, align:'left',  get:v=>{ try{ const m=FP.pneus?FP.pneus.get(v).av.m3pmsf:null; return m===true?'Oui':m===false?'Non':'—'; }catch(e){ return '—'; } } },
+    { id:'pneu3pmsfAr', label:'Pneus — 3PMSF arrière',     def:false, align:'left',  get:v=>{ try{ const m=FP.pneus?FP.pneus.get(v).ar.m3pmsf:null; return m===true?'Oui':m===false?'Non':'—'; }catch(e){ return '—'; } } },
+    { id:'pneuRemplDate', label:'Pneus — dernier rempl. (date)', def:false, align:'left',  get:v=>{ try{ const d=FP.pneus?FP.pneus.get(v).dernier:null; return (d&&d.date)?FP.dateNum(d.date):'—'; }catch(e){ return '—'; } } },
+    { id:'pneuRemplKm',   label:'Pneus — dernier rempl. (km)',   def:false, align:'right', get:v=>{ try{ const d=FP.pneus?FP.pneus.get(v).dernier:null; return (d&&d.km!=null)?FP.num(d.km)+' km':'—'; }catch(e){ return '—'; } } },
+    { id:'pneuRemplPos',  label:'Pneus — dernier rempl. (position)', def:false, align:'left', get:v=>{ try{ const d=FP.pneus?FP.pneus.get(v).dernier:null; return (d&&d.position&&FP.pneus.posLabel(d.position))||'—'; }catch(e){ return '—'; } } },
   ];
 
   let _ficheList = [], _ficheLabel = '';
