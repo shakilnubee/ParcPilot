@@ -1641,23 +1641,28 @@
     const attrs = `data-doc-type="${escapeHtml(doc.type || 'autre')}" data-doc-date="${escapeHtml(String(doc.date || doc.createdAt || '').slice(0, 10))}" data-doc-num="${escapeHtml(doc.numero || doc.numeroFacture || '')}" data-doc-four="${escapeHtml(doc.fournisseur || '')}" data-doc-sens="${escapeHtml(doc.sens || '')}"`;
     return `<button type="button" class="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700" data-doc-dl="${escapeHtml(sanitizeUrl(url))}" ${attrs} title="Télécharger (nom automatique)"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>`;
   }
+  // Attributs du LIBELLÉ cliquable = ouvrir le document (remplace le bouton « Voir », demande utilisateur).
+  // Supabase → data-doc-open (visionneuse) + data-doc-url (clic-molette/Ctrl = nouvel onglet, règle 0octies) ;
+  // Google Drive → data-doc-view (visionneuse interne). Clavier : Entrée/Espace géré par le keydown du drawer.
+  function docLabelOpenAttrs(doc){
+    const u = (doc && doc.url) ? escapeHtml(sanitizeUrl(doc.url)) : '';
+    if (u) return `role="button" tabindex="0" class="flex-1 min-w-0 cursor-pointer group" title="Ouvrir le document" data-doc-open="${u}" data-doc-url="${u}"`;
+    if (doc && doc.drive) return `role="button" tabindex="0" class="flex-1 min-w-0 cursor-pointer group" title="Ouvrir le document" data-doc-view="${escapeHtml(doc.drive)}" data-doc-title="${escapeHtml(doc.label || '')}"`;
+    return `class="flex-1 min-w-0"`;
+  }
   function builtinDocRowHTML(doc, vehId){
     const t = DOC_TYPES.find(x => x.key === doc.type) || DOC_TYPES[DOC_TYPES.length - 1];
-    // Document stocké dans Supabase (lien direct) ou ancien lien Google Drive
-    const viewBtn = doc.url
-      ? `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-doc-open="${escapeHtml(sanitizeUrl(doc.url))}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>`
-      : `<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-doc-view="${escapeHtml(doc.drive)}" data-doc-title="${escapeHtml(doc.label)}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>`;
     // La carte grise « lien Drive » est supprimable (utile si un doublon apparaît après un scan)
     const delBtn = vehId
       ? `<button type="button" class="p-1.5 hover:bg-red-50 rounded text-slate-300 hover:text-red-600" data-builtin-del="${escapeHtml(vehId)}" data-builtin-type="${escapeHtml(doc.type)}" data-builtin-key="${escapeHtml(doc.drive || doc.url || doc.type)}" title="Retirer ce document de la fiche"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`
       : '';
+    // Libellé cliquable = ouvre le document (plus de bouton « Voir »). On garde Télécharger + corbeille.
     return `<div class="flex items-center gap-2 py-2 border-b border-slate-100 text-sm">
       <i data-lucide="${t.icon}" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <div class="font-medium truncate">${escapeHtml(doc.label)}</div>
+      <div ${docLabelOpenAttrs(doc)}>
+        <div class="font-medium truncate group-hover:underline group-hover:text-sky-700">${escapeHtml(doc.label)}</div>
         <div class="text-xs text-slate-500">${t.label}${doc.url ? '' : ' · Google Drive'}</div>
       </div>
-      ${viewBtn}
       ${docDlBtn(doc.url, doc)}
       ${delBtn}
     </div>`;
@@ -1698,13 +1703,13 @@
     }
     const dateTxt = (doc.date || doc.createdAt) ? 'ajouté le ' + FP.dateNum((doc.date || doc.createdAt).slice(0, 10)) : '';
     const subtitle = [detail, dateTxt].filter(Boolean).join(' · ');
+    // Libellé cliquable = ouvre le document (plus de bouton « Voir »). On garde Télécharger + corbeille.
     return `<div class="flex items-center gap-2 py-2 border-b border-slate-100 text-sm" data-doc-id="${escapeHtml(doc.id)}">
       <i data-lucide="${t.icon}" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <div class="font-medium truncate" title="${escapeHtml(rawLabel || typeLbl)}">${escapeHtml(title)}</div>
+      <div ${docLabelOpenAttrs(doc)}>
+        <div class="font-medium truncate group-hover:underline group-hover:text-sky-700" title="${escapeHtml(rawLabel || typeLbl)}">${escapeHtml(title)}</div>
         <div class="text-xs text-slate-500 truncate">${escapeHtml(subtitle)}</div>
       </div>
-      <button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-doc-open="${url}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
       ${docDlBtn(doc.url, doc)}
       <button type="button" class="p-1.5 hover:bg-red-50 rounded text-slate-300 hover:text-red-600" data-doc-del="${escapeHtml(doc.id)}" title="Supprimer ce document"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
     </div>`;
@@ -1764,11 +1769,10 @@
     const tContrat = DOC_TYPES.find(x => x.key === 'contrat') || { label: 'Contrat leasing/location', icon: 'file-text' };
     const leaseRows = leaseDocs.map(d => `<div class="flex items-center gap-2 py-2 border-b border-slate-100 text-sm">
       <i data-lucide="${tContrat.icon}" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <div class="font-medium truncate">${escapeHtml(d.label)}</div>
+      <div ${docLabelOpenAttrs(d)}>
+        <div class="font-medium truncate group-hover:underline group-hover:text-sky-700">${escapeHtml(d.label)}</div>
         <div class="text-xs text-slate-500">${tContrat.label} · géré dans Contrats</div>
       </div>
-      <button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-doc-open="${escapeHtml(sanitizeUrl(d.url))}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
       ${d._k
         ? `<button type="button" class="p-1.5 hover:bg-red-50 rounded text-slate-300 hover:text-red-600" data-lease-doc-del="${escapeHtml(d._k)}" title="Retirer ce contrat (aussi de l'onglet Contrats)"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`
         : `<a class="p-1.5 rounded text-slate-300 hover:text-slate-500" href="contrats.html" title="Gérer dans l'onglet Contrats"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>`}
@@ -6811,6 +6815,13 @@
     const a = e.target.closest && e.target.closest('a.fp-lien, a[href*="conducteurs.html"], a[href*="vehicules.html?"]');
     if (a) { e.preventDefault(); e.stopPropagation(); }
   }, true);
+
+  // Clavier : Entrée/Espace sur un libellé de document cliquable (role="button") = l'ouvrir (standard nav clavier).
+  $('drawer-body').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    const t = e.target.closest('[data-doc-open],[data-doc-view]');
+    if (t && t.getAttribute('role') === 'button') { e.preventDefault(); t.click(); }
+  });
 
   // Ajout / suppression / consultation de documents dans la fiche véhicule
   $('drawer-body').addEventListener('click', async (e) => {
