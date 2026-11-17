@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261117a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261117b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261117a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261117b">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -321,7 +321,7 @@
         <div class="man-item"><b>Relancer en 1 tap</b> — sur chaque ligne (véhicule + conducteur), le bouton <b>« Relancer »</b> ouvre le message <b>déjà rédigé</b> et te laisse choisir <b>💬 WhatsApp</b>, <b>📱 SMS</b> ou <b>📧 e-mail</b>. Tu appuies sur Envoyer — c'est <b>gratuit</b>, ça part de ton téléphone/ton adresse. Le message reprend le bon ton (plaque sur une ligne, échéance, « pour éviter une majoration » pour les amendes).</div>
         <div class="man-item"><b>📧 Tout relancer par e-mail</b> — un seul clic envoie d'un coup les rappels par e-mail à <b>toutes les personnes dont on connaît l'adresse</b> (le site les envoie tout seul, tu n'ouvres rien). Pratique pour relancer plusieurs conducteurs en une fois. Pour WhatsApp/SMS (gratuits), ça reste un tap par personne depuis la liste.</div>
         <div class="man-item"><b>🚫 Ignorer une relance</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur chaque ligne, le bouton <b>« Ignorer »</b> retire ce rappel de la liste (et il ne compte plus dans la pastille). Ça ne supprime rien et ça ne marque <b>pas</b> l'amende comme payée — l'amende reste dans l'onglet Amendes et dans le total « à payer ». C'est juste pour ne plus être <b>relancé</b> sur ce point précis. <b>Quand tu la traites plus tard</b> (amende payée, CT refait, km reçu…), elle <b>disparaît pour de bon</b> et ne reste PAS dans les « ignorées ». Et une <b>nouvelle échéance réapparaît toute seule</b> (nouvelle date de CT/garage/révision, nouveau relevé km, autre amende), comme le « ✓ Vu » des alertes. En bas de la liste, <b>« ↺ Réafficher »</b> annule les ignorés. Le choix est <b>synchronisé sur tous tes appareils</b>.</div>
-        <div class="man-item"><b>🛠️ Rappel de révision intelligent (km + date)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le message de <b>relance « Révision »</b> (bouton « Prévenir » de la fiche, et écran 📣 Relances) ne se base <b>plus seulement sur la date</b> : il tient compte du <b>kilométrage parcouru</b> et annonce le <b>premier des deux</b> qui arrive. Ainsi, si le véhicule a <b>beaucoup roulé</b>, le message dira <i>« révision à faire dès maintenant — le kilométrage de révision est dépassé (environ 3 000 km de trop) »</i> ou <i>« à prévoir bientôt — il reste environ 1 200 km, soit vers le 12/03/2027 »</i>, au lieu d'attendre bêtement la date d'échéance. Rien à régler : c'est calculé à partir de la dernière révision, de l'intervalle de la marque et du km réel.</div>
+        <div class="man-item"><b>🛠️ Rappel de révision intelligent (km + date)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le message de <b>relance « Révision »</b> (bouton « Prévenir » de la fiche, et écran 📣 Relances) ne se base <b>plus seulement sur la date</b> : il tient compte du <b>kilométrage parcouru</b> et annonce le <b>premier des deux</b> qui arrive. Ainsi, si le véhicule a <b>beaucoup roulé</b>, le message dira <i>« révision à faire dès maintenant — le kilométrage de révision est dépassé (environ 3 000 km de trop) »</i> ou <i>« à prévoir bientôt — il reste environ 1 200 km, soit vers le 12/03/2027 »</i>, au lieu d'attendre bêtement la date d'échéance. Rien à régler : c'est calculé à partir de la dernière révision, de l'intervalle de la marque et du km réel. <b>Dans le centre d'alertes</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span>, chaque alerte de révision indique désormais le <b>km exact de la prochaine révision</b> (« révision prévue à 30 000 km ») et le <b>km actuel</b> (« actuellement 27 000 km »), en plus de l'intervalle configuré — tu sais tout de suite à quel kilométrage elle est attendue. Cette cible est <b>stable</b> (dernière révision + intervalle) : elle <b>ne se décale pas</b> quand le compteur monte, et un véhicule <b>en retard</b> garde sa vraie échéance tant que la révision n'est pas enregistrée. Si le km de la dernière révision manque, l'alerte l'indique (« cible km à compléter ») sans inventer de valeur.</div>
         <div class="man-item"><b>🧭 Km actuel + plaque & conducteur cliquables dans « Révisions à venir »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — chaque carte de révision affiche maintenant, en plus du « reste avant révision » : le <b>km actuel (relevé)</b> du véhicule, le <b>km cible</b> de la prochaine révision et la <b>date du dernier relevé</b> — tu compares d'un coup d'œil sans ouvrir la fiche. Si le kilométrage <b>manque</b>, la carte l'indique clairement (<b>« ⚠️ Kilométrage à actualiser »</b>) au lieu d'un chiffre trompeur. Et la <b>plaque</b> comme le <b>conducteur</b> sont désormais <b>cliquables</b> : un clic ouvre la fiche véhicule / la fiche conducteur. (Un véhicule « au Dépôt » n'ouvre aucune fausse fiche conducteur — c'est un emplacement, pas une personne.) Le <b>calcul</b> de la révision ne change pas.</div>
         <div class="man-item"><b>🔧 Rendez-vous garage regroupés (CT · révision · entretien)</b> — le contrôle technique, la révision et tout <b>rendez-vous au garage</b> sont regroupés dans <b>une seule catégorie</b> « Garage · CT / révision / entretien » (chaque ligne indique de quoi il s'agit). Tu peux poser une <b>date de rendez-vous garage</b> sur un véhicule (fiche véhicule → « 🔧 Rendez-vous garage », avec un <b>motif</b>). Dès que tu enregistres, l'app te propose de <b>prévenir le conducteur</b> (e-mail / SMS / WhatsApp) avec la <b>date + le motif</b> ; puis un <b>rappel part automatiquement la veille</b>, en reprenant ce même rendez-vous. Les deux messages sont modifiables dans <b>Paramètres → E-mails</b> (« annonce » et « rappel »).</div>
         <div class="man-item"><b>⏰ Rappel automatique la veille</b> — chaque matin, le site envoie <b>tout seul</b> un e-mail de rappel <b>la veille</b> d'un rendez-vous garage — le <b>contrôle technique</b> (date « Prochain CT ») <b>ou</b> un <b>rendez-vous garage saisi</b> (CT / révision / entretien) — <b>au conducteur ET à toi (gestionnaire) en copie</b>. Aucun réglage à faire : ça marche avec la même relance automatique que les relevés km. Un CT marqué « ignoré » n'envoie pas de rappel. <i>(La « prochaine révision » <u>estimée</u> reste indicative dans la liste Relances ; pour un rappel auto sur une révision, pose un rendez-vous garage avec sa vraie date.)</i></div>
@@ -1189,8 +1189,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261117a"></script>
-<script src="../assets/js/supabase-client.js?v=20261117a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261117b"></script>
+<script src="../assets/js/supabase-client.js?v=20261117b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1206,10 +1206,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261117a"></script>
+<script src="../assets/js/app.min.js?v=20261117b"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
