@@ -9821,11 +9821,11 @@ FP.pneus = {
         const av = this._slot(st.av);
         const ar = this._slot(st.ar);
         if (st.meme) ar.dim = av.dim;   // « même dimension » = mire SEULEMENT la dimension (type/indice/3PMSF restent propres à l'arrière)
-        return { meme: !!st.meme, av, ar, equipHiver: (st.equipHiver || '').toString(), _legacy: false };
+        return { meme: !!st.meme, av, ar, equipHiver: (st.equipHiver || '').toString(), dernier: (st.dernier && typeof st.dernier === 'object') ? st.dernier : null, _legacy: false };
       }
     } catch (e) {}
     const p = this.parseCombined(v && v.dimensionPneus);
-    return { meme: p.meme, av: this._slot({ dim: p.av.dim }), ar: this._slot({ dim: p.ar.dim }), equipHiver: '', _legacy: true };
+    return { meme: p.meme, av: this._slot({ dim: p.av.dim }), ar: this._slot({ dim: p.ar.dim }), equipHiver: '', dernier: null, _legacy: true };
   },
   // Écrit l'état structuré dans app_settings UNIQUEMENT (ne touche pas la colonne véhicule ici).
   save(vehId, data) {
@@ -9845,6 +9845,38 @@ FP.pneus = {
     if (!av && !ar) return '';
     if ((state && state.meme) || (av && av === ar) || !ar) return av || ar;
     return av + ' (av) / ' + ar + ' (arr)';
+  },
+  POSITIONS: { av: 'Avant', ar: 'Arrière', '4': '4 roues' },
+  posLabel(p) { return this.POSITIONS[p] || ''; },
+  // Enregistre un REMPLACEMENT de pneus (app_settings). POSITION-AWARE : « av » met à jour SEULEMENT
+  // l'avant, « ar » SEULEMENT l'arrière, « 4 » les deux — l'essieu NON remplacé est CONSERVÉ tel quel
+  // (consigne : ne pas supposer que les 4 pneus ont changé). On mémorise un résumé `dernier`
+  // { date, km, position, marque, modele } pour l'affichage « Dernier remplacement ». La FACTURE (coût,
+  // carnet d'entretien) est gérée à part par la page (anti-doublon FP.dupe) — PAS de 2ᵉ historique ici.
+  enregistrerRemplacement(vehId, veh, info) {
+    if (vehId == null || !info) return null;
+    const st = this.get(veh);                     // état courant (av/ar) — repli legacy inclus
+    const pos = (info.position === 'ar' || info.position === '4') ? info.position : 'av';
+    const patchSlot = (slot) => {
+      if (info.dim != null && String(info.dim).trim()) slot.dim = this.normDim(info.dim);
+      if (info.indice != null && String(info.indice).trim()) slot.indice = String(info.indice).trim().toUpperCase();
+      if (info.type != null) slot.type = String(info.type);
+      if (typeof info.m3pmsf === 'boolean' || info.m3pmsf === null) slot.m3pmsf = info.m3pmsf;
+      return slot;
+    };
+    if (pos === 'av' || pos === '4') patchSlot(st.av);
+    if (pos === 'ar' || pos === '4') patchSlot(st.ar);
+    let meme = !!st.meme;
+    if (pos === '4') meme = (st.av.dim === st.ar.dim);   // 4 roues même dim → coché
+    else meme = false;                                    // un seul essieu changé → dimensions potentiellement distinctes
+    if (meme) st.ar.dim = st.av.dim;
+    const kmN = (info.km != null && String(info.km).trim() !== '' && Number.isFinite(+info.km)) ? +info.km : null;
+    const dernier = { date: info.date || null, km: kmN, position: pos, marque: (info.marque || '').toString().trim(), modele: (info.modele || '').toString().trim() };
+    const s = FP.settings.get();
+    s.vehPneus = (s.vehPneus && typeof s.vehPneus === 'object') ? s.vehPneus : {};
+    s.vehPneus[vehId] = { meme, av: this._slot(st.av), ar: this._slot(st.ar), equipHiver: st.equipHiver || '', dernier };
+    FP.settings.save(s);
+    return dernier;
   },
 };
 // Comptage des conducteurs ENREGISTRÉS : uniquement les personnes ayant un véhicule

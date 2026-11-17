@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261117f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261117g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261117f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261117g">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -412,6 +412,7 @@
         <div class="man-item"><b>↺ Harmoniser un ancien libellé</b> — si une fiche porte encore un ancien libellé reconnu comme un <b>alias</b> d'une entité officielle, un petit bouton <b>« ↺ Nom officiel »</b> apparaît à côté du propriétaire : un clic remplace le libellé stocké par le nom officiel. C'est <b>toi qui décides</b> (jamais automatique) — rien n'est modifié tant que tu ne cliques pas. ⚠️ À ne pas confondre avec l'<b>« Entité de rattachement »</b> juste en dessous, qui est le rattachement <b>interne</b> du véhicule (indépendant du propriétaire juridique). Le référentiel se gère dans <b>Paramètres → Propriétaires</b>.</div>
         <div class="man-item"><b>📖 Carnet d'entretien</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fiche d'un véhicule, à côté de « Entretien &amp; échéances », le bouton <b>« 📖 Carnet »</b> ouvre l'<b>historique complet</b> du véhicule, du plus récent au plus ancien : <b>révisions</b> (🔧), <b>réparations</b> (⚙️), autres entretiens (🧰), <b>contrôle technique</b> (🛠️) et <b>changements de pneus</b> (🛞), avec la <b>date</b>, le <b>montant</b>, le <b>km</b> et le <b>fournisseur</b>. En haut : le <b>nombre d'interventions</b> et le <b>total entretien</b> (hors leasing/sinistre/achat). Clique une ligne de facture pour l'ouvrir. C'est une <b>vue de lecture</b> (elle rassemble les données déjà saisies, elle n'en crée aucune).</div>
         <div class="man-item"><b>🛞 Pneumatiques — avant / arrière + « Modifier »</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — la section <b>Pneumatiques</b> de la fiche affiche maintenant les <b>dimensions avant ET arrière</b> (ex. <i>Avant : 245/45 R19 — Été</i> / <i>Arrière : 275/40 R19</i>), l'<b>indice charge/vitesse</b>, le <b>type</b> (été / hiver / 4 saisons) et le <b>marquage 3PMSF</b>. Un petit bouton <b>« ✏️ Modifier »</b> ouvre une <b>mini-fenêtre</b> où tu règles tout sans ouvrir le grand formulaire du véhicule. En haut, la case <b>« Même dimension à l'avant et à l'arrière »</b> : cochée, tu ne saisis la dimension <b>qu'une fois</b> (l'arrière suit l'avant, le champ arrière se grise) ; décochée, tu mets deux dimensions différentes (tes valeurs arrière ne sont pas perdues). <i>La case ne concerne que la <b>dimension</b> — le type, l'indice et le 3PMSF restent propres à chaque essieu (quatre pneus de même taille ne sont pas forcément du même type).</i> Si les dimensions sont identiques, l'affichage se résume à <b>« Pneus : 205/55 R16 — Avant / Arrière »</b>. <b>Entrée</b> valide, <b>Échap</b> ferme, compatible mobile et mode sombre. <i>(Tes anciennes dimensions déjà saisies sont reprises automatiquement.)</i></div>
+        <div class="man-item"><b>🛞 Enregistrer un remplacement de pneus</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la section Pneumatiques, le bouton <b>« ➕ Remplacement »</b> ouvre une fenêtre pour noter un changement : <b>date</b>, <b>kilométrage</b>, <b>position</b> (Avant / Arrière / <b>4 roues</b>), dimension installée, indice, type, marque, modèle, 3PMSF. ⚠️ Si tu remplaces <b>seulement l'avant</b> (ou seulement l'arrière), l'autre essieu est <b>conservé</b> — on ne considère jamais que les 4 pneus ont changé. Tu peux aussi, en option, saisir la <b>facture</b> (garage, n° , HT/TVA/TTC) : elle est alors créée et <b>rattachée au carnet d'entretien</b> du véhicule (avec le contrôle <b>HT + TVA = TTC</b> et l'<b>anti-doublon</b> habituels — si la facture existe déjà, elle n'est pas comptée deux fois). Le véhicule affiche ensuite <b>« Dernier remplacement »</b> (date · km · position) et la date sert d'historique dans le <b>Carnet d'entretien</b> (🛞). <i>(Laisse les montants vides si tu veux juste noter le remplacement sans facture.)</i></div>
         <div class="man-zone">🛠️ Scan du contrôle technique → prochain CT automatique <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span></div>
         <div class="man-item">Quand tu ajoutes un document de type <b>« Contrôle technique »</b> sur une fiche véhicule (section Documents), l'IA <b>lit le PV</b> et met à jour tout seul le <b>« Prochain CT »</b> (et le « Dernier CT ») — même pipeline de lecture que les factures. Si le PV n'indique que la date du contrôle et un résultat <b>favorable</b>, l'app ajoute automatiquement <b>2 ans</b>.</div>
         <div class="man-item"><b>🔁 Contre-visite (PV défavorable)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — si le PV est <b>défavorable</b> ou impose une <b>contre-visite</b>, l'app ne met <b>plus</b> « +2 ans » (erreur corrigée) : le <b>« Prochain CT » devient l'échéance de la contre-visite</b> (la date limite lue sur le PV, sinon <b>2 mois</b> après le contrôle) — tu es donc alerté à temps. La fiche affiche en rouge <b>« Contre-visite requise avant le … »</b> et la colonne « Prochain CT » porte la mention <b>« · contre-visite »</b>. Quand tu scannes ensuite un <b>nouveau PV favorable</b>, la contre-visite est <b>automatiquement levée</b> et l'échéance repart à 2 ans. (La date limite reste modifiable à la main sur la fiche.)</div>
@@ -1192,8 +1193,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261117f"></script>
-<script src="../assets/js/supabase-client.js?v=20261117f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261117g"></script>
+<script src="../assets/js/supabase-client.js?v=20261117g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1209,10 +1210,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261117f"></script>
+<script src="../assets/js/app.min.js?v=20261117g"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
