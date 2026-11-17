@@ -471,6 +471,21 @@ fleet-app/
    via `FP.buildMail` + `FP.sendEmail`, avec barre de progression + résumé envoyés/sans-e-mail/échecs — cf.
    règle anti-perte silencieuse : jamais un « ✓ » menteur).
 
+0octies. ⚠️ **CLIC MOLETTE / CTRL-CLIC = NOUVEL ONGLET sur TOUT élément ouvrable — RÈGLE PERMANENTE**
+   (consigne explicite) : tout élément de **navigation ou de consultation** (plaque, conducteur, loueur,
+   fiche, dossier, **document/PDF**…) doit respecter les 4 gestes natifs du navigateur : **clic gauche**
+   (comportement actuel), **clic molette** = nouvel onglet, **Ctrl/Cmd+clic** = nouvel onglet, **clic droit**
+   = menu natif. La page d'origine reste ouverte (filtres/recherche conservés). ⚠️ **NE JAMAIS** appliquer ça
+   aux boutons d'**ACTION** (supprimer, enregistrer, modifier, valider, envoyer, importer, créer…). Deux
+   sources uniques (app.js, `FP.installNavHref`, posé une fois) :
+   - **Navigation** → vrais `<a href>` (helpers `FP.lienVehicule`/`FP.lienConducteur`/`FP.lienChauffeurVeh`)
+     OU, pour une carte/ligne non-`<a>`, l'attribut **`data-nav-href="URL"`** (molette/Ctrl/Maj gérés).
+   - **Documents** (PDF/scan/carte grise/contrat…) ouverts en JS via `FP.openScan`/`FP.openPdf` (URL signée
+     COURTE, jamais exposée en dur) → ajouter l'attribut **`data-doc-url="<url>"`** sur l'élément (même un
+     `<button>`) : le handler central l'ouvre dans un nouvel onglet à la molette / Ctrl / Cmd / Maj+clic, sans
+     exposer d'URL privée permanente. ⚠️ **Tout NOUVEAU lien de document DOIT porter `data-doc-url`** (ou être
+     un vrai `<a href>` quand l'URL est publique/Drive). Ne pas ajouter de `mousedown`/`auxclick` par page.
+
 1. **Tailwind précompilé** — pour éviter le délai du CDN à chaque page, Tailwind est compilé en local dans `assets/css/tailwind.css` (les pages le chargent via `<link>`, plus de `cdn.tailwindcss.com`). ⚠️ Après toute modif de classes Tailwind dans le HTML/JS, REBUILD : `npx tailwindcss@3.4.17 -c tailwind.config.js -i assets/css/_tw-input.css -o assets/css/tailwind.css --minify` (sinon les nouvelles classes ne seront pas stylées). ⚠️ **`brochure.html` et `prix.html` utilisent désormais le Tailwind LOCAL** (ajoutés à `content` dans `tailwind.config.js`) → à inclure dans le REBUILD. Seule `logos.html` reste sur le CDN. Ces deux pages sont en **thème sombre « 21st »** via une classe `.sheet-dark` (styles inline, autonomes) ; dans `prix.html` l'**aide-mémoire interne** (`#sheet-interne`) reste volontairement CLAIR et `display:none` (jamais montré au client). Les PDF client sont dans `presentation/` (`Parc-Pilot-Brochure.pdf`, `Parc-Pilot-Tarifs.pdf`) et les boutons **« Télécharger en PDF »** de `brochure.html`/`prix.html` pointent dessus (`<a download>` = beau design en 1 clic). ⚠️ **À REGÉNÉRER quand le contenu de brochure/prix change** (sinon le PDF téléchargé est périmé), via Chromium headless : `"/opt/pw-browsers/chromium-1194/chrome-linux/chrome" --headless=new --no-sandbox --virtual-time-budget=12000 --no-pdf-header-footer --print-to-pdf-no-header --print-to-pdf="presentation/Parc-Pilot-Brochure.pdf" "file://$PWD/brochure.html"` (idem prix.html → Parc-Pilot-Tarifs.pdf). Le mode impression masque les boutons flottants et l'aide-mémoire interne.
 1bis. ⚠️ **JS MINIFIÉ — `app.js` & `fleet-views.js`** (perf chargement mobile) : les pages chargent
    **`assets/js/app.min.js`** et **`assets/js/fleet-views.min.js`** (versions minifiées, ~2× plus légères

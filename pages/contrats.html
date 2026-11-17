@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261117c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261117b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261117c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261117b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261117c">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -831,8 +831,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261117b"></script>
-<script src="../assets/js/supabase-client.js?v=20261117b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261117c"></script>
+<script src="../assets/js/supabase-client.js?v=20261117c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -848,11 +848,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261117c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261117b"></script>
+<script src="../assets/js/app.min.js?v=20261117c"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -953,7 +953,26 @@
     // un INSERT qui échoue (colonnes NOT NULL immat/société + RLS) → l'affectation « prenait » à l'écran
     // puis REVENAIT à « Dépôt » au rechargement (écriture serveur jamais passée). L'UPDATE ne touche que
     // la colonne chauffeur de la ligne véhicule déjà présente.
-    try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); else if (FP.db && FP.db.update) FP.db.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
+    // ⚠️ ÉCRITURE VÉRIFIÉE — ANTI-ÉCHEC SILENCIEUX (consigne ③) : on écrit la colonne chauffeur ET on
+    // CONTRÔLE le retour serveur. Avant, l'écriture était « fire-and-forget » : si le serveur la REFUSAIT
+    // (règle d'accès RLS, 0 ligne modifiée), aucun message n'apparaissait → le conducteur « revenait » à
+    // Dépôt au rechargement sans explication (bug vécu HJ-804-VM, N tentatives). Désormais, si ça ne passe
+    // pas, on PRÉVIENT à l'écran avec la vraie raison, et on bascule sur la file durable (rien n'est perdu).
+    if (FP.supabase) {
+      FP.supabase.from('vehicules').update({ chauffeur: v.chauffeur }).eq('id', v.id).select('id,chauffeur').then(r => {
+        if (r && r.error) {
+          (FP.notifyError || window.alert)('⚠️ Conducteur NON enregistré — le serveur a refusé : ' + r.error.message + '. Rien n\'est perdu, préviens le support.');
+          try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) {}
+        } else if (!r || !r.data || !r.data.length) {
+          (FP.notifyError || window.alert)('⚠️ Conducteur NON enregistré : le serveur n\'a modifié aucune ligne (probable règle d\'accès sur ce véhicule). Rien n\'est perdu — préviens le support avec la plaque ' + (v.immat || '') + '.');
+        }
+      }).catch(e => {
+        (FP.notifyError || window.alert)('⚠️ Conducteur : écriture mise en attente (réseau) — ' + ((e && e.message) || e));
+        try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e2) {}
+      });
+    } else {
+      try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); else if (FP.db && FP.db.update) FP.db.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
+    }
     try { if (FP.affectations && FP.affectations.record) FP.affectations.record(v.id, v.chauffeur, null, old, v.km); } catch (e) {}
     try { const CK = window.FP_CACHE_KEY; const c = CK && JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Array.isArray(c.vehicules)) { const cv = c.vehicules.find(x => x.id === v.id); if (cv) { cv.chauffeur = v.chauffeur; localStorage.setItem(CK, JSON.stringify(c)); } } } catch (e) {}
     return true;
@@ -988,7 +1007,7 @@
     const links = docs.map(d => {
       const delAttr = d.src === 'doc' ? `data-fiche-doc-del="${escC(d.docId)}"` : `data-bpce-doc-del="${escC(immat)}::${d.idx}"`;
       return `<div class="flex items-center gap-1" style="margin-bottom:2px;max-width:170px">
-        <button type="button" data-bpce-doc="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</button>
+        <button type="button" data-bpce-doc="${escC(d.url)}" data-doc-url="${escC(d.url)}" class="hover:underline" style="background:none;border:none;padding:0;cursor:pointer;color:var(--fp-accent);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${escC(d.name || 'Contrat')}"><i data-lucide="file-text" class="w-3 h-3 inline"></i> ${escC(cleanContratDocName(d.name))}</button>
         <button type="button" ${delAttr} class="text-slate-300 hover:text-red-600 flex-shrink-0" title="Supprimer ce document" style="font-size:12px;line-height:1">✕</button>
       </div>`;
     }).join('');
