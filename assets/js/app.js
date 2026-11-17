@@ -8345,7 +8345,7 @@ FP.settings = {
   _PRECIOUS: ['condConges', 'condSortie', 'condArrivee', 'condCarteTotal', 'condBadgeUlys', 'cartePeriodes', 'ulysChangements', 'condDocs', 'revisionKmRef',
     'affectations', 'assureurs', 'assureurVeh', 'assuranceEcheance', 'assurancePrimes',
     'leasingContrats', 'localeaseContrats', 'loueurs', 'prestatairesPerso', 'prestataires',
-    'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'kmMajDates', 'antiPollDates',
+    'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'vehPneus', 'kmMajDates', 'antiPollDates',
     'controleStatuts', 'amendeMontantPaye', 'amendeMontants', 'docStatus', 'docTypes', 'docExpire',
     'docTrash', 'permisMasque', 'inspections', 'reservations', 'budget', 'budgets', 'objectifs',
     'pointsManuel', 'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
@@ -8523,7 +8523,7 @@ FP.settings = {
       'vehCarteCarb', 'vehBadge', 'vehCarteCarbExp', 'vehBadgeExp', 'vehFournCarb',
       // — Saisies manuelles / historique PAR VÉHICULE : masse (champ G → stationnement Paris + checklist),
       //   notes libres (historique, irrécupérable), restitution/EDL, dates entrée/cession, budget par véh.
-      'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'budgets', 'vehDin', 'vehGenreFiscal',
+      'vehMasse', 'vehNotes', 'vehRestit', 'vehEntree', 'vehCession', 'budgets', 'vehDin', 'vehGenreFiscal', 'vehPneus',
       // — Contre-visite CT en attente PAR VÉHICULE (posée au scan d'un PV défavorable/contre-visite) :
       //   { immat → { date, resultat, depuis } }. Donnée de travail keyée → fusion fine (jamais écrasée en bloc).
       'vehContreVisite',
@@ -9771,6 +9771,79 @@ FP.estEmplacement = (x) => {
   return found ? found.cle : '';
 };
 FP.emplacementLabel = (cle) => { const e = (FP.EMPLACEMENTS || []).find(x => x.cle === cle); return e ? e.label : ''; };
+
+// ═══ PNEUMATIQUES — helper SOURCE UNIQUE (parse / format / normalise avant-arrière) ═══════════════════
+// Données structurées stockées dans app_settings : settings.vehPneus[vehId] (dans COLLECTION_KEYS +
+// _PRECIOUS → synchro par société + anti-perte). Les anciennes colonnes véhicule `dimensionPneus`
+// (chaîne combinée « 245/45 R19 (av) / 275/40 R19 (arr) ») et `dateChangementPneus` sont CONSERVÉES et
+// servent de REPLI (reprise auto au 1er affichage, sans jamais les écraser). AUCUNE colonne/table Supabase
+// créée. `get()` = LECTURE PURE (n'écrit rien). `save()` = écrit UNIQUEMENT settings.vehPneus.
+FP.pneus = {
+  TYPES: { ete: 'Été', hiver: 'Hiver', '4s': '4 saisons' },
+  typeLabel(t) { return this.TYPES[t] || ''; },
+  // Normalise une dimension saisie librement → « 245/45 R19 » (maj, R, espaces propres). Tolérant ; si le
+  // format n'est pas reconnu on garde la saisie telle quelle (JAMAIS inventer une dimension).
+  normDim(s) {
+    const raw = (s == null ? '' : String(s)).trim();
+    if (!raw) return '';
+    const m = raw.toUpperCase().replace(/\s+/g, ' ').match(/(\d{2,3})\s*\/\s*(\d{2})\s*([RZ])\s*F?\s*(\d{1,2}(?:\.\d)?)/);
+    return m ? (m[1] + '/' + m[2] + ' ' + m[3] + m[4]) : raw.replace(/\s+/g, ' ');
+  },
+  // Parse une chaîne combinée (« … (av) / … (arr) » ou une seule dimension) → { meme, av:{dim}, ar:{dim} }.
+  parseCombined(str) {
+    const s = (str == null ? '' : String(str)).trim();
+    const out = { meme: true, av: { dim: '' }, ar: { dim: '' } };
+    if (!s) return out;
+    const avMark = /\b(av|avant)\b/i, arMark = /\b(arr?|arri[eè]re)\b/i;
+    const dims = s.match(/\d{2,3}\s*\/\s*\d{2}\s*[RZ]\s*F?\s*\d{1,2}(?:\.\d)?/gi) || [];
+    const hasAv = avMark.test(s), hasAr = arMark.test(s);
+    if (hasAv && hasAr && dims.length >= 2) {
+      const idxAv = s.search(avMark), idxAr = s.search(arMark);
+      const d0 = this.normDim(dims[0]), d1 = this.normDim(dims[1]);
+      if (idxAv <= idxAr) { out.av.dim = d0; out.ar.dim = d1; } else { out.av.dim = d1; out.ar.dim = d0; }
+      out.meme = (out.av.dim === out.ar.dim);
+    } else if (dims.length >= 1) {
+      const d = this.normDim(dims[0]); out.av.dim = d; out.ar.dim = d; out.meme = true;
+    } else {
+      out.av.dim = this.normDim(s); out.ar.dim = out.av.dim; out.meme = true; out._brut = true;   // non reconnu → brut, jamais inventé
+    }
+    return out;
+  },
+  _slot(o) { return { dim: this.normDim((o && o.dim) || ''), indice: ((o && o.indice) || '').toString().trim().toUpperCase(), type: ((o && o.type) || '').toString(), m3pmsf: (o && typeof o.m3pmsf === 'boolean') ? o.m3pmsf : null }; },
+  // État pneus COMPLET d'un véhicule : settings.vehPneus[id] si saisi, sinon REPLI parse(dimensionPneus).
+  // LECTURE PURE — n'écrit jamais. `_legacy` = true quand la donnée vient du repli (pas encore migrée).
+  get(v) {
+    try {
+      const id = v && v.id;
+      const s = (FP.settings && FP.settings.get) ? FP.settings.get() : {};
+      const st = (id != null && s && s.vehPneus && typeof s.vehPneus === 'object') ? s.vehPneus[id] : null;
+      if (st && typeof st === 'object') {
+        const av = this._slot(st.av);
+        return { meme: !!st.meme, av, ar: st.meme ? Object.assign({}, av) : this._slot(st.ar), equipHiver: (st.equipHiver || '').toString(), _legacy: false };
+      }
+    } catch (e) {}
+    const p = this.parseCombined(v && v.dimensionPneus);
+    return { meme: p.meme, av: this._slot({ dim: p.av.dim }), ar: this._slot({ dim: p.ar.dim }), equipHiver: '', _legacy: true };
+  },
+  // Écrit l'état structuré dans app_settings UNIQUEMENT (ne touche pas la colonne véhicule ici).
+  save(vehId, data) {
+    if (vehId == null || !data) return;
+    const meme = !!data.meme;
+    const av = this._slot(data.av);
+    const ar = meme ? Object.assign({}, av) : this._slot(data.ar);
+    const s = FP.settings.get();
+    s.vehPneus = (s.vehPneus && typeof s.vehPneus === 'object') ? s.vehPneus : {};
+    s.vehPneus[vehId] = { meme, av, ar, equipHiver: (data.equipHiver || '').toString() };
+    FP.settings.save(s);
+  },
+  // Recompose la chaîne combinée « héritée » depuis l'état (pour garder `dimensionPneus` cohérent au besoin).
+  toCombined(state) {
+    const av = (state && state.av && state.av.dim) || '', ar = (state && state.ar && state.ar.dim) || '';
+    if (!av && !ar) return '';
+    if ((state && state.meme) || (av && av === ar) || !ar) return av || ar;
+    return av + ' (av) / ' + ar + ' (arr)';
+  },
+};
 // Comptage des conducteurs ENREGISTRÉS : uniquement les personnes ayant un véhicule
 // attribué dans la flotte. On n'inclut PAS les personnes connues seulement via une amende
 // (emprunteur ponctuel, ancien conducteur…), conformément à la demande.

@@ -45,6 +45,8 @@ jobs:
         run: node tests/unit/affectations-courante.mjs
       - name: Une lecture ne crée pas de période pour un emplacement
         run: node tests/unit/affectations-ensurecourante.mjs
+      - name: Pneumatiques — parsing dimensions avant/arrière
+        run: node tests/unit/pneus-parse.mjs
       - name: Tests de la projection des contrats LLD
         run: node tests/unit/contrats-lld-table.mjs
       - name: Tests de la projection des forfaits de leasing
