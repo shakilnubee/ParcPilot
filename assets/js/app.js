@@ -9819,7 +9819,9 @@ FP.pneus = {
       const st = (id != null && s && s.vehPneus && typeof s.vehPneus === 'object') ? s.vehPneus[id] : null;
       if (st && typeof st === 'object') {
         const av = this._slot(st.av);
-        return { meme: !!st.meme, av, ar: st.meme ? Object.assign({}, av) : this._slot(st.ar), equipHiver: (st.equipHiver || '').toString(), _legacy: false };
+        const ar = this._slot(st.ar);
+        if (st.meme) ar.dim = av.dim;   // « même dimension » = mire SEULEMENT la dimension (type/indice/3PMSF restent propres à l'arrière)
+        return { meme: !!st.meme, av, ar, equipHiver: (st.equipHiver || '').toString(), _legacy: false };
       }
     } catch (e) {}
     const p = this.parseCombined(v && v.dimensionPneus);
@@ -9830,7 +9832,8 @@ FP.pneus = {
     if (vehId == null || !data) return;
     const meme = !!data.meme;
     const av = this._slot(data.av);
-    const ar = meme ? Object.assign({}, av) : this._slot(data.ar);
+    const ar = this._slot(data.ar);
+    if (meme) ar.dim = av.dim;   // la case « même dimension » ne synchronise QUE la dimension (type/indice/3PMSF propres à l'arrière)
     const s = FP.settings.get();
     s.vehPneus = (s.vehPneus && typeof s.vehPneus === 'object') ? s.vehPneus : {};
     s.vehPneus[vehId] = { meme, av, ar, equipHiver: (data.equipHiver || '').toString() };
