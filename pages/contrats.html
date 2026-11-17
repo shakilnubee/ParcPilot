@@ -953,7 +953,26 @@
     // un INSERT qui échoue (colonnes NOT NULL immat/société + RLS) → l'affectation « prenait » à l'écran
     // puis REVENAIT à « Dépôt » au rechargement (écriture serveur jamais passée). L'UPDATE ne touche que
     // la colonne chauffeur de la ligne véhicule déjà présente.
-    try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); else if (FP.db && FP.db.update) FP.db.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
+    // ⚠️ ÉCRITURE VÉRIFIÉE — ANTI-ÉCHEC SILENCIEUX (consigne ③) : on écrit la colonne chauffeur ET on
+    // CONTRÔLE le retour serveur. Avant, l'écriture était « fire-and-forget » : si le serveur la REFUSAIT
+    // (règle d'accès RLS, 0 ligne modifiée), aucun message n'apparaissait → le conducteur « revenait » à
+    // Dépôt au rechargement sans explication (bug vécu HJ-804-VM, N tentatives). Désormais, si ça ne passe
+    // pas, on PRÉVIENT à l'écran avec la vraie raison, et on bascule sur la file durable (rien n'est perdu).
+    if (FP.supabase) {
+      FP.supabase.from('vehicules').update({ chauffeur: v.chauffeur }).eq('id', v.id).select('id,chauffeur').then(r => {
+        if (r && r.error) {
+          (FP.notifyError || window.alert)('⚠️ Conducteur NON enregistré — le serveur a refusé : ' + r.error.message + '. Rien n\'est perdu, préviens le support.');
+          try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) {}
+        } else if (!r || !r.data || !r.data.length) {
+          (FP.notifyError || window.alert)('⚠️ Conducteur NON enregistré : le serveur n\'a modifié aucune ligne (probable règle d\'accès sur ce véhicule). Rien n\'est perdu — préviens le support avec la plaque ' + (v.immat || '') + '.');
+        }
+      }).catch(e => {
+        (FP.notifyError || window.alert)('⚠️ Conducteur : écriture mise en attente (réseau) — ' + ((e && e.message) || e));
+        try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e2) {}
+      });
+    } else {
+      try { if (FP.persist && FP.persist.update) FP.persist.update('vehicules', v.id, { chauffeur: v.chauffeur }); else if (FP.db && FP.db.update) FP.db.update('vehicules', v.id, { chauffeur: v.chauffeur }); } catch (e) { console.warn('[set chauffeur]', e); }
+    }
     try { if (FP.affectations && FP.affectations.record) FP.affectations.record(v.id, v.chauffeur, null, old, v.km); } catch (e) {}
     try { const CK = window.FP_CACHE_KEY; const c = CK && JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Array.isArray(c.vehicules)) { const cv = c.vehicules.find(x => x.id === v.id); if (cv) { cv.chauffeur = v.chauffeur; localStorage.setItem(CK, JSON.stringify(c)); } } } catch (e) {}
     return true;
