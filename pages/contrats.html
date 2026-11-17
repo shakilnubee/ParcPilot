@@ -239,6 +239,7 @@
       .arcdoc-drop.drag { border-color:var(--fp-accent); background:color-mix(in srgb, var(--fp-accent) 10%, transparent); }
       .arcdoc-row { display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--fp-border); border-radius:11px; background:var(--fp-surface); margin-bottom:7px; }
       .arcdoc-row .ad-ic { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:color-mix(in srgb, var(--fp-accent) 13%, var(--fp-surface)); color:var(--fp-accent); }
+      .arcdoc-openable { cursor:pointer; } .arcdoc-openable:hover .arcdoc-name { text-decoration:underline; color:var(--fp-accent); }
       .arcdoc-yeargrp { font-size:.72rem; font-weight:800; color:var(--fp-faint); text-transform:uppercase; letter-spacing:.08em; margin:12px 0 6px; }
       /* Fenêtres modales (coffre-fort + comparateur) — ces classes n'étaient PAS définies sur cette page
          (seulement sur Véhicules) → les modales s'affichaient en bloc tout en bas à gauche au lieu d'être
@@ -3717,10 +3718,9 @@
       const sub = [d.categorie || 'Autre', d.vehicule ? ('🚗 ' + d.vehicule) : ''].filter(Boolean).join(' · ');
       return '<div class="arcdoc-row" data-ad="' + esc(d.id) + '">'
         + '<span class="ad-ic"><i data-lucide="' + iconFor(d.fileName || d.url) + '" class="w-4 h-4"></i></span>'
-        + '<div class="min-w-0 flex-1"><div class="text-sm font-medium text-slate-800 truncate">' + esc(d.name || d.fileName || 'Document') + '</div>'
+        + '<div class="min-w-0 flex-1 arcdoc-openable" role="button" tabindex="0" title="Ouvrir le document" data-ad-open="' + esc(d.id) + '"><div class="arcdoc-name text-sm font-medium text-slate-800 truncate">' + esc(d.name || d.fileName || 'Document') + '</div>'
         + '<div class="text-xs text-slate-500 truncate">' + esc(sub) + '</div></div>'
         + '<div class="flex items-center gap-1 flex-shrink-0">'
-        + '<button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-ad-open="' + esc(d.id) + '" title="Ouvrir"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>'
         + '<button type="button" class="btn btn-outline !py-1 !px-2 text-xs" data-ad-dl="' + esc(d.id) + '" title="Télécharger"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>'
         + (canEdit() ? '<button type="button" class="btn btn-outline !py-1 !px-2 text-xs" data-ad-ren="' + esc(d.id) + '" title="Renommer"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>'
           + '<button type="button" class="p-1.5 hover:bg-red-50 rounded text-slate-300 hover:text-red-600" data-ad-del="' + esc(d.id) + '" title="Supprimer"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>' : '')
@@ -3828,6 +3828,11 @@
         const dl = e.target.closest('[data-ad-dl]'); if (dl) { openDoc(dl.getAttribute('data-ad-dl'), true); return; }
         const rn = e.target.closest('[data-ad-ren]'); if (rn) { renameDoc(rn.getAttribute('data-ad-ren')); return; }
         const de = e.target.closest('[data-ad-del]'); if (de) { delDoc(de.getAttribute('data-ad-del')); return; }
+    }); }
+    // Clavier : Entrée/Espace sur un nom de document cliquable = l'ouvrir.
+    { const host = $('arcdoc-list'); if (host) host.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        const o = e.target.closest('[data-ad-open]'); if (o) { e.preventDefault(); openDoc(o.getAttribute('data-ad-open'), false); }
     }); }
     window.renderArchiveDocs = render;
     document.addEventListener('fp:data-ready', () => { try { render(); } catch (e) {} });
