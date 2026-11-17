@@ -1632,6 +1632,15 @@
   // Les documents intégrés MASQUÉS (pour pouvoir les réafficher un par un depuis la fiche).
   function builtinDocsHidden(v){ const hidden = hiddenBuiltinFor(v.id); return builtinDocsAll(v).filter(d => hidden.includes(_biKey(d))); }
 
+  // Bouton « Télécharger » avec NOM AUTOMATIQUE (FP.nomFichierDoc, résolu dans le handler via drawerVehId).
+  // Les métadonnées utiles (type/date/n°/fournisseur/sens) voyagent en data-* ; l'immat vient du véhicule
+  // ouvert. N'affiché que pour un document Supabase (url fetchable → nom imposable) — pas pour un lien Drive.
+  function docDlBtn(url, doc){
+    if (!url) return '';
+    doc = doc || {};
+    const attrs = `data-doc-type="${escapeHtml(doc.type || 'autre')}" data-doc-date="${escapeHtml(String(doc.date || doc.createdAt || '').slice(0, 10))}" data-doc-num="${escapeHtml(doc.numero || doc.numeroFacture || '')}" data-doc-four="${escapeHtml(doc.fournisseur || '')}" data-doc-sens="${escapeHtml(doc.sens || '')}"`;
+    return `<button type="button" class="p-1.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700" data-doc-dl="${escapeHtml(sanitizeUrl(url))}" ${attrs} title="Télécharger (nom automatique)"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>`;
+  }
   function builtinDocRowHTML(doc, vehId){
     const t = DOC_TYPES.find(x => x.key === doc.type) || DOC_TYPES[DOC_TYPES.length - 1];
     // Document stocké dans Supabase (lien direct) ou ancien lien Google Drive
@@ -1649,6 +1658,7 @@
         <div class="text-xs text-slate-500">${t.label}${doc.url ? '' : ' · Google Drive'}</div>
       </div>
       ${viewBtn}
+      ${docDlBtn(doc.url, doc)}
       ${delBtn}
     </div>`;
   }
@@ -1695,6 +1705,7 @@
         <div class="text-xs text-slate-500 truncate">${escapeHtml(subtitle)}</div>
       </div>
       <button type="button" class="btn btn-outline !py-1 !px-2.5 text-xs" data-doc-open="${url}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</button>
+      ${docDlBtn(doc.url, doc)}
       <button type="button" class="p-1.5 hover:bg-red-50 rounded text-slate-300 hover:text-red-600" data-doc-del="${escapeHtml(doc.id)}" title="Supprimer ce document"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
     </div>`;
   }
@@ -6811,6 +6822,21 @@
       // SOURCE UNIQUE : FP.openScan ouvre l'onglet DANS le geste de clic puis y charge le lien signé — sinon
       // le window.open APRÈS l'await est BLOQUÉ par le navigateur (« je clique sur Voir mais rien ne s'ouvre »).
       if (url) { if (window.FP && FP.openScan) FP.openScan(url); else window.open(url, '_blank', 'noopener'); }
+      return;
+    }
+    // Télécharger un document AVEC un nom automatique (FP.nomFichierDoc) — l'immat vient du véhicule ouvert.
+    const docDl = e.target.closest('[data-doc-dl]');
+    if (docDl) {
+      e.preventDefault();
+      const url = docDl.getAttribute('data-doc-dl'); if (!url) return;
+      const veh = (data.vehicules || []).find(x => x.id === drawerVehId) || null;
+      let nom = 'document';
+      try {
+        nom = (window.FP && FP.nomFichierDoc) ? FP.nomFichierDoc(docDl.getAttribute('data-doc-type') || 'autre', {
+          immat: veh ? veh.immat : '', date: docDl.getAttribute('data-doc-date') || '', numero: docDl.getAttribute('data-doc-num') || '', fournisseur: docDl.getAttribute('data-doc-four') || '', sens: docDl.getAttribute('data-doc-sens') || ''
+        }) : 'document';
+      } catch (err) { nom = 'document'; }
+      if (window.FP && FP.telechargerDoc) FP.telechargerDoc(url, nom); else window.open(url, '_blank', 'noopener');
       return;
     }
     // Carnet d'entretien : « Voir » une facture d'entretien/réparation du véhicule.
