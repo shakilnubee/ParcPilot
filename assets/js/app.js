@@ -10063,12 +10063,22 @@ FP.installNavHref = function () {
   if (FP._navHrefInstalled) return; FP._navHrefInstalled = true;
   const inInteractive = (t) => !!(t && t.closest && t.closest('a[href],button,input,select,textarea,label,[contenteditable]'));
   const cardHref = (t) => { const el = t && t.closest && t.closest('[data-nav-href]'); return el ? el.getAttribute('data-nav-href') : ''; };
+  // ⚠️ DOCUMENT ouvrable (PDF / scan / carte grise / contrat…) : souvent rendu en <button>/<span> qui
+  // appelle FP.openScan (URL signée COURTE, jamais exposée en dur) → au clic MOLETTE, pas d'href natif à
+  // suivre → « rien ne se passe ». SOURCE UNIQUE : tout élément porteur de `data-doc-url="<url>"` s'ouvre
+  // dans un NOUVEL onglet au clic molette / Ctrl / Cmd / Maj + clic, MÊME si c'est un <button> (on ne
+  // l'exclut PAS via inInteractive). L'ouverture passe par FP.openScan → signature courte, URL privée
+  // jamais exposée (consigne sécurité). Les boutons d'ACTION (supprimer, modifier, téléverser…) ne portent
+  // JAMAIS data-doc-url → jamais déclenchés par erreur. Le clic GAUCHE simple reste géré par le handler
+  // existant de la page (aucun comportement métier changé, jamais deux onglets).
+  const docUrl = (t) => { const el = t && t.closest && t.closest('[data-doc-url]'); return el ? el.getAttribute('data-doc-url') : ''; };
   const abs = (h) => { try { return new URL(h, location.href).href; } catch (e) { return h; } };
   const openTab = (h) => { if (h) { try { window.open(abs(h), '_blank', 'noopener'); } catch (e) {} } };
-  // Molette : empêcher l'autoscroll (rond gris) sur une carte navigable, puis ouvrir au relâchement.
-  document.addEventListener('mousedown', (e) => { if (e.button === 1 && !inInteractive(e.target) && cardHref(e.target)) e.preventDefault(); }, true);
-  document.addEventListener('auxclick', (e) => { if (e.button !== 1 || inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
-  document.addEventListener('click', (e) => { if (e.button !== 0 || !(e.ctrlKey || e.metaKey || e.shiftKey) || inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
+  const openDoc = (u) => { if (!u) return; try { if (FP.openScan) FP.openScan(u); else window.open(abs(u), '_blank', 'noopener'); } catch (e) {} };
+  // Molette : empêcher l'autoscroll (rond gris) sur une carte navigable OU un document, puis ouvrir au relâchement.
+  document.addEventListener('mousedown', (e) => { if (e.button === 1 && (docUrl(e.target) || (!inInteractive(e.target) && cardHref(e.target)))) e.preventDefault(); }, true);
+  document.addEventListener('auxclick', (e) => { if (e.button !== 1) return; const d = docUrl(e.target); if (d) { e.preventDefault(); e.stopPropagation(); openDoc(d); return; } if (inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
+  document.addEventListener('click', (e) => { if (e.button !== 0 || !(e.ctrlKey || e.metaKey || e.shiftKey)) return; const d = docUrl(e.target); if (d) { e.preventDefault(); e.stopPropagation(); openDoc(d); return; } if (inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
 };
 try { FP.installNavHref(); } catch (e) {}
 FP.applyNavSubmenus = () => {
