@@ -1836,7 +1836,7 @@
         // Km parcourus par ce conducteur sur ce véhicule (km fin − km début saisis).
         const kmP = (FP.affectations && FP.affectations.kmParcouru) ? FP.affectations.kmParcouru(a) : null;
         const kmTxt = (kmP != null && kmP > 0) ? ` · <span title="Km parcourus (km fin − km début)" style="font-weight:700;color:var(--fp-primary,#0f766e)">${FP.num ? FP.num(kmP) : kmP} km</span>` : '';
-        return `<div class="fiche-line"><span class="flex items-center gap-2 min-w-0"><a href="vehicules.html?immat=${encodeURIComponent(immat || '')}" title="Voir la fiche véhicule" style="text-decoration:none" onclick="event.stopPropagation()"><span class="plate-badge" style="cursor:pointer">${escapeHtml(immat)}</span></a>${v ? `<span class="text-xs text-slate-500 truncate">${escapeHtml(v.marque || '')} ${escapeHtml(v.modele || '')}</span>` : ''}</span><span class="text-xs flex-shrink-0 ${a.fin ? 'text-slate-500' : 'text-emerald-600 font-medium'}">${escapeHtml(periode)}${kmTxt}</span></div>`;
+        return `<div class="fiche-line"><span class="flex items-center gap-2 min-w-0"><a href="vehicules.html?immat=${encodeURIComponent(immat || '')}" title="Voir la fiche véhicule" style="text-decoration:none" onclick="event.stopPropagation()"><span class="plate-badge" style="cursor:pointer">${escapeHtml(immat)}</span></a>${v ? `<span class="text-xs text-slate-500 truncate">${escapeHtml(v.marque || '')} ${escapeHtml(v.modele || '')}</span>` : ''}</span><span class="flex items-center gap-1 flex-shrink-0"><span class="text-xs ${a.fin ? 'text-slate-500' : 'text-emerald-600 font-medium'}">${escapeHtml(periode)}${kmTxt}</span><button type="button" data-cond-aff-del data-veh="${escapeHtml(a.vehId)}" data-debut="${escapeHtml(a.debut || '')}" data-fin="${escapeHtml(a.fin || '')}" data-cond="${escapeHtml(a.conducteur || '')}" title="Supprimer cette ligne de l'historique d'affectation" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;line-height:1;padding:2px 4px">🗑</button></span></div>`;
       }));
 
     // États des lieux du conducteur : rattachés à ses périodes d'affectation (source unique FP.edlHisto).
@@ -2114,6 +2114,34 @@
   }
 
   function closeDrawer() { $('drawer').classList.remove('open'); $('drawer-backdrop').classList.remove('open'); }
+
+  // Suppression d'une LIGNE de l'historique d'affectation depuis la fiche conducteur (🗑). Écoute UNIQUE
+  // (déléguée) → pas d'empilement de gestionnaires à chaque rendu. Retrouve la période EXACTE (véhicule +
+  // début + fin + conducteur) dans l'ordre stocké puis FP.affectations.removeEntry (même mécanisme que le
+  // bouton « Supprimer » de la fiche véhicule). Confirmation obligatoire ; EDL/photos du véhicule NON touchés.
+  document.addEventListener('click', async (e) => {
+    const b = e.target && e.target.closest && e.target.closest('[data-cond-aff-del]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    try {
+      if (!(window.FP && FP.affectations && FP.affectations.forVeh && FP.affectations.removeEntry)) return;
+      const vehId = b.getAttribute('data-veh');
+      const debut = b.getAttribute('data-debut') || '';
+      const fin = b.getAttribute('data-fin') || '';
+      const cond = b.getAttribute('data-cond') || '';
+      const list = FP.affectations.forVeh(vehId);   // ordre stocké = index de removeEntry
+      const idx = list.findIndex(a => String(a.debut || '') === debut && String(a.fin || '') === fin && String(a.conducteur || '') === cond);
+      if (idx < 0) { if (FP.toast) FP.toast('Ligne déjà supprimée.'); return; }
+      const v = ((window.FP_DATA && FP_DATA.vehicules) || []).find(x => x.id === vehId);
+      const lbl = v ? v.immat : vehId;
+      const per = (FP.dateNum ? FP.dateNum(debut) : debut) + ' → ' + (fin ? (FP.dateNum ? FP.dateNum(fin) : fin) : 'en cours');
+      const ok = FP.confirm ? await FP.confirm(`Supprimer cette ligne de l'historique d'affectation ?\n\n${lbl} · ${per}\n\nLa période est retirée de l'historique. L'état des lieux et les photos du véhicule ne sont pas supprimés.`) : window.confirm('Supprimer cette ligne ?');
+      if (!ok) return;
+      FP.affectations.removeEntry(vehId, idx);
+      if (FP.toast) FP.toast('🗑 Ligne d’historique supprimée');
+      if (currentDriverKey) openDrawer(currentDriverKey);   // re-render de la fiche
+    } catch (err) { console.warn('[cond-aff-del]', err); if (FP.notifyError) FP.notifyError('Suppression impossible — réessaie.'); }
+  });
 
   // Retire un conducteur de tous ses véhicules (vide le champ « chauffeur ») + clôt ses affectations.
   // ⚠️ On itère les véhicules RÉELLEMENT liés (driver.vehicules calculé par buildDrivers via la clé
