@@ -126,7 +126,20 @@ jobs:
           # Familles exclues : vector-search (vectors, buckets_vectors), cycle de vie / TTL
           # (bucket_lifecycle_states, lifecycle_abandoned_artifacts), analytics / iceberg
           # (buckets_analytics, iceberg_namespaces, iceberg_tables). Exclure une table absente est sans effet.
+          # MÊME RAISON pour les tables INTERNES d'AUTHENTIFICATION (GoTrue) autres que auth.users/identities :
+          # SSO / SAML / MFA / sessions / jetons éphémères (one_time_tokens, flow_state, sessions, refresh_tokens…).
+          # Elles gagnent des COLONNES dans les versions RÉCENTES de GoTrue (ex. link_token_hash sur
+          # one_time_tokens, dedicated_scope sur saml_providers…) ABSENTES du Supabase local FIGÉ de la
+          # restauration d'essai → sans exclusion, l'insertion échoue (« column … does not exist ») et TOUTE la
+          # sauvegarde s'arrête. Parc Pilot est en email/mot de passe (pas de SSO/SAML/MFA) → ces tables sont
+          # vides ou éphémères (sessions re-créées à la connexion), SANS valeur de sauvegarde. ⚠️ On GARDE
+          # auth.users ET auth.identities (les vrais comptes, vérifiés par compter.sql). La vérification ne porte
+          # que sur public.*, auth.users/identities et storage.buckets/objects → ces exclusions n'ont aucun effet
+          # sur le contrôle. (Exclure une table absente / vide est sans effet.)
           supabase db dump --db-url "$DB_URL" -f sauvegarde/base/data.sql --use-copy --data-only \
+            -x 'auth.one_time_tokens' -x 'auth.flow_state' -x 'auth.sessions' -x 'auth.refresh_tokens' \
+            -x 'auth.saml_providers' -x 'auth.saml_relay_states' -x 'auth.sso_providers' -x 'auth.sso_domains' \
+            -x 'auth.mfa_factors' -x 'auth.mfa_challenges' -x 'auth.mfa_amr_claims' \
             -x 'storage.buckets_vectors' -x 'storage.vectors' \
             -x 'storage.bucket_lifecycle_states' -x 'storage.lifecycle_abandoned_artifacts' \
             -x 'storage.buckets_analytics' -x 'storage.iceberg_namespaces' -x 'storage.iceberg_tables'

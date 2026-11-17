@@ -2474,12 +2474,20 @@
     const vCond = e.target.closest('[data-veh-cond]');
     if (vCond) {
       const immat = vCond.dataset.vehCond; const td = vCond.closest('td'); if (!td) return;
-      const cur = (() => { const v = (data.vehicules || []).find(x => FP.normImmat(x.immat) === FP.normImmat(immat)); return (v && v.chauffeur && v.chauffeur !== '—') ? v.chauffeur : ''; })();
+      // Démarrer VIDE si le conducteur actuel est un EMPLACEMENT (Dépôt/Siège/Navette) : on saisit une PERSONNE,
+      // on ne repart pas de « Dépôt » (qui, laissé dans le champ puis re-validé par un clic ailleurs, re-remettait
+      // le véhicule au dépôt → c'était la cause des affectations qui « revenaient » à Dépôt).
+      const _v0 = (data.vehicules || []).find(x => FP.normImmat(x.immat) === FP.normImmat(immat));
+      const cur = (_v0 && _v0.chauffeur && _v0.chauffeur !== '—' && !(FP.estEmplacement && FP.estEmplacement(_v0.chauffeur))) ? _v0.chauffeur : '';
       td.innerHTML = `<input class="field-input" style="font-size:.9rem;padding:.4rem .6rem;width:100%;min-width:150px;border:1px solid var(--fp-accent);border-radius:.5rem" id="veh-cond-edit" autocomplete="off" placeholder="Rechercher ou créer…" value="${FP.esc(cur)}">`;
       const inp = document.getElementById('veh-cond-edit'); if (!inp) return; inp.focus(); if (inp.select) inp.select();
-      const apply = (nm) => { if (setVehChauffeur(immat, nm)) { rebuildLeasingData(); renderKPIs(); renderLeasing(); if (FP.toast) FP.toast('Conducteur affecté ✓'); } else { renderLeasing(); } };
+      let _done = false;
+      const apply = (nm) => { if (_done) return; _done = true; if (setVehChauffeur(immat, nm)) { rebuildLeasingData(); renderKPIs(); renderLeasing(); if (FP.toast) FP.toast('Conducteur affecté ✓'); } else { renderLeasing(); } };
+      const cancel = () => { if (_done) return; _done = true; renderLeasing(); };
       if (FP.conducteurPicker) FP.conducteurPicker(inp, { onPick: (c) => apply((c && FP.conducteurs && FP.conducteurs.displayName) ? FP.conducteurs.displayName(c) : inp.value.trim()) });
-      inp.addEventListener('blur', () => setTimeout(() => { if (document.getElementById('veh-cond-edit') === inp) apply(inp.value.trim()); }, 200));
+      // ⚠️ Blur SÛR : on n'écrit QUE si une valeur NON VIDE a été saisie. Un clic ailleurs sans avoir choisi
+      // (champ vide) ANNULE sans rien écrire → plus de désaffectation ni de retour « Dépôt » accidentels.
+      inp.addEventListener('blur', () => setTimeout(() => { if (document.getElementById('veh-cond-edit') !== inp) return; const val = inp.value.trim(); if (val) apply(val); else cancel(); }, 200));
       return;
     }
     // N° de contrat — SAISIE MANUELLE (clic sur le n° / « + n° de contrat »).
@@ -4469,14 +4477,20 @@
       // Hors flotte (pas de véhicule lié) : on édite le champ conducteur du contrat.
       const _plq = list[i].immat || (typeof autoImmatLoc==='function'?autoImmatLoc(list[i]):'') || '';
       const _lv = _plq ? (data.vehicules||[]).find(x=>FP.normImmat(x.immat)===FP.normImmat(_plq)) : null;
-      const _curVal = _lv ? ((_lv.chauffeur && _lv.chauffeur!=='—') ? _lv.chauffeur : '') : (list[i].conducteur||'');
-      const _commit=(name)=>{ const val=(name||'').trim();
-        if(_lv){ try{ if(typeof setVehChauffeur==='function' && setVehChauffeur(_plq, val)){ refreshAllContrats(); } }catch(e){ console.warn('[loc-cond veh]',e); } }
+      // Démarrer VIDE si le conducteur actuel est un EMPLACEMENT (Dépôt/Siège/Navette) → on saisit une PERSONNE
+      // (ne pas repartir de « Dépôt », qui re-validé par un clic ailleurs re-remettait le véhicule au dépôt).
+      const _curBrut = _lv ? (_lv.chauffeur||'') : (list[i].conducteur||'');
+      const _curVal = (_curBrut && _curBrut!=='—' && !(FP.estEmplacement && FP.estEmplacement(_curBrut))) ? _curBrut : '';
+      let _done=false;
+      const _commit=(name)=>{ if(_done) return; _done=true; const val=(name||'').trim();
+        if(_lv){ try{ if(typeof setVehChauffeur==='function') setVehChauffeur(_plq, val); }catch(e){ console.warn('[loc-cond veh]',e); } refreshAllContrats(); }
         else { list[i].conducteur=val||null; save(); } };
+      const _cancel=()=>{ if(_done) return; _done=true; refreshAllContrats(); };
       td.innerHTML=`<input class="field-input" style="font-size:.9rem;padding:.4rem .6rem;width:100%;min-width:150px;border:1px solid var(--fp-accent);border-radius:.5rem" id="loc-cond-edit" autocomplete="off" placeholder="Rechercher ou créer…" value="${escC(_curVal)}">`;
       const inp=document.getElementById('loc-cond-edit'); if(!inp) return; inp.focus(); inp.select();
       if(FP.conducteurPicker) FP.conducteurPicker(inp,{ onPick:(c)=>{ _commit((c&&(c.name||c.prenom))||inp.value.trim()); } });
-      inp.addEventListener('blur',()=>setTimeout(()=>{ if(document.getElementById('loc-cond-edit')===inp){ _commit(inp.value.trim()); } },200));
+      // ⚠️ Blur SÛR : écrire seulement si valeur NON VIDE ; champ vide = annuler (pas de désaffectation accidentelle).
+      inp.addEventListener('blur',()=>setTimeout(()=>{ if(document.getElementById('loc-cond-edit')!==inp) return; const val=inp.value.trim(); if(val) _commit(val); else _cancel(); },200));
       return; }
     const da=e.target.closest('[data-loc-doc-assur]'); if(da){ const [i,di]=da.dataset.locDocAssur.split(':').map(Number); const c=list[i]||{}; const immat=String(c.immat||(typeof autoImmatLoc==='function'?autoImmatLoc(c):'')||'').toUpperCase(); const doc=(c.docs||[])[di]; if(!doc) return;
       if(!immat){ alert('Lie d\'abord la plaque du contrat (colonne Immatriculation) pour savoir sur quel véhicule ranger le mémo assurance.'); return; }
