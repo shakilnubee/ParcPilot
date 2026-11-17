@@ -762,7 +762,19 @@
       let dateTxt = ''; try { if (ri.prochaineDate) { const d = new Date(ri.prochaineDate); if (!isNaN(d)) dateTxt = FP.date(d.toISOString().slice(0, 10)); } } catch (e) {}
       const dr = (FP.derniereRevision ? FP.derniereRevision(v) : null);
       const drTxt = (dr && dr.date) ? ('Dernière : ' + FP.date(dr.date) + (dr.km != null ? ' · ' + FP.num(dr.km) + ' km' : '')) : 'Aucune révision enregistrée';
-      const chauffeur = (v.chauffeur && v.chauffeur !== '—') ? (' · ' + FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur)) : '';
+      // Conducteur CLIQUABLE (fiche) via le helper partagé homonyme-safe ; un emplacement (Dépôt/Siège/
+      // Navette) reste NON-cliquable (pas de fausse fiche). On garde le « prénom » comme libellé affiché.
+      const chauffeur = (v.chauffeur && v.chauffeur !== '—')
+        ? (' · ' + (FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v, FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur) : FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur)))
+        : '';
+      // KM ACTUEL (mesuré) + cible de la prochaine révision + fraîcheur du relevé. LECTURE SEULE : aucun
+      // calcul métier modifié (ri.kmRestant reste la source du moteur). cible = km actuel + km restant.
+      const kmAct = (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || null));
+      const kmCible = (kmAct != null && km != null) ? (kmAct + km) : null;
+      let kmMaj = ''; try { const mm = (FP.settings.get().kmMajDates) || {}; kmMaj = mm[v.immat] || ''; } catch (e) {}
+      const kmActLine = (kmAct != null && kmAct > 0)
+        ? `<span style="color:#475569">KM actuel <b style="color:#0f172a">${FP.num(kmAct)}</b>${kmCible != null ? ` · cible <b>${FP.num(kmCible)}</b>` : ''}${kmMaj ? ` · relevé le ${FP.esc(FP.date(kmMaj))}` : ''}</span>`
+        : `<span style="color:#b45309;font-weight:600">⚠️ Kilométrage à actualiser${kmMaj ? ` · dernier relevé le ${FP.esc(FP.date(kmMaj))}` : ''}</span>`;
       // ⚠️ STATUT = SOURCE UNIQUE FP.revisionStatut (partagé Entretiens / Tâches / Alertes / fiche).
       //    L'action principale DÉPEND du statut (demander RDV → enregistrer RDV → relancer → enregistrer révision).
       const st = (FP.revisionStatut ? FP.revisionStatut(v) : null) || { statut: 'a_prevenir', label: 'À prévenir', couleur: 'orange', actionKey: 'prevenir' };
@@ -785,12 +797,13 @@
       else btns = bPrev + bDone;                                            // à prévenir
       return `<div class="ct-card ${cls}">
         <div class="flex items-center justify-between">
-          <div class="font-mono font-semibold text-sm">${FP.esc(v.immat)}</div>
+          <div class="font-mono font-semibold text-sm">${FP.lienVehicule ? FP.lienVehicule(v.immat) : FP.esc(v.immat)}</div>
           <i data-lucide="${overdue ? 'alert-triangle' : 'wrench'}" class="w-4 h-4"></i>
         </div>
         <div class="text-xs text-slate-600 mt-1">${FP.esc(v.marque)} ${FP.esc(v.modele)}${chauffeur}</div>
         <div class="mt-2">${pill}</div>
         <div class="text-xs font-semibold mt-2">${FP.esc(kmTxt)}${dateTxt ? ' · ' + FP.esc(dateTxt) : ''}</div>
+        <div class="mt-1" style="font-size:11px">${kmActLine}</div>
         <div style="font-size:11px;color:#94a3b8;margin-top:2px">${FP.esc(drTxt)}${st.statut === 'rdv_confirme' && st.detail ? ' · RDV le ' + FP.esc(FP.date(st.detail)) + (_rsv && _rsv.rdvHeure ? ' à ' + FP.esc(_rsv.rdvHeure) : '') + (_rsv && _rsv.rdvGarage ? ' · ' + FP.esc(_rsv.rdvGarage) : '') : (st.statut === 'prevenu' && st.detail ? ' · prévenu le ' + FP.esc(FP.date(st.detail)) : '')}</div>
         <div class="flex gap-1.5 mt-2 flex-wrap">${btns}</div>
       </div>`;
