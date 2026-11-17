@@ -17617,6 +17617,97 @@ FP.openPdf = function (ref, emptyMsg) {
     .catch(() => { const f = toFinal(raw); if (w) w.location = f; else window.open(f, '_blank', 'noopener'); });
   return true;
 };
+
+// ═══ NOMMAGE AUTOMATIQUE DES DOCUMENTS TÉLÉCHARGÉS — SOURCE UNIQUE ════════════════════════════════════
+// But : un document téléchargé depuis Parc Pilot reçoit un nom clair (ex. « CARTE GRISE HB-733-DE.pdf »),
+// construit à partir du TYPE + des métadonnées DÉJÀ connues (jamais inventées). On NE renomme PAS les
+// fichiers du stockage ni les URLs : on impose seulement le nom AU MOMENT du téléchargement (attribut
+// `download`). L'aperçu (openScan/openPdf) n'est pas modifié.
+// Caractères interdits retirés, espaces normalisés, longueur bornée.
+FP.sanitizeFilename = function (name) {
+  let s = String(name == null ? '' : name).normalize('NFC');
+  s = s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/[. ]+$/g, '').trim();                 // pas de point/espace final
+  if (s.length > 120) s = s.slice(0, 120).trim();
+  return s || 'document';
+};
+// Extension d'une URL / d'un nom de fichier (pdf/jpg/png/docx…), repli 'pdf'. Ignore query/hash.
+FP.extDoc = function (urlOrName, fallback) {
+  try { const base = String(urlOrName || '').split('?')[0].split('#')[0]; const m = base.match(/\.([A-Za-z0-9]{2,5})$/); return m ? m[1].toLowerCase() : (fallback || 'pdf'); }
+  catch (e) { return fallback || 'pdf'; }
+};
+// Nom de fichier métier (SANS extension) pour un document. `type` = type de document (carte-grise, facture,
+// devis, contrat, controle-technique, assurance, etat-des-lieux, courrier, constat, sinistre, permis, code-
+// cession, memo, note-frais, autre…). `ctx` = { immat, date, numero, fournisseur, reference, conducteur,
+// sens(entree/sortie), entretien(bool) }. On n'ajoute QUE les infos réellement présentes (jamais inventées).
+FP._pnDateFichier = function (d) { try { if (!d) return ''; const s = String(d).slice(0, 10); if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4); return (FP.dateNum ? FP.dateNum(d) : s).replace(/\//g, '-'); } catch (e) { return ''; } };
+FP.nomFichierDoc = function (type, ctx) {
+  ctx = ctx || {};
+  const T = {
+    'carte-grise':        { pre: 'CARTE GRISE',           extras: [] },
+    'controle-technique': { pre: 'CONTROLE TECHNIQUE',    extras: ['date'] },
+    'code-cession':       { pre: 'CODE CESSION',          extras: [] },
+    'assurance':          { pre: 'ATTESTATION ASSURANCE', extras: [] },
+    'memo':               { pre: 'MEMO',                  extras: [] },
+    'contrat':            { pre: 'CONTRAT LEASING',       extras: [] },
+    'facture':            { pre: 'FACTURE',               extras: ['numero', 'fournisseur', 'date'] },
+    'devis':              { pre: 'DEVIS',                 extras: ['fournisseur', 'date'] },
+    'permis':             { pre: 'PERMIS',                extras: ['conducteur'] },
+    'courrier':           { pre: 'COURRIER ASSURANCE',    extras: ['date'] },
+    'constat':            { pre: 'CONSTAT',               extras: ['date'] },
+    'sinistre':           { pre: 'RAPPORT SINISTRE',      extras: ['reference', 'date'] },
+    'note-frais':         { pre: 'NOTE DE FRAIS',         extras: ['date'] },
+    'autre':              { pre: 'DOCUMENT',              extras: [] },
+  };
+  let def = T[type] || { pre: 'DOCUMENT', extras: [] };
+  let pre = def.pre;
+  if (type === 'etat-des-lieux') { const s = String(ctx.sens || '').toLowerCase(); pre = /sort|restit|reprise/.test(s) ? 'EDL SORTIE' : /entr|prise|remise|arriv/.test(s) ? 'EDL ENTREE' : 'EDL'; def = { pre, extras: ['date'] }; }
+  if (type === 'facture' && ctx.entretien) { pre = 'FACTURE ENTRETIEN'; def = { pre, extras: ['date', 'fournisseur'] }; }
+  const immat = ctx.immat ? ((FP.immatFmt ? FP.immatFmt(ctx.immat) : String(ctx.immat)).toUpperCase()) : '';
+  const resolve = (k) => {
+    if (k === 'date') return FP._pnDateFichier(ctx.date);
+    if (k === 'numero') return ctx.numero ? String(ctx.numero).replace(/^n[°o]?\s*/i, '').trim() : '';
+    if (k === 'fournisseur') return ctx.fournisseur ? String(ctx.fournisseur).trim() : '';
+    if (k === 'reference') return ctx.reference ? String(ctx.reference).trim() : '';
+    if (k === 'conducteur') return ctx.conducteur ? String(ctx.conducteur).trim() : '';
+    return '';
+  };
+  // Facture SANS immatriculation (facture multi-véhicules) → on ancre sur fournisseur + n° + date (jamais
+  // une immat attribuée arbitrairement).
+  let base = pre;
+  if (immat) base += ' ' + immat;
+  const infos = [];
+  if (!immat && (type === 'facture' || type === 'devis')) { ['fournisseur', 'numero', 'date'].forEach(k => { const v = resolve(k); if (v) infos.push(v); }); }
+  else { def.extras.forEach(k => { const v = resolve(k); if (v) infos.push(v); }); }
+  let name = base + (infos.length ? ' - ' + infos.join(' - ') : '');
+  return FP.sanitizeFilename(name);
+};
+// Télécharge un document AVEC un nom propre (sans toucher au stockage). Récupère le blob (URL signée courte
+// pour un scan Supabase, comme openPdf) puis déclenche un <a download=nom.ext>. Repli : si le fetch échoue
+// (Drive/externe bloqué par CORS), on OUVRE l'onglet (le nom ne peut alors pas être imposé par le navigateur).
+FP.telechargerDoc = async function (url, nomSansExt, opts) {
+  opts = opts || {};
+  const raw = String(url == null ? '' : url).trim();
+  if (!raw) { if (FP.toast) FP.toast('Aucun document à télécharger'); return false; }
+  const ext = (opts.ext || FP.extDoc(raw, 'pdf')).replace(/[^a-z0-9]/gi, '') || 'pdf';
+  const nom = FP.sanitizeFilename(nomSansExt || 'document') + '.' + ext;
+  const toFinal = (u) => /^https?:\/\//.test(u) ? u : ('https://drive.google.com/file/d/' + u + '/view');
+  try {
+    let real = raw;
+    if (FP.signedScanUrl && (/\/scans\//.test(raw) || /\/storage\/v1\/object\//.test(raw))) { try { real = (await FP.signedScanUrl(raw, 600)) || raw; } catch (e) {} }
+    const resp = await fetch(real);
+    if (!resp.ok) throw new Error('http ' + resp.status);
+    const blob = await resp.blob();
+    const bu = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = bu; a.download = nom; document.body.appendChild(a); a.click();
+    setTimeout(() => { try { a.remove(); URL.revokeObjectURL(bu); } catch (e) {} }, 1500);
+    return true;
+  } catch (e) {
+    try { window.open(toFinal(raw), '_blank', 'noopener'); } catch (_) {}
+    if (FP.toast) FP.toast('Téléchargement direct impossible (document externe) — ouvert dans un onglet.');
+    return false;
+  }
+};
 // Aperçu de document INTÉGRÉ (dans un tiroir/modale) avec un SPINNER de chargement BIEN VISIBLE :
 // tant que le PDF/l'image n'est pas affiché, on voit « ⏳ Chargement du document… » ; il disparaît au
 // chargement (onload). Si ça n'a pas chargé après ~15 s, on affiche un repli « ouvrir dans un onglet ».
