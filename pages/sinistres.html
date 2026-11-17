@@ -1959,6 +1959,9 @@
   // Télécharger : lien signé → <a download>.
   async function sinDocDownload(u, name) {
     if (!u) return;
+    // SOURCE UNIQUE : passe par FP.telechargerDoc (blob + extension d'origine + repli onglet). Repli local
+    // historique si le helper n'est pas chargé.
+    if (window.FP && FP.telechargerDoc) { FP.telechargerDoc(u, name || 'document'); return; }
     try { const su = (FP.signedScanUrl && /\/scans\//.test(u)) ? (await FP.signedScanUrl(u)) : u; const a = document.createElement('a'); a.href = su || u; a.download = (name || 'document'); a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
     catch (_) { if (FP.openScan) FP.openScan(u); }
   }
@@ -1988,7 +1991,7 @@
     const d = btn.dataset;
     const pop = document.createElement('div'); pop.id = 'sin-doc-pop'; pop.className = 'sin-doc-pop'; pop.dataset.for = (d.key + '|' + d.kind);
     const items = [];
-    items.push({ ic: 'download', txt: 'Télécharger', fn: () => sinDocDownload(d.url || '', d.name || 'document') });
+    items.push({ ic: 'download', txt: 'Télécharger', fn: () => sinDocDownload(d.url || '', (window.FP && FP.nomFichierDoc) ? FP.nomFichierDoc(d.kind === 'constat' ? 'constat' : 'courrier', { immat: d.immat || '', date: d.sindate || '' }) : (d.name || 'document')) });
     if (d.rescan === '1') items.push({ ic: 'sparkles', txt: 'Relire (IA)', fn: () => rescanCourrier(d.key, d.immat || '', d.url || '', d.sindate || '') });
     items.push({ ic: 'refresh-cw', txt: 'Remplacer', fn: () => openFileFn(d.kind === 'constat' ? 'sin-constat-file' : 'sin-courrier-file', d.key, d.url || '') });
     items.push({ ic: 'trash-2', txt: 'Supprimer', danger: true, fn: () => sinDocDelete(d.key, d.kind, d.url || '') });
