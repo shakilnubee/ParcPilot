@@ -11832,6 +11832,13 @@ FP.affectations = {
     if (!veh || veh.id == null) return null;
     const ch = this._norm(veh.chauffeur);
     if (!ch || ch === '—') return null;
+    // ⚠️ NE JAMAIS auto-créer de période pour un EMPLACEMENT (Dépôt/Siège/Navette) : ce n'est pas un
+    // conducteur mais un ÉTAT PAR DÉFAUT. Créer une période « Dépôt » à chaque AFFICHAGE empilait des
+    // doublons (bug vécu HJ-804-VM : 5 périodes « Dépôt » le même jour) et viole « une lecture ne crée
+    // jamais de période » (consigne utilisateur). On renvoie la période ouverte si elle existe, sinon null —
+    // l'emplacement reste affiché depuis la colonne chauffeur. Les vrais conducteurs (personnes) gardent,
+    // eux, leur période de suivi auto créée ci-dessous.
+    if (FP.estEmplacement && FP.estEmplacement(ch)) return this.courante(veh.id);
     const cur = this.courante(veh.id);
     if (cur) return cur;                                   // une affectation est déjà ouverte
     if (!this._autoOk()) return null;                      // table pas encore lue → on réessaiera au prochain rendu
