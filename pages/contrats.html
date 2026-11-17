@@ -1985,7 +1985,17 @@
       <tr>
         <td class="font-mono font-semibold">${FP.lienVehicule(v.immat)}</td>
         <td>${FP.esc(v.marque)} ${FP.esc(v.modele)}${(cRaw && cRaw.malus) ? ` <span class="text-amber-600 text-xs">· malus ${FP.euro(cRaw.malus)}</span>` : ''}</td>
-        <td>${(v.chauffeur && v.chauffeur !== '—') ? ((FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)) + ` <button type="button" data-veh-cond="${FP.esc(v.immat)}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`) : `<button type="button" data-veh-cond="${FP.esc(v.immat)}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem">+ affecter</button>`}</td>
+        <td>${(() => {
+          // ⚠️ Conducteur RÉEL (personne) → lien vers sa fiche + ✏️ pour changer. EMPLACEMENT (Dépôt/Siège/
+          // Navette) OU vide = « pas de personne affectée » → UN SEUL bouton « affecter » cliquable qui ouvre
+          // DIRECTEMENT l'éditeur. (Avant : l'emplacement « 📍 Dépôt » était un lien vers la fiche emplacement
+          // qui s'ouvrait au clic → impossible d'atteindre l'éditeur du conducteur sur cette ligne.)
+          const estEmpl = FP.estEmplacement && FP.estEmplacement(v.chauffeur);
+          const aPersonne = v.chauffeur && v.chauffeur !== '—' && !estEmpl;
+          if (aPersonne) return (FP.lienChauffeurVeh ? FP.lienChauffeurVeh(v) : FP.lienConducteur(v.chauffeur)) + ` <button type="button" data-veh-cond="${FP.esc(v.immat)}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`;
+          const lbl = estEmpl ? `📍 ${FP.esc(v.chauffeur)} · affecter` : '+ affecter';
+          return `<button type="button" data-veh-cond="${FP.esc(v.immat)}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem" title="Affecter une personne à ce véhicule">${lbl}</button>`;
+        })()}</td>
         <td><span class="cursor-pointer" data-chg-loueur="${escC(v.immat)}" title="Changer de loueur" style="border-bottom:1px dotted #94a3b8">${loueurDeVeh(v)}</span></td>
         <td>${l ? FP.num(l.kmContrat) + ' km' : '<span class="text-slate-400">—</span>'}</td>
         <td>${(() => { const km = l ? FP.num(l.km) + ' km' : (v.km != null ? FP.num(v.km) + ' km' : null); return km ? `<span class="cursor-pointer underline decoration-dotted" data-edit-lease="${FP.esc(v.immat)}" title="Modifier le contrat (km, forfait, dates…)">${km}</span>` : '<span class="text-slate-400">—</span>'; })()}</td>
@@ -4118,15 +4128,16 @@
       const vehHtml = `${escC(c.marque)} ${escC(c.modele)}${c.malus?` <span class="text-amber-600 text-xs">· malus ${FP.euro(c.malus)}</span>`:''}${c.offre?`<div class="text-xs text-slate-400">offre ${escC(c.offre)}</div>`:''}`;
       // PARITÉ BPCE : le nom du conducteur est un LIEN vers sa fiche + un ✏️ pour le changer (avant :
       // simple texte pointillé non cliquable vers la fiche).
-      // ⚠️ SOURCE UNIQUE : contrat lié à un véhicule de la flotte → on affiche le CHAUFFEUR ACTUEL du
-      // véhicule (fiche = leasing), jamais le champ figé du contrat (qui « restait » à Dépôt après un
-      // changement sur la fiche). Hors flotte → repli sur le conducteur saisi sur le contrat.
-      const condLien = (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—')
-        ? (FP.lienChauffeurVeh ? FP.lienChauffeurVeh(linkedV) : FP.lienConducteur(linkedV.chauffeur))
-        : (c.conducteur ? FP.lienConducteur(c.conducteur) : '');
-      const condHtml = condLien
-        ? `${condLien} <button type="button" data-loc-cond="${i}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`
-        : `<button type="button" data-loc-cond="${i}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem">+ affecter</button>`;
+      // ⚠️ SOURCE UNIQUE : contrat lié à un véhicule → conducteur ACTUEL du véhicule (jamais le champ figé du
+      // contrat qui « restait » à Dépôt). Un EMPLACEMENT (Dépôt/Siège/Navette) ou un vide = « pas de personne
+      // affectée » → UN SEUL bouton « affecter » cliquable qui ouvre DIRECTEMENT l'éditeur (ne PAS afficher le
+      // lien « fiche emplacement » qui s'ouvrait au clic et empêchait la réaffectation).
+      const condEff = (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—') ? linkedV.chauffeur : (c.conducteur || '');
+      const condEstEmpl = FP.estEmplacement && FP.estEmplacement(condEff);
+      const condPersonne = condEff && condEff !== '—' && !condEstEmpl;
+      const condHtml = condPersonne
+        ? `${(linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—' && FP.lienChauffeurVeh) ? FP.lienChauffeurVeh(linkedV) : FP.lienConducteur(condEff)} <button type="button" data-loc-cond="${i}" title="Changer le conducteur" style="background:none;border:none;cursor:pointer;color:var(--fp-muted);font-size:12px;vertical-align:1px">✏️</button>`
+        : `<button type="button" data-loc-cond="${i}" class="text-slate-400" style="background:none;border:none;cursor:pointer;text-decoration:underline dotted;font-size:.82rem" title="Affecter une personne à ce véhicule">${condEstEmpl ? '📍 '+escC(condEff)+' · affecter' : '+ affecter'}</button>`;
       const loueurTxt = escC((c.loueur || '').toString().trim() || localeaseLabel());
       const kmTotalHtml = c.kmTotal ? FP.num(c.kmTotal) + ' km' : '<span class="text-slate-400">—</span>';
       const projHtml = proj != null ? '~' + FP.num(proj) + ' km' : '<span class="text-slate-400">—</span>';
