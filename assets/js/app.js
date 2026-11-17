@@ -13736,7 +13736,7 @@ FP.buildAlertes = (data) => {
     if (!_hasRev && !_hasRevKm && _km >= r.intervalle.km) {
       out.push({ niveau: 'danger', categorie: 'Révision',
         message: `Aucune date de révision · ${FP.num(_km)} km`,
-        detail: `${veh} — aucune date de révision enregistrée alors que le véhicule a parcouru ${FP.num(_km)} km (préconisé tous les ${FP.num(r.intervalle.km)} km). Révision à faire, ou à saisir si déjà faite.`,
+        detail: `${veh} — révision prévue à ${FP.num(r.prochaineKm || r.intervalle.km)} km · actuellement ${FP.num(_km)} km · aucune date de révision enregistrée (à faire, ou à saisir si déjà faite).`,
         sort: -100000, target: tgt, muteKey: 'rev|' + v.id + '|norev', vehLabel: veh });
       return;
     }
@@ -13754,7 +13754,14 @@ FP.buildAlertes = (data) => {
     // Statut de suivi (SOURCE UNIQUE FP.revisionStatut) ajouté au message → MÊME info que Entretiens /
     // Tâches / fiche. On n'ajoute rien pour « à prévenir » (c'est déjà le sens de l'alerte).
     try { const _st = FP.revisionStatut ? FP.revisionStatut(v) : null; if (_st && _st.statut !== 'a_prevenir') msg += ' · ' + _st.label; } catch (e) {}
-    const detail = `${veh} — préconisé tous les ${FP.num(r.intervalle.km)} km / ${r.intervalle.mois} mois`;
+    // Km CIBLE EXACT de la prochaine révision (SOURCE UNIQUE FP.revisionInfo.prochaineKm = km de la dernière
+    // révision + intervalle, STABLE — ne dérive PAS avec l'odomètre) + km ACTUEL → l'utilisateur voit tout de
+    // suite « prévue à X · actuellement Y ». AFFICHAGE SEUL : aucun calcul métier modifié. prochaineKm null
+    // (date connue mais km de révision manquant) → on n'invente AUCUNE cible (« à compléter »).
+    const _kmAct = FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || null);
+    const _cibleTxt = (r.prochaineKm != null) ? `révision prévue à ${FP.num(r.prochaineKm)} km` : 'cible km à compléter';
+    const _actTxt = (_kmAct != null && _kmAct > 0) ? `actuellement ${FP.num(_kmAct)} km` : 'km à actualiser';
+    const detail = `${veh} — ${_cibleTxt} · ${_actTxt} · intervalle ${FP.num(r.intervalle.km)} km / ${r.intervalle.mois} mois`;
     const sort = r.kmRestant !== null ? r.kmRestant : r.joursRestant * 100;
     out.push({ niveau: r.niveau, categorie: 'Révision', message: msg, detail, sort, target: tgt, muteKey: 'rev|' + v.id + '|' + (v.derniereRevision || ''), vehLabel: veh });
   });
