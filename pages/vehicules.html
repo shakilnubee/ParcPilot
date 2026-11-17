@@ -4397,7 +4397,13 @@
     $('f-categorie').value  = vehicule?.categorie || 'Citadine';
     $('f-km').value         = vehicule?.km ?? 0;
     $('f-statut').value     = vehicule?.statut || 'actif';
-    $('f-chauffeur').value  = (vehicule?.chauffeur && vehicule.chauffeur !== '—') ? vehicule.chauffeur : '';
+    // Champ Chauffeur : si le conducteur actuel est un EMPLACEMENT (Dépôt/Siège/Navette), on part d'un champ
+    // VIDE, prêt à saisir une PERSONNE — avant, « Dépôt » restait collé dans le champ et empêchait d'affecter
+    // quelqu'un (le picker cherchait « Dépôt »). On mémorise l'emplacement (dataset) : laisser le champ VIDE à
+    // l'enregistrement = GARDER l'emplacement (aucune régression vers « sans conducteur »).
+    { const _ch = vehicule?.chauffeur; const _empl = (_ch && _ch !== '—' && FP.estEmplacement && FP.estEmplacement(_ch)) ? _ch : '';
+      const _inp = $('f-chauffeur'); _inp.value = (_ch && _ch !== '—' && !_empl) ? _ch : ''; _inp.dataset.emplacement = _empl;
+      _inp.placeholder = _empl ? ('Saisir une personne — vide = reste « ' + _empl + ' »') : 'Prénom Nom'; }
     if (typeof syncChauffeurClearBtn === 'function') syncChauffeurClearBtn();
     $('f-ct').value         = vehicule?.prochainCT || '';
     $('f-antipol').value    = (vehicule?.antiPollution && vehicule.antiPollution !== '—') ? vehicule.antiPollution : '';
@@ -4731,7 +4737,7 @@
       categorie: $('f-categorie').value,
       km: km || 0,
       statut: $('f-statut').value,
-      chauffeur: $('f-chauffeur').value.trim() || '—',
+      chauffeur: ($('f-chauffeur').value.trim() || ($('f-chauffeur').dataset.emplacement || '—')),
       prochainCT: ct || '—',
       antiPollution: $('f-antipol').value || '',
       vin: $('f-vin').value.trim().toUpperCase() || '',
