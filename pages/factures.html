@@ -526,6 +526,7 @@
   <div class="p-6 space-y-5" id="drawer-body"></div>
   <div class="p-6 border-t border-slate-200 flex flex-wrap gap-2 sticky bottom-0 bg-white z-10" style="box-shadow:0 -6px 16px -10px rgba(15,30,61,.25)">
     <a class="btn btn-primary text-sm flex-1 justify-center" id="drawer-open-drive" target="_blank" rel="noopener"><i data-lucide="external-link" class="w-4 h-4"></i> Ouvrir le PDF</a>
+    <button type="button" class="btn btn-outline text-sm justify-center" id="drawer-dl" style="display:none" title="Télécharger avec un nom automatique"><i data-lucide="download" class="w-4 h-4"></i> Télécharger</button>
     <button class="btn text-sm text-red-600 hover:bg-red-50 justify-center" id="drawer-delete" title="Supprimer cette facture"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</button>
   </div>
 </aside>
@@ -1012,13 +1013,27 @@
     // de clic puis y charge le lien signé). On ne met un href direct QUE pour un lien Drive/externe.
     const hasFile = f.fileId && !/^IMP-/.test(f.fileId);
     const openBtn = $('drawer-open-drive');
+    const dlBtn = $('drawer-dl');
     if (hasFile){
       openBtn.style.display = '';
       const fid = f.fileId;
       if (/\/scans\//.test(fid)) { openBtn.setAttribute('href', '#'); openBtn.onclick = function (ev) { ev.preventDefault(); if (window.FP && FP.openScan) FP.openScan(fid); else window.open(fid, '_blank', 'noopener'); }; }
       else { openBtn.onclick = null; openBtn.href = /^https?:\/\//.test(fid) ? fid : `https://drive.google.com/file/d/${fid}/view`; }
+      // Téléchargement AVEC NOM AUTOMATIQUE (seulement pour un scan Supabase fetchable ; un lien Drive ne
+      // permet pas d'imposer le nom au navigateur → on masque le bouton dans ce cas).
+      if (dlBtn) {
+        const isScan = /\/scans\//.test(fid) || /\/storage\/v1\/object\//.test(fid);
+        if (isScan && window.FP && FP.telechargerDoc && FP.nomFichierDoc) {
+          dlBtn.style.display = '';
+          const entretien = /pneu|entretien|r[eé]paration|r[eé]vision|vidange|frein|pneumatique/i.test(String(f.type || '') + ' ' + String(f.description || ''));
+          dlBtn.onclick = function () {
+            const nom = FP.nomFichierDoc('facture', { immat: f.vehiculeImmat, date: f.date, numero: f.numeroFacture, fournisseur: f.fournisseur, entretien });
+            FP.telechargerDoc(fid, nom);
+          };
+        } else { dlBtn.onclick = null; dlBtn.style.display = 'none'; }
+      }
     }
-    else { openBtn.onclick = null; openBtn.removeAttribute('href'); openBtn.style.display = 'none'; }
+    else { openBtn.onclick = null; openBtn.removeAttribute('href'); openBtn.style.display = 'none'; if (dlBtn) { dlBtn.onclick = null; dlBtn.style.display = 'none'; } }
     $('drawer').classList.add('open');
     $('drawer-backdrop').classList.add('open');
     (function(){ const dr = $('drawer'); dr.classList.remove('fiche-in'); void dr.offsetWidth; dr.classList.add('fiche-in'); })();
