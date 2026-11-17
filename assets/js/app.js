@@ -9753,13 +9753,16 @@ FP.normNomComplet = (s) => (s || '').toString().trim().toLowerCase().normalize('
 FP.DRIVE_CONDUCTEURS = new Set(["ahmed","akram","ambre","andrea","anna","bram","charles","conu","daniel","david","diana","enguerrand","eugénie","farah","frédéric","fx","gionata","guerric","halim","ilhem","jérémie","jérémy","jimmy","jocelyn","johanna","léopold","lucie","martin","maxime","mégane","mickaël","mona","monsieur","mr","nacim","nawelle","nicolas","pauline","raphaël","romuald","samira","sergio","shakil","shaohui","sofiane","thomas","xavi","yannis","youssouf"]);
 // Étiquettes de chauffeur qui ne sont PAS des personnes
 FP.NON_CHAUFFEURS = ['Siège', 'Navette', 'VENDU', 'x', 'X', 'Fenwick']; // « Dépôt » retiré : c'est un VRAI conducteur (vraie fiche) → compté comme une personne partout.
-// ⚠️ SOURCE UNIQUE — EMPLACEMENTS (lieu de stationnement/état, PAS une personne physique) : « Dépôt »,
-// « Siège », « Navette ». Un véhicule peut être « affecté » à un emplacement comme à un conducteur, mais
-// sans identité de personne (pas de permis, pas de fiche conducteur). `FP.estEmplacement(x)` renvoie une
-// CLÉ CANONIQUE stable ('depot'/'siege'/'navette') ou '' — tolérante accents/casse/suffixe de site
-// (« Dépôt PXP » → 'depot »). À utiliser PARTOUT (leasing, fiche, formulaire, affectations, filtres) pour
-// que « Dépôt » soit interprété de façon IDENTIQUE dans toute l'app (plus de texte libre divergent).
-FP.EMPLACEMENTS = [{ cle: 'depot', label: 'Dépôt' }, { cle: 'siege', label: 'Siège' }, { cle: 'navette', label: 'Navette' }];
+// ⚠️ NOTION D'EMPLACEMENT RETIRÉE (décision utilisateur, 17/11/2026) — « Dépôt », « Siège », « Navette »
+// sont des NOMS DE PROFILS CONDUCTEUR à part entière, PAS des lieux de stationnement. L'ancien
+// comportement (traiter ces noms comme des emplacements D'APRÈS LE TEXTE, via `estEmplacement`) était un
+// BUG : un conducteur nommé « Dépôt » s'affichait « 📍 Dépôt · affecter » (non reconnu) dans Leasing et la
+// fiche, alors que l'affectation existait bien. On NE décide JAMAIS « lieu vs personne » sur le nom.
+// ⇒ `FP.EMPLACEMENTS` est VIDE : `estEmplacement()` renvoie donc toujours '' et TOUS les écrans (fiche,
+// Leasing, liens cliquables, affectations, _cle) traitent ces noms comme des conducteurs normaux, sans
+// aucun cas spécial. Changement d'AFFICHAGE/RÉSOLUTION uniquement : aucune donnée, période ni EDL modifiés.
+// La plomberie (estEmplacement/emplacementLabel/ficheEmplacement) reste en place mais dormante (réversible).
+FP.EMPLACEMENTS = [];
 FP.estEmplacement = (x) => {
   const n = (x == null ? '' : String(x)).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (!n) return '';
