@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Onboarding — Parc Pilot</title>
 <meta name="robots" content="noindex">
@@ -65,7 +65,7 @@
     <button class="tab active" data-tab="interne"><i data-lucide="clipboard-check" class="w-4 h-4"></i> Ma checklist</button>
     <button class="tab" data-tab="client"><i data-lucide="hand-heart" class="w-4 h-4"></i> À remettre au client</button>
     <button class="tab" data-tab="scan"><i data-lucide="scan-line" class="w-4 h-4"></i> Dépose tout</button>
-    <button class="tab" data-tab="mail"><i data-lucide="mail" class="w-4 h-4"></i> Modèle d'e-mail</button>
+    <button class="tab" data-tab="mail"><i data-lucide="mail" class="w-4 h-4"></i> E-mails &amp; modèles</button>
   </div>
 
   <!-- Ma checklist (interne) -->
@@ -115,14 +115,24 @@
   <section class="panel" data-panel="mail">
     <div class="card">
       <div class="card-top">
-        <span class="t">E-mail « formule logiciel seul » — prêt à envoyer</span>
+        <span class="t">E-mails &amp; modèles</span>
         <div class="actions">
+          <button class="btn2" id="mail-reset" title="Remettre le modèle à sa version d'origine"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Réinitialiser</button>
           <button class="btn2 primary" id="mail-copy"><i data-lucide="copy" class="w-4 h-4"></i> Copier le texte</button>
           <button class="btn2" id="mail-open"><i data-lucide="send" class="w-4 h-4"></i> Ouvrir dans ma messagerie</button>
         </div>
       </div>
-      <div class="note">⚡ <b>Automatique</b> : depuis le <b>générateur de devis</b>, clique « 📧 <b>Préparer l'e-mail au client</b> » → cette page s'ouvre avec l'e-mail <b>déjà rempli</b> (société, nombre de véhicules, loyer, mise en place — pile les chiffres du devis). Tu n'as plus qu'à <b>copier-coller et envoyer</b>. Le texte reste modifiable ; « Copier le texte » copie ce que tu vois. <i>(Ouvert directement, il affiche un exemple type à adapter.)</i></div>
+      <div class="note">Choisis un modèle, personnalise-le en quelques secondes, puis <b>Copier</b> ou <b>Ouvre dans ta messagerie</b>. ⚡ Depuis le <b>générateur de devis</b> (« 📧 Préparer l'e-mail au client »), la proposition arrive <b>déjà remplie</b> (société, véhicules, tarifs). Les variables <code>[…]</code> connues sont renseignées automatiquement ; celles qui restent sont <b>signalées</b> (tu peux quand même copier un brouillon).</div>
       <div style="padding:.4rem 1.1rem 1.2rem">
+        <!-- Barre : recherche + sélecteur de modèle -->
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.3rem 0 .6rem">
+          <div style="position:relative;flex:1;min-width:180px">
+            <i data-lucide="search" class="w-4 h-4" style="position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:#94a3b8"></i>
+            <input id="mail-search" type="text" placeholder="Rechercher un modèle (nom ou contenu)…" style="width:100%;border:1px solid var(--fp-border);border-radius:.6rem;padding:.5rem .7rem .5rem 2rem;font-size:.88rem">
+          </div>
+          <select id="mail-model" style="border:1px solid var(--fp-border);border-radius:.6rem;padding:.5rem .7rem;font-size:.88rem;font-weight:600;min-width:220px;max-width:100%"></select>
+        </div>
+        <div id="mail-cats" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.8rem"></div>
         <label style="display:block;font-size:.78rem;font-weight:700;color:#64748b;margin:.6rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Objet de l'e-mail</label>
         <input id="mail-subject" type="text" style="width:100%;border:1px solid var(--fp-border);border-radius:.6rem;padding:.6rem .8rem;font-size:.92rem;font-weight:600" value="Parc Pilot — proposition en logiciel seul">
         <label style="display:block;font-size:.78rem;font-weight:700;color:#64748b;margin:.9rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Message</label>
@@ -162,6 +172,8 @@ Je reste disponible si tu as des questions.
 Bien à toi,
 Shakil Nubeebaccus
 Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
+        <div id="mail-missing" style="font-size:.82rem;margin-top:.55rem"></div>
+        <div id="mail-attach" style="margin-top:.9rem"></div>
         <div id="mail-status" style="font-size:.82rem;font-weight:700;color:#059669;margin-top:.5rem;min-height:1.1rem"></div>
       </div>
     </div>
@@ -185,13 +197,180 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   }
   window.printFrame = printFrame;
 
-  // Modèle d'e-mail : copier le texte / ouvrir dans la messagerie
+  // ===================== E-mails & modèles — bibliothèque (Lot 1) =====================
   var mailBody = document.getElementById('mail-body');
   var mailSubject = document.getElementById('mail-subject');
   var mailStatus = document.getElementById('mail-status');
-  function flashMail(msg){ if(mailStatus){ mailStatus.textContent = msg; setTimeout(function(){ mailStatus.textContent=''; }, 3000); } }
+  var mailMissing = document.getElementById('mail-missing');
+  var mailAttachBox = document.getElementById('mail-attach');
+  var mailModel = document.getElementById('mail-model');
+  var mailCats = document.getElementById('mail-cats');
+  var mailSearch = document.getElementById('mail-search');
+  function flashMail(msg){ if(mailStatus){ mailStatus.textContent = msg; setTimeout(function(){ if(mailStatus) mailStatus.textContent=''; }, 3500); } }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  var SIGN_TXT = "Shakil Nubeebaccus\nParc Pilot — jis.nubee@gmail.com · 06 61 77 97 53";
+  var SIGN = "\n\nBien à toi,\n" + SIGN_TXT;
+
+  // Pièces jointes RÉELLEMENT présentes dans le projet — ne JAMAIS inventer un fichier.
+  var FILES = {
+    brochure:    { label:"Brochure Parc Pilot",             url:"presentation/Parc-Pilot-Brochure.pdf" },
+    ficheClient: { label:"Fiche « À remettre au client »",  url:"presentation/Parc-Pilot-Checklist-Client.pdf" }
+  };
+
+  var CATS = [
+    { id:"prospection", label:"Prospection" },
+    { id:"proposition", label:"Propositions" },
+    { id:"onboarding",  label:"Onboarding" },
+    { id:"relation",    label:"Relation client" },
+    { id:"comm",        label:"Communications" }
+  ];
+
+  // Modèles intégrés. [Token] = variable remplie quand la donnée existe. devis:"logiciel"|"delegue" = rempli par le devis.
+  var TEMPLATES = [
+    { id:"prospect-1", cat:"prospection", name:"Premier contact prospect", attach:["brochure"],
+      subject:"Simplifiez la gestion de votre flotte automobile",
+      body:"Bonjour [Prénom],\n\nJe me permets de vous contacter car votre entreprise dispose d'une flotte de véhicules.\n\nEntre les contrôles techniques, les révisions, les contrats de leasing, les sinistres et les documents administratifs, le suivi d'un parc automobile peut rapidement devenir chronophage.\n\nJ'ai développé Parc Pilot, un logiciel qui centralise les informations de votre flotte, suit les échéances importantes et facilite le travail de vos équipes au quotidien.\n\nL'objectif est simple : vous permettre de garder une vision claire de votre parc, sans multiplier les fichiers Excel et les rappels manuels.\n\nJe serais ravi de vous présenter la solution lors d'un échange de 15 minutes. Je peux également vous proposer un premier audit gratuit et sans engagement de votre organisation actuelle.\n\nSeriez-vous disponible cette semaine ou la prochaine ?" + SIGN },
+    { id:"prospect-2", cat:"prospection", name:"Relance prospect",
+      subject:"Suite à mon message — gestion de votre flotte",
+      body:"Bonjour [Prénom],\n\nJe me permets de revenir vers vous concernant Parc Pilot.\n\nNotre solution permet de centraliser les informations de votre flotte, d'anticiper les échéances et de simplifier le suivi des véhicules, contrats et dépenses.\n\nSi le sujet vous intéresse, je serais ravi de vous présenter son fonctionnement lors d'un court échange.\n\nSeriez-vous disponible prochainement ?" + SIGN },
+    { id:"prospect-3", cat:"prospection", name:"Proposition de démonstration",
+      subject:"Parc Pilot — proposition de démonstration",
+      body:"Bonjour [Prénom],\n\nSuite à notre échange, je vous propose une démonstration de Parc Pilot adaptée à votre flotte de [Nombre de véhicules].\n\nEn une vingtaine de minutes, nous pourrons découvrir le suivi des échéances, les fiches véhicules, les contrats, les sinistres et les outils de pilotage.\n\nVoici mes disponibilités : [Créneaux].\n\nQuel créneau vous conviendrait ?" + SIGN },
+    { id:"prop-logiciel", cat:"proposition", name:"Proposition — logiciel seul", devis:"logiciel", attach:["brochure"],
+      subject:"Parc Pilot — proposition en logiciel seul",
+      body:"Bonjour [Prénom],\n\nSuite à nos derniers échanges, j'ai adapté ma proposition à ton souhait de disposer de Parc Pilot en logiciel seul, tout en conservant la gestion quotidienne de la flotte en interne.\n\nJe peux ainsi te proposer :\n\n• Logiciel Parc Pilot : [Abonnement mensuel] pour [Nombre de véhicules]\n• Engagement de [Durée d'engagement]\n• Mise en place initiale : [Montant de mise en place], facturée une seule fois\n• Un accès gestionnaire inclus\n• TVA non applicable – art. 293 B du CGI\n\nL'abonnement donne accès à l'ensemble des fonctionnalités de Parc Pilot : véhicules et conducteurs, documents, échéances et alertes, entretiens, contrats, amendes, sinistres, coûts et TCO, budgets, kilométrages, portail conducteur, QR codes, tableaux de bord, etc.\n\nDans cette formule, la gestion opérationnelle reste assurée par vos équipes.\n\nJe reste disponible si tu as des questions." + SIGN },
+    { id:"prop-delegue", cat:"proposition", name:"Proposition — logiciel + gestion externalisée", devis:"delegue", attach:["brochure"],
+      subject:"Proposition Parc Pilot & JIS Office Partner",
+      body:"Bonjour [Prénom],\n\nSuite à nos échanges, je vous propose une solution associant le logiciel Parc Pilot et un accompagnement opérationnel assuré par JIS Office Partner.\n\nParc Pilot permet de centraliser les informations de votre flotte et de suivre vos véhicules, documents, contrats, échéances, sinistres et coûts.\n\nEn complément, JIS Office Partner peut prendre en charge certaines missions administratives et opérationnelles, selon vos besoins et le périmètre convenu ensemble.\n\nCette organisation vous permet de conserver une visibilité sur votre parc tout en réduisant le temps consacré à sa gestion.\n\nVous trouverez ci-joint notre proposition personnalisée pour [Nombre de véhicules].\n\nJe reste disponible pour en discuter." + SIGN },
+    { id:"devis-envoi", cat:"proposition", name:"Envoi de devis",
+      subject:"Votre proposition Parc Pilot — [Société]",
+      body:"Bonjour [Prénom],\n\nComme convenu, vous trouverez ci-joint notre proposition pour la mise en place de Parc Pilot au sein de [Société].\n\nElle reprend le périmètre retenu, les conditions financières et les modalités de démarrage.\n\nJe reste disponible si vous souhaitez ajuster certains éléments." + SIGN },
+    { id:"devis-relance", cat:"proposition", name:"Relance de devis",
+      subject:"Votre proposition Parc Pilot — [Société]",
+      body:"Bonjour [Prénom],\n\nJe reviens vers vous concernant la proposition Parc Pilot transmise le [Date du devis].\n\nAvez-vous eu l'occasion d'en prendre connaissance ?\n\nJe reste disponible pour répondre à vos questions ou adapter certains points à vos besoins." + SIGN },
+    { id:"ob-bienvenue", cat:"onboarding", name:"Bienvenue & confirmation de collaboration",
+      subject:"Bienvenue chez Parc Pilot — prochaines étapes",
+      body:"Bonjour [Prénom],\n\nMerci pour votre confiance et bienvenue chez Parc Pilot !\n\nNous allons maintenant préparer votre espace afin de mettre en place le suivi de votre flotte dans les meilleures conditions.\n\nLes prochaines étapes seront la collecte des informations disponibles, le paramétrage de votre espace et la présentation de son fonctionnement à vos équipes.\n\nJe vous transmettrai les éléments nécessaires au démarrage.\n\nÀ très bientôt," + SIGN },
+    { id:"ob-docs", cat:"onboarding", name:"Demande de documents avant intégration", attach:["ficheClient"],
+      subject:"Parc Pilot — documents nécessaires à la préparation de votre flotte",
+      body:"Bonjour [Prénom],\n\nAfin de préparer votre espace Parc Pilot, je vous transmets en pièce jointe notre fiche récapitulative des documents utiles.\n\nElle présente notamment les cartes grises, les informations sur les véhicules, les conducteurs, les assurances et les cartes carburant.\n\nVous pouvez nous transmettre uniquement les documents déjà disponibles. Les informations manquantes pourront être complétées progressivement.\n\nJe reste disponible si vous avez des questions." + SIGN },
+    { id:"ob-docs-relance", cat:"onboarding", name:"Relance des documents manquants",
+      subject:"Parc Pilot — suivi des documents de votre flotte",
+      body:"Bonjour [Prénom],\n\nJe reviens vers vous concernant les documents nécessaires à la configuration de votre espace Parc Pilot.\n\nNous avons bien reçu les premiers éléments et je vous remercie.\n\nIl nous manque encore les informations suivantes :\n[Documents manquants]\n\nVous pouvez nous les transmettre au fur et à mesure, sans attendre d'avoir constitué un dossier complet.\n\nMerci par avance." + SIGN },
+    { id:"ob-pret", cat:"onboarding", name:"Espace client prêt",
+      subject:"Votre espace Parc Pilot est prêt",
+      body:"Bonjour [Prénom],\n\nVotre espace Parc Pilot est désormais configuré et prêt à être utilisé.\n\nVous pourrez y retrouver les informations de votre flotte, les documents intégrés et les outils de suivi prévus dans votre offre.\n\nVotre accès : [Lien sécurisé]\n\nJe vous propose un échange de prise en main pour vous présenter les principales fonctionnalités et répondre à vos questions." + SIGN },
+    { id:"rel-satisfaction", cat:"relation", name:"Suivi de satisfaction",
+      subject:"Parc Pilot — faisons un point sur votre utilisation",
+      body:"Bonjour [Prénom],\n\nCela fait maintenant [Durée d'engagement] que vous utilisez Parc Pilot et je souhaitais faire un point avec vous.\n\nLe logiciel répond-il à vos attentes ? Certaines tâches restent-elles difficiles ou chronophages ?\n\nVos retours nous permettront d'identifier les améliorations les plus utiles à votre organisation.\n\nJe reste également disponible si vous souhaitez étudier un accompagnement complémentaire avec JIS Office Partner." + SIGN }
+  ];
+
+  // Données issues du devis (si on arrive via « Préparer l'e-mail au client ») — servent à TOUTES les variables.
+  var devisData = null;
+  var curTplId = null;
+  var state = { cat:"all", q:"" };
+
+  function fmtEur(n){ return Math.round(+n||0).toLocaleString('fr-FR'); }
+  function todayFr(){ try { return new Date().toLocaleDateString('fr-FR'); } catch(e){ return ''; } }
+  function dureeTxt(m){ m = parseInt(m,10)||0; if(!m) return ''; if(m===12) return '1 an'; if(m%12===0) return (m/12)+' ans'; return m+' mois'; }
+  function tplById(id){ for(var i=0;i<TEMPLATES.length;i++) if(TEMPLATES[i].id===id) return TEMPLATES[i]; return null; }
+  function catLabel(id){ for(var i=0;i<CATS.length;i++) if(CATS[i].id===id) return CATS[i].label; return id; }
+
+  // Remplace les [Token] par leur valeur quand elle existe ; sinon on LAISSE le token (il sera signalé).
+  function fillVars(str){
+    if (str == null) return '';
+    var d = devisData || {};
+    var veh = (d.veh!=null && d.veh!=='') ? (d.veh + ' véhicule' + ((+d.veh>1)?'s':'')) : '';
+    var map = {
+      "[Prénom]": d.prenom, "[Nom]": d.nom, "[Société]": d.soc,
+      "[Nombre de véhicules]": veh,
+      "[Abonnement mensuel]": (d.mensuel!=null && d.mensuel!=='') ? (fmtEur(d.mensuel)+' € / mois') : '',
+      "[Montant de mise en place]": (d.mes!=null && d.mes!=='') ? (fmtEur(d.mes)+' €') : '',
+      "[Durée d'engagement]": dureeTxt(d.duree),
+      "[Date]": todayFr(),
+      "[Signature]": SIGN_TXT
+    };
+    return str.replace(/\[[^\]]+\]/g, function(tok){
+      var v = map[tok];
+      return (v!=null && String(v).trim()!=='') ? v : tok;
+    });
+  }
+
+  function missingTokens(){
+    var txt = (mailSubject?mailSubject.value:'') + '\n' + (mailBody?mailBody.value:'');
+    var found = txt.match(/\[[^\]]+\]/g) || [];
+    var uniq = []; found.forEach(function(t){ if(uniq.indexOf(t)===-1) uniq.push(t); });
+    return uniq;
+  }
+  function renderMissing(){
+    if(!mailMissing) return;
+    var m = missingTokens();
+    if(!m.length){ mailMissing.innerHTML = '<span style="color:#059669;font-weight:700">✓ Toutes les variables sont renseignées.</span>'; return; }
+    mailMissing.innerHTML = '<span style="color:#b45309;font-weight:700">⚠️ À compléter :</span> '
+      + m.map(function(t){ return '<code style="background:#FEF3C7;color:#92400e;border-radius:4px;padding:1px 6px;font-weight:700">'+esc(t)+'</code>'; }).join(' ');
+  }
+
+  function renderAttach(tpl){
+    if(!mailAttachBox) return;
+    var keys = (tpl && tpl.attach) || [];
+    if(!keys.length){ mailAttachBox.innerHTML = '<div style="font-size:.78rem;color:#94a3b8">Aucune pièce jointe suggérée pour ce modèle.</div>'; return; }
+    var links = keys.map(function(k){ var f=FILES[k]; if(!f) return ''; return '<a class="btn2" href="'+esc(f.url)+'" download style="font-size:.82rem"><i data-lucide="download" class="w-4 h-4"></i> '+esc(f.label)+'</a>'; }).filter(Boolean).join('');
+    mailAttachBox.innerHTML = '<div style="font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem">Pièces jointes suggérées</div>'
+      + '<div style="display:flex;gap:.45rem;flex-wrap:wrap">'+links+'</div>'
+      + '<div style="font-size:.78rem;color:#64748b;margin-top:.45rem">💡 L\'ouverture dans Gmail <b>ne joint pas</b> les fichiers automatiquement : télécharge-les ici puis glisse-les dans ton e-mail.</div>';
+    if(window.lucide) try{ lucide.createIcons(); }catch(e){}
+  }
+
+  function selectTpl(id){
+    var tpl = tplById(id); if(!tpl) return;
+    curTplId = id;
+    if (mailModel) mailModel.value = id;
+    if (tpl.devis && devisData){
+      var mail = buildProposalEmail({ formule:(tpl.devis==='logiciel'?'logiciel':'delegue'), prenom:devisData.prenom, soc:devisData.soc, veh:devisData.veh, mensuel:devisData.mensuel, mes:devisData.mes });
+      if(mailSubject) mailSubject.value = mail.subject;
+      if(mailBody) mailBody.value = mail.body;
+    } else {
+      if(mailSubject) mailSubject.value = fillVars(tpl.subject);
+      if(mailBody) mailBody.value = fillVars(tpl.body);
+    }
+    window.__mailTo = (devisData && devisData.mail) || '';
+    renderAttach(tpl); renderMissing();
+  }
+
+  function filtered(){
+    var q = state.q.trim().toLowerCase();
+    return TEMPLATES.filter(function(t){
+      if(state.cat!=='all' && t.cat!==state.cat) return false;
+      if(q){ var hay=(t.name+' '+t.subject+' '+t.body).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+      return true;
+    });
+  }
+  function renderModelOptions(){
+    if(!mailModel) return;
+    var list = filtered();
+    if(!list.length){ mailModel.innerHTML = '<option value="">— Aucun modèle —</option>'; if(mailBody) mailBody.value=''; if(mailSubject) mailSubject.value=''; renderMissing(); renderAttach(null); return; }
+    mailModel.innerHTML = list.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(catLabel(t.cat)+' · '+t.name)+'</option>'; }).join('');
+    if(curTplId && list.some(function(t){return t.id===curTplId;})) mailModel.value = curTplId;
+    else selectTpl(list[0].id);
+  }
+  function renderCats(){
+    if(!mailCats) return;
+    var cats = [{id:'all',label:'Tous'}].concat(CATS);
+    mailCats.innerHTML = cats.map(function(c){
+      var on = (state.cat===c.id);
+      return '<button type="button" data-cat="'+esc(c.id)+'" style="border:1px solid '+(on?'#0B1220':'var(--fp-border)')+';background:'+(on?'#0B1220':'#fff')+';color:'+(on?'#fff':'#334155')+';border-radius:999px;padding:.3rem .75rem;font-size:.8rem;font-weight:700;cursor:pointer">'+esc(c.label)+'</button>';
+    }).join('');
+    mailCats.querySelectorAll('[data-cat]').forEach(function(b){ b.addEventListener('click', function(){ state.cat=b.getAttribute('data-cat'); renderCats(); renderModelOptions(); }); });
+  }
+
+  function confirmIfMissing(action){
+    var m = missingTokens();
+    if(m.length){ return confirm('Des variables ne sont pas remplies : ' + m.join(', ') + '.\n\n' + action + ' quand même (brouillon) ?'); }
+    return true;
+  }
   var copyBtn = document.getElementById('mail-copy');
   if (copyBtn) copyBtn.addEventListener('click', function(){
+    if(!confirmIfMissing('Copier')) return;
     var txt = mailBody ? mailBody.value : '';
     function done(){ flashMail('✓ E-mail copié — colle-le dans ta messagerie.'); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -200,16 +379,22 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   });
   var openBtn = document.getElementById('mail-open');
   if (openBtn) openBtn.addEventListener('click', function(){
+    if(!confirmIfMissing('Ouvrir la messagerie')) return;
     var subj = mailSubject ? mailSubject.value : '';
     var body = mailBody ? mailBody.value : '';
     var to = (window.__mailTo || '');
     window.location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
   });
+  var resetBtn = document.getElementById('mail-reset');
+  if (resetBtn) resetBtn.addEventListener('click', function(){ if(curTplId){ selectTpl(curTplId); flashMail('↺ Modèle réinitialisé.'); } });
+  if (mailSearch) mailSearch.addEventListener('input', function(){ state.q = mailSearch.value||''; renderModelOptions(); });
+  if (mailModel) mailModel.addEventListener('change', function(){ if(mailModel.value) selectTpl(mailModel.value); });
+  if (mailBody) mailBody.addEventListener('input', renderMissing);
+  if (mailSubject) mailSubject.addEventListener('input', renderMissing);
+  renderCats(); renderModelOptions();
 
-  // ===== Remplissage AUTOMATIQUE de l'e-mail depuis le devis =====
-  function fmtEur(n){ return Math.round(+n||0).toLocaleString('fr-FR'); }
-  var SIGN = '\n\nBien à toi,\nShakil Nubeebaccus\nParc Pilot — jis.nubee@gmail.com · 06 61 77 97 53';
-  // Construit l'e-mail (objet + corps) à partir des chiffres du devis. Formule logiciel OU gestion déléguée.
+  // ===== Construction de la proposition commerciale à partir des chiffres du devis (INCHANGÉ) =====
+  // (fmtEur et SIGN sont définis plus haut dans la bibliothèque.) Formule logiciel OU gestion déléguée.
   function buildProposalEmail(d){
     var prenom = (d.prenom||'').trim();
     var hello = 'Bonjour' + (prenom ? ' ' + prenom : '') + ',';
@@ -268,10 +453,9 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
       var d = null; try { d = JSON.parse(raw); } catch(e){}
       try { localStorage.removeItem('pp_devis_to_mail'); } catch(e){}
       if (d){
-        var mail = buildProposalEmail(d);
-        if (mailSubject) mailSubject.value = mail.subject;
-        if (mailBody) mailBody.value = mail.body;
-        window.__mailTo = (d.mail||'');
+        devisData = d;                                   // disponible pour TOUS les modèles (variables auto)
+        state.cat = 'all'; renderCats(); renderModelOptions();
+        selectTpl(d.formule === 'logiciel' ? 'prop-logiciel' : 'prop-delegue');
         flashMail('✓ E-mail rempli automatiquement depuis ton devis' + (d.soc ? ' — ' + d.soc : '') + '.');
         wantMailTab = true;
       }
