@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Scanner IA — Parc Pilot</title>
@@ -32,6 +32,33 @@
   @keyframes scind { 0%{left:-40%} 100%{left:100%} }
   @media (prefers-reduced-motion: reduce){ .sc-ind::after { animation:none; left:0; width:100%; } }
   .sc-retry { font:inherit; font-weight:700; font-size:.76rem; color:var(--fp-accent); background:none; border:none; cursor:pointer; text-decoration:underline; padding:0; }
+  /* Lot 2 — revue mono-fichier : document à gauche / formulaire à droite */
+  .sc-rev { display:grid; grid-template-columns:1.05fr .95fr; gap:14px; align-items:start; }
+  .panel-like { background:#fff; border:1px solid var(--fp-border); border-radius:1rem; overflow:hidden; }
+  .sc-rev-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:.6rem .8rem; border-bottom:1px solid var(--fp-border); }
+  .sc-rev-t { font-weight:800; color:var(--fp-primary); }
+  .sc-fname2 { font-size:.76rem; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .sc-tools { display:flex; align-items:center; gap:5px; margin-left:auto; }
+  .sc-tool { width:32px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--fp-border); background:#fff; border-radius:7px; cursor:pointer; font-size:14px; font-weight:700; color:var(--fp-primary); }
+  .sc-tool:hover { border-color:var(--fp-accent); color:var(--fp-accent); }
+  .sc-zval { font-size:.74rem; color:#64748b; min-width:40px; text-align:center; font-variant-numeric:tabular-nums; }
+  .sc-stage { background:#eef2f7; max-height:520px; min-height:300px; overflow:auto; display:grid; place-items:center; padding:14px; }
+  .sc-stage.pdf { padding:0; }
+  .sc-docel { transform-origin:center center; transition:transform .18s ease; max-width:100%; border-radius:6px; }
+  img.sc-docel { max-height:480px; box-shadow:0 8px 22px rgba(15,30,61,.14); }
+  .sc-docpdf { width:100%; height:500px; border:0; display:block; }
+  @media (prefers-reduced-motion:reduce){ .sc-docel { transition:none; } }
+  .sc-rev-formbody { padding:1rem; }
+  .sc-rev-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:.8rem; }
+  .sc-rev-tabs { display:none; gap:8px; margin-bottom:12px; }
+  .sc-rev-tab { flex:1; border:1px solid var(--fp-border); background:#fff; color:#64748b; border-radius:10px; padding:9px; font:inherit; font-weight:800; cursor:pointer; }
+  .sc-rev-tab.on { background:var(--fp-primary); color:#fff; border-color:var(--fp-primary); }
+  @media (max-width:860px){
+    .sc-rev { grid-template-columns:1fr; }
+    .sc-rev-tabs { display:flex; }
+    .sc-rev-doc[hidden], .sc-rev-form[hidden] { display:none; }
+    .sc-stage { max-height:44vh; }
+  }
   .steps { display:flex; gap:.5rem; margin:1rem 0; }
   .step { flex:1; text-align:center; font-size:.78rem; font-weight:700; color:#94a3b8; padding:.5rem; border-radius:.6rem; background:#F1F5F9; }
   .step.on { background:var(--fp-primary); color:#fff; }
@@ -240,35 +267,35 @@
   function renderValidation(model){
     var schema = FP2.schemaFor(model.type_document); if(!schema){ $('sc-result').innerHTML='<p class="text-sm text-red-600">Type non pris en charge en Phase 1.</p>'; return; }
     var qual = model.qualite_document||''; var qualBadge = qual==='insuffisante' ? '<span class="conf faible">qualité insuffisante</span>' : qual==='moyenne' ? '<span class="conf moyen">qualité moyenne</span>' : '<span class="conf eleve">qualité correcte</span>';
-    var html = '<div class="card p-5" style="background:#fff;border:1px solid var(--fp-border);border-radius:1rem">';
-    html += '<div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="font-extrabold text-lg" style="color:var(--fp-primary)">'+esc(schema.label)+'</div><div class="flex items-center gap-2">'+qualBadge+(model.nouveau_scan_recommande?' <span class="conf faible">nouveau scan conseillé</span>':'')+'</div></div>';
 
-    // 📄 APERÇU du document scanné À CÔTÉ des champs → l'utilisateur VÉRIFIE ce qui est écrit au lieu de
-    // deviner (règle maître « lire, pas deviner »). Repliable (vrai toggle). Source = le fichier choisi (_file).
+    // ===== COLONNE GAUCHE : le document original (aperçu + zoom/rotation pour les images) =====
+    var _isImg=false, _isPdf=false, docHtml='';
     try {
       if (_file) {
         if (_docPreviewUrl) { try { URL.revokeObjectURL(_docPreviewUrl); } catch(e){} }
         _docPreviewUrl = URL.createObjectURL(_file);
-        var _isImg = /^image\//.test(_file.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(_file.name || '');
-        var _isPdf = /pdf/i.test(_file.type || '') || /\.pdf$/i.test(_file.name || '');
-        var _inner = _isImg
-          ? '<img src="'+_docPreviewUrl+'" alt="Document scanné" style="max-width:100%;max-height:360px;border-radius:8px;border:1px solid var(--fp-border)">'
-          : (_isPdf ? '<iframe src="'+_docPreviewUrl+'" title="Document scanné" style="width:100%;height:420px;border:1px solid var(--fp-border);border-radius:8px"></iframe>'
+        _isImg = /^image\//.test(_file.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(_file.name || '');
+        _isPdf = /pdf/i.test(_file.type || '') || /\.pdf$/i.test(_file.name || '');
+        var viewer = _isImg
+          ? '<img id="sc-docel" src="'+_docPreviewUrl+'" alt="Document scanné" class="sc-docel">'
+          : (_isPdf ? '<iframe id="sc-docel" src="'+_docPreviewUrl+'" title="Document scanné" class="sc-docpdf"></iframe>'
                     : '<a href="'+_docPreviewUrl+'" target="_blank" rel="noopener" class="btn btn-outline text-sm"><i data-lucide="file" class="w-4 h-4"></i> Ouvrir le document</a>');
-        html += '<details class="mb-3" open><summary style="cursor:pointer;font-weight:600;color:var(--fp-primary);user-select:none">📄 Document scanné (vérifie les champs ci-dessous)</summary><div style="margin-top:.5rem">'+_inner+'</div></details>';
+        var tools = _isImg ? ('<span class="sc-tools"><button type="button" class="sc-tool" data-z="out" title="Dézoomer">−</button><span class="sc-zval" id="sc-zval">100 %</span><button type="button" class="sc-tool" data-z="in" title="Zoomer">+</button><button type="button" class="sc-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="sc-tool" data-z="fit" title="Ajuster">⤢</button></span>') : '';
+        docHtml = '<div class="sc-rev-doc panel-like" data-col="doc">'
+          + '<div class="sc-rev-toolbar"><span class="sc-rev-t">📄 Document</span><span class="sc-fname2">'+esc(_file.name||'document')+'</span>'+tools+'</div>'
+          + '<div class="sc-stage'+(_isImg?'':' pdf')+'">'+viewer+'</div></div>';
       }
     } catch(e){}
+    if(!docHtml) docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="sc-stage"><p class="text-sm text-slate-400">Aperçu du document indisponible.</p></div></div>';
 
-    // ⚠️ Document non téléversé (stockage indispo / réseau) : on le DIT clairement — les infos lues
-    //    seront bien enregistrées, mais le fichier lui-même ne sera PAS joint tant qu'on ne réessaie pas.
-    if(model._uploadFailed){ html += '<div class="anom elevee" style="margin-bottom:.75rem"><b>⚠️ Le fichier n\'a pas pu être stocké</b> — les informations lues ci-dessous seront enregistrées, mais le document (PDF/photo) ne sera PAS joint. Vérifie ta connexion et re-scanne si tu veux garder le fichier.</div>'; }
-
-    // Anomalies
+    // ===== COLONNE DROITE : le formulaire assisté =====
+    var form = '<div class="sc-rev-head"><span class="font-extrabold text-lg" style="color:var(--fp-primary)">'+esc(schema.label)+'</span><span class="flex items-center gap-2">'+qualBadge+(model.nouveau_scan_recommande?' <span class="conf faible">nouveau scan conseillé</span>':'')+'</span></div>';
+    if(model._uploadFailed){ form += '<div class="anom elevee" style="margin-bottom:.75rem"><b>⚠️ Le fichier n\'a pas pu être stocké</b> — les informations lues ci-dessous seront enregistrées, mais le document (PDF/photo) ne sera PAS joint. Vérifie ta connexion et re-scanne si tu veux garder le fichier.</div>'; }
     var anoms = (model.anomalies||[]).filter(Boolean);
-    if(anoms.length){ html += '<div class="mb-3">'; anoms.forEach(function(a){ var g=(a.gravite||'moyenne'); html += '<div class="anom '+esc(g)+'"><b>⚠️ '+esc(a.type||'anomalie')+'</b> — '+esc(a.description||'')+'</div>'; }); html += '</div>'; }
+    if(anoms.length){ form += '<div class="mb-3">'; anoms.forEach(function(a){ var g=(a.gravite||'moyenne'); form += '<div class="anom '+esc(g)+'"><b>⚠️ '+esc(a.type||'anomalie')+'</b> — '+esc(a.description||'')+'</div>'; }); form += '</div>'; }
 
-    // Champs (dans l'ordre du schéma) — surlignage selon confiance
-    html += '<div class="grid sm:grid-cols-2 gap-3">';
+    // Champs (dans l'ordre du schéma) — surlignage selon confiance (logique INCHANGÉE)
+    form += '<div class="grid sm:grid-cols-2 gap-3">';
     schema.champs.forEach(function(c){
       var key=c[0], libelle=c[1]; var ch = FP2.champ(model, key);
       var v = ch ? (ch.valeur_normalisee!=null&&ch.valeur_normalisee!==''?ch.valeur_normalisee:ch.valeur_originale) : '';
@@ -276,35 +303,46 @@
       var hasVal = !(v===''||v==null);
       var conf = ch ? (ch.niveau_confiance||'') : '';
       var need = !!(ch && ch.verification_humaine_requise);
-      // ⚠️ Un champ VIDE (absent du document) reste NEUTRE — pas de rouge « incertain ». Avant, un champ
-      // vide était surligné rouge (ex. VIN ou Acompte sur une facture d'entretien qui n'en ont pas) → ça
-      // faisait croire qu'il fallait le remplir. Rouge/orange UNIQUEMENT si une valeur lue est incertaine.
       var cls = !hasVal ? '' : ((conf==='faible'||need) ? 'low' : (conf==='moyen' ? 'warn' : ''));
       var multiline = (key==='description'||key==='mentionsZ'||key==='garanties'||key==='motif');
-      // Dates : si la valeur lue est une date ISO (AAAA-MM-JJ), on affiche un vrai sélecteur de date
-      // (type=date) → s'affiche au format JJ/MM/AAAA (comme partout ailleurs), et la valeur reste ISO à l'enregistrement.
       var isISODate = /^\d{4}-\d{2}-\d{2}$/.test(String(v==null?'':v));
       var input = multiline ? '<textarea rows="2" data-k="'+key+'">'+esc(v==null?'':v)+'</textarea>'
         : (isISODate ? '<input type="date" data-k="'+key+'" value="'+esc(v)+'">' : '<input type="text" data-k="'+key+'" value="'+esc(v==null?'':v)+'">');
       var confPill = (hasVal && conf) ? '<span class="conf '+esc(conf)+'">'+esc(conf)+'</span>' : '';
       var metaBits = []; if(ch&&ch.page) metaBits.push('p.'+ch.page); if(ch&&ch.libelle_document) metaBits.push('« '+ch.libelle_document+' »');
-      html += '<div class="fld '+cls+'"><label>'+esc(libelle)+' '+confPill+'</label>'+input+(metaBits.length?'<div class="meta">'+esc(metaBits.join(' · '))+'</div>':'')+'</div>';
+      form += '<div class="fld '+cls+'"><label>'+esc(libelle)+' '+confPill+'</label>'+input+(metaBits.length?'<div class="meta">'+esc(metaBits.join(' · '))+'</div>':'')+'</div>';
     });
-    html += '</div>';
-
-    // Champs manquants importants
+    form += '</div>';
     var miss = (model.champs_manquants||[]).filter(function(m){return m&&(m.importance==='élevée'||m.importance==='elevee');});
-    if(miss.length){ html += '<p class="text-xs text-amber-700 mt-3">Champs importants manquants : '+esc(miss.map(function(m){return m.champ;}).join(', '))+'.</p>'; }
+    if(miss.length){ form += '<p class="text-xs text-amber-700 mt-3">Champs importants manquants : '+esc(miss.map(function(m){return m.champ;}).join(', '))+'.</p>'; }
+    form += '<div class="flex gap-2 mt-4"><button id="sc-save" class="btn btn-dark"><i data-lucide="check" class="w-4 h-4"></i> Confirmer &amp; enregistrer</button><button id="sc-cancel" class="btn btn-outline">Annuler</button></div>';
+    form += '<p class="text-xs text-slate-400 mt-2">Compare avec le document à gauche. Jaune = à confirmer, rouge = incertain. Rien n\'est enregistré tant que tu n\'as pas cliqué sur « Confirmer ».</p>';
+    var formHtml = '<div class="sc-rev-form panel-like" data-col="form"><div class="sc-rev-formbody">'+form+'</div></div>';
 
-    html += '<div class="flex gap-2 mt-4"><button id="sc-save" class="btn btn-dark"><i data-lucide="check" class="w-4 h-4"></i> Confirmer &amp; enregistrer</button><button id="sc-cancel" class="btn btn-outline">Annuler</button></div>';
-    html += '<p class="text-xs text-slate-400 mt-2">Vérifie surtout les champs surlignés (jaune = à confirmer, rouge = incertain). Rien n\'est enregistré tant que tu n\'as pas cliqué sur « Confirmer ».</p>';
-    html += '</div>';
-    $('sc-result').innerHTML = html;
+    var tabs = '<div class="sc-rev-tabs" role="tablist"><button type="button" class="sc-rev-tab on" data-rt="doc">📄 Document</button><button type="button" class="sc-rev-tab" data-rt="form">📝 Informations</button></div>';
+    $('sc-result').innerHTML = tabs + '<div class="sc-rev">'+docHtml+formHtml+'</div>';
     if(window.lucide) lucide.createIcons();
+
+    // Viewer : zoom / rotation / ajuster (images ; le PDF garde les contrôles natifs du lecteur)
+    (function(){
+      var z=1, r=0, el=document.getElementById('sc-docel'), zl=document.getElementById('sc-zval');
+      if(!el || el.tagName==='IFRAME') return;
+      function apply(){ el.style.transform='scale('+z+') rotate('+r+'deg)'; if(zl) zl.textContent=Math.round(z*100)+' %'; }
+      $('sc-result').querySelectorAll('.sc-tool').forEach(function(b){ b.addEventListener('click', function(){ var a=b.getAttribute('data-z'); if(a==='in')z=Math.min(3,z+0.2); else if(a==='out')z=Math.max(0.4,z-0.2); else if(a==='rot')r=(r+90)%360; else { z=1; r=0; } apply(); }); });
+    })();
+    // Onglets Document / Informations sur mobile (desktop = 2 colonnes)
+    (function(){
+      var docCol=$('sc-result').querySelector('.sc-rev-doc'), formCol=$('sc-result').querySelector('.sc-rev-form');
+      var mq=window.matchMedia('(max-width:860px)');
+      function show(w){ if(mq.matches){ if(docCol)docCol.hidden=(w!=='doc'); if(formCol)formCol.hidden=(w!=='form'); } else { if(docCol)docCol.hidden=false; if(formCol)formCol.hidden=false; } $('sc-result').querySelectorAll('.sc-rev-tab').forEach(function(t){ t.classList.toggle('on',t.getAttribute('data-rt')===w); }); }
+      $('sc-result').querySelectorAll('.sc-rev-tab').forEach(function(t){ t.addEventListener('click', function(){ show(t.getAttribute('data-rt')); }); });
+      var reflow=function(){ var cur=$('sc-result').querySelector('.sc-rev-tab.on'); show(cur?cur.getAttribute('data-rt'):'doc'); };
+      mq.addEventListener?mq.addEventListener('change',reflow):mq.addListener(reflow);
+      show('doc');
+    })();
 
     $('sc-save').addEventListener('click', doSave);
     $('sc-cancel').addEventListener('click', function(){ _model=null; _file=null; $('sc-result').innerHTML=''; $('sc-steps').classList.add('hidden'); });
-    // Amène l'aperçu à confirmer EN HAUT de l'écran (sinon il faut scroller pour le voir).
     try { $('sc-result').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e){}
   }
 
