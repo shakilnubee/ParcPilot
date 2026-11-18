@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118f",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Entretiens — Parc Pilot</title>
@@ -722,6 +722,12 @@
       else if (diff < _ctD) { cls = 'danger'; icon = 'alert-triangle'; txt = `Dans ${diff}j`; }
       else if (diff < _ctW) { cls = 'warn';   icon = 'bell';           txt = `Dans ${diff}j`; }
       else                  { cls = 'ok';     icon = 'check-circle-2'; txt = `Dans ${diff}j`; }
+      // « 🗓️ Prendre le RDV » → ouvre la page Tâches avec un RDV pré-rempli (véhicule + titre « Contrôle technique ») :
+      //   là, la case « Prévenir le conducteur maintenant » envoie « rendez-vous prévu le … » (3 canaux + PDF garage + agenda).
+      //   Vrai <a href> → clic-molette / Ctrl+clic ouvrent un nouvel onglet (règle de navigation du site).
+      const rdvHref = 'taches.html?new=1&vehid=' + encodeURIComponent(v.id)
+        + (v.chauffeur && v.chauffeur !== '—' ? '&cond=' + encodeURIComponent(v.chauffeur) : '')
+        + '&titre=' + encodeURIComponent('Contrôle technique');
       return `
         <div class="ct-card ${cls}">
           <div class="flex items-center justify-between">
@@ -730,6 +736,7 @@
           </div>
           <div class="text-xs text-slate-600 mt-1">${FP.esc(v.marque)} ${FP.esc(v.modele)}${v.chauffeur && v.chauffeur !== "—" ? " · " + FP.esc(FP.prenomAffiche ? FP.prenomAffiche(v.chauffeur) : v.chauffeur) : ""}</div>
           <div class="text-xs font-semibold mt-2">${FP.date(v.prochainCT)} · ${txt}</div>
+          <a href="${rdvHref}" class="ct-rdv-btn" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:.72rem;font-weight:700;color:var(--fp-accent);border:1px solid var(--fp-border);border-radius:8px;padding:3px 8px;text-decoration:none">🗓️ Prendre le RDV</a>
         </div>
       `;
     }).join('');
