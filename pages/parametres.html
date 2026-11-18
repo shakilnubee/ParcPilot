@@ -2028,7 +2028,9 @@
         let cand;
         if (type === 'vehicules') {
           if (!rec.immat) { invalid++; continue; }
-          rec.immat = rec.immat.toUpperCase().replace(/\s+/g, '');
+          // SOURCE UNIQUE : normaliser la plaque via FP.normImmat (retire espaces ET tirets) comme la branche
+          // factures juste en dessous et le reste de l'app — sinon « AB-123-CD » garderait ses tirets.
+          rec.immat = (window.FP && FP.normImmat) ? FP.normImmat(rec.immat) : rec.immat.toUpperCase().replace(/[^A-Z0-9]/g, '');
           if (rec.km != null) rec.km = parseInt(String(rec.km).replace(/\D/g, ''), 10) || 0;
           cand = rec;
         } else if (type === 'factures') {

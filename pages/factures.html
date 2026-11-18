@@ -2209,10 +2209,12 @@
     const setExp = (id, val) => { try { const s = FP.settings.get(); s.docExpire = s.docExpire || {}; if (val) s.docExpire[id] = val; else delete s.docExpire[id]; FP.settings.save(s); } catch (e) {} };
     const expBadge = id => {
       const d = getExp(id); if (!d) return '';
-      const j = FP.joursRestants ? FP.joursRestants(d) : Math.ceil((new Date(d) - new Date()) / 86400000);
-      let c, t;
-      if (j < 0) { c = '#DC2626'; t = 'Expiré'; } else if (j < 30) { c = '#F59E0B'; t = `Expire dans ${j} j`; } else if (j < 90) { c = '#0e7490'; t = `Expire dans ${j} j`; } else { c = '#16a34a'; t = 'À jour'; }
-      return `<span style="font-size:11px;font-weight:700;color:${c}">● ${t}</span>`;
+      // SOURCE UNIQUE : même barème couleur/urgence que partout (FP.echeanceStatut) — jamais des seuils
+      // (30/90) et des couleurs recodés à la main qui divergeraient des Alertes / fiche véhicule.
+      const st = (window.FP && FP.echeanceStatut) ? FP.echeanceStatut(d, 'defaut') : null;
+      if (!st) { const j = Math.ceil((new Date(d) - new Date()) / 86400000); return `<span style="font-size:11px;font-weight:700">● ${j < 0 ? 'Expiré' : ('Expire dans ' + j + ' j')}</span>`; }
+      const t = st.statut === 'expire' ? 'Expiré' : (st.statut === 'valide' ? 'À jour' : `Expire dans ${st.jours} j`);
+      return `<span style="font-size:11px;font-weight:700;color:${st.couleur}">● ${t}</span>`;
     };
     const vehById = id => (window.FP_DATA.vehicules || []).find(v => v.id === id);
     const docUrl = d => d.url || (d.driveId ? ('https://drive.google.com/file/d/' + d.driveId + '/view') : '');
