@@ -421,7 +421,7 @@ function render(){
     + '<br>'+nb+' véhicule'+(nb>1?'s':'')+(socn>1?' · '+socn+' sociétés':'');
 
   // -- Mémorise les montants calculés pour passer au générateur de contrat --
-  window.__devisCalc = { mensuel: devisFlotte ? 0 : loyerMensuel, mesAmount: mesOfferte ? 0 : MES_PRIX };
+  window.__devisCalc = { mensuel: devisFlotte ? 0 : loyerMensuel, mensuelRef: loyerMensuel, mesAmount: mesOfferte ? 0 : MES_PRIX };
 }
 
 // -- Date du jour (une seule fois, à l'ouverture) --
@@ -499,6 +499,25 @@ $('btn-dl').addEventListener('click', function(){
 
 // -- Passerelle vers le générateur de contrat : on transmet toutes les infos saisies --
 function dval(id){ var el=$(id); return el ? (el.value||'').trim() : ''; }
+
+// F4 — mémorise le MENSUEL proposé par société (table privée CEO jis_private_settings id='devis_amounts'),
+// pour que la page Facturation puisse PROPOSER ce montant en 1 clic (jamais de montant inventé). Silencieux.
+function _normNomSoc(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,''); }
+function persistDevisMontant(socRaw, mensuel, formule){
+  try {
+    socRaw = String(socRaw||'').trim(); mensuel = Math.round(Number(mensuel)||0);
+    if (!socRaw || mensuel <= 0) return;
+    var tok=''; try { var t=JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token')||'null'); if(t&&t.access_token&&!(t.expires_at&&t.expires_at*1000<Date.now())) tok=t.access_token; } catch(e){}
+    if (!tok) return;
+    var base='https://tzjuptlzoywjeigmyfuj.supabase.co/rest/v1/jis_private_settings';
+    var H={ 'apikey':'sb_publishable_KC3TZ1zda-ja-0wkyjHUlg_aKohD6tq', 'Authorization':'Bearer '+tok, 'Content-Type':'application/json' };
+    fetch(base+'?select=data&id=eq.devis_amounts', { headers:H }).then(function(r){ return r.ok ? r.json() : []; }).then(function(rows){
+      var data=(rows && rows[0] && rows[0].data && typeof rows[0].data==='object') ? rows[0].data : {};
+      data[_normNomSoc(socRaw)] = { mensuel:mensuel, soc:socRaw, formule:formule, date:new Date().toISOString().slice(0,10) };
+      fetch(base+'?on_conflict=id', { method:'POST', headers:Object.assign({ 'Prefer':'resolution=merge-duplicates' }, H), body:JSON.stringify({ id:'devis_amounts', data:data }) }).catch(function(){});
+    }).catch(function(){});
+  } catch(e){}
+}
 $('btn-contrat').addEventListener('click', function(){
   var calc = window.__devisCalc || { mensuel:0, mesAmount:0 };
   var payload = {
@@ -511,6 +530,7 @@ $('btn-contrat').addEventListener('click', function(){
     duree: 12
   };
   try { localStorage.setItem('pp_devis_to_contrat', JSON.stringify(payload)); } catch(e){}
+  persistDevisMontant(payload.soc, (window.__devisCalc||{}).mensuelRef, payload.formule);
   window.location.href = 'contrat.html';
 });
 
@@ -530,6 +550,7 @@ $('btn-mail').addEventListener('click', function(){
     duree: 12
   };
   try { localStorage.setItem('pp_devis_to_mail', JSON.stringify(payload)); } catch(e){}
+  persistDevisMontant(payload.soc, (window.__devisCalc||{}).mensuelRef, payload.formule);
   window.location.href = 'onboarding.html?tab=mail';
 });
 

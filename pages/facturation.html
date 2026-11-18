@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118c",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -272,8 +272,19 @@
     } catch (e) {}
   };
 
-  // Clients = toutes les sociétés SAUF la maison (PXP).
-  const clients = () => ((window.FP && FP.getSocietes) ? (FP.getSocietes() || []) : []).filter(s => s && s !== 'PXP');
+  // Société « maison » (exclue des clients facturés) — centralisée ici (F7 : plus de littéral dispersé).
+  const MAISON = (window.FP && FP.MAISON_SOCIETE) ? FP.MAISON_SOCIETE : 'PXP';
+  const clients = () => ((window.FP && FP.getSocietes) ? (FP.getSocietes() || []) : []).filter(s => s && s !== MAISON);
+
+  // F6 — affichage des montants AVEC centimes quand il y en a (sinon entier, comme avant).
+  const money = (n) => { n = Number(n) || 0; return Number.isInteger(n) ? euro(n) : (n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'); };
+
+  // F4 — montants proposés par les devis (table privée CEO id='devis_amounts'), pour pré-remplir un forfait vide.
+  const DEVKEY = 'jis_devis_amounts_v1';
+  const normNom = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  const loadDev = () => { try { return JSON.parse(localStorage.getItem(DEVKEY) || '{}') || {}; } catch (e) { return {}; } };
+  const devSuggest = (soc) => { const r = loadDev()[normNom(soc)]; return (r && Number(r.mensuel) > 0) ? Math.round(Number(r.mensuel)) : 0; };
+  const pullDevis = () => { try { if (!(window.FP && FP.supabase && FP.supabase.from)) return; pvRead('devis_amounts').then(res => { if (res.err || !res.found) return; try { localStorage.setItem(DEVKEY, JSON.stringify(res.data)); } catch (e) {} try { render(); } catch (e) {} }); } catch (e) {} };
 
   function boot(){
     const owner = !!(window.FP && FP.isJisOwner && FP.isJisOwner());
@@ -283,8 +294,9 @@
     const moisTh = $('fa-mois-th'); if (moisTh) moisTh.textContent = 'Payé — ' + new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     render();
     renderRegistry();
-    pullB();   // facturation : version serveur (autres appareils)
-    pullInv(); // registre des factures émises
+    pullB();     // facturation : version serveur (autres appareils)
+    pullInv();   // registre des factures émises
+    pullDevis(); // montants proposés par les devis (suggestions de forfait)
   }
 
   function render(){
@@ -296,20 +308,21 @@
       const actif = rec.actif !== false;
       const paye = !!(rec.pay && rec.pay[ym]);
       if (actif) { mrr += prix; nActifs++; if (paye) encaisse += prix; else impayes++; }
+      const sug = (!prix) ? devSuggest(soc) : 0;
       return `<tr>
         <td><b>${esc(soc)}</b></td>
-        <td class="r"><input type="text" inputmode="decimal" class="fa-prix" data-soc="${esc(soc)}" value="${prix || ''}" placeholder="—" style="width:100px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--fp-border);border-radius:6px"></td>
+        <td class="r"><input type="text" inputmode="decimal" class="fa-prix" data-soc="${esc(soc)}" value="${prix || ''}" placeholder="—" style="width:100px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--fp-border);border-radius:6px">${sug ? `<button type="button" class="fa-sugg" data-soc="${esc(soc)}" data-v="${sug}" title="Montant proposé par le devis — cliquer pour l'appliquer" style="display:block;margin:3px 0 0 auto;font-size:11px;color:#2563eb;background:none;border:0;cursor:pointer;padding:0">💡 ${esc(euro(sug))} (devis)</button>` : ''}</td>
         <td class="c"><input type="checkbox" class="fa-actif" data-soc="${esc(soc)}" ${actif ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--fp-accent);cursor:pointer"></td>
         <td class="c"><input type="checkbox" class="fa-paye" data-soc="${esc(soc)}" ${paye ? 'checked' : ''} style="width:18px;height:18px;accent-color:#059669;cursor:pointer"></td>
-        <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button><button type="button" class="btn btn-outline text-xs fa-client" data-soc="${esc(soc)}" title="Coordonnées de facturation (adresse, SIREN, TVA)"><i data-lucide="building" class="w-3.5 h-3.5"></i> Coordonnées</button></div></td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button><button type="button" class="btn btn-outline text-xs fa-send" data-soc="${esc(soc)}" title="Télécharger la facture et préparer l'e-mail au client"><i data-lucide="send" class="w-3.5 h-3.5"></i> Envoyer</button><button type="button" class="btn btn-outline text-xs fa-client" data-soc="${esc(soc)}" title="Coordonnées de facturation (adresse, SIREN, TVA, e-mail)"><i data-lucide="building" class="w-3.5 h-3.5"></i> Coordonnées</button></div></td>
       </tr>`;
     }).join('');
     $('fa-tbody').innerHTML = cs.length ? rows : '<tr><td colspan="5" class="text-sm text-slate-400" style="padding:1rem">Aucun client encore. Crée une société cliente dans Paramètres → « Nouveau client ».</td></tr>';
-    $('fa-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${euro(mrr)}/mois</td><td colspan="3"></td></tr>`;
-    $('kpi-mrr').textContent = euro(mrr);
+    $('fa-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${money(mrr)}/mois</td><td colspan="3"></td></tr>`;
+    $('kpi-mrr').textContent = money(mrr);
     $('kpi-clients').textContent = nActifs;
-    $('kpi-annuel').textContent = euro(mrr * 12);
-    $('kpi-enc').textContent = euro(encaisse);
+    $('kpi-annuel').textContent = money(mrr * 12);
+    $('kpi-enc').textContent = money(encaisse);
     const encLabel = $('kpi-enc-label'); if (encLabel) encLabel.textContent = 'Encaissé — ' + moisAn(ym);
     const encDelta = $('kpi-enc-delta'); if (encDelta) { encDelta.textContent = impayes ? ('⚠️ ' + impayes + ' impayé' + (impayes > 1 ? 's' : '')) : '✓ tout réglé'; encDelta.style.color = impayes ? '#b45309' : '#059669'; }
     renderPayments();
@@ -322,8 +335,8 @@
     const n = parseFloat(String(p.value).replace(',', '.').replace(/\s/g, '')); b[soc].prix = isNaN(n) ? 0 : n; saveB(b);
     // Recalcule les KPI/total sans reconstruire les lignes (garder le focus sur l'input).
     let mrr = 0, nActifs = 0; clients().forEach(s => { const r = (loadB()[s] || {}); if (r.actif !== false) { mrr += Number(r.prix) || 0; nActifs++; } });
-    $('kpi-mrr').textContent = euro(mrr); $('kpi-clients').textContent = nActifs; $('kpi-annuel').textContent = euro(mrr * 12);
-    $('fa-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${euro(mrr)}/mois</td><td colspan="3"></td></tr>`;
+    $('kpi-mrr').textContent = money(mrr); $('kpi-clients').textContent = nActifs; $('kpi-annuel').textContent = money(mrr * 12);
+    $('fa-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${money(mrr)}/mois</td><td colspan="3"></td></tr>`;
   });
   document.addEventListener('change', (e) => {
     if (!e.target.closest) return;
@@ -338,7 +351,9 @@
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest) return;
+    const sg = e.target.closest('.fa-sugg'); if (sg) { const b = loadB(); const soc = sg.dataset.soc; b[soc] = b[soc] || {}; b[soc].prix = Number(sg.dataset.v) || 0; saveB(b); render(); return; }
     const f = e.target.closest('.fa-fact'); if (f) { genFacture(f.dataset.soc); return; }
+    const sd = e.target.closest('.fa-send'); if (sd) { sendInvoice(sd.dataset.soc); return; }
     const cl = e.target.closest('.fa-client'); if (cl) { openClientModal(cl.dataset.soc); return; }
     const rd = e.target.closest('.fa-redl'); if (rd) {
       const rec = (loadInv().items || {})[rd.dataset.key];
@@ -438,6 +453,16 @@
     });
   }
 
+  // F8 — télécharge la facture puis prépare l'e-mail au client (Gmail ne joint pas le PDF : à glisser).
+  function sendInvoice(soc) {
+    const rec = loadB()[soc] || {};
+    genFacture(soc);
+    const to = rec.email || '';
+    const subj = 'Facture Parc Pilot — ' + moisAn(ym);
+    const body = 'Bonjour,\n\nVeuillez trouver votre facture Parc Pilot pour ' + moisAn(ym) + '.\n(La facture PDF vient d\'être téléchargée sur votre appareil : pensez à la joindre à cet e-mail avant l\'envoi.)\n\nCordialement,\nJIS Office Partner';
+    setTimeout(function () { try { window.location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body); } catch (e) {} }, 700);
+  }
+
   // Suivi des paiements : matrice clients × 6 derniers mois (F5 — impayés + historique)
   function renderPayments() {
     const head = $('fa-pay-head'), body = $('fa-pay-body'); if (!head || !body) return;
@@ -487,6 +512,8 @@
       <input id="cm-siren" type="text" value="${esc(rec.siren || '')}" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px">
       <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;margin:.6rem 0 .2rem">N° TVA intracommunautaire (si applicable)</label>
       <input id="cm-tva" type="text" value="${esc(rec.tva || '')}" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px">
+      <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;margin:.6rem 0 .2rem">E-mail (pour l'envoi des factures)</label>
+      <input id="cm-email" type="email" value="${esc(rec.email || '')}" placeholder="compta@societe.fr" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
         <button type="button" class="btn btn-outline" data-x>Annuler</button>
         <button type="button" class="btn btn-primary" data-save>Enregistrer</button>
@@ -501,6 +528,7 @@
       b2[soc].adresse = ov.querySelector('#cm-adr').value.trim();
       b2[soc].siren = ov.querySelector('#cm-siren').value.trim();
       b2[soc].tva = ov.querySelector('#cm-tva').value.trim();
+      b2[soc].email = ov.querySelector('#cm-email').value.trim();
       saveB(b2); close();
     });
     document.body.appendChild(ov);
