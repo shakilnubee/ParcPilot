@@ -263,7 +263,7 @@
       if (pc.error) return { error: pc.error };
       let soc = (FP.activeSociete ? FP.activeSociete() : 'PXP') || 'PXP';
       if (soc === '__all__') soc = 'PXP';   // vue CEO « toutes sociétés » → rattacher à PXP (règle canonique), jamais écrire '__all__'
-      let okC = 0, okTx = 0;
+      let okC = 0, okTx = 0, koTx = 0;
       for (const c of (pc.rows || [])) {
         if (c.ttc == null) continue;
         const row = { id: 'ULYSC-' + c.mois + '-' + ulsSlug(c.conducteur), mois: c.mois, conducteur: c.conducteur, nbTrajets: c.nb, km: c.km, totalTtc: c.ttc, numeroFacture: c.numero, societe: soc };
@@ -272,11 +272,16 @@
       for (const c of (pc.tx || [])) {
         if (!c.date || !c.conducteur) continue;
         const tr = { id: 'ULYSTX-' + c.numero + '-' + (c.badge || '') + '-' + (c.seq != null ? c.seq : ''), facnum: c.numero, carte: 'ULYS-' + (c.badge || ''), conducteur: c.conducteur, plaque: (c.plaque || null), dateTx: c.date, mois: (c.date || '').slice(0, 7), produit: (c.produit || 'Péage Ulys'), categorie: (c.categorie || 'peage'), montantTtc: (c.montant != null ? c.montant : 0) };
-        try { const res = (FP.db && FP.db.upsert) ? await FP.db.upsert('total_conso_tx', tr) : null; if (res && res.error) throw res.error; okTx++; }
-        catch (e) { break; }
+        // DURABLE : FP.persist.upsert (file + retente + pastille). On N'ABANDONNE PLUS tout l'import sur une seule
+        // erreur (plus de `break` qui jetait silencieusement toutes les transactions suivantes) — chacune est enfilée.
+        try {
+          if (FP.persist && FP.persist.upsert) { FP.persist.upsert('total_conso_tx', tr); okTx++; }
+          else if (FP.db && FP.db.upsert) { const res = await FP.db.upsert('total_conso_tx', tr); if (res && res.error) koTx++; else okTx++; }
+          else koTx++;
+        } catch (e) { console.error('[uls tx api]', e); koTx++; }
       }
       try { consoLoaded = false; loadConso(); } catch (e) {}
-      return { conducteurs: okC, tx: okTx };
+      return { conducteurs: okC, tx: okTx, echecs: koTx };
     };
     async function handleUlysImport(files){
       if (!files || !files.length) return;
@@ -393,20 +398,26 @@
       }
       // Détail DATÉ (colonne date des consommations) → total_conso_tx (péage) pour la détection
       // « conso pendant un congé » à la bonne date. Best-effort : table absente = silencieux (repli mensuel).
-      let okTx = 0;
+      let okTx = 0, koTx = 0;
       if (_busy && _nTx) _busy.update('Conso datées (pour le suivi des congés) : ' + _nTx + '…');
       for (const c of (_ulsPending.tx || [])){
         if (!c.date || !c.conducteur) continue;
         const tr = { id:'ULYSTX-'+c.numero+'-'+(c.badge||'')+'-'+(c.seq!=null?c.seq:''), facnum:c.numero, carte:'ULYS-'+(c.badge||''),
           conducteur:c.conducteur, plaque:(c.plaque||null), dateTx:c.date, mois:(c.date||'').slice(0,7), produit:(c.produit||'Péage Ulys'),
           categorie:(c.categorie||'peage'), montantTtc:(c.montant!=null?c.montant:0) };
-        try { const res = (FP.db && FP.db.upsert) ? await FP.db.upsert('total_conso_tx', tr) : null; if (res && res.error) throw res.error; okTx++; }
-        catch (e){ const msg = String((e && (e.message || e)) || e); if (/relation|exist|schema|column/i.test(msg)) break; /* table absente → on arrête ; sinon on saute CETTE ligne et on continue (une ligne KO ne doit pas perdre tout le relevé) */ }
+        // DURABLE : FP.persist.upsert (file + retente + pastille) → une conso en échec est ré-essayée, jamais perdue.
+        try {
+          if (FP.persist && FP.persist.upsert) { FP.persist.upsert('total_conso_tx', tr); okTx++; }
+          else if (FP.db && FP.db.upsert) { const res = await FP.db.upsert('total_conso_tx', tr); if (res && res.error) throw res.error; okTx++; }
+          else koTx++;
+        }
+        catch (e){ const msg = String((e && (e.message || e)) || e); if (/relation|exist|schema|column/i.test(msg)) break; /* table absente → on arrête (repli mensuel) ; sinon on COMPTE la ligne KO et on continue */ koTx++; }
       }
       const nbCollab = new Set(_ulsPending.rows.map(r => r.conducteur).filter(Boolean)).size;
       const _skip = _ulsPending.skipped || 0;
-      ulsImpStatus('<b>Enregistré</b> : '+okF+' facture(s) Ulys.' + (okC ? ' Détail de '+okC+' conducteur(s).' : (nbCollab ? ' '+nbCollab+' collaborateur(s) détecté(s) (montant par personne non lu automatiquement sur ce format).' : '')) + (okTx ? ' '+okTx+' conso(s) datée(s) pour le suivi des congés.' : '') + (_skip ? ' <span style="color:#B45309">'+_skip+' fichier(s) non reconnus.</span>' : '') + ' Visible sur tous les postes.', 'ok');
-      if (_busy) _busy.done('✓ Relevé Ulys enregistré — '+okF+' facture(s)' + (okTx ? ', '+okTx+' conso datées' : '') + (_skip ? ' · '+_skip+' non reconnu(s)' : ''));
+      const _wTx = koTx ? ' <span style="color:#B45309">'+koTx+' conso(s) non enregistrée(s).</span>' : '';
+      ulsImpStatus('<b>Enregistré</b> : '+okF+' facture(s) Ulys.' + (okC ? ' Détail de '+okC+' conducteur(s).' : (nbCollab ? ' '+nbCollab+' collaborateur(s) détecté(s) (montant par personne non lu automatiquement sur ce format).' : '')) + (okTx ? ' '+okTx+' conso(s) datée(s) pour le suivi des congés.' : '') + _wTx + (_skip ? ' <span style="color:#B45309">'+_skip+' fichier(s) non reconnus.</span>' : '') + ' Visible sur tous les postes.', (koTx ? 'err' : 'ok'));
+      if (_busy) _busy.done('✓ Relevé Ulys enregistré — '+okF+' facture(s)' + (okTx ? ', '+okTx+' conso datées' : '') + (koTx ? ' · ⚠️ '+koTx+' conso non enregistrées' : '') + (_skip ? ' · '+_skip+' non reconnu(s)' : ''));
       $('uls-import-preview').classList.add('hidden'); _ulsPending=null;
       render(); consoLoaded=false; loadConso();
     }
