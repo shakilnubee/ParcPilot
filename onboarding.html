@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Onboarding — Parc Pilot</title>
 <meta name="robots" content="noindex">
@@ -133,6 +133,15 @@
           <select id="mail-model" style="border:1px solid var(--fp-border);border-radius:.6rem;padding:.5rem .7rem;font-size:.88rem;font-weight:600;min-width:220px;max-width:100%"></select>
         </div>
         <div id="mail-cats" style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.8rem"></div>
+        <!-- Gestion des modèles (créer / enregistrer / dupliquer / renommer / supprimer) — tout en ligne sur Parc Pilot -->
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
+          <button class="btn2" id="mail-new" title="Créer un modèle personnel vierge"><i data-lucide="plus" class="w-4 h-4"></i> Nouveau</button>
+          <button class="btn2 primary" id="mail-save" title="Enregistrer ce modèle en ligne (synchronisé sur tous tes appareils)"><i data-lucide="save" class="w-4 h-4"></i> Enregistrer</button>
+          <button class="btn2" id="mail-dup" title="Créer une copie personnelle de ce modèle"><i data-lucide="copy-plus" class="w-4 h-4"></i> Dupliquer</button>
+          <button class="btn2" id="mail-rename" title="Renommer ce modèle personnel"><i data-lucide="pencil" class="w-4 h-4"></i> Renommer</button>
+          <button class="btn2" id="mail-del" title="Supprimer ce modèle personnel"><i data-lucide="trash-2" class="w-4 h-4"></i> Supprimer</button>
+        </div>
+        <div id="mail-store-note" style="font-size:.76rem;color:#94a3b8;margin-bottom:.6rem"></div>
         <label style="display:block;font-size:.78rem;font-weight:700;color:#64748b;margin:.6rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Objet de l'e-mail</label>
         <input id="mail-subject" type="text" style="width:100%;border:1px solid var(--fp-border);border-radius:.6rem;padding:.6rem .8rem;font-size:.92rem;font-weight:600" value="Parc Pilot — proposition en logiciel seul">
         <label style="display:block;font-size:.78rem;font-weight:700;color:#64748b;margin:.9rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Message</label>
@@ -206,7 +215,8 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   var mailModel = document.getElementById('mail-model');
   var mailCats = document.getElementById('mail-cats');
   var mailSearch = document.getElementById('mail-search');
-  function flashMail(msg){ if(mailStatus){ mailStatus.textContent = msg; setTimeout(function(){ if(mailStatus) mailStatus.textContent=''; }, 3500); } }
+  function flashMail(msg){ if(mailStatus){ mailStatus.style.color='#059669'; mailStatus.textContent = msg; setTimeout(function(){ if(mailStatus) mailStatus.textContent=''; }, 3500); } }
+  function flashErr(msg){ if(mailStatus){ mailStatus.style.color='#dc2626'; mailStatus.textContent = msg; setTimeout(function(){ if(mailStatus){ mailStatus.textContent=''; mailStatus.style.color='#059669'; } }, 6000); } }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var SIGN_TXT = "Shakil Nubeebaccus\nParc Pilot — jis.nubee@gmail.com · 06 61 77 97 53";
   var SIGN = "\n\nBien à toi,\n" + SIGN_TXT;
@@ -268,12 +278,85 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   // Données issues du devis (si on arrive via « Préparer l'e-mail au client ») — servent à TOUTES les variables.
   var devisData = null;
   var curTplId = null;
+  var curSource = 'builtin';
   var state = { cat:"all", q:"" };
+
+  // ---- Persistance EN LIGNE (table jis_mail_templates, réservée au CEO par RLS) ----
+  // ⚠️ JAMAIS de localStorage pour ces données : tout vit dans Supabase pour se retrouver
+  //    sur tous les appareils du propriétaire. Connexion CIBLÉE (pas d'app.js) : on réutilise
+  //    uniquement la session Supabase déjà posée au login + la clé publique.
+  var savedOk = false;          // true quand la table a répondu (sinon : 12 modèles d'usine seuls)
+  var overrides = {};           // builtin_id -> ligne (version modifiée d'un modèle intégré)
+  var customs = [];             // lignes des modèles perso créés par le CEO
+  var SUPA = {
+    url: 'https://tzjuptlzoywjeigmyfuj.supabase.co/rest/v1/jis_mail_templates',
+    key: 'sb_publishable_KC3TZ1zda-ja-0wkyjHUlg_aKohD6tq',
+    token: function(){
+      try { var t = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token')||'null');
+        if (t && t.access_token && !(t.expires_at && t.expires_at*1000 < Date.now())) return t.access_token;
+      } catch(e){}
+      return null;
+    },
+    headers: function(extra){
+      var tok = SUPA.token();
+      var h = { 'apikey': SUPA.key, 'Content-Type':'application/json' };
+      if (tok) h['Authorization'] = 'Bearer ' + tok;
+      if (extra) for (var k in extra) h[k] = extra[k];
+      return h;
+    },
+    list: function(){
+      return fetch(SUPA.url + '?select=*&deleted_at=is.null&order=position.asc,updated_at.asc', { headers: SUPA.headers() })
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    },
+    upsert: function(row){
+      row.deleted_at = null;                         // un ré-enregistrement « dé-archive » toujours la ligne
+      row.updated_at = new Date().toISOString();
+      return fetch(SUPA.url + '?on_conflict=id', { method:'POST', headers: SUPA.headers({ 'Prefer':'resolution=merge-duplicates,return=representation' }), body: JSON.stringify(row) })
+        .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+' '+(t||'').slice(0,160)); }); return r.json(); });
+    },
+    softDelete: function(id){
+      return fetch(SUPA.url + '?id=eq.' + encodeURIComponent(id), { method:'PATCH', headers: SUPA.headers({ 'Prefer':'return=minimal' }), body: JSON.stringify({ deleted_at: new Date().toISOString() }) })
+        .then(function(r){ if(!r.ok) return r.text().then(function(t){ throw new Error('HTTP '+r.status+' '+(t||'').slice(0,160)); }); return true; });
+    }
+  };
+  function loadSaved(){
+    return SUPA.list().then(function(rows){
+      overrides = {}; customs = [];
+      (rows||[]).forEach(function(r){
+        if (r.kind === 'override' && r.builtin_id) overrides[r.builtin_id] = r;
+        else customs.push(r);
+      });
+      savedOk = true;
+    });
+  }
+  function newId(){ return 'JMT-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
+
+  // Catalogue effectif = 12 modèles d'usine (surchargés si une version modifiée existe) + modèles perso.
+  function catalog(){
+    var out = TEMPLATES.map(function(t){
+      var o = overrides[t.id];
+      return {
+        id: t.id, source:'builtin', overridden: !!o,
+        cat: (o && o.categorie) || t.cat,
+        name: t.name,
+        subject: o ? (o.objet||'') : t.subject,
+        body: o ? (o.corps||'') : t.body,
+        attach: t.attach || [], devis: t.devis || null
+      };
+    });
+    customs.forEach(function(r){
+      out.push({ id:r.id, source:'custom', overridden:false,
+        cat: r.categorie||'comm', name: r.name||'(Sans nom)',
+        subject: r.objet||'', body: r.corps||'', attach:[], devis:null });
+    });
+    return out;
+  }
+  function effectiveTpl(id){ var c=catalog(); for(var i=0;i<c.length;i++) if(c[i].id===id) return c[i]; return null; }
 
   function fmtEur(n){ return Math.round(+n||0).toLocaleString('fr-FR'); }
   function todayFr(){ try { return new Date().toLocaleDateString('fr-FR'); } catch(e){ return ''; } }
   function dureeTxt(m){ m = parseInt(m,10)||0; if(!m) return ''; if(m===12) return '1 an'; if(m%12===0) return (m/12)+' ans'; return m+' mois'; }
-  function tplById(id){ for(var i=0;i<TEMPLATES.length;i++) if(TEMPLATES[i].id===id) return TEMPLATES[i]; return null; }
+  function tplById(id){ return effectiveTpl(id); }
   function catLabel(id){ for(var i=0;i<CATS.length;i++) if(CATS[i].id===id) return CATS[i].label; return id; }
 
   // Remplace les [Token] par leur valeur quand elle existe ; sinon on LAISSE le token (il sera signalé).
@@ -324,8 +407,11 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   function selectTpl(id){
     var tpl = tplById(id); if(!tpl) return;
     curTplId = id;
+    curSource = tpl.source;
     if (mailModel) mailModel.value = id;
-    if (tpl.devis && devisData){
+    // Modèle devis NON modifié + données devis → proposition chiffrée automatique.
+    // S'il a été personnalisé (override) ou s'il est perso, on respecte SON texte (variables remplies).
+    if (tpl.devis && devisData && !tpl.overridden){
       var mail = buildProposalEmail({ formule:(tpl.devis==='logiciel'?'logiciel':'delegue'), prenom:devisData.prenom, soc:devisData.soc, veh:devisData.veh, mensuel:devisData.mensuel, mes:devisData.mes });
       if(mailSubject) mailSubject.value = mail.subject;
       if(mailBody) mailBody.value = mail.body;
@@ -334,12 +420,12 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
       if(mailBody) mailBody.value = fillVars(tpl.body);
     }
     window.__mailTo = (devisData && devisData.mail) || '';
-    renderAttach(tpl); renderMissing();
+    renderAttach(tpl); renderMissing(); syncMgmtButtons();
   }
 
   function filtered(){
     var q = state.q.trim().toLowerCase();
-    return TEMPLATES.filter(function(t){
+    return catalog().filter(function(t){
       if(state.cat!=='all' && t.cat!==state.cat) return false;
       if(q){ var hay=(t.name+' '+t.subject+' '+t.body).toLowerCase(); if(hay.indexOf(q)===-1) return false; }
       return true;
@@ -349,8 +435,11 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
     if(!mailModel) return;
     var list = filtered();
     if(!list.length){ mailModel.innerHTML = '<option value="">— Aucun modèle —</option>'; if(mailBody) mailBody.value=''; if(mailSubject) mailSubject.value=''; renderMissing(); renderAttach(null); return; }
-    mailModel.innerHTML = list.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(catLabel(t.cat)+' · '+t.name)+'</option>'; }).join('');
-    if(curTplId && list.some(function(t){return t.id===curTplId;})) mailModel.value = curTplId;
+    mailModel.innerHTML = list.map(function(t){
+      var mark = t.source==='custom' ? '⭐ ' : (t.overridden ? '✎ ' : '');
+      return '<option value="'+esc(t.id)+'">'+esc(mark + catLabel(t.cat)+' · '+t.name)+'</option>';
+    }).join('');
+    if(curTplId && list.some(function(t){return t.id===curTplId;})){ mailModel.value = curTplId; syncMgmtButtons(); }
     else selectTpl(list[0].id);
   }
   function renderCats(){
@@ -385,13 +474,134 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
     var to = (window.__mailTo || '');
     window.location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
   });
-  var resetBtn = document.getElementById('mail-reset');
-  if (resetBtn) resetBtn.addEventListener('click', function(){ if(curTplId){ selectTpl(curTplId); flashMail('↺ Modèle réinitialisé.'); } });
+  var resetBtn  = document.getElementById('mail-reset');
+  var saveBtn   = document.getElementById('mail-save');
+  var newBtn    = document.getElementById('mail-new');
+  var dupBtn    = document.getElementById('mail-dup');
+  var renameBtn = document.getElementById('mail-rename');
+  var delBtn    = document.getElementById('mail-del');
+  var storeNote = document.getElementById('mail-store-note');
+
+  function syncMgmtButtons(){
+    var tpl = effectiveTpl(curTplId);
+    var isCustom = !!(tpl && tpl.source==='custom');
+    if(renameBtn) renameBtn.disabled = !isCustom;
+    if(delBtn)    delBtn.disabled    = !isCustom;
+    if(resetBtn){
+      var modified = !!(tpl && tpl.source==='builtin' && tpl.overridden);
+      resetBtn.title = modified ? "Remettre ce modèle intégré à sa version d'origine" : "Recharger le modèle enregistré";
+    }
+  }
+  function busyMail(on){
+    [saveBtn,newBtn,dupBtn,renameBtn,delBtn,resetBtn].forEach(function(b){ if(b) b.disabled = !!on; });
+    if(!on) syncMgmtButtons();
+  }
+  function refreshStoreNote(){
+    if(!storeNote) return;
+    storeNote.textContent = savedOk
+      ? '☁️ Tes modèles personnels et tes modifications sont enregistrés en ligne (synchronisés sur tous tes appareils).'
+      : '⚠️ Sauvegarde en ligne indisponible pour le moment — les 12 modèles intégrés restent utilisables. (Vérifie ta connexion, ou que la table a bien été créée.)';
+  }
+  function requireSaved(){
+    if(savedOk) return true;
+    flashErr('Sauvegarde en ligne indisponible — impossible d\'enregistrer ce modèle pour le moment.');
+    return false;
+  }
+
+  // ---- CRUD modèles ----
+  function saveCurrent(){
+    if(!requireSaved()) return;
+    var tpl = effectiveTpl(curTplId); if(!tpl){ return; }
+    var row;
+    if (tpl.source === 'custom') row = { id: tpl.id, kind:'custom', name: tpl.name, categorie: tpl.cat, objet: mailSubject.value, corps: mailBody.value };
+    else row = { id: tpl.id, kind:'override', builtin_id: tpl.id, name: tpl.name, categorie: tpl.cat, objet: mailSubject.value, corps: mailBody.value };
+    busyMail(true);
+    SUPA.upsert(row).then(function(res){
+      var saved = (res && res[0]) || row;
+      if (tpl.source === 'custom'){ var f=false; for(var i=0;i<customs.length;i++){ if(customs[i].id===tpl.id){ customs[i]=saved; f=true; break; } } if(!f) customs.push(saved); }
+      else overrides[tpl.id] = saved;
+      busyMail(false); renderModelOptions();
+      flashMail(tpl.source==='custom' ? '✓ Modèle enregistré en ligne.' : '✓ Modifications enregistrées en ligne.');
+    }).catch(function(e){ busyMail(false); flashErr('Échec de l\'enregistrement : '+e.message+' — rien n\'est perdu, réessaie.'); });
+  }
+  function newTpl(){
+    if(!requireSaved()) return;
+    var name = prompt('Nom du nouveau modèle :', 'Nouveau modèle'); if(name===null) return;
+    name = (name||'').trim() || 'Nouveau modèle';
+    var cat = (state.cat!=='all') ? state.cat : 'comm';
+    var id = newId();
+    var row = { id:id, kind:'custom', name:name, categorie:cat, objet:'Objet de l\'e-mail', corps:'Bonjour [Prénom],\n\n' + SIGN };
+    busyMail(true);
+    SUPA.upsert(row).then(function(res){
+      customs.push((res&&res[0])||row);
+      state.q=''; if(mailSearch) mailSearch.value='';
+      curTplId=id; busyMail(false); renderModelOptions(); selectTpl(id);
+      flashMail('✓ Nouveau modèle créé — personnalise-le puis « Enregistrer ».');
+    }).catch(function(e){ busyMail(false); flashErr('Création impossible : '+e.message); });
+  }
+  function dupTpl(){
+    if(!requireSaved()) return;
+    var tpl = effectiveTpl(curTplId); if(!tpl) return;
+    var id = newId();
+    var row = { id:id, kind:'custom', name:'Copie de '+tpl.name, categorie:tpl.cat, objet: mailSubject.value, corps: mailBody.value };
+    busyMail(true);
+    SUPA.upsert(row).then(function(res){
+      customs.push((res&&res[0])||row);
+      curTplId=id; busyMail(false); renderModelOptions(); selectTpl(id);
+      flashMail('✓ Modèle dupliqué (copie personnelle).');
+    }).catch(function(e){ busyMail(false); flashErr('Duplication impossible : '+e.message); });
+  }
+  function renameTpl(){
+    var tpl = effectiveTpl(curTplId); if(!tpl) return;
+    if(tpl.source!=='custom'){ flashErr('Un modèle intégré garde son nom — duplique-le pour créer ta propre version.'); return; }
+    if(!requireSaved()) return;
+    var name = prompt('Nouveau nom :', tpl.name); if(name===null) return; name=(name||'').trim(); if(!name) return;
+    var row = { id:tpl.id, kind:'custom', name:name, categorie:tpl.cat, objet:mailSubject.value, corps:mailBody.value };
+    busyMail(true);
+    SUPA.upsert(row).then(function(res){
+      var s=(res&&res[0])||row; for(var i=0;i<customs.length;i++){ if(customs[i].id===tpl.id){ customs[i]=s; break; } }
+      busyMail(false); renderModelOptions(); if(mailModel) mailModel.value=tpl.id;
+      flashMail('✓ Modèle renommé.');
+    }).catch(function(e){ busyMail(false); flashErr('Renommage impossible : '+e.message); });
+  }
+  function delTpl(){
+    var tpl = effectiveTpl(curTplId); if(!tpl) return;
+    if(tpl.source!=='custom'){ flashErr('Un modèle intégré ne se supprime pas — utilise « Réinitialiser » pour annuler tes modifications.'); return; }
+    if(!requireSaved()) return;
+    if(!confirm('Supprimer le modèle « '+tpl.name+' » ?\n(Il est archivé en base, pas perdu.)')) return;
+    busyMail(true);
+    SUPA.softDelete(tpl.id).then(function(){
+      customs = customs.filter(function(r){ return r.id!==tpl.id; });
+      curTplId=null; busyMail(false); renderModelOptions();
+      flashMail('✓ Modèle supprimé.');
+    }).catch(function(e){ busyMail(false); flashErr('Suppression impossible : '+e.message); });
+  }
+
+  if (resetBtn) resetBtn.addEventListener('click', function(){
+    var tpl = effectiveTpl(curTplId); if(!tpl) return;
+    if (tpl.source==='builtin' && tpl.overridden){
+      if(!requireSaved()) return;
+      if(!confirm('Remettre ce modèle intégré à sa version d\'origine ?\n(Ta version modifiée sera archivée.)')) return;
+      busyMail(true);
+      SUPA.softDelete(tpl.id).then(function(){
+        delete overrides[tpl.id]; busyMail(false); renderModelOptions(); selectTpl(tpl.id);
+        flashMail('↺ Version d\'origine restaurée.');
+      }).catch(function(e){ busyMail(false); flashErr('Réinitialisation impossible : '+e.message); });
+    } else { selectTpl(curTplId); flashMail('↺ Modèle rechargé.'); }
+  });
+  if (saveBtn)   saveBtn.addEventListener('click', saveCurrent);
+  if (newBtn)    newBtn.addEventListener('click', newTpl);
+  if (dupBtn)    dupBtn.addEventListener('click', dupTpl);
+  if (renameBtn) renameBtn.addEventListener('click', renameTpl);
+  if (delBtn)    delBtn.addEventListener('click', delTpl);
   if (mailSearch) mailSearch.addEventListener('input', function(){ state.q = mailSearch.value||''; renderModelOptions(); });
   if (mailModel) mailModel.addEventListener('change', function(){ if(mailModel.value) selectTpl(mailModel.value); });
   if (mailBody) mailBody.addEventListener('input', renderMissing);
   if (mailSubject) mailSubject.addEventListener('input', renderMissing);
-  renderCats(); renderModelOptions();
+  renderCats(); renderModelOptions(); refreshStoreNote();
+  // Charge les modèles perso + modifications depuis Supabase, puis replie-les dans la liste (sans écraser le texte en cours).
+  loadSaved().then(function(){ renderModelOptions(); refreshStoreNote(); syncMgmtButtons(); })
+             .catch(function(){ savedOk=false; refreshStoreNote(); });
 
   // ===== Construction de la proposition commerciale à partir des chiffres du devis (INCHANGÉ) =====
   // (fmtEur et SIGN sont définis plus haut dans la bibliothèque.) Formule logiciel OU gestion déléguée.
