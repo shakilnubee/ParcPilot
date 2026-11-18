@@ -714,7 +714,7 @@
   }
 
   // Widget « Véhicules empruntés en ce moment » — les emprunts ne sont pas dans loadAll → requête dédiée.
-  (function empruntsEnCours(){
+  function empruntsEnCours(){
     const box = document.getElementById('emprunts-encours-list'); if (!box) return;
     if (!(FP.db && FP.db.select)) { box.textContent = 'Indisponible hors connexion.'; return; }
     FP.db.select('emprunts').then(res => {
@@ -732,7 +732,13 @@
       }).join('');
       if (window.lucide) lucide.createIcons();
     }).catch(() => { box.textContent = 'Impossible de charger les emprunts.'; });
-  })();
+  }
+  empruntsEnCours();
+  // Les emprunts ne sont pas couverts par la signature _fpDataSig (requête dédiée) → rafraîchir ce widget
+  // au retour sur l'onglet (bfcache/focus) et sur fp:data-ready, sinon un véhicule rendu reste affiché « emprunté ».
+  document.addEventListener('fp:data-ready', empruntsEnCours);
+  window.addEventListener('pageshow', (e) => { if (e && e.persisted) empruntsEnCours(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) empruntsEnCours(); });
 
   // Widget « Tâches à faire » — résumé des tâches non terminées (settings.taches, même règle « fait » que la page Tâches).
   // Surface aussi les tâches créées automatiquement par les Automatisations. Re-rendu sur fp:data-ready (réglages async).

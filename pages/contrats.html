@@ -3718,7 +3718,7 @@
       const sub = [d.categorie || 'Autre', d.vehicule ? ('🚗 ' + d.vehicule) : ''].filter(Boolean).join(' · ');
       return '<div class="arcdoc-row" data-ad="' + esc(d.id) + '">'
         + '<span class="ad-ic"><i data-lucide="' + iconFor(d.fileName || d.url) + '" class="w-4 h-4"></i></span>'
-        + '<div class="min-w-0 flex-1 arcdoc-openable" role="button" tabindex="0" title="Ouvrir le document" data-ad-open="' + esc(d.id) + '"><div class="arcdoc-name text-sm font-medium text-slate-800 truncate">' + esc(d.name || d.fileName || 'Document') + '</div>'
+        + '<div class="min-w-0 flex-1 arcdoc-openable" role="button" tabindex="0" title="Ouvrir le document" data-ad-open="' + esc(d.id) + '" data-doc-url="' + esc(d.url || '') + '"><div class="arcdoc-name text-sm font-medium text-slate-800 truncate">' + esc(d.name || d.fileName || 'Document') + '</div>'
         + '<div class="text-xs text-slate-500 truncate">' + esc(sub) + '</div></div>'
         + '<div class="flex items-center gap-1 flex-shrink-0">'
         + '<button type="button" class="btn btn-outline !py-1 !px-2 text-xs" data-ad-dl="' + esc(d.id) + '" title="Télécharger"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>'
@@ -3780,16 +3780,21 @@
     // ---- Actions sur un document ----
     async function openDoc(id, download) {
       const d = findDoc(id); if (!d) return;
-      let url = d.url;
-      try { if (FP.signedScanUrl) url = await FP.signedScanUrl(d.url, 3600); } catch (e) {}
       if (download) {
+        // SOURCE UNIQUE : nom conservé (saisi par l'utilisateur) + blob + extension d'origine via le helper central.
+        if (window.FP && FP.telechargerDoc) { FP.telechargerDoc(d.url, d.name || 'document'); return; }
         try {
+          const url = (FP.signedScanUrl ? await FP.signedScanUrl(d.url, 3600) : d.url);
           const resp = await fetch(url); const blob = await resp.blob();
           const ext = (d.fileName && d.fileName.match(/\.[a-z0-9]+$/i)) ? d.fileName.match(/\.[a-z0-9]+$/i)[0] : (/pdf/i.test(blob.type) ? '.pdf' : '');
           const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (d.name || 'document') + ext; document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(a.href), 4000); return;
         } catch (e) { /* repli : ouvrir */ }
       }
+      // OUVERTURE : FP.openScan ouvre l'onglet DANS le geste de clic PUIS signe l'URL — sinon le window.open
+      // APRÈS l'await réseau est bloqué par le bloqueur de pop-up (le document ne s'ouvrait pas).
+      if (window.FP && FP.openScan) { FP.openScan(d.url); return; }
+      let url = d.url; try { if (FP.signedScanUrl) url = await FP.signedScanUrl(d.url, 3600); } catch (e) {}
       window.open(url, '_blank');
     }
     async function renameDoc(id) {
