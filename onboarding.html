@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118c",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <title>Onboarding — Parc Pilot</title>
 <meta name="robots" content="noindex">
@@ -272,7 +272,10 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
       body:"Bonjour [Prénom],\n\nVotre espace Parc Pilot est désormais configuré et prêt à être utilisé.\n\nVous pourrez y retrouver les informations de votre flotte, les documents intégrés et les outils de suivi prévus dans votre offre.\n\nVotre accès : [Lien sécurisé]\n\nJe vous propose un échange de prise en main pour vous présenter les principales fonctionnalités et répondre à vos questions." + SIGN },
     { id:"rel-satisfaction", cat:"relation", name:"Suivi de satisfaction",
       subject:"Parc Pilot — faisons un point sur votre utilisation",
-      body:"Bonjour [Prénom],\n\nCela fait maintenant [Durée d'engagement] que vous utilisez Parc Pilot et je souhaitais faire un point avec vous.\n\nLe logiciel répond-il à vos attentes ? Certaines tâches restent-elles difficiles ou chronophages ?\n\nVos retours nous permettront d'identifier les améliorations les plus utiles à votre organisation.\n\nJe reste également disponible si vous souhaitez étudier un accompagnement complémentaire avec JIS Office Partner." + SIGN }
+      body:"Bonjour [Prénom],\n\nCela fait maintenant [Durée d'engagement] que vous utilisez Parc Pilot et je souhaitais faire un point avec vous.\n\nLe logiciel répond-il à vos attentes ? Certaines tâches restent-elles difficiles ou chronophages ?\n\nVos retours nous permettront d'identifier les améliorations les plus utiles à votre organisation.\n\nJe reste également disponible si vous souhaitez étudier un accompagnement complémentaire avec JIS Office Partner." + SIGN },
+    { id:"fact-envoi", cat:"relation", name:"Envoi de facture",
+      subject:"Votre facture Parc Pilot — [Société] — [Période]",
+      body:"Bonjour,\n\nVeuillez trouver votre facture Parc Pilot [N° facture] pour la période de [Période], d'un montant de [Montant].\n\nLa facture est jointe à cet e-mail (pensez à glisser le PDF téléchargé si votre messagerie ne l'a pas repris automatiquement).\n\nJe reste à votre disposition pour toute question.\n\nBien à vous,\n" + SIGN_TXT }
   ];
 
   // Données issues du devis (si on arrive via « Préparer l'e-mail au client ») — servent à TOUTES les variables.
@@ -363,13 +366,17 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
   function fillVars(str){
     if (str == null) return '';
     var d = devisData || {};
+    var fd = window.__factData || {};
     var veh = (d.veh!=null && d.veh!=='') ? (d.veh + ' véhicule' + ((+d.veh>1)?'s':'')) : '';
     var map = {
-      "[Prénom]": d.prenom, "[Nom]": d.nom, "[Société]": d.soc,
+      "[Prénom]": d.prenom, "[Nom]": d.nom, "[Société]": d.soc || fd.soc,
       "[Nombre de véhicules]": veh,
       "[Abonnement mensuel]": (d.mensuel!=null && d.mensuel!=='') ? (fmtEur(d.mensuel)+' € / mois') : '',
       "[Montant de mise en place]": (d.mes!=null && d.mes!=='') ? (fmtEur(d.mes)+' €') : '',
       "[Durée d'engagement]": dureeTxt(d.duree),
+      "[Période]": fd.periodeLabel,
+      "[N° facture]": fd.numero,
+      "[Montant]": fd.montantTxt,
       "[Date]": todayFr(),
       "[Signature]": SIGN_TXT
     };
@@ -667,6 +674,20 @@ Parc Pilot — jis.nubee@gmail.com · 06 61 77 97 53</textarea>
         state.cat = 'all'; renderCats(); renderModelOptions();
         selectTpl(d.formule === 'logiciel' ? 'prop-logiciel' : 'prop-delegue');
         flashMail('✓ E-mail rempli automatiquement depuis ton devis' + (d.soc ? ' — ' + d.soc : '') + '.');
+        wantMailTab = true;
+      }
+    }
+    // Arrivée depuis Facturation → « Envoyer » : modèle « Envoi de facture » pré-rempli (n°, période, montant, destinataire).
+    var rawF = null; try { rawF = localStorage.getItem('pp_facture_to_mail'); } catch(e){}
+    if (rawF){
+      var f = null; try { f = JSON.parse(rawF); } catch(e){}
+      try { localStorage.removeItem('pp_facture_to_mail'); } catch(e){}
+      if (f){
+        window.__factData = f;                            // variables [Société]/[Période]/[N° facture]/[Montant]
+        state.cat = 'all'; renderCats(); renderModelOptions();
+        selectTpl('fact-envoi');
+        window.__mailTo = f.email || '';
+        flashMail('✓ E-mail de facture pré-rempli' + (f.soc ? ' — ' + f.soc : '') + '. Pense à joindre le PDF téléchargé.');
         wantMailTab = true;
       }
     }

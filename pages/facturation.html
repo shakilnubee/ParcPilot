@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -453,14 +453,24 @@
     });
   }
 
-  // F8 — télécharge la facture puis prépare l'e-mail au client (Gmail ne joint pas le PDF : à glisser).
+  // F8 — télécharge la facture puis ouvre la BIBLIOTHÈQUE DE MODÈLES (onboarding) avec le modèle « Envoi de
+  // facture » pré-rempli (n°, période, montant, destinataire). Gmail ne joint pas le PDF → à glisser.
   function sendInvoice(soc) {
-    const rec = loadB()[soc] || {};
-    genFacture(soc);
-    const to = rec.email || '';
-    const subj = 'Facture Parc Pilot — ' + moisAn(ym);
-    const body = 'Bonjour,\n\nVeuillez trouver votre facture Parc Pilot pour ' + moisAn(ym) + '.\n(La facture PDF vient d\'être téléchargée sur votre appareil : pensez à la joindre à cet e-mail avant l\'envoi.)\n\nCordialement,\nJIS Office Partner';
-    setTimeout(function () { try { window.location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body); } catch (e) {} }, 700);
+    if (!(window.jspdf && window.jspdf.jsPDF)) { (window.FP && FP.ensureJsPDF ? FP.ensureJsPDF() : Promise.reject()).then(() => sendInvoice(soc)).catch(() => alert('Generateur PDF indisponible — recharge la page.')); return; }
+    const b = loadB(); const rec0 = b[soc] || {};
+    const montantCents = Math.round((Number(rec0.prix) || 0) * 100);
+    const client = { adresse: rec0.adresse || '', siren: rec0.siren || '', tva: rec0.tva || '' };
+    const go = (rec, provisional) => {
+      buildInvoicePDF(rec, provisional);
+      try { localStorage.setItem('pp_facture_to_mail', JSON.stringify({ soc: soc, email: rec0.email || '', periodeLabel: moisAn(rec.periode), numero: rec.numero || '', montantTxt: eur2(rec.montantCents) })); } catch (e) {}
+      setTimeout(function () { try { window.location.href = '../onboarding.html?tab=mail'; } catch (e) {} }, 600);
+    };
+    if (!(window.FP && FP.supabase && FP.supabase.from)) { go({ numero: null, soc, periode: ym, montantCents, dateEmission: todayISO(), client }, true); return; }
+    allocInvoice(soc, ym, montantCents, client).then(r => {
+      if (r.err) { go({ numero: null, soc, periode: ym, montantCents, dateEmission: todayISO(), client }, true); return; }
+      if (!r.reused) { try { renderRegistry(); } catch (e) {} }
+      go(r.rec, false);
+    });
   }
 
   // Suivi des paiements : matrice clients × 6 derniers mois (F5 — impayés + historique)
