@@ -176,7 +176,7 @@
     // est en UTC → autour du changement de mois (nuit, Paris en avance sur UTC) le mois pouvait différer.
     const ym = (window.FP && FP.ymLocal) ? FP.ymLocal(now) : now.toISOString().slice(0, 7);
     const y12 = (window.FP && FP.ymLocal) ? FP.ymLocal(new Date(now.getFullYear(), now.getMonth() - 11, 1)) : new Date(now.getFullYear(), now.getMonth() - 11, 1).toISOString().slice(0, 7);
-    const actifs = (D.vehicules || []).filter(v => !(window.FP && FP.estVendu ? FP.estVendu(v) : /vendu/i.test(v.statut || ''))); // parc possédé (hors vendus)
+    const actifs = (D.vehicules || []).filter(v => !(window.FP && FP.estVendu ? FP.estVendu(v) : /\bvendu/i.test(v.statut || ''))); // parc possédé (hors vendus) — \b évite de matcher « invendu »
     const km = actifs.reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (Number(v.km) || 0)), 0); // km réel — même source que le dashboard/stats
     const facts = D.factures || [];
     // Coût du mois = coût d'EXPLOITATION (helper canonique) — même chiffre que le dashboard.

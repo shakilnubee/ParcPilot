@@ -2551,7 +2551,7 @@
     if (FP.dupe && !(await FP.dupe.confirmAdd('amendes', newA, data.amendes))) return;
     FP.history.commit();
     data.amendes.push(newA);
-    if (newA.statut === 'payée') setJustifWatch(newA.id, true); // payée sans justificatif dès la création → à surveiller
+    if (window.FP && FP.estPayee ? FP.estPayee(newA) : newA.statut === 'payée') setJustifWatch(newA.id, true); // payée sans justificatif dès la création → à surveiller (source unique FP.estPayee)
     _avisFile = null;
     renderKPIs(); renderTable(); renderCharts();
     const dateOrNull = d => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : null;

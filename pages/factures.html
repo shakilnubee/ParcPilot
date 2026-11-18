@@ -1017,8 +1017,10 @@
     if (hasFile){
       openBtn.style.display = '';
       const fid = f.fileId;
-      if (/\/scans\//.test(fid)) { openBtn.setAttribute('href', '#'); openBtn.onclick = function (ev) { ev.preventDefault(); if (window.FP && FP.openScan) FP.openScan(fid); else window.open(fid, '_blank', 'noopener'); }; }
-      else { openBtn.onclick = null; openBtn.href = /^https?:\/\//.test(fid) ? fid : `https://drive.google.com/file/d/${fid}/view`; }
+      // Scan Supabase (bucket privé) : plus de href="#" (Ctrl/molette-clic ouvrait un onglet VIDE) → data-doc-url
+      // (FP.installNavHref ouvre le lien signé dans un nouvel onglet à la molette/Ctrl/Cmd), clic gauche = openScan.
+      if (/\/scans\//.test(fid)) { openBtn.removeAttribute('href'); openBtn.setAttribute('data-doc-url', fid); openBtn.style.cursor = 'pointer'; openBtn.onclick = function (ev) { ev.preventDefault(); if (window.FP && FP.openScan) FP.openScan(fid); else window.open(fid, '_blank', 'noopener'); }; }
+      else { openBtn.onclick = null; openBtn.removeAttribute('data-doc-url'); openBtn.href = /^https?:\/\//.test(fid) ? fid : `https://drive.google.com/file/d/${fid}/view`; }
       // Téléchargement AVEC NOM AUTOMATIQUE (seulement pour un scan Supabase fetchable ; un lien Drive ne
       // permet pas d'imposer le nom au navigateur → on masque le bouton dans ce cas).
       if (dlBtn) {
@@ -1033,7 +1035,7 @@
         } else { dlBtn.onclick = null; dlBtn.style.display = 'none'; }
       }
     }
-    else { openBtn.onclick = null; openBtn.removeAttribute('href'); openBtn.style.display = 'none'; if (dlBtn) { dlBtn.onclick = null; dlBtn.style.display = 'none'; } }
+    else { openBtn.onclick = null; openBtn.removeAttribute('href'); openBtn.removeAttribute('data-doc-url'); openBtn.style.display = 'none'; if (dlBtn) { dlBtn.onclick = null; dlBtn.style.display = 'none'; } }
     $('drawer').classList.add('open');
     $('drawer-backdrop').classList.add('open');
     (function(){ const dr = $('drawer'); dr.classList.remove('fiche-in'); void dr.offsetWidth; dr.classList.add('fiche-in'); })();

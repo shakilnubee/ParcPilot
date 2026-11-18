@@ -666,7 +666,9 @@
   }
 
   // Véhicule hors flotte → exclu des échéances CT. Source unique = FP.horsFlotte (comme Renouvellements & alertes).
-  const horsFlotteCT = (v) => (window.FP && FP.horsFlotte) ? FP.horsFlotte(v) : /vendu|vendre|hors\s*service/i.test(v.statut || '');
+  // Repli aligné sur FP.horsFlotte : « à vendre » reste DANS la flotte (garde ses échéances CT) → on ne matche
+  // que « vendu » (mot entier, pas « invendu ») / restitué / hors service. Le helper canonique prime quand chargé.
+  const horsFlotteCT = (v) => (window.FP && FP.horsFlotte) ? FP.horsFlotte(v) : /\bvendu|restitu|hors\s*service/i.test(v.statut || '');
 
   function renderKPIs() {
     const rows = filtered();
