@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118c",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -115,8 +115,9 @@
 
     <div id="fa-app" style="display:none">
       <!-- KPIs -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div class="kpi"><div class="flex justify-between items-start gap-2"><div><div class="kpi-label">Revenu mensuel (MRR)</div><div class="kpi-value" id="kpi-mrr" style="color:var(--fp-primary)">—</div><div class="kpi-delta">clients actifs</div></div><div class="kpi-ic"><i data-lucide="repeat"></i></div></div></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div><div class="kpi-label">Revenu mensuel (MRR)</div><div class="kpi-value" id="kpi-mrr" style="color:var(--fp-primary)">—</div><div class="kpi-delta">facturé / mois</div></div><div class="kpi-ic"><i data-lucide="repeat"></i></div></div></div>
+        <div class="kpi"><div class="flex justify-between items-start gap-2"><div><div class="kpi-label" id="kpi-enc-label">Encaissé ce mois</div><div class="kpi-value" id="kpi-enc" style="color:#059669">—</div><div class="kpi-delta" id="kpi-enc-delta">—</div></div><div class="kpi-ic"><i data-lucide="check-circle-2"></i></div></div></div>
         <div class="kpi"><div class="flex justify-between items-start gap-2"><div><div class="kpi-label">Clients actifs</div><div class="kpi-value" id="kpi-clients">—</div></div><div class="kpi-ic"><i data-lucide="building-2"></i></div></div></div>
         <div class="kpi"><div class="flex justify-between items-start gap-2"><div><div class="kpi-label">Revenu annuel</div><div class="kpi-value" id="kpi-annuel">—</div><div class="kpi-delta">MRR × 12</div></div><div class="kpi-ic"><i data-lucide="trending-up"></i></div></div></div>
       </div>
@@ -135,6 +136,19 @@
       </div>
       <p class="text-xs text-slate-400">💡 Les forfaits et paiements sont <b>enregistrés dans le cloud</b> et synchronisés sur tous tes appareils. Clique <b>Coordonnées</b> pour renseigner l'adresse/SIREN d'un client (facture conforme B2B).</p>
 
+      <!-- Suivi des paiements : impayés + historique (F5) -->
+      <div class="card overflow-hidden mt-6">
+        <div class="p-5 pb-1"><h3 class="font-bold text-slate-900">Suivi des paiements (6 derniers mois)</h3>
+          <p class="text-xs text-slate-400">Coche le mois réglé par client. Le <b>mois en cours non réglé</b> est surligné, et le KPI <b>« Encaissé »</b> suit ces cases (encaissé vs facturé).</p>
+        </div>
+        <div class="scrollable">
+          <table class="fp-table">
+            <thead><tr id="fa-pay-head"></tr></thead>
+            <tbody id="fa-pay-body"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Registre des factures émises (numérotation séquentielle, re-téléchargeables) -->
       <div class="card overflow-hidden mt-6">
         <div class="p-5 pb-1"><h3 class="font-bold text-slate-900">Factures émises</h3>
@@ -147,7 +161,7 @@
           </table>
         </div>
       </div>
-      <p class="text-xs text-slate-400 mt-2">ℹ️ Mentions de la facture : émetteur <b>JIS Office Partner</b> (SIREN 106 301 898 00016), <b>TVA non applicable – art. 293 B du CGI</b>, <b>paiement à réception</b> + pénalités légales. <b>L'adresse postale de l'émetteur n'est pas encore renseignée</b> — dis-la moi pour l'ajouter sur les factures.</p>
+      <p class="text-xs text-slate-400 mt-2">ℹ️ Mentions de la facture : émetteur <b>JIS Office Partner — 12 Chemin du Bel Air, 93460 Gournay-sur-Marne</b> (SIREN 106 301 898 00016), <b>TVA non applicable – art. 293 B du CGI</b>, <b>paiement à réception</b> + pénalités légales.</p>
     </div>
   </main>
 </div>
@@ -275,13 +289,13 @@
 
   function render(){
     const b = loadB(); const cs = clients();
-    let mrr = 0, nActifs = 0;
+    let mrr = 0, nActifs = 0, encaisse = 0, impayes = 0;
     const rows = cs.map(soc => {
       const rec = b[soc] || {};
       const prix = Number(rec.prix) || 0;
       const actif = rec.actif !== false;
       const paye = !!(rec.pay && rec.pay[ym]);
-      if (actif) { mrr += prix; nActifs++; }
+      if (actif) { mrr += prix; nActifs++; if (paye) encaisse += prix; else impayes++; }
       return `<tr>
         <td><b>${esc(soc)}</b></td>
         <td class="r"><input type="text" inputmode="decimal" class="fa-prix" data-soc="${esc(soc)}" value="${prix || ''}" placeholder="—" style="width:100px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--fp-border);border-radius:6px"></td>
@@ -295,6 +309,10 @@
     $('kpi-mrr').textContent = euro(mrr);
     $('kpi-clients').textContent = nActifs;
     $('kpi-annuel').textContent = euro(mrr * 12);
+    $('kpi-enc').textContent = euro(encaisse);
+    const encLabel = $('kpi-enc-label'); if (encLabel) encLabel.textContent = 'Encaissé — ' + moisAn(ym);
+    const encDelta = $('kpi-enc-delta'); if (encDelta) { encDelta.textContent = impayes ? ('⚠️ ' + impayes + ' impayé' + (impayes > 1 ? 's' : '')) : '✓ tout réglé'; encDelta.style.color = impayes ? '#b45309' : '#059669'; }
+    renderPayments();
     lucide.createIcons();
   }
 
@@ -308,8 +326,11 @@
     $('fa-tfoot').innerHTML = `<tr class="font-bold" style="border-top:2px solid var(--fp-border)"><td>TOTAL</td><td class="r">${euro(mrr)}/mois</td><td colspan="3"></td></tr>`;
   });
   document.addEventListener('change', (e) => {
-    const ac = e.target.closest && e.target.closest('.fa-actif');
-    const pa = e.target.closest && e.target.closest('.fa-paye');
+    if (!e.target.closest) return;
+    const ph = e.target.closest('.fa-payh');
+    if (ph) { const b = loadB(); const soc = ph.dataset.soc; b[soc] = b[soc] || {}; b[soc].pay = b[soc].pay || {}; b[soc].pay[ph.dataset.m] = !!ph.checked; saveB(b); render(); return; }
+    const ac = e.target.closest('.fa-actif');
+    const pa = e.target.closest('.fa-paye');
     if (ac) { const b = loadB(); const soc = ac.dataset.soc; b[soc] = b[soc] || {}; b[soc].actif = ac.checked; saveB(b); render(); }
     // ⚠️ On stocke un `false` EXPLICITE au décochage (pas de delete) : sinon le delta-merge avec le
     // serveur (union des mois) ferait « ressusciter » un paiement décoché depuis un autre appareil.
@@ -332,7 +353,7 @@
   // Émetteur (mentions légales). ⚠️ `adresse` vide : l'adresse postale n'est pas renseignée (à compléter
   // dès que Shakil la fournit) — elle n'est alors pas imprimée (jamais d'adresse inventée).
   const ISSUER = {
-    lignes: ['JIS Office Partner', 'Shakil Nubeebaccus', 'SIREN 106 301 898 00016', 'jis.nubee@gmail.com'],
+    lignes: ['JIS Office Partner', '12 Chemin du Bel Air', '93460 Gournay-sur-Marne', 'SIREN 106 301 898 00016', 'jis.nubee@gmail.com'],
     adresse: '',
     tva: 'TVA non applicable, article 293 B du CGI.',
     paiement: 'Paiement a reception de facture.',
@@ -340,6 +361,8 @@
   };
   const eur2 = (cents) => (Math.round(Number(cents) || 0) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
   const moisAn = (p) => { try { const a = String(p).split('-'); return new Date(+a[0], (+a[1]) - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); } catch (e) { return p; } };
+  const moisCourt = (p) => { try { const a = String(p).split('-'); return new Date(+a[0], (+a[1]) - 1, 1).toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '') + ' ' + a[0].slice(2); } catch (e) { return p; } };
+  const lastMonths = (n) => { const out = []; const d = new Date(); for (let i = 0; i < n; i++) { out.push(new Date(d.getFullYear(), d.getMonth() - i, 1).toISOString().slice(0, 7)); } return out; };
   const todayISO = () => new Date().toISOString().slice(0, 10);
   const loadInv = () => { try { return JSON.parse(localStorage.getItem(INVKEY) || '{}') || {}; } catch (e) { return {}; } };
   const cacheInv = (d) => { try { localStorage.setItem(INVKEY, JSON.stringify(d)); } catch (e) {} };
@@ -413,6 +436,22 @@
       buildInvoicePDF(r.rec, false);
       if (!r.reused) { try { renderRegistry(); } catch (e) {} }
     });
+  }
+
+  // Suivi des paiements : matrice clients × 6 derniers mois (F5 — impayés + historique)
+  function renderPayments() {
+    const head = $('fa-pay-head'), body = $('fa-pay-body'); if (!head || !body) return;
+    const b = loadB(); const cs = clients(); const months = lastMonths(6).reverse(); // ancien → récent
+    head.innerHTML = '<th>Client</th>' + months.map(m => '<th class="c" style="white-space:nowrap;' + (m === ym ? 'color:var(--fp-accent);font-weight:800' : '') + '">' + esc(moisCourt(m)) + '</th>').join('');
+    if (!cs.length) { body.innerHTML = '<tr><td colspan="7" class="text-sm text-slate-400" style="padding:1rem">Aucun client.</td></tr>'; return; }
+    body.innerHTML = cs.map(soc => {
+      const rec = b[soc] || {}; const actif = rec.actif !== false; const pay = rec.pay || {};
+      const cells = months.map(m => {
+        const paid = !!pay[m]; const warn = (m === ym) && actif && !paid;
+        return '<td class="c" style="' + (warn ? 'background:#FEF3C7' : '') + '"><input type="checkbox" class="fa-payh" data-soc="' + esc(soc) + '" data-m="' + m + '" ' + (paid ? 'checked' : '') + ' style="width:16px;height:16px;accent-color:#059669;cursor:pointer"></td>';
+      }).join('');
+      return '<tr><td><b>' + esc(soc) + '</b>' + (actif ? '' : ' <span class="text-xs text-slate-400">(inactif)</span>') + '</td>' + cells + '</tr>';
+    }).join('');
   }
 
   function regArray() { const d = loadInv(); const items = d.items || {}; return Object.keys(items).map(k => items[k]).sort((a, b) => (b.periode || '').localeCompare(a.periode || '') || (b.numero || '').localeCompare(a.numero || '')); }
