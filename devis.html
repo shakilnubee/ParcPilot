@@ -519,8 +519,9 @@ $('btn-mail').addEventListener('click', function(){
   var calc = window.__devisCalc || { mensuel:0, mesAmount:0 };
   var contact = dval('f-contact');                       // « Prénom Nom »
   var prenom = contact ? contact.split(/\s+/)[0] : '';   // 1er mot = prénom
+  var nom = contact ? contact.split(/\s+/).slice(1).join(' ') : '';  // reste = nom (pour la variable [Nom] de l'e-mail)
   var payload = {
-    soc: dval('f-soc'), prenom: prenom, mail: dval('f-mail'),
+    soc: dval('f-soc'), prenom: prenom, nom: nom, mail: dval('f-mail'),
     veh: Math.max(1, parseInt(dval('f-veh'),10) || 1),
     socn: Math.max(1, parseInt(dval('f-socn'),10) || 1),
     formule: (state.formule === 'logiciel') ? 'logiciel' : 'delegue',
