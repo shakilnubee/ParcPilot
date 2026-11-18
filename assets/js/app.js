@@ -9046,6 +9046,68 @@ FP.searchMatch = (text, q) => {
 };
 // Échappement HTML — À UTILISER pour toute donnée saisie/OCR injectée en innerHTML (anti-XSS).
 FP.esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ⚠️ SOURCE UNIQUE — APERÇU DE DOCUMENT « à lire à côté du formulaire » (scanner, factures, sinistres).
+// Génère le panneau d'aperçu d'un File : barre (titre + nom + outils) + scène (image avec zoom/rotation/
+// ajuster, PDF via lecteur natif, autre type via lien). Gère l'URL objet (création + révocation) et le
+// câblage zoom/rotation. Le CSS partagé est dans styles.css (.fpdr-*). Chaque page garde SA grille 2 colonnes.
+// But : UNE seule implémentation à maintenir (markup + comportement + cycle de vie de l'URL) pour les 3 écrans.
+FP.docReview = {
+  _n: 0,
+  // Détecte le type d'un fichier (image / PDF) de façon tolérante (type MIME ou extension du nom).
+  detect: function (file) {
+    const n = (file && file.name) || '', t = (file && file.type) || '';
+    return {
+      isImg: /^image\//.test(t) || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(n),
+      isPdf: /pdf/i.test(t) || /\.pdf$/i.test(n)
+    };
+  },
+  // Construit le panneau d'aperçu. opts : { label, alt, openLabel, showName }.
+  // Retourne { html, url, isImage, isPdf, imgId, wire(root), destroy() }.
+  //   html    = l'intérieur du panneau (barre + scène) → à injecter dans TON conteneur (colonne doc).
+  //   wire()  = branche le zoom/rotation/ajuster sur l'image (à appeler APRÈS insertion dans le DOM).
+  //   destroy() = révoque l'URL objet (à appeler à la fermeture).
+  build: function (file, opts) {
+    opts = opts || {};
+    const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
+    let url = null; try { url = URL.createObjectURL(file); } catch (e) {}
+    const d = this.detect(file);
+    const pfx = 'fpdr' + (++FP.docReview._n);
+    const imgId = pfx + '-img', zId = pfx + '-z';
+    const alt = esc(opts.alt || 'Document');
+    const viewer = d.isImg
+      ? '<img id="' + imgId + '" class="fpdr-img" alt="' + alt + '" src="' + (url || '') + '">'
+      : (d.isPdf
+          ? '<iframe id="' + imgId + '" class="fpdr-pdf" title="' + alt + '" src="' + (url || '') + '"></iframe>'
+          : '<a href="' + (url || '') + '" target="_blank" rel="noopener" class="btn btn-outline text-sm">' + esc(opts.openLabel || 'Ouvrir le document') + '</a>');
+    const tools = d.isImg
+      ? '<span class="fpdr-tools"><button type="button" class="fpdr-tool" data-z="out" title="Dézoomer">−</button><span class="fpdr-zoom" id="' + zId + '">100 %</span><button type="button" class="fpdr-tool" data-z="in" title="Zoomer">+</button><button type="button" class="fpdr-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="fpdr-tool" data-z="fit" title="Ajuster">⤢</button></span>'
+      : '';
+    const name = opts.showName === false ? '' : '<span class="fpdr-name">' + esc((file && file.name) || 'document') + '</span>';
+    const html = '<div class="fpdr-bar"><span class="fpdr-t">' + (opts.label || '📄 Document') + '</span>' + name + tools + '</div>'
+      + '<div class="fpdr-stage' + (d.isImg ? '' : ' pdf') + '">' + viewer + '</div>';
+    return {
+      url: url, isImage: d.isImg, isPdf: d.isPdf, html: html, imgId: imgId,
+      wire: function (root) {
+        if (!d.isImg) return;
+        let z = 1, r = 0;
+        const el = document.getElementById(imgId), zl = document.getElementById(zId);
+        if (!el || el.tagName === 'IFRAME') return;
+        const ap = () => { el.style.transform = 'scale(' + z + ') rotate(' + r + 'deg)'; if (zl) zl.textContent = Math.round(z * 100) + ' %'; };
+        const scope = (root && root.querySelectorAll) ? root : document;
+        Array.prototype.forEach.call(scope.querySelectorAll('.fpdr-tool'), (b) => b.addEventListener('click', () => {
+          const a = b.getAttribute('data-z');
+          if (a === 'in') z = Math.min(3, z + 0.2);
+          else if (a === 'out') z = Math.max(0.4, z - 0.2);
+          else if (a === 'rot') r = (r + 90) % 360;
+          else { z = 1; r = 0; }
+          ap();
+        }));
+      },
+      destroy: function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} }
+    };
+  }
+};
 // ⚠️ SOURCE UNIQUE — VERROU DE DÉFILEMENT DE LA PAGE quand une fenêtre plein écran est ouverte.
 // Sans lui, sur téléphone le geste de scroll « passe » à la page du fond une fois le contenu de la
 // modale arrivé en bas (scroll chaining), le fond bouge et les boutons du bas deviennent inatteignables.

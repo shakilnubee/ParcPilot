@@ -2723,3 +2723,19 @@ body.fp-dark .fp-scan-zone:hover, body.fp-dark .fp-scan-btn:hover { background:r
   .fp-actionbar::-webkit-scrollbar { display: none; }
   .fp-actionbar > * { flex: 0 0 auto; scroll-snap-align: start; }
 }
+
+/* ===== Aperçu de document partagé — FP.docReview (scanner · factures · sinistres) ===== */
+/* UNE seule source pour la barre + la scène + le zoom/rotation. La grille 2 colonnes et le */
+/* conteneur (bordure) restent propres à chaque page. Hauteurs réglables via variables CSS.  */
+.fpdr-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: .5rem .7rem; border-bottom: 1px solid var(--fp-border); background: #f8fafc; }
+.fpdr-t { font-weight: 800; color: var(--fp-primary); font-size: .9rem; }
+.fpdr-name { font-size: .75rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fpdr-tools { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.fpdr-tool { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--fp-border); background: #fff; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--fp-primary); }
+.fpdr-tool:hover { border-color: var(--fp-accent); color: var(--fp-accent); }
+.fpdr-zoom { font-size: .72rem; color: #64748b; min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
+.fpdr-stage { background: #eef2f7; max-height: var(--fpdr-stage-h, 420px); min-height: var(--fpdr-stage-min, 220px); overflow: auto; display: grid; place-items: center; padding: 12px; }
+.fpdr-stage.pdf { padding: 0; }
+.fpdr-img { transform-origin: center center; transition: transform .18s ease; max-width: 100%; max-height: var(--fpdr-img-h, 380px); border-radius: 6px; }
+.fpdr-pdf { width: 100%; height: var(--fpdr-pdf-h, 420px); border: 0; display: block; }
+@media (prefers-reduced-motion: reduce) { .fpdr-img { transition: none; } }

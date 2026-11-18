@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Factures — Parc Pilot</title>
@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261118b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261118d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261118b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261118d">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -75,20 +75,8 @@
   /* Lot 3 — facture : document à gauche quand un fichier est joint (desktop), empilé sur mobile */
   #facture-modal .modal.has-doc { max-width: 940px; }
   .fa-dr-body { display: block; }
-  .fa-docview { border: 1px solid var(--fp-border); border-radius: .8rem; overflow: hidden; margin-bottom: 1rem; }
-  .fa-dv-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: .5rem .7rem; border-bottom: 1px solid var(--fp-border); background: #F8FAFC; }
-  .fa-dv-bar .t { font-weight: 800; color: var(--fp-primary); font-size: .9rem; }
-  .fa-dv-name { font-size: .74rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .fa-dv-tools { display: flex; gap: 5px; margin-left: auto; }
-  .fa-dv-tool { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--fp-border); background: #fff; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--fp-primary); }
-  .fa-dv-tool:hover { border-color: var(--fp-accent); color: var(--fp-accent); }
-  .fa-dv-z { font-size: .72rem; color: #64748b; min-width: 38px; text-align: center; }
-  .fa-dv-stage { background: #eef2f7; max-height: 420px; min-height: 240px; overflow: auto; display: grid; place-items: center; padding: 12px; }
-  .fa-dv-stage.pdf { padding: 0; }
-  .fa-dvel { transform-origin: center center; transition: transform .18s ease; max-width: 100%; border-radius: 6px; }
-  img.fa-dvel { max-height: 380px; }
-  .fa-dvpdf { width: 100%; height: 420px; border: 0; display: block; }
-  @media (prefers-reduced-motion: reduce){ .fa-dvel { transition: none; } }
+  .fa-docview { border: 1px solid var(--fp-border); border-radius: .8rem; overflow: hidden; margin-bottom: 1rem; --fpdr-stage-min: 240px; }
+  /* L'aperçu (barre + scène + zoom) est fourni par le composant partagé FP.docReview (.fpdr-* dans styles.css). */
   @media (min-width: 760px){
     #facture-modal .modal.has-doc .fa-dr-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr); gap: 20px; align-items: start; }
     #facture-modal .modal.has-doc .fa-docview { margin-bottom: 0; position: sticky; top: 0; }
@@ -618,8 +606,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261118b"></script>
-<script src="../assets/js/supabase-client.js?v=20261118b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261118d"></script>
+<script src="../assets/js/supabase-client.js?v=20261118d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -635,13 +623,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261118b"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261118b"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261118b" defer></script>
+<script src="../assets/js/app.min.js?v=20261118d"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261118d"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261118d" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1392,31 +1380,22 @@
 
   let _faReading = false;
   // ===== Lot 3 — aperçu du document à gauche des champs (apparaît quand un fichier est joint) =====
-  var _faDvUrl = null;
+  // Aperçu du document à gauche des champs — composant partagé FP.docReview (scanner · factures · sinistres).
+  var _faPane = null;
   function clearFacturePreview(){
-    try{ if(_faDvUrl){ URL.revokeObjectURL(_faDvUrl); _faDvUrl=null; } }catch(e){}
+    try{ if(_faPane){ _faPane.destroy(); _faPane=null; } }catch(e){}
     var dv=$('fa-docview'); if(dv){ dv.hidden=true; dv.innerHTML=''; }
     var m=document.querySelector('#facture-modal .modal'); if(m) m.classList.remove('has-doc');
   }
   function showFacturePreview(file){
-    var dv=$('fa-docview'); if(!dv||!file) return;
-    try{ if(_faDvUrl){ URL.revokeObjectURL(_faDvUrl); } }catch(e){}
-    try{ _faDvUrl=URL.createObjectURL(file); }catch(e){ _faDvUrl=null; }
-    if(!_faDvUrl) return;
-    var isImg=/^image\//.test(file.type||'')||/\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name||'');
-    var isPdf=/pdf/i.test(file.type||'')||/\.pdf$/i.test(file.name||'');
-    var viewer = isImg ? '<img id="fa-dvel" class="fa-dvel" alt="Document" src="'+_faDvUrl+'">'
-      : (isPdf ? '<iframe class="fa-dvpdf" title="Document" src="'+_faDvUrl+'"></iframe>'
-               : '<a class="btn btn-outline text-sm" href="'+_faDvUrl+'" target="_blank" rel="noopener">Ouvrir le document</a>');
-    var tools = isImg ? '<span class="fa-dv-tools"><button type="button" class="fa-dv-tool" data-z="out" title="Dézoomer">−</button><span class="fa-dv-z" id="fa-dvz">100 %</span><button type="button" class="fa-dv-tool" data-z="in" title="Zoomer">+</button><button type="button" class="fa-dv-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="fa-dv-tool" data-z="fit" title="Ajuster">⤢</button></span>' : '';
-    dv.innerHTML = '<div class="fa-dv-bar"><span class="t">📄 Document</span><span class="fa-dv-name">'+escapeHtml(file.name||'document')+'</span>'+tools+'</div><div class="fa-dv-stage'+(isImg?'':' pdf')+'">'+viewer+'</div>';
+    var dv=$('fa-docview'); if(!dv||!file||!(window.FP&&FP.docReview)) return;
+    try{ if(_faPane) _faPane.destroy(); }catch(e){}
+    _faPane = FP.docReview.build(file, { label: '📄 Document' });
+    if(!_faPane.url){ _faPane=null; return; }
+    dv.innerHTML = _faPane.html;
     dv.hidden=false;
     var m=document.querySelector('#facture-modal .modal'); if(m) m.classList.add('has-doc');
-    if(isImg){
-      var z=1,r=0,el=document.getElementById('fa-dvel'),zl=document.getElementById('fa-dvz');
-      var apply=function(){ if(el) el.style.transform='scale('+z+') rotate('+r+'deg)'; if(zl) zl.textContent=Math.round(z*100)+' %'; };
-      dv.querySelectorAll('.fa-dv-tool').forEach(function(b){ b.addEventListener('click',function(){ var a=b.getAttribute('data-z'); if(a==='in')z=Math.min(3,z+0.2); else if(a==='out')z=Math.max(0.4,z-0.2); else if(a==='rot')r=(r+90)%360; else {z=1;r=0;} apply(); }); });
-    }
+    _faPane.wire(dv);
   }
 
   async function handleFacture(file){
