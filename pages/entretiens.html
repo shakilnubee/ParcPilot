@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118f",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118g",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Entretiens — Parc Pilot</title>
@@ -122,6 +122,10 @@
     </div>
     <div class="flex flex-wrap justify-end items-center gap-3 mb-8">
       <span data-data-io hidden></span><span id="ent-io-mount"></span>
+      <!-- Raccourcis RDV non liés à une échéance (pneus / réparation) : ouvrent Tâches avec un RDV pré-rempli
+           (titre), le véhicule se choisit sur place → même système que le CT (case « Prévenir le conducteur »). -->
+      <a href="taches.html?new=1&titre=Pneus" class="btn btn-outline text-sm">🛞 RDV pneus</a>
+      <a href="taches.html?new=1&titre=R%C3%A9paration" class="btn btn-outline text-sm">🛠️ RDV réparation</a>
       <button type="button" class="btn btn-dark text-sm" onclick="document.getElementById('garage-modal').classList.add('open')"><i data-lucide="phone-call" class="w-4 h-4"></i> Contacter le garage</button>
     </div>
 

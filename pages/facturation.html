@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118h",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -299,6 +299,33 @@
     pullDevis(); // montants proposés par les devis (suggestions de forfait)
   }
 
+  // Retirer un client / une société (CEO only — la page entière est gardée par FP.isJisOwner).
+  // ⚠️ mergeBilling NE SUPPRIME PAS une clé (le serveur la réimpose) → c'est pourquoi un client « revenait ».
+  //    On fait donc : (1) écriture AUTORITAIRE du forfait/paiements SANS cette clé, puis (2) FP.removeSociete
+  //    (registre + TOMBSTONE synchronisé) qui la fait disparaître PARTOUT et l'empêche de revenir via synchro.
+  //    Les véhicules/données déjà en base ne sont pas touchés (isolés par RLS), juste plus sélectionnables.
+  function supprimerClient(soc){
+    if (!soc) return;
+    const ok = window.confirm('Retirer « ' + soc + ' » de la liste des clients / sociétés ?\n\nSes véhicules et données déjà enregistrés restent en base (isolés), mais la société ne sera plus proposée nulle part. Tu pourras la recréer dans Paramètres si besoin.');
+    if (!ok) return;
+    // (1) Retire le forfait + les paiements de ce client — écriture autoritaire (drop explicite de la clé).
+    try {
+      const b = loadB(); delete b[soc]; cacheB(b);
+      if (window.FP && FP.supabase && FP.supabase.from) {
+        readPrivate().then((res) => {
+          if (res.err) return;                                  // table legacy : le tombstone société suffit à masquer
+          const merged = mergeBilling(res.found ? res.data : {}, b);
+          delete merged[soc];                                   // on retire explicitement la clé côté serveur
+          pvWrite(PID, merged).then((w) => { if (w && w.error) notifyFail(w.error); }, notifyFail);
+        }, notifyFail);
+      }
+    } catch (e) { notifyFail(e); }
+    // (2) Retire la société du registre + pose le tombstone (disparaît partout, ne revient pas via synchro).
+    try { if (window.FP && FP.removeSociete) FP.removeSociete(soc); } catch (e) {}
+    try { if (window.FP && FP.toast) FP.toast('« ' + soc + ' » retiré de la liste.'); } catch (e) {}
+    render();
+  }
+
   function render(){
     const b = loadB(); const cs = clients();
     let mrr = 0, nActifs = 0, encaisse = 0, impayes = 0;
@@ -314,7 +341,7 @@
         <td class="r"><input type="text" inputmode="decimal" class="fa-prix" data-soc="${esc(soc)}" value="${prix || ''}" placeholder="—" style="width:100px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--fp-border);border-radius:6px">${sug ? `<button type="button" class="fa-sugg" data-soc="${esc(soc)}" data-v="${sug}" title="Montant proposé par le devis — cliquer pour l'appliquer" style="display:block;margin:3px 0 0 auto;font-size:11px;color:#2563eb;background:none;border:0;cursor:pointer;padding:0">💡 ${esc(euro(sug))} (devis)</button>` : ''}</td>
         <td class="c"><input type="checkbox" class="fa-actif" data-soc="${esc(soc)}" ${actif ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--fp-accent);cursor:pointer"></td>
         <td class="c"><input type="checkbox" class="fa-paye" data-soc="${esc(soc)}" ${paye ? 'checked' : ''} style="width:18px;height:18px;accent-color:#059669;cursor:pointer"></td>
-        <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button><button type="button" class="btn btn-outline text-xs fa-send" data-soc="${esc(soc)}" title="Télécharger la facture et préparer l'e-mail au client"><i data-lucide="send" class="w-3.5 h-3.5"></i> Envoyer</button><button type="button" class="btn btn-outline text-xs fa-client" data-soc="${esc(soc)}" title="Coordonnées de facturation (adresse, SIREN, TVA, e-mail)"><i data-lucide="building" class="w-3.5 h-3.5"></i> Coordonnées</button></div></td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button><button type="button" class="btn btn-outline text-xs fa-send" data-soc="${esc(soc)}" title="Télécharger la facture et préparer l'e-mail au client"><i data-lucide="send" class="w-3.5 h-3.5"></i> Envoyer</button><button type="button" class="btn btn-outline text-xs fa-client" data-soc="${esc(soc)}" title="Coordonnées de facturation (adresse, SIREN, TVA, e-mail)"><i data-lucide="building" class="w-3.5 h-3.5"></i> Coordonnées</button><button type="button" class="btn btn-outline text-xs fa-del" data-soc="${esc(soc)}" title="Retirer ce client / cette société de la liste" style="color:#dc2626;border-color:#fecaca"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Supprimer</button></div></td>
       </tr>`;
     }).join('');
     $('fa-tbody').innerHTML = cs.length ? rows : '<tr><td colspan="5" class="text-sm text-slate-400" style="padding:1rem">Aucun client encore. Crée une société cliente dans Paramètres → « Nouveau client ».</td></tr>';
@@ -355,6 +382,7 @@
     const f = e.target.closest('.fa-fact'); if (f) { genFacture(f.dataset.soc); return; }
     const sd = e.target.closest('.fa-send'); if (sd) { sendInvoice(sd.dataset.soc); return; }
     const cl = e.target.closest('.fa-client'); if (cl) { openClientModal(cl.dataset.soc); return; }
+    const dl = e.target.closest('.fa-del'); if (dl) { supprimerClient(dl.dataset.soc); return; }
     const rd = e.target.closest('.fa-redl'); if (rd) {
       const rec = (loadInv().items || {})[rd.dataset.key];
       if (!rec) return;
