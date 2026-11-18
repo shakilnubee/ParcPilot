@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -166,10 +166,16 @@
   const euro = (n) => (window.FP && FP.euro) ? FP.euro(Math.round(Number(n) || 0)) : (Math.round(Number(n) || 0) + ' €');
   const esc = (s) => (window.FP && FP.esc) ? FP.esc(s) : String(s == null ? '' : s);
   const BKEY = 'jis_billing_v1';
-  const DBID = 'jis_billing'; // ligne app_settings dédiée (données JIS globales, propriétaire) — synchro tous appareils
+  const LEGACY_ID = 'jis_billing';        // ANCIEN stockage : ligne app_settings (repli + recopie initiale)
+  const PT  = 'jis_private_settings';     // SOURCE DE VÉRITÉ : table privée CEO (RLS owner + fp_role='ceo')
+  const PID = 'billing';                  // clé logique de la facturation dans la table privée
   const ym = new Date().toISOString().slice(0, 7);
-  // localStorage = cache rapide ; la SOURCE partagée est Supabase (app_settings id='jis_billing').
+  let _seeded = false;                    // recopie initiale legacy→table faite une fois par chargement
+  // localStorage = cache rapide ; la SOURCE partagée est Supabase (table privée CEO `jis_private_settings`).
+  // ⚠️ Tant que la migration n'est pas appliquée en prod, la table n'existe pas → repli AUTOMATIQUE sur
+  //    l'ancien `app_settings` id='jis_billing' (aucune régression). La ligne legacy n'est jamais supprimée.
   const loadB = () => { try { return JSON.parse(localStorage.getItem(BKEY) || '{}') || {}; } catch (e) { return {}; } };
+  const cacheB = (b) => { try { localStorage.setItem(BKEY, JSON.stringify(b)); } catch (e) {} };
   // Fusion par société : la version serveur fait foi pour les sociétés qu'on N'A PAS touchées, la
   // version locale gagne pour celles qu'on vient d'éditer. Évite qu'un enregistrement depuis un 2e
   // appareil n'écrase (last-writer-wins) les prix/états d'autres clients modifiés ailleurs.
@@ -184,30 +190,55 @@
     });
     return out;
   };
+  // Lit la table privée CEO. Résout {err} si la table n'existe pas/inaccessible, sinon {found, data}.
+  const readPrivate = () => FP.supabase.from(PT).select('data').eq('id', PID).maybeSingle().then(
+    (r) => { if (r && r.error) return { err: true }; const d = r && r.data && r.data.data; return { found: !!(d && typeof d === 'object'), data: (d && typeof d === 'object') ? d : {} }; },
+    () => ({ err: true })
+  );
+  const readLegacy = () => FP.supabase.from('app_settings').select('data').eq('id', LEGACY_ID).maybeSingle().then(
+    (r) => (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : {},
+    () => ({})
+  );
+  const notifyFail = (e) => { try { if (window.FP && FP.notifyError) FP.notifyError('Facturation : échec d\'enregistrement en ligne — rien n\'est perdu, réessaie.'); } catch (_) {} try { console.warn('[facturation]', e); } catch (_) {} };
+
   const saveB = (b) => {
-    try { localStorage.setItem(BKEY, JSON.stringify(b)); } catch (e) {}
-    // Synchro tous appareils (règle 0-sync) — DELTA-MERGE avec la dernière version serveur avant écriture.
+    cacheB(b);
     try {
-      if (!(window.FP && FP.persist && FP.persist.upsert)) return;
-      const doWrite = (merged) => { try { localStorage.setItem(BKEY, JSON.stringify(merged)); } catch (e) {} FP.persist.upsert('app_settings', { id: DBID, data: merged }); };
-      if (window.FP && FP.supabase && FP.supabase.from) {
-        FP.supabase.from('app_settings').select('data').eq('id', DBID).maybeSingle().then(
-          (r) => { const srv = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : {}; doWrite(mergeBilling(srv, b)); },
-          () => doWrite(b)
-        );
-      } else { doWrite(b); }
-    } catch (e) { try { FP.persist.upsert('app_settings', { id: DBID, data: b }); } catch (_) {} }
+      if (!(window.FP && FP.supabase && FP.supabase.from)) return;
+      const writePrivate = (merged) => { cacheB(merged); return FP.supabase.from(PT).upsert({ id: PID, data: merged }, { onConflict: 'id' }); };
+      const writeLegacy = (merged) => { cacheB(merged); try { if (FP.persist && FP.persist.upsert) FP.persist.upsert('app_settings', { id: LEGACY_ID, data: merged }); } catch (_) {} };
+      readPrivate().then((res) => {
+        if (res.err) {                                           // table pas encore en prod → repli legacy (delta-merge)
+          FP.supabase.from('app_settings').select('data').eq('id', LEGACY_ID).maybeSingle().then(
+            (r) => { const srv = (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : {}; writeLegacy(mergeBilling(srv, b)); },
+            () => writeLegacy(b)
+          );
+          return;
+        }
+        const merged = mergeBilling(res.found ? res.data : {}, b);
+        writePrivate(merged).then((w) => { if (w && w.error) notifyFail(w.error); }, notifyFail);
+      }, () => { writePrivate(b).then((w) => { if (w && w.error) notifyFail(w.error); }, notifyFail); });
+    } catch (e) { notifyFail(e); }
   };
   // Récupère la facturation depuis le serveur (propriétaire connecté) → cache local → re-render.
   const pullB = () => {
     try {
       if (!(window.FP && FP.supabase && FP.supabase.from)) return;
-      FP.supabase.from('app_settings').select('data').eq('id', DBID).maybeSingle().then(function (r) {
-        if (r && r.data && r.data.data && typeof r.data.data === 'object') {
-          try { localStorage.setItem(BKEY, JSON.stringify(r.data.data)); } catch (e) {}
-          try { render(); } catch (e) {}
+      readPrivate().then((res) => {
+        if (res.err) {                                           // table absente → repli legacy
+          readLegacy().then((leg) => { if (leg && Object.keys(leg).length) { cacheB(leg); try { render(); } catch (e) {} } });
+          return;
         }
-      }, function () {});
+        if (res.found) { cacheB(res.data); try { render(); } catch (e) {} return; }
+        // table présente mais vide → recopie initiale depuis l'ancien stockage (anti-perte), une seule fois
+        readLegacy().then((leg) => {
+          if (leg && Object.keys(leg).length && !_seeded) {
+            _seeded = true;
+            try { FP.supabase.from(PT).upsert({ id: PID, data: leg }, { onConflict: 'id' }).then(function () {}, function () {}); } catch (e) {}
+            cacheB(leg); try { render(); } catch (e) {}
+          }
+        });
+      });
     } catch (e) {}
   };
 
