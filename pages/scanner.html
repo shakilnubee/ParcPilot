@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Scanner IA — Parc Pilot</title>
@@ -17,6 +17,21 @@
 <style>
   .drop { border:2px dashed var(--fp-border); border-radius:1rem; padding:2.5rem 1.5rem; text-align:center; cursor:pointer; transition:.15s; background:#fff; }
   .drop:hover, .drop.over { border-color:var(--fp-accent); background:#FFF7ED; }
+  .drop.over { transform:scale(1.01); box-shadow:0 8px 24px rgba(249,115,22,.14); }
+  /* Liste d'upload par fichier (Lot 1 — expérience vidéo 1) */
+  .sc-fitem { display:flex; gap:.7rem; align-items:center; border:1px solid var(--fp-border); border-radius:.7rem; padding:.55rem .7rem; margin-bottom:.5rem; background:#fff; }
+  .sc-thumb { width:40px; height:40px; flex:0 0 40px; border-radius:.45rem; overflow:hidden; background:#F1F5F9; display:flex; align-items:center; justify-content:center; color:#94a3b8; }
+  .sc-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .sc-fmeta { min-width:0; flex:1; }
+  .sc-fname { font-size:.88rem; font-weight:700; color:var(--fp-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sc-fsub { font-size:.74rem; color:#94a3b8; }
+  .sc-fstate { flex:0 0 auto; min-width:150px; text-align:right; }
+  @media (max-width:560px){ .sc-fstate { min-width:110px; } }
+  .sc-ind { height:6px; background:#eef2f7; border-radius:9999px; overflow:hidden; position:relative; margin-top:4px; }
+  .sc-ind::after { content:''; position:absolute; left:-40%; top:0; height:100%; width:40%; background:var(--fp-accent); border-radius:9999px; animation:scind 1.1s ease-in-out infinite; }
+  @keyframes scind { 0%{left:-40%} 100%{left:100%} }
+  @media (prefers-reduced-motion: reduce){ .sc-ind::after { animation:none; left:0; width:100%; } }
+  .sc-retry { font:inherit; font-weight:700; font-size:.76rem; color:var(--fp-accent); background:none; border:none; cursor:pointer; text-decoration:underline; padding:0; }
   .steps { display:flex; gap:.5rem; margin:1rem 0; }
   .step { flex:1; text-align:center; font-size:.78rem; font-weight:700; color:#94a3b8; padding:.5rem; border-radius:.6rem; background:#F1F5F9; }
   .step.on { background:var(--fp-primary); color:#fff; }
@@ -327,27 +342,62 @@
 
   function handleFiles(fileList){ var files=Array.prototype.slice.call(fileList||[]).filter(Boolean); if(!files.length) return; if(!societeChoisieOuBloque()) return; if(files.length===1){ handleFile(files[0]); return; } runBatch(files); }
 
-  function renderBatchProgress(done, total){ $('sc-steps').classList.add('hidden'); $('sc-status').textContent=''; $('sc-result').innerHTML='<div class="card p-5" style="background:#fff;border:1px solid var(--fp-border);border-radius:1rem"><div class="font-extrabold text-lg mb-2" style="color:var(--fp-primary)">Lecture des documents…</div><div class="text-sm text-slate-600">'+done+' / '+total+' analysé(s)</div><div style="height:8px;background:#eef2f7;border-radius:9999px;margin-top:10px;overflow:hidden"><div style="height:100%;width:'+Math.round(done/total*100)+'%;background:var(--fp-accent);transition:width .2s"></div></div></div>'; }
-
+  // ===== Lot 1 — file d'upload PAR FICHIER (statut indépendant, barre honnête, vignette, réessayer, concurrence) =====
+  function fmtSize(n){ n=+n||0; if(n<1024) return n+' o'; if(n<1048576) return (n/1024).toFixed(0)+' Ko'; return (n/1048576).toFixed(1)+' Mo'; }
+  var _liveThumbs=[];
+  function revokeThumbs(){ _liveThumbs.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} }); _liveThumbs=[]; }
+  function fileThumbHtml(f){
+    if(f && f.type && /^image\//.test(f.type)){ try{ var u=URL.createObjectURL(f); _liveThumbs.push(u); return '<img src="'+u+'" alt="">'; }catch(e){} }
+    var isPdf = /pdf/i.test((f&&f.type)||'') || /\.pdf$/i.test((f&&f.name)||'');
+    return '<i data-lucide="'+(isPdf?'file-text':'file')+'" class="w-5 h-5"></i>';
+  }
+  function liveStateHtml(it){
+    if(it.status==='pending') return '<span class="conf faible">En attente</span>';
+    if(it.status==='processing') return '<span class="text-xs text-slate-500">Analyse en cours…</span><div class="sc-ind"></div>';
+    if(it.status==='ok') return '<span class="conf eleve">'+esc(typeLabel(it.model))+'</span>';
+    if(it.status==='ulys') return '<span class="conf eleve">Péages Ulys</span>';
+    if(it.status==='redirect') return '<span class="conf moyen">'+esc(it.redirect&&it.redirect.label||'outil dédié')+'</span>';
+    return '<span class="conf faible">Échec</span> <button type="button" class="sc-retry" data-retry="'+it._idx+'">↻ Réessayer</button>';
+  }
+  function bindRetry(){ $('sc-result').querySelectorAll('[data-retry]').forEach(function(b){ if(b._bound) return; b._bound=1; b.addEventListener('click', function(){ var it=_batch&&_batch[+b.getAttribute('data-retry')]; if(!it) return; processItem(it).then(function(){ if(_batch.every(function(x){return x.status!=='pending'&&x.status!=='processing';})) renderBatchReview(); }); }); }); }
+  function renderLiveState(it){ var el=$('sc-result').querySelector('[data-live-state="'+it._idx+'"]'); if(el){ el.innerHTML=liveStateHtml(it); if(window.lucide)lucide.createIcons(); bindRetry(); } }
+  function updateLiveHeader(){ var h=$('sc-live-head'); if(!h) return; var done=_batch.filter(function(i){return i.status!=='pending'&&i.status!=='processing';}).length; h.textContent='Lecture des documents… '+done+' / '+_batch.length+' analysé(s)'; }
+  function renderBatchLive(){
+    $('sc-steps').classList.add('hidden'); $('sc-status').textContent='';
+    var html='<div class="card p-5" style="background:#fff;border:1px solid var(--fp-border);border-radius:1rem">';
+    html+='<div id="sc-live-head" class="font-extrabold text-lg mb-3" style="color:var(--fp-primary)">Lecture des documents… 0 / '+_batch.length+' analysé(s)</div>';
+    _batch.forEach(function(it){
+      html+='<div class="sc-fitem"><div class="sc-thumb">'+fileThumbHtml(it.file)+'</div>'
+          +'<div class="sc-fmeta"><div class="sc-fname">'+esc(it.name)+'</div><div class="sc-fsub">'+esc(fmtSize(it.size))+'</div></div>'
+          +'<div class="sc-fstate" data-live-state="'+it._idx+'">'+liveStateHtml(it)+'</div></div>';
+    });
+    html+='<p class="text-xs text-slate-400 mt-1">Chaque document est indépendant : un échec n\'arrête pas les autres, et tu peux réessayer un fichier seul.</p>';
+    html+='</div>';
+    $('sc-result').innerHTML=html; if(window.lucide)lucide.createIcons(); bindRetry();
+    try { $('sc-result').scrollIntoView({behavior:'smooth',block:'start'}); } catch(e){}
+  }
+  async function processItem(it){
+    it.status='processing'; it.error=''; renderLiveState(it);
+    var upP = (window.FP && FP.uploadScan) ? FP.uploadScan(it.file,'scans-v2').catch(function(){return null;}) : Promise.resolve(null);
+    try{
+      var model = await FP2.run(it.file, function(){});
+      try{ model._fileUrl = await upP; }catch(e){ model._fileUrl = null; }
+      if(!model._fileUrl) model._uploadFailed = true;   // fichier non stocké → à signaler dans la revue
+      it.model = model;
+      if(model && model._redirect){ it.status='redirect'; it.redirect=model._redirect; }
+      else if(model && model._ulys){ it.status='ulys'; it.include=true; }
+      else if(FP2.schemaFor(model.type_document)){ it.status='ok'; it.include=!hasBlocking(model); }
+      else { it.status='error'; it.error='Type non reconnu'; }
+    }catch(err){ it.status='error'; it.error=(err&&(err.message||err))||'échec de lecture'; }
+    renderLiveState(it); updateLiveHeader();
+  }
+  // File d'exécution à concurrence limitée (évite de saturer le navigateur / le quota IA).
+  async function runPool(list, limit, worker){ var i=0; async function next(){ if(i>=list.length) return; var it=list[i++]; await worker(it); return next(); } var r=[]; for(var k=0;k<Math.min(limit,list.length);k++) r.push(next()); await Promise.all(r); }
   async function runBatch(files){
-    _model=null; _file=null;
-    _batch = files.map(function(f){ return { file:f, name:(f.name||'document'), status:'pending', model:null, error:'', include:false }; });
-    renderBatchProgress(0, _batch.length);
-    for(var i=0;i<_batch.length;i++){
-      var it=_batch[i];
-      var upP = (window.FP && FP.uploadScan) ? FP.uploadScan(it.file,'scans-v2').catch(function(){return null;}) : Promise.resolve(null);
-      try{
-        var model = await FP2.run(it.file, function(){});
-        try{ model._fileUrl = await upP; }catch(e){ model._fileUrl = null; }
-        if(!model._fileUrl) model._uploadFailed = true;   // fichier non stocké → à signaler dans la revue
-        it.model = model;
-        if(model && model._redirect){ it.status='redirect'; it.redirect=model._redirect; }
-        else if(model && model._ulys){ it.status='ulys'; it.include=true; }
-        else if(FP2.schemaFor(model.type_document)){ it.status='ok'; it.include=!hasBlocking(model); }
-        else { it.status='error'; it.error='Type non reconnu'; }
-      }catch(err){ it.status='error'; it.error=(err&&(err.message||err))||'échec de lecture'; }
-      renderBatchProgress(i+1, _batch.length);
-    }
+    _model=null; _file=null; revokeThumbs();
+    _batch = files.map(function(f,i){ return { file:f, name:(f.name||'document'), size:(f.size||0), status:'pending', model:null, error:'', include:false, _idx:i }; });
+    renderBatchLive();
+    await runPool(_batch, 3, processItem);
     renderBatchReview();
   }
 
@@ -359,6 +409,7 @@
   }
 
   function renderBatchReview(){
+    revokeThumbs();   // la revue ne montre pas les vignettes → libère les ObjectURL de la liste live
     var okCount=_batch.filter(function(i){return i.status==='ok'||i.status==='ulys';}).length;
     var incCount=_batch.filter(function(i){return i.include;}).length;
     var html='<div class="card p-5" style="background:#fff;border:1px solid var(--fp-border);border-radius:1rem">';
@@ -375,6 +426,7 @@
       html+='</div>';
       var sum = canSave ? batchSummary(it) : (it.status==='redirect' ? (it.redirect&&it.redirect.reason||'') : (it.error||''));
       if(sum) html+='<div class="text-xs text-slate-500 mt-1" style="line-height:1.4">'+esc(sum)+'</div>';
+      if(it.status==='error') html+='<div class="mt-1"><button type="button" class="sc-retry" data-retry="'+idx+'">↻ Réessayer ce fichier</button></div>';
       // ⚠️ Fichier non téléversé : les infos seront enregistrées mais le document ne sera pas joint.
       if(canSave && it.model && it.model._uploadFailed){ html+='<div class="text-xs mt-1" style="color:#b45309;font-weight:600">⚠️ Fichier non stocké (le document ne sera pas joint) — re-scanne pour le garder.</div>'; }
       if(it.status==='redirect' && it.redirect){ html+='<a class="text-xs font-semibold" style="color:var(--fp-accent)" href="../pages/'+esc(it.redirect.page)+'">→ Ouvrir l\'outil dédié</a>'; }
@@ -387,8 +439,9 @@
     try { $('sc-result').scrollIntoView({behavior:'smooth',block:'start'}); } catch(e){}
     $('sc-result').querySelectorAll('[data-inc]').forEach(function(cb){ cb.addEventListener('change', function(){ _batch[+cb.getAttribute('data-inc')].include=cb.checked; var n=_batch.filter(function(i){return i.include;}).length; var b=$('sc-batch-save'); if(b) b.innerHTML='<i data-lucide="check" class="w-4 h-4"></i> Tout enregistrer ('+n+')'; if(window.lucide)lucide.createIcons(); }); });
     $('sc-result').querySelectorAll('[data-toggle]').forEach(function(bt){ bt.addEventListener('click', function(){ var idx=bt.getAttribute('data-toggle'); var body=$('sc-result').querySelector('[data-body="'+idx+'"]'); if(body){ body.hidden=!body.hidden; bt.textContent = body.hidden?'Modifier ▾':'Réduire ▴'; } }); });
-    $('sc-batch-cancel').addEventListener('click', function(){ _batch=null; $('sc-result').innerHTML=''; });
+    $('sc-batch-cancel').addEventListener('click', function(){ revokeThumbs(); _batch=null; $('sc-result').innerHTML=''; });
     $('sc-batch-save').addEventListener('click', batchSaveAll);
+    bindRetry();   // boutons « Réessayer ce fichier » (relance UNIQUEMENT le fichier échoué)
   }
 
   async function batchSaveAll(){
