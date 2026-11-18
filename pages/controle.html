@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261118a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261118b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261118a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261118b">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -315,8 +315,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261118a"></script>
-<script src="../assets/js/supabase-client.js?v=20261118a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261118b"></script>
+<script src="../assets/js/supabase-client.js?v=20261118b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -332,11 +332,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261118a"></script>
+<script src="../assets/js/app.min.js?v=20261118b"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -369,7 +369,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261118a';
+        s.src = '../assets/js/fleet-views.min.js?v=20261118b';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -989,7 +989,8 @@
     try {
       // Anti-doublon facture (même n° + même TTC) — ne ré-insère pas, mais met à jour la conso.
       const already = (window.FP_DATA.factures || []).find(x => num && String(x.numeroFacture || x.numero_facture || '') === num && Math.abs((Number(x.montantTTC || x.montant_ttc) || 0) - (Number(f.montantTTC) || 0)) < 0.02);
-      let url = ''; try { if (FP.uploadScan) url = await FP.uploadScan(file, 'factures'); } catch (e) {}
+      let url = '', upFail = false; try { if (FP.uploadScan) url = await FP.uploadScan(file, 'factures'); } catch (e) { upFail = true; }
+      if (FP.uploadScan && file && !url) upFail = true;   // échec d'upload du justificatif → on le SIGNALE (pas de « ✓ » menteur)
       const soc = (FP.activeSociete && FP.activeSociete && FP.activeSociete() !== '__all__') ? FP.activeSociete() : null;
       // Id facture GÉNÉRIQUE (déterministe sur le n° → ré-import = même id → anti-doublon) ; type selon le prestataire.
       const slug = String(p.id || 'presta').replace(/[^0-9A-Za-z]/g, '').toUpperCase() || 'PRESTA';
@@ -1001,7 +1002,7 @@
         (window.FP_DATA.factures = window.FP_DATA.factures || []).push(facRec);
       } else if (url && !already.fileId) { try { if (FP.persist) FP.persist.update('factures', already.id, { fileId: url }); already.fileId = url; } catch (e) {} }
       // Détail transaction → total_conso_tx (ids déterministes = ré-import sans doublon). Conducteur résolu par n°.
-      let i = 0, okTx = 0;
+      let i = 0, okTx = 0, koTx = 0;
       for (const t of parsed.tx) {
         let nm = t.conducteur || '';
         try { const c = FP._condParNumero && FP._condParNumero(p.numKey, t.carte); if (c) nm = (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || nm)) || nm; } catch (e) {}
@@ -1011,15 +1012,23 @@
         if (t.litres != null && isFinite(Number(t.litres))) tr.litres = Number(t.litres);
         if (t.montantHt != null && isFinite(Number(t.montantHt))) tr.montantHt = Number(t.montantHt);
         if (t.montantTva != null && isFinite(Number(t.montantTva))) tr.montantTva = Number(t.montantTva);
-        try { if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (!(r && r.error)) okTx++; } } catch (e) {}
+        // DURABLE : FP.persist.upsert enfile l'écriture AVANT le réseau (file + retente + pastille #fp-sync-badge)
+        // → une transaction qui échoue est ré-essayée automatiquement, jamais perdue en silence (règle 0-perte ③/⑥).
+        try {
+          if (FP.persist && FP.persist.upsert) { FP.persist.upsert('total_conso_tx', tr); okTx++; }
+          else if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (r && r.error) koTx++; else okTx++; }
+          else koTx++;
+        } catch (e) { koTx++; }
       }
       if (FP.refreshDataCache) { try { FP.refreshDataCache(); } catch (e) {} }
       try { delete _prestaTx[p.id]; } catch (e) {}   // invalide le cache transactions → rechargé au rendu
       try { renderPresta(p.id); } catch (e) {}
+      const warnTx = koTx ? (' · ⚠️ ' + koTx + ' transaction(s) non enregistrée(s)') : '';
+      const warnUp = upFail ? ' · ⚠️ justificatif PDF non enregistré' : '';
       const doneMsg = parsed.incomplet
-        ? ('✓ Facture enregistrée' + (already ? ' (déjà présente)' : '') + ' — ventilation par conducteur incomplète (pas de détail dans ce document).')
-        : ('✓ Relevé importé — ' + okTx + ' transaction(s)' + (already ? ' (facture déjà présente)' : ''));
-      if (busy) busy.done(doneMsg);
+        ? ('✓ Facture enregistrée' + (already ? ' (déjà présente)' : '') + ' — ventilation par conducteur incomplète (pas de détail dans ce document).' + warnUp)
+        : ('✓ Relevé importé — ' + okTx + ' transaction(s)' + (already ? ' (facture déjà présente)' : '') + warnTx + warnUp);
+      if (busy) { if (koTx || upFail) busy.fail(doneMsg); else busy.done(doneMsg); }
     } catch (e) { console.warn('[presta commit]', e); if (busy) busy.fail('Import incomplet'); }
   }
 
