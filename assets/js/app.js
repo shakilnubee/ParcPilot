@@ -1738,13 +1738,17 @@ FP.tco = function (v, opts) {
   const taxes = (tvs && tvs.applicable && tvs.total != null) ? tvs.total : 0;
   const emp = FP.aenCoutEmployeur(v);
   const cotis = emp.cotisationsAnnuelles || 0;
+  // Prime d'assurance annuelle du véhicule — MÊME source que Contrats/Budget/Statistiques (FP.primeVeh, hors
+  // véhicules vendus). Avant, le TCO l'OUBLIAIT → la fiche véhicule et Fiscalité affichaient un TCO plus bas
+  // que Statistiques (qui, lui, ajoute la prime). Une seule vérité : le TCO inclut désormais l'assurance.
+  const assurance = (FP.horsFlotte && FP.horsFlotte(v)) ? 0 : (FP.primeVeh ? (Number(FP.primeVeh(v)) || 0) : 0);
   const usage = (am.mode === 'achat') ? amortAnnuel : leasingAnnuel;          // décaissement/charge d'usage annuel
-  const tresorerie = exploit + leasingAnnuel + taxes + cotis;                 // ce qui sort réellement
-  const comptable = exploit + usage + taxes + cotis;                          // amort remplace l'achat au décaissement
+  const tresorerie = exploit + leasingAnnuel + taxes + cotis + assurance;     // ce qui sort réellement
+  const comptable = exploit + usage + taxes + cotis + assurance;              // amort remplace l'achat au décaissement
   const nonDeductible = (am.mode === 'achat') ? (am.nonDeductibleAnnuel || 0) : (am.loyerNonDeductibleAnnuel || 0);
   const deductible = Math.max(0, comptable - nonDeductible);
   const effetISEstime = deductible * (Number(cfg.tauxIS) || 0);
-  const economique = exploit + usage + taxes + cotis;                         // TCO : surcoût social seulement (pas l'AEN entier)
+  const economique = exploit + usage + taxes + cotis + assurance;             // TCO : surcoût social seulement (pas l'AEN entier)
   // ⚠️ FIABILITÉ — ne JAMAIS présenter « 0 € » comme un coût certain quand on n'a pas la base de coût
   // d'usage (prix d'achat OU loyer). Dans ce cas le TCO est PARTIEL (« à compléter »), pas nul. On
   // distingue aussi un genre fiscal à vérifier. L'UI lit ce statut pour afficher « à compléter » / « à vérifier ».
@@ -1758,7 +1762,7 @@ FP.tco = function (v, opts) {
   if (categorieAVerifier) manques.push('genre fiscal');
   return {
     annee: annee, mode: am.mode, genre: am.genre || (FP.categorieFiscale ? FP.categorieFiscale(v) : 'VP'),
-    composantes: { exploit: exploit, leasingAnnuel: leasingAnnuel, amortAnnuel: amortAnnuel, taxes: taxes, cotisationsAEN: cotis },
+    composantes: { exploit: exploit, leasingAnnuel: leasingAnnuel, amortAnnuel: amortAnnuel, taxes: taxes, cotisationsAEN: cotis, assurance: assurance },
     tresorerie: tresorerie, comptable: comptable,
     fiscal: { nonDeductible: nonDeductible, deductible: deductible, effetISEstime: effetISEstime },
     economique: economique,
