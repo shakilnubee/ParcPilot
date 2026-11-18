@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118d",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Scanner IA — Parc Pilot</title>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#0F1E3D">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261118d">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="../assets/js/lucide.min.js?v=20261118b"></script>
+<script defer src="../assets/js/lucide.min.js?v=20261118d"></script>
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261118b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261118d">
 <style>
   .drop { border:2px dashed var(--fp-border); border-radius:1rem; padding:2.5rem 1.5rem; text-align:center; cursor:pointer; transition:.15s; background:#fff; }
   .drop:hover, .drop.over { border-color:var(--fp-accent); background:#FFF7ED; }
@@ -35,19 +35,10 @@
   /* Lot 2 — revue mono-fichier : document à gauche / formulaire à droite */
   .sc-rev { display:grid; grid-template-columns:1.05fr .95fr; gap:14px; align-items:start; }
   .panel-like { background:#fff; border:1px solid var(--fp-border); border-radius:1rem; overflow:hidden; }
-  .sc-rev-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:.6rem .8rem; border-bottom:1px solid var(--fp-border); }
-  .sc-rev-t { font-weight:800; color:var(--fp-primary); }
-  .sc-fname2 { font-size:.76rem; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-  .sc-tools { display:flex; align-items:center; gap:5px; margin-left:auto; }
-  .sc-tool { width:32px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--fp-border); background:#fff; border-radius:7px; cursor:pointer; font-size:14px; font-weight:700; color:var(--fp-primary); }
-  .sc-tool:hover { border-color:var(--fp-accent); color:var(--fp-accent); }
-  .sc-zval { font-size:.74rem; color:#64748b; min-width:40px; text-align:center; font-variant-numeric:tabular-nums; }
-  .sc-stage { background:#eef2f7; max-height:520px; min-height:300px; overflow:auto; display:grid; place-items:center; padding:14px; }
-  .sc-stage.pdf { padding:0; }
-  .sc-docel { transform-origin:center center; transition:transform .18s ease; max-width:100%; border-radius:6px; }
-  img.sc-docel { max-height:480px; box-shadow:0 8px 22px rgba(15,30,61,.14); }
-  .sc-docpdf { width:100%; height:500px; border:0; display:block; }
-  @media (prefers-reduced-motion:reduce){ .sc-docel { transition:none; } }
+  /* Aperçu (barre + scène + zoom) = composant partagé FP.docReview (.fpdr-* dans styles.css) ; tailles du scanner : */
+  .sc-rev-doc { --fpdr-stage-h:520px; --fpdr-stage-min:300px; --fpdr-img-h:480px; --fpdr-pdf-h:500px; }
+  .sc-rev-doc .fpdr-stage { padding:14px; }
+  .sc-rev-doc .fpdr-img { box-shadow:0 8px 22px rgba(15,30,61,.14); }
   .sc-rev-formbody { padding:1rem; }
   .sc-rev-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:.8rem; }
   .sc-rev-tabs { display:none; gap:8px; margin-bottom:12px; }
@@ -57,7 +48,7 @@
     .sc-rev { grid-template-columns:1fr; }
     .sc-rev-tabs { display:flex; }
     .sc-rev-doc[hidden], .sc-rev-form[hidden] { display:none; }
-    .sc-stage { max-height:44vh; }
+    .sc-rev-doc { --fpdr-stage-h:44vh; }
   }
   .steps { display:flex; gap:.5rem; margin:1rem 0; }
   .step { flex:1; text-align:center; font-size:.78rem; font-weight:700; color:#94a3b8; padding:.5rem; border-radius:.6rem; background:#F1F5F9; }
@@ -148,8 +139,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261118b"></script>
-<script src="../assets/js/supabase-client.js?v=20261118b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261118d"></script>
+<script src="../assets/js/supabase-client.js?v=20261118d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -165,11 +156,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261118d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261118b"></script>
-<script src="../assets/js/scanner2.js?v=20261118b"></script>
+<script src="../assets/js/app.min.js?v=20261118d"></script>
+<script src="../assets/js/scanner2.js?v=20261118d"></script>
 <script>
   if (window.lucide) lucide.createIcons();
   var $ = function (id) { return document.getElementById(id); };
@@ -268,25 +259,17 @@
     var schema = FP2.schemaFor(model.type_document); if(!schema){ $('sc-result').innerHTML='<p class="text-sm text-red-600">Type non pris en charge en Phase 1.</p>'; return; }
     var qual = model.qualite_document||''; var qualBadge = qual==='insuffisante' ? '<span class="conf faible">qualité insuffisante</span>' : qual==='moyenne' ? '<span class="conf moyen">qualité moyenne</span>' : '<span class="conf eleve">qualité correcte</span>';
 
-    // ===== COLONNE GAUCHE : le document original (aperçu + zoom/rotation pour les images) =====
-    var _isImg=false, _isPdf=false, docHtml='';
+    // ===== COLONNE GAUCHE : le document original — composant partagé FP.docReview (scanner · factures · sinistres) =====
+    var _docPane = null, docHtml='';
     try {
-      if (_file) {
+      if (_file && window.FP && FP.docReview) {
         if (_docPreviewUrl) { try { URL.revokeObjectURL(_docPreviewUrl); } catch(e){} }
-        _docPreviewUrl = URL.createObjectURL(_file);
-        _isImg = /^image\//.test(_file.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(_file.name || '');
-        _isPdf = /pdf/i.test(_file.type || '') || /\.pdf$/i.test(_file.name || '');
-        var viewer = _isImg
-          ? '<img id="sc-docel" src="'+_docPreviewUrl+'" alt="Document scanné" class="sc-docel">'
-          : (_isPdf ? '<iframe id="sc-docel" src="'+_docPreviewUrl+'" title="Document scanné" class="sc-docpdf"></iframe>'
-                    : '<a href="'+_docPreviewUrl+'" target="_blank" rel="noopener" class="btn btn-outline text-sm"><i data-lucide="file" class="w-4 h-4"></i> Ouvrir le document</a>');
-        var tools = _isImg ? ('<span class="sc-tools"><button type="button" class="sc-tool" data-z="out" title="Dézoomer">−</button><span class="sc-zval" id="sc-zval">100 %</span><button type="button" class="sc-tool" data-z="in" title="Zoomer">+</button><button type="button" class="sc-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="sc-tool" data-z="fit" title="Ajuster">⤢</button></span>') : '';
-        docHtml = '<div class="sc-rev-doc panel-like" data-col="doc">'
-          + '<div class="sc-rev-toolbar"><span class="sc-rev-t">📄 Document</span><span class="sc-fname2">'+esc(_file.name||'document')+'</span>'+tools+'</div>'
-          + '<div class="sc-stage'+(_isImg?'':' pdf')+'">'+viewer+'</div></div>';
+        _docPane = FP.docReview.build(_file, { label:'📄 Document', alt:'Document scanné' });
+        _docPreviewUrl = _docPane.url;   // conservé pour la révocation au re-rendu / annulation
+        docHtml = '<div class="sc-rev-doc panel-like" data-col="doc">' + _docPane.html + '</div>';
       }
     } catch(e){}
-    if(!docHtml) docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="sc-stage"><p class="text-sm text-slate-400">Aperçu du document indisponible.</p></div></div>';
+    if(!docHtml) docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="fpdr-stage"><p class="text-sm text-slate-400">Aperçu du document indisponible.</p></div></div>';
 
     // ===== COLONNE DROITE : le formulaire assisté =====
     var form = '<div class="sc-rev-head"><span class="font-extrabold text-lg" style="color:var(--fp-primary)">'+esc(schema.label)+'</span><span class="flex items-center gap-2">'+qualBadge+(model.nouveau_scan_recommande?' <span class="conf faible">nouveau scan conseillé</span>':'')+'</span></div>';
@@ -323,13 +306,8 @@
     $('sc-result').innerHTML = tabs + '<div class="sc-rev">'+docHtml+formHtml+'</div>';
     if(window.lucide) lucide.createIcons();
 
-    // Viewer : zoom / rotation / ajuster (images ; le PDF garde les contrôles natifs du lecteur)
-    (function(){
-      var z=1, r=0, el=document.getElementById('sc-docel'), zl=document.getElementById('sc-zval');
-      if(!el || el.tagName==='IFRAME') return;
-      function apply(){ el.style.transform='scale('+z+') rotate('+r+'deg)'; if(zl) zl.textContent=Math.round(z*100)+' %'; }
-      $('sc-result').querySelectorAll('.sc-tool').forEach(function(b){ b.addEventListener('click', function(){ var a=b.getAttribute('data-z'); if(a==='in')z=Math.min(3,z+0.2); else if(a==='out')z=Math.max(0.4,z-0.2); else if(a==='rot')r=(r+90)%360; else { z=1; r=0; } apply(); }); });
-    })();
+    // Viewer : zoom / rotation / ajuster (images ; le PDF garde les contrôles natifs du lecteur) — composant partagé
+    if (_docPane) _docPane.wire($('sc-result'));
     // Onglets Document / Informations sur mobile (desktop = 2 colonnes)
     (function(){
       var docCol=$('sc-result').querySelector('.sc-rev-doc'), formCol=$('sc-result').querySelector('.sc-rev-form');
