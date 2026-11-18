@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118e",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Entretiens — Parc Pilot</title>
@@ -826,6 +826,7 @@
       const id = 'fpm-' + f.key;
       const lab = `<span style="font-size:12px;color:var(--fp-muted,#64748b);font-weight:600">${E(f.label)}${f.required ? ' *' : ''}</span>`;
       if (f.type === 'textarea') return `<label style="display:block;margin-bottom:10px">${lab}<textarea id="${id}" rows="2" placeholder="${E(f.placeholder || '')}" style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit">${E(f.value || '')}</textarea></label>`;
+      if (f.type === 'checkbox') return `<label style="display:flex;align-items:center;gap:8px;margin:2px 0 12px;cursor:pointer"><input id="${id}" type="checkbox" ${f.value ? 'checked' : ''} style="width:16px;height:16px;flex:none">${f.hint ? `<span style="font-size:13px;line-height:1.3;color:var(--fp-primary,#0f172a)">${E(f.label)}<span style="display:block;font-size:11px;color:var(--fp-muted,#64748b)">${E(f.hint)}</span></span>` : `<span style="font-size:13px;color:var(--fp-primary,#0f172a)">${E(f.label)}</span>`}</label>`;
       return `<label style="display:block;margin-bottom:10px">${lab}<input id="${id}" type="${f.type || 'text'}" value="${E(f.value == null ? '' : String(f.value))}" placeholder="${E(f.placeholder || '')}" ${f.type === 'number' ? 'inputmode="numeric" min="0"' : ''} style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit"></label>`;
     }).join('');
     ov.innerHTML = `<div style="background:var(--fp-surface,#fff);color:var(--fp-primary,#0f172a);border-radius:16px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(15,23,42,.3);padding:18px">
@@ -845,12 +846,12 @@
     if (opts.extraBtn) { const eb = ov.querySelector('#fpm-extra'); if (eb) eb.addEventListener('click', () => { close(); if (opts.onExtra) opts.onExtra(); }); }
     ov.querySelector('#fpm-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const vals = {}; (opts.fields || []).forEach(f => { const el = ov.querySelector('#fpm-' + f.key); vals[f.key] = el ? String(el.value).trim() : ''; });
+      const vals = {}; (opts.fields || []).forEach(f => { const el = ov.querySelector('#fpm-' + f.key); vals[f.key] = el ? (f.type === 'checkbox' ? el.checked : String(el.value).trim()) : (f.type === 'checkbox' ? false : ''); });
       for (const f of (opts.fields || [])) { if (f.required && !vals[f.key]) { if (FP.toast) FP.toast('« ' + f.label + ' » est requis'); return; } }
       const ok = opts.onSave ? opts.onSave(vals) : true;
       if (ok !== false) close();
     });
-    setTimeout(() => { const first = ov.querySelector('input,textarea'); if (first) first.focus(); }, 30);
+    setTimeout(() => { const first = ov.querySelector('input:not([type=checkbox]),textarea'); if (first) first.focus(); }, 30);
   }
 
   // « Enregistrer la révision » : vraie fenêtre — DATE RÉELLE (modifiable, PASSÉE autorisée : cas « révision
@@ -929,6 +930,38 @@
     try { if (FP.revSuivi) { if (relance) FP.revSuivi.marquerRelance(v); else FP.revSuivi.marquerPrevenu(v); } } catch (e) {}
     renderRevList();
   }
+  // « ✉️ Prévenir de la date » : CONFIRMATION au conducteur que le RDV est PRIS pour telle date.
+  //    ⚠️ SOURCE UNIQUE = exactement le MÊME composant 3 canaux (FP.msg.open) et le MÊME modèle « rdvgarage »
+  //    (balises {prenom}{immat}{date}{motif}) que la page Tâches utilise pour un VRAI rendez-vous (confirmation) :
+  //    même formulation, brandé par société, avec le PDF du garage. On n'écrit AUCUN texte en dur ici.
+  //    (À distinguer de « prevenirRevision » = DEMANDE de RDV, sans date ferme.)
+  async function prevenirRevisionRdv(v, info) {
+    if (!v || !FP.msg) return;
+    info = info || {};
+    const chauffeur = (v.chauffeur && v.chauffeur !== '—') ? String(v.chauffeur).trim() : '';
+    const c = (FP.conducteurContact ? FP.conducteurContact(chauffeur) : {}) || {};
+    const prenom = chauffeur.split(/\s+/)[0] || '';
+    const plaque = v.immat || '';
+    const lang = (FP.langueChauffeurVeh ? (FP.langueChauffeurVeh(v) === 'en') : (FP.condLangue && FP.condLangue(chauffeur) === 'en')) ? 'en' : 'fr';
+    let soc = ''; try { soc = (FP.settings.get().societe && FP.settings.get().societe.nom) || ''; } catch (e) {}
+    let logo = ''; try { const p = FP.societeProfil ? FP.societeProfil() : {}; logo = p.logoUrl || p.logoDataUrl || ''; } catch (e) {}
+    const gAtt = (FP.garages && FP.garages.pdfAttachmentDe) ? FP.garages.pdfAttachmentDe(v) : null;
+    const dateTxt = (FP.date ? FP.date(info.date) : info.date) + (info.heure ? ((lang === 'en' ? ' at ' : ' à ') + info.heure) : '');
+    const motif = (lang === 'en') ? 'Service' : 'Révision';
+    const _tpl = FP.mailModeleProfilL ? FP.mailModeleProfilL('mailModeleRdvGarage', 'rdvgarage', lang) : ((FP.MAIL_DEFAUT && FP.MAIL_DEFAUT['rdvgarage' + (lang === 'en' ? '_en' : '')]) || '');
+    let text = FP.fillTags ? FP.fillTags(_tpl, { prenom, immat: plaque, motif, date: dateTxt }) : _tpl;
+    if (info.garage) text += '\n' + (lang === 'en' ? 'Garage' : 'Garage') + ' : ' + info.garage;
+    if (info.note) text += '\n\n' + info.note;
+    const subj = (lang === 'en') ? ('Appointment scheduled — ' + plaque) : ('Rendez-vous révision — ' + plaque);
+    let html = undefined;
+    try { const bodyHtml = '<div style="white-space:pre-wrap;line-height:1.5">' + (FP.esc ? FP.esc(text) : text).replace(/\n/g, '<br>') + '</div>'; html = FP.mailBrand ? FP.mailBrand({ title: subj, prenom: '', nomSoc: soc, logoUrl: logo, plaque: plaque, lang: lang, bodyHtml: bodyHtml }) : bodyHtml; } catch (e) {}
+    FP.msg.open({
+      phone: c.tel || '', email: c.email || '', nom: prenom || plaque, title: 'Prévenir de la date — Révision ' + plaque,
+      text: text, lang: lang,
+      emailSubject: subj, emailHtml: html, emailNomSoc: soc, emailLogo: logo,
+      attachments: gAtt ? [Object.assign({ _auto: true }, gAtt)] : []
+    });
+  }
   // « 🗓️ Enregistrer le RDV » : vraie fenêtre (date + heure + garage + commentaire). La date pose le statut
   //    « RDV confirmé » (FP.revSuivi.setRdv) ET déclenche le rappel automatique la veille (FP.rdvGarage.set).
   //    Bouton « Annuler le RDV » = on retire le RDV (retour au suivi « prévenu »).
@@ -941,17 +974,24 @@
       try { if (FP.revSuivi) FP.revSuivi.clearRdv(v); if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); } catch (e) {}
       renderRevList();
     };
+    // Conducteur + contact : on propose de le prévenir de la date (coché d'office s'il a un e-mail/tél).
+    const ch = (v.chauffeur && v.chauffeur !== '—') ? String(v.chauffeur).trim() : '';
+    const cc = (ch && FP.conducteurContact) ? (FP.conducteurContact(ch) || {}) : {};
+    const hasContact = !!(cc.email || cc.tel);
+    const fields = [
+      { key: 'date', label: 'Date du rendez-vous', type: 'date', value: (cur.rdvDate || (rdvCur.date ? String(rdvCur.date).slice(0, 10) : '')), required: true },
+      { key: 'heure', label: 'Heure (optionnel)', type: 'time', value: (cur.rdvHeure || '') },
+      { key: 'garage', label: 'Garage (optionnel)', type: 'text', value: (cur.rdvGarage || ''), placeholder: 'Nom du garage' },
+      { key: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', value: (cur.rdvNote || ''), placeholder: 'ex. dépose 8h, récup 17h' }
+    ];
+    // La case n'apparaît que si un conducteur est affecté (sinon personne à prévenir).
+    if (ch) fields.push({ key: 'prevenir', label: '✉️ Prévenir le conducteur de la date', hint: 'Ouvre SMS / WhatsApp / e-mail avec « rendez-vous prévu le … »' + (hasContact ? '' : ' (aucun e-mail/tél connu pour ' + ch + ')'), type: 'checkbox', value: hasContact });
     fpRevModal({
       title: 'Enregistrer le RDV — ' + (v.immat || ''),
       okLabel: '🗓️ Enregistrer le RDV',
       extraBtn: (cur.rdvDate || rdvCur.date) ? 'Annuler le RDV' : '',
       onExtra: annuler,
-      fields: [
-        { key: 'date', label: 'Date du rendez-vous', type: 'date', value: (cur.rdvDate || (rdvCur.date ? String(rdvCur.date).slice(0, 10) : '')), required: true },
-        { key: 'heure', label: 'Heure (optionnel)', type: 'time', value: (cur.rdvHeure || '') },
-        { key: 'garage', label: 'Garage (optionnel)', type: 'text', value: (cur.rdvGarage || ''), placeholder: 'Nom du garage' },
-        { key: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', value: (cur.rdvNote || ''), placeholder: 'ex. dépose 8h, récup 17h' }
-      ],
+      fields: fields,
       onSave: (vals) => {
         const d = /^\d{4}-\d{2}-\d{2}$/.test(vals.date) ? vals.date : '';
         if (!d) { if (FP.toast) FP.toast('Date invalide'); return false; }
@@ -962,6 +1002,9 @@
           if (FP.toast) FP.toast('✓ RDV enregistré le ' + FP.date(d) + (vals.heure ? (' à ' + vals.heure) : ''));
         } catch (e) { if (FP.notifyError) FP.notifyError('Échec de l\'enregistrement du RDV'); return false; }
         renderRevList();
+        // Après l'enregistrement : si demandé, on ouvre le composer (3 canaux) avec l'annonce DE LA DATE.
+        //   setTimeout = laisse la fenêtre « Enregistrer le RDV » se fermer d'abord (pas de conflit de verrou).
+        if (vals.prevenir === true) { setTimeout(() => { try { prevenirRevisionRdv(v, { date: d, heure: vals.heure, garage: vals.garage, note: vals.commentaire }); } catch (e) {} }, 60); }
         return true;
       }
     });
