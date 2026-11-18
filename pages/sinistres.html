@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Sinistres & incidents — Parc Pilot</title>
@@ -88,6 +88,28 @@
   .drive-file.fp-dragging { opacity: .4; }
   .drive-folder.fp-drop-hover, [data-drop-root].fp-drop-hover { outline: 2px dashed var(--fp-accent); outline-offset: 2px; background: rgba(20,184,166,.10); border-radius: 6px; }
   .drive-upload svg { width: 26px; height: 26px; }
+  /* Fenêtre de validation IA (courrier) : document à gauche / champs à droite quand un fichier est fourni */
+  #sin-valid-ov .sv-card { max-width: 520px; }
+  #sin-valid-ov .sv-card.has-doc { max-width: 940px; }
+  .sv-body2 { display: block; }
+  .sv-doc { border: 1px solid var(--fp-border); border-radius: 12px; overflow: hidden; margin: 14px 18px 0; }
+  .sv-dbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: .5rem .7rem; border-bottom: 1px solid var(--fp-border); background: #f8fafc; }
+  .sv-dbar .t { font-weight: 800; color: var(--fp-primary); font-size: .9rem; }
+  .sv-dname { font-size: .74rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .sv-dtools { display: flex; gap: 5px; margin-left: auto; }
+  .sv-dtool { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--fp-border); background: #fff; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--fp-primary); }
+  .sv-dtool:hover { border-color: var(--fp-accent); color: var(--fp-accent); }
+  .sv-dz2 { font-size: .72rem; color: #64748b; min-width: 38px; text-align: center; }
+  .sv-stage { background: #eef2f7; max-height: 420px; min-height: 220px; overflow: auto; display: grid; place-items: center; padding: 12px; }
+  .sv-stage.pdf { padding: 0; }
+  .sv-del { transform-origin: center center; transition: transform .18s ease; max-width: 100%; border-radius: 6px; }
+  img.sv-del { max-height: 380px; }
+  .sv-dpdf { width: 100%; height: 420px; border: 0; display: block; }
+  @media (prefers-reduced-motion: reduce){ .sv-del { transition: none; } }
+  @media (min-width: 760px){
+    #sin-valid-ov .sv-card.has-doc .sv-body2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0; align-items: start; }
+    #sin-valid-ov .sv-card.has-doc .sv-doc { margin: 14px 0 14px 18px; position: sticky; top: 64px; }
+  }
   /* Zone de glisser-déposer des documents du dossier (courrier / constat) : le fichier est lu par l'IA. */
   .sin-dz { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; padding: 12px 10px; margin-bottom: 8px; border: 2px dashed var(--fp-border); border-radius: 10px; background: #f8fafc; color: #475569; cursor: pointer; font-size: 12.5px; transition: border-color .15s, background .15s, color .15s; }
   .sin-dz:hover, .sin-dz:focus-visible { border-color: var(--fp-accent); color: var(--fp-primary); background: rgba(20,184,166,.06); outline: none; }
@@ -2084,7 +2106,7 @@
     if (!res) { if (tp) tp.fail('Courrier enregistré, mais son analyse IA a échoué. Utilise « Relire (IA) ».'); return; }
     res = await reinforceResp(res, file);
     if (tp) tp.done('Courrier analysé — vérifie les informations proposées.');
-    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate });
+    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate, file: file });
   }
 
   // Relance la lecture IA sur le courrier DÉJÀ stocké (sans re-déposer) : récupère le fichier via son lien
@@ -2108,7 +2130,7 @@
     if (!res) { if (tp) tp.fail('Lecture impossible — renseigne à la main.'); return; }
     res = await reinforceResp(res, file);
     if (tp) tp.done('Courrier analysé — vérifie les informations proposées.');
-    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate });
+    openCourrierValidation(res, key, { immat: immat, sinDate: sinDate, file: file });
   }
   // ── « Analyser les documents existants » (§6) : relance l'IA sur TOUS les courriers déjà importés, FUSIONNE
   //    les informations (1re valeur non vide par champ), signale les contradictions, et ouvre UNE SEULE fenêtre
@@ -2202,16 +2224,33 @@
         + '</div></div>';
     }).join('') : '<div class="text-sm text-slate-400 py-3 text-center">Aucune information exploitable détectée dans ce document.</div>';
     const warnHtml = warns.length ? '<div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;font-size:.8rem;color:#9a3412">⚠️ <b>À vérifier</b><ul style="margin:6px 0 0 1rem;padding:0;list-style:disc">' + warns.map(w => '<li style="margin:3px 0">' + w + '</li>').join('') + '</ul></div>' : '';
-    ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
-      + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--fp-surface,#fff)"><b style="font-size:1.02rem">🔍 Informations lues sur le courrier</b><button type="button" id="sv-x" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--fp-muted)">×</button></div>'
-      + '<div style="padding:14px 18px">'
-        + '<p class="text-xs text-slate-500" style="margin:0 0 8px">Coche ce que tu veux enregistrer. Les champs <b>déjà remplis</b> sont préservés (décochés) sauf si tu les coches. Les <b>montants de remboursement et le reste à charge ne sont jamais</b> renseignés depuis un courrier.</p>'
-        + rowsHtml + warnHtml
-        + '<div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="sv-cancel" class="btn btn-outline !text-sm" style="flex:1">Annuler</button><button type="button" id="sv-save" class="btn btn-dark !text-sm" style="flex:1"' + (props.length ? '' : ' disabled') + '>Enregistrer la sélection</button></div>'
+    // Document scanné à GAUCHE (image : zoom/rotation ; PDF : lecteur natif) → vérifier sans ouvrir d'autre fenêtre.
+    let _dvUrl = null, _isImg = false, docHtml = '';
+    try {
+      if (ctx.file) {
+        _dvUrl = URL.createObjectURL(ctx.file);
+        _isImg = /^image\//.test(ctx.file.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(ctx.file.name || '');
+        const _isPdf = /pdf/i.test(ctx.file.type || '') || /\.pdf$/i.test(ctx.file.name || '');
+        const viewer = _isImg ? '<img id="sv-del" class="sv-del" alt="Document" src="' + _dvUrl + '">'
+          : (_isPdf ? '<iframe class="sv-dpdf" title="Document" src="' + _dvUrl + '"></iframe>'
+                    : '<a class="btn btn-outline text-sm" href="' + _dvUrl + '" target="_blank" rel="noopener">Ouvrir le document</a>');
+        const tools = _isImg ? '<span class="sv-dtools"><button type="button" class="sv-dtool" data-z="out" title="Dézoomer">−</button><span class="sv-dz2" id="sv-dz">100 %</span><button type="button" class="sv-dtool" data-z="in" title="Zoomer">+</button><button type="button" class="sv-dtool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="sv-dtool" data-z="fit" title="Ajuster">⤢</button></span>' : '';
+        docHtml = '<div class="sv-doc"><div class="sv-dbar"><span class="t">📄 Document</span><span class="sv-dname">' + escapeHtml(ctx.file.name || 'courrier') + '</span>' + tools + '</div><div class="sv-stage' + (_isImg ? '' : ' pdf') + '">' + viewer + '</div></div>';
+      }
+    } catch (e) {}
+    ov.innerHTML = '<div class="sv-card' + (docHtml ? ' has-doc' : '') + '" style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)">'
+      + '<div style="padding:15px 18px;border-bottom:1px solid var(--fp-border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--fp-surface,#fff);z-index:1"><b style="font-size:1.02rem">🔍 Informations lues sur le courrier</b><button type="button" id="sv-x" style="background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--fp-muted)">×</button></div>'
+      + '<div class="sv-body2">' + docHtml
+        + '<div class="sv-form" style="padding:14px 18px">'
+          + '<p class="text-xs text-slate-500" style="margin:0 0 8px">Coche ce que tu veux enregistrer. Les champs <b>déjà remplis</b> sont préservés (décochés) sauf si tu les coches. Les <b>montants de remboursement et le reste à charge ne sont jamais</b> renseignés depuis un courrier.</p>'
+          + rowsHtml + warnHtml
+          + '<div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="sv-cancel" class="btn btn-outline !text-sm" style="flex:1">Annuler</button><button type="button" id="sv-save" class="btn btn-dark !text-sm" style="flex:1"' + (props.length ? '' : ' disabled') + '>Enregistrer la sélection</button></div>'
+        + '</div>'
       + '</div></div>';
     document.body.appendChild(ov);
     if (window.lucide) lucide.createIcons();
-    const close = () => ov.remove();
+    if (_isImg) { (function(){ let z=1,r=0; const el=document.getElementById('sv-del'), zl=document.getElementById('sv-dz'); const ap=()=>{ if(el) el.style.transform='scale('+z+') rotate('+r+'deg)'; if(zl) zl.textContent=Math.round(z*100)+' %'; }; ov.querySelectorAll('.sv-dtool').forEach(b=>b.addEventListener('click',()=>{ const a=b.getAttribute('data-z'); if(a==='in')z=Math.min(3,z+0.2); else if(a==='out')z=Math.max(0.4,z-0.2); else if(a==='rot')r=(r+90)%360; else {z=1;r=0;} ap(); })); })(); }
+    const close = () => { try{ if(_dvUrl) URL.revokeObjectURL(_dvUrl); }catch(e){} ov.remove(); };
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     ov.querySelector('#sv-x').addEventListener('click', close);
     ov.querySelector('#sv-cancel').addEventListener('click', close);
