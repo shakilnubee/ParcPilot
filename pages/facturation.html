@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261118a",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261118b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Facturation — Parc Pilot</title>
@@ -133,7 +133,21 @@
           </table>
         </div>
       </div>
-      <p class="text-xs text-slate-400">💡 Les forfaits et paiements sont <b>enregistrés dans le cloud</b> et synchronisés sur tous tes appareils.</p>
+      <p class="text-xs text-slate-400">💡 Les forfaits et paiements sont <b>enregistrés dans le cloud</b> et synchronisés sur tous tes appareils. Clique <b>Coordonnées</b> pour renseigner l'adresse/SIREN d'un client (facture conforme B2B).</p>
+
+      <!-- Registre des factures émises (numérotation séquentielle, re-téléchargeables) -->
+      <div class="card overflow-hidden mt-6">
+        <div class="p-5 pb-1"><h3 class="font-bold text-slate-900">Factures émises</h3>
+          <p class="text-xs text-slate-400">Chaque facture reçoit un <b>numéro séquentiel</b> (ex. 2026-0001) et reste <b>re-téléchargeable</b> à l'identique. Une seule facture par client et par mois.</p>
+        </div>
+        <div class="scrollable">
+          <table class="fp-table">
+            <thead><tr><th>N°</th><th>Client</th><th>Période</th><th class="r">Montant</th><th>Document</th></tr></thead>
+            <tbody id="fa-reg"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">ℹ️ Mentions de la facture : émetteur <b>JIS Office Partner</b> (SIREN 106 301 898 00016), <b>TVA non applicable – art. 293 B du CGI</b>, <b>paiement à réception</b> + pénalités légales. <b>L'adresse postale de l'émetteur n'est pas encore renseignée</b> — dis-la moi pour l'ajouter sur les factures.</p>
     </div>
   </main>
 </div>
@@ -190,11 +204,13 @@
     });
     return out;
   };
-  // Lit la table privée CEO. Résout {err} si la table n'existe pas/inaccessible, sinon {found, data}.
-  const readPrivate = () => FP.supabase.from(PT).select('data').eq('id', PID).maybeSingle().then(
+  // Accès GÉNÉRIQUE à la table privée CEO (clé/valeur). {err} si la table n'existe pas/inaccessible, sinon {found, data}.
+  const pvRead = (key) => FP.supabase.from(PT).select('data').eq('id', key).maybeSingle().then(
     (r) => { if (r && r.error) return { err: true }; const d = r && r.data && r.data.data; return { found: !!(d && typeof d === 'object'), data: (d && typeof d === 'object') ? d : {} }; },
     () => ({ err: true })
   );
+  const pvWrite = (key, data) => FP.supabase.from(PT).upsert({ id: key, data: data }, { onConflict: 'id' });
+  const readPrivate = () => pvRead(PID);                      // facturation (id='billing')
   const readLegacy = () => FP.supabase.from('app_settings').select('data').eq('id', LEGACY_ID).maybeSingle().then(
     (r) => (r && r.data && r.data.data && typeof r.data.data === 'object') ? r.data.data : {},
     () => ({})
@@ -252,7 +268,9 @@
     if (!owner) { if (window.lucide) lucide.createIcons(); return; }
     const moisTh = $('fa-mois-th'); if (moisTh) moisTh.textContent = 'Payé — ' + new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     render();
-    pullB(); // récupère la version serveur (autres appareils) et rafraîchit
+    renderRegistry();
+    pullB();   // facturation : version serveur (autres appareils)
+    pullInv(); // registre des factures émises
   }
 
   function render(){
@@ -269,7 +287,7 @@
         <td class="r"><input type="text" inputmode="decimal" class="fa-prix" data-soc="${esc(soc)}" value="${prix || ''}" placeholder="—" style="width:100px;text-align:right;font-size:13px;padding:4px 8px;border:1px solid var(--fp-border);border-radius:6px"></td>
         <td class="c"><input type="checkbox" class="fa-actif" data-soc="${esc(soc)}" ${actif ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--fp-accent);cursor:pointer"></td>
         <td class="c"><input type="checkbox" class="fa-paye" data-soc="${esc(soc)}" ${paye ? 'checked' : ''} style="width:18px;height:18px;accent-color:#059669;cursor:pointer"></td>
-        <td><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button></td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs fa-fact" data-soc="${esc(soc)}"><i data-lucide="file-down" class="w-3.5 h-3.5"></i> Facture PDF</button><button type="button" class="btn btn-outline text-xs fa-client" data-soc="${esc(soc)}" title="Coordonnées de facturation (adresse, SIREN, TVA)"><i data-lucide="building" class="w-3.5 h-3.5"></i> Coordonnées</button></div></td>
       </tr>`;
     }).join('');
     $('fa-tbody').innerHTML = cs.length ? rows : '<tr><td colspan="5" class="text-sm text-slate-400" style="padding:1rem">Aucun client encore. Crée une société cliente dans Paramètres → « Nouveau client ».</td></tr>';
@@ -298,39 +316,156 @@
     else if (pa) { const b = loadB(); const soc = pa.dataset.soc; b[soc] = b[soc] || {}; b[soc].pay = b[soc].pay || {}; b[soc].pay[ym] = !!pa.checked; saveB(b); }
   });
   document.addEventListener('click', (e) => {
-    const f = e.target.closest && e.target.closest('.fa-fact'); if (!f) return;
-    genFacture(f.dataset.soc);
+    if (!e.target.closest) return;
+    const f = e.target.closest('.fa-fact'); if (f) { genFacture(f.dataset.soc); return; }
+    const cl = e.target.closest('.fa-client'); if (cl) { openClientModal(cl.dataset.soc); return; }
+    const rd = e.target.closest('.fa-redl'); if (rd) {
+      const rec = (loadInv().items || {})[rd.dataset.key];
+      if (!rec) return;
+      if (!(window.jspdf && window.jspdf.jsPDF)) { (window.FP && FP.ensureJsPDF ? FP.ensureJsPDF() : Promise.reject()).then(() => buildInvoicePDF(rec, false)).catch(() => alert('Generateur PDF indisponible — recharge la page.')); return; }
+      buildInvoicePDF(rec, false);
+    }
   });
 
-  function genFacture(soc){
-    const b = loadB(); const prix = Number((b[soc] || {}).prix) || 0;
-    const moisLabel = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    const emetteur = ['JIS Office Partner', 'Shakil Nubeebaccus', 'SIREN 106 301 898 00016', 'jis.nubee@gmail.com'];
-    if (!(window.jspdf && window.jspdf.jsPDF)) { (window.FP && FP.ensureJsPDF ? FP.ensureJsPDF() : Promise.reject()).then(() => genFacture(soc)).catch(() => alert('Générateur PDF indisponible — recharge la page.')); return; }
+  // ===== Facturation conforme : numérotation séquentielle + registre (table privée CEO id='invoices') =====
+  const INVKEY = 'jis_invoices_v1';
+  // Émetteur (mentions légales). ⚠️ `adresse` vide : l'adresse postale n'est pas renseignée (à compléter
+  // dès que Shakil la fournit) — elle n'est alors pas imprimée (jamais d'adresse inventée).
+  const ISSUER = {
+    lignes: ['JIS Office Partner', 'Shakil Nubeebaccus', 'SIREN 106 301 898 00016', 'jis.nubee@gmail.com'],
+    adresse: '',
+    tva: 'TVA non applicable, article 293 B du CGI.',
+    paiement: 'Paiement a reception de facture.',
+    penalites: "En cas de retard : penalites au taux de 3 fois le taux d'interet legal, et indemnite forfaitaire pour frais de recouvrement de 40 EUR (art. L441-10 et D441-5 du Code de commerce)."
+  };
+  const eur2 = (cents) => (Math.round(Number(cents) || 0) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const moisAn = (p) => { try { const a = String(p).split('-'); return new Date(+a[0], (+a[1]) - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); } catch (e) { return p; } };
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const loadInv = () => { try { return JSON.parse(localStorage.getItem(INVKEY) || '{}') || {}; } catch (e) { return {}; } };
+  const cacheInv = (d) => { try { localStorage.setItem(INVKEY, JSON.stringify(d)); } catch (e) {} };
+  const pullInv = () => { try { if (!(window.FP && FP.supabase && FP.supabase.from)) return; pvRead('invoices').then(res => { if (res.err) return; if (res.found) { cacheInv(res.data); try { renderRegistry(); } catch (e) {} } }); } catch (e) {} };
+
+  // Alloue (ou réutilise) le n° de facture pour (client, période). 1 facture par client+mois (re-téléchargeable).
+  function allocInvoice(soc, period, montantCents, client) {
+    return pvRead('invoices').then(res => {
+      if (res.err) return { err: true };
+      const data = res.found ? res.data : {};
+      data.seq = data.seq || {}; data.items = data.items || {};
+      const key = soc + '__' + period;
+      if (data.items[key]) { cacheInv(data); return { rec: data.items[key], reused: true }; }
+      const Y = String(period).slice(0, 4);
+      const n = (Number(data.seq[Y]) || 0) + 1;
+      const rec = { numero: Y + '-' + String(n).padStart(4, '0'), soc, periode: period, montantCents: Math.round(Number(montantCents) || 0), dateEmission: todayISO(), client: client || {} };
+      data.items[key] = rec; data.seq[Y] = n; cacheInv(data);
+      try { pvWrite('invoices', data).then(w => { if (w && w.error) notifyFail(w.error); }, notifyFail); } catch (e) { notifyFail(e); }
+      return { rec, reused: false };
+    }, () => ({ err: true }));
+  }
+
+  function buildInvoicePDF(rec, provisional) {
     const { jsPDF } = window.jspdf; const doc = new jsPDF();
     const navy = [15, 30, 61], orange = [249, 115, 22];
     doc.setFillColor(navy[0], navy[1], navy[2]); doc.rect(0, 0, 210, 32, 'F');
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('FACTURE', 14, 20);
     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text('Parc Pilot - abonnement', 14, 27);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text(provisional ? 'BROUILLON (non numerote)' : ('Facture N° ' + rec.numero), 196, 14, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text('Date : ' + new Date(rec.dateEmission + 'T00:00:00').toLocaleDateString('fr-FR'), 196, 21, { align: 'right' });
     doc.setTextColor(30, 41, 59); let y = 46;
+    const em = ISSUER.lignes.slice(); if (ISSUER.adresse) em.splice(1, 0, ISSUER.adresse);
+    const cl = [String(rec.soc)]; const c = rec.client || {};
+    if (c.adresse) String(c.adresse).split(/\n+/).forEach(l => { if (l.trim()) cl.push(l.trim()); });
+    if (c.siren) cl.push('SIREN/SIRET : ' + c.siren);
+    if (c.tva) cl.push('TVA : ' + c.tva);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text('EMETTEUR', 14, y); doc.text('CLIENT', 120, y); y += 5;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-    emetteur.forEach((l, i) => doc.text(l, 14, y + i * 5));
-    doc.text(String(soc), 120, y);
-    y += Math.max(emetteur.length * 5, 10) + 8;
+    const nL = Math.max(em.length, cl.length);
+    for (let i = 0; i < nL; i++) { if (em[i]) doc.text(em[i], 14, y + i * 5); if (cl[i]) doc.text(cl[i], 120, y + i * 5); }
+    y += nL * 5 + 8;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90, 100, 115);
+    doc.text('Periode : ' + moisAn(rec.periode), 14, y); y += 7; doc.setTextColor(30, 41, 59);
     doc.setDrawColor(orange[0], orange[1], orange[2]); doc.setLineWidth(0.6); doc.line(14, y, 196, y); y += 8;
     doc.setFont('helvetica', 'bold'); doc.text('Designation', 14, y); doc.text('Montant', 196, y, { align: 'right' }); y += 3;
     doc.setDrawColor(233, 238, 245); doc.setLineWidth(0.2); doc.line(14, y, 196, y); y += 7;
     doc.setFont('helvetica', 'normal');
-    doc.text('Abonnement Parc Pilot - ' + moisLabel, 14, y);
-    doc.text(euro(prix), 196, y, { align: 'right' }); y += 10;
+    doc.text('Abonnement Parc Pilot - ' + moisAn(rec.periode), 14, y);
+    doc.text(eur2(rec.montantCents), 196, y, { align: 'right' }); y += 10;
     doc.line(14, y, 196, y); y += 8;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-    doc.text('TOTAL', 14, y); doc.text(euro(prix), 196, y, { align: 'right' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120, 130, 145);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('TOTAL', 14, y); doc.text(eur2(rec.montantCents), 196, y, { align: 'right' }); y += 8;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90, 100, 115); doc.text(ISSUER.tva, 14, y); y += 7;
+    doc.setFontSize(8); doc.text(ISSUER.paiement, 14, y); y += 4;
+    doc.text(doc.splitTextToSize(ISSUER.penalites, 182), 14, y);
+    doc.setFontSize(8); doc.setTextColor(120, 130, 145);
     doc.text('Facture generee par Parc Pilot le ' + new Date().toLocaleDateString('fr-FR'), 14, 285);
-    const safe = String(soc).normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-');
-    doc.save('facture-' + safe + '-' + ym + '.pdf');
+    const safe = String(rec.soc).normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-');
+    doc.save('facture-' + (provisional ? 'BROUILLON' : rec.numero) + '-' + safe + '.pdf');
+  }
+
+  function genFacture(soc) {
+    if (!(window.jspdf && window.jspdf.jsPDF)) { (window.FP && FP.ensureJsPDF ? FP.ensureJsPDF() : Promise.reject()).then(() => genFacture(soc)).catch(() => alert('Generateur PDF indisponible — recharge la page.')); return; }
+    const b = loadB(); const rec0 = b[soc] || {};
+    const montantCents = Math.round((Number(rec0.prix) || 0) * 100);
+    const client = { adresse: rec0.adresse || '', siren: rec0.siren || '', tva: rec0.tva || '' };
+    if (!(window.FP && FP.supabase && FP.supabase.from)) { buildInvoicePDF({ numero: null, soc, periode: ym, montantCents, dateEmission: todayISO(), client }, true); return; }
+    allocInvoice(soc, ym, montantCents, client).then(r => {
+      if (r.err) { buildInvoicePDF({ numero: null, soc, periode: ym, montantCents, dateEmission: todayISO(), client }, true); try { if (window.FP && FP.toast) FP.toast('Facture en BROUILLON — numerotation active apres activation de la facturation conforme.'); } catch (e) {} return; }
+      buildInvoicePDF(r.rec, false);
+      if (!r.reused) { try { renderRegistry(); } catch (e) {} }
+    });
+  }
+
+  function regArray() { const d = loadInv(); const items = d.items || {}; return Object.keys(items).map(k => items[k]).sort((a, b) => (b.periode || '').localeCompare(a.periode || '') || (b.numero || '').localeCompare(a.numero || '')); }
+  function renderRegistry() {
+    const box = $('fa-reg'); if (!box) return;
+    const arr = regArray();
+    if (!arr.length) { box.innerHTML = '<tr><td colspan="5" class="text-sm text-slate-400" style="padding:1rem">Aucune facture émise pour l\'instant — clique « Facture PDF » sur un client.</td></tr>'; return; }
+    box.innerHTML = arr.map(r => `<tr>
+      <td><b>${esc(r.numero || '—')}</b></td>
+      <td>${esc(r.soc)}</td>
+      <td>${esc(moisAn(r.periode))}</td>
+      <td class="r">${eur2(r.montantCents)}</td>
+      <td><button type="button" class="btn btn-outline text-xs fa-redl" data-key="${esc(r.soc + '__' + r.periode)}"><i data-lucide="download" class="w-3.5 h-3.5"></i> Re-télécharger</button></td>
+    </tr>`).join('');
+    try { lucide.createIcons(); } catch (e) {}
+  }
+
+  // Modale « coordonnées client » (B2B : adresse + SIREN/SIRET + TVA intracom) — fermée par le garde Échap global.
+  function openClientModal(soc) {
+    const b = loadB(); const rec = b[soc] || {};
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:60;background:rgba(2,6,23,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div class="card" style="max-width:460px;width:100%;padding:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+        <h3 class="font-bold" style="color:var(--fp-primary)">Coordonnées — ${esc(soc)}</h3>
+        <button type="button" class="btn btn-outline text-xs" data-x aria-label="Fermer">✕</button>
+      </div>
+      <p class="text-xs text-slate-400" style="margin:0 0 .6rem">Pour une facture conforme entre professionnels (apparaît sur les factures de ce client).</p>
+      <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;margin:.4rem 0 .2rem">Adresse (facturation)</label>
+      <textarea id="cm-adr" rows="3" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px;font-family:inherit">${esc(rec.adresse || '')}</textarea>
+      <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;margin:.6rem 0 .2rem">SIREN / SIRET</label>
+      <input id="cm-siren" type="text" value="${esc(rec.siren || '')}" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px">
+      <label style="display:block;font-size:.75rem;font-weight:700;color:#64748b;margin:.6rem 0 .2rem">N° TVA intracommunautaire (si applicable)</label>
+      <input id="cm-tva" type="text" value="${esc(rec.tva || '')}" style="width:100%;border:1px solid var(--fp-border);border-radius:8px;padding:8px;font-size:14px">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button type="button" class="btn btn-outline" data-x>Annuler</button>
+        <button type="button" class="btn btn-primary" data-save>Enregistrer</button>
+      </div>
+    </div>`;
+    const card = ov.firstElementChild; if (card) card.addEventListener('click', (e) => e.stopPropagation());
+    const close = () => { try { document.body.removeChild(ov); } catch (e) {} };
+    ov.addEventListener('click', close);
+    ov.querySelectorAll('[data-x]').forEach(x => x.addEventListener('click', close));
+    ov.querySelector('[data-save]').addEventListener('click', () => {
+      const b2 = loadB(); b2[soc] = b2[soc] || {};
+      b2[soc].adresse = ov.querySelector('#cm-adr').value.trim();
+      b2[soc].siren = ov.querySelector('#cm-siren').value.trim();
+      b2[soc].tva = ov.querySelector('#cm-tva').value.trim();
+      saveB(b2); close();
+    });
+    document.body.appendChild(ov);
+    try { ov.querySelector('#cm-adr').focus(); } catch (e) {}
   }
 
   boot();
