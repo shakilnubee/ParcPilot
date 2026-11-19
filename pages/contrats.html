@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119g">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -832,8 +832,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119f"></script>
-<script src="../assets/js/supabase-client.js?v=20261119f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119g"></script>
+<script src="../assets/js/supabase-client.js?v=20261119g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -849,11 +849,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261119f"></script>
+<script src="../assets/js/app.min.js?v=20261119g"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2398,8 +2398,7 @@
     const jfColor = jf === null ? '#94a3b8' : (jf < 30 ? 'var(--fp-danger)' : (jf <= 120 ? 'var(--fp-accent)' : '#0e7490'));
     // Pénalité km projetée (rappel) — on DÉDUIT la tolérance km offerte, exactement comme le tableau
     // Contrats (penaltyHtml) → même montant € des deux côtés (avant : la restitution ignorait la tolérance).
-    const _billable = l ? Math.max(0, (l.depassementProjete || 0) - (l.kmTolerance || 0)) : 0;
-    const pen = (_billable > 0 && l && l.kmSupp) ? Math.round(_billable * l.kmSupp) : 0;
+    const pen = (l && FP.leasingPenalite) ? FP.leasingPenalite(l) : 0;   // SOURCE UNIQUE (déduit la franchise km)
     const rows = RESTIT_ITEMS.map(it => {
       const on = !!st[it.k];
       const stg = it.stage === 0 ? 'Jour J' : it.stage + ' j avant';
@@ -2797,7 +2796,7 @@
         { id: 'kmContrat', label: 'Km contractuel',  def: true,  align: 'right', get: u => u.kmContrat != null ? FP.num(u.kmContrat) + ' km' : '—' },
         { id: 'proj',      label: 'Projection fin',  def: true,  align: 'right', get: u => (u.projectionFin != null) ? FP.num(u.projectionFin) + ' km' : '—' },
         { id: 'depass',    label: 'Dépassement',     def: true,  align: 'right', get: u => (u.depassementProjete > 0) ? '+' + FP.num(u.depassementProjete) + ' km' : '—', tint: val => /\+/.test(val) ? [220, 38, 38] : null },
-        { id: 'penalite',  label: 'Pénalité est.',   def: true,  align: 'right', get: u => { const b = Math.max(0, (u.depassementProjete || 0) - (u.kmTolerance || 0)); return (u.kmSupp && b > 0) ? FP.euro(Math.round(b * u.kmSupp)) : '—'; }, tint: val => /€/.test(val) ? [220, 38, 38] : null, sum: u => { const b = Math.max(0, (u.depassementProjete || 0) - (u.kmTolerance || 0)); return (u.kmSupp && b > 0) ? Math.round(b * u.kmSupp) : 0; } },
+        { id: 'penalite',  label: 'Pénalité est.',   def: true,  align: 'right', get: u => { const p = FP.leasingPenalite(u); return p > 0 ? FP.euro(p) : '—'; }, tint: val => /€/.test(val) ? [220, 38, 38] : null, sum: u => FP.leasingPenalite(u) },
         { id: 'fin',       label: 'Fin de contrat',  def: true,  align: 'left', get: u => (u.finContrat && !isNaN(u.finContrat)) ? FP.date(u.finContrat.toISOString()) : '—' },
       ],
     });
