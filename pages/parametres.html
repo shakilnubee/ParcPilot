@@ -925,6 +925,10 @@
             <input class="field-input" id="nu-pw" type="text" autocomplete="off" placeholder="Mot de passe initial (min. 8) — inutile si invitation" />
             <select class="field-input" id="nu-acces" aria-label="Niveau d'accès"></select>
             <select class="field-input" id="nu-societe" aria-label="Société"></select>
+            <select class="field-input" id="nu-lang" aria-label="Langue de l'e-mail d'invitation" title="Langue de l'e-mail d'invitation envoyé à la personne">
+              <option value="fr">✉️ E-mail d'invitation en français</option>
+              <option value="en">✉️ Invitation email in English</option>
+            </select>
           </div>
           <div class="flex items-center gap-3 flex-wrap mt-3">
             <button class="btn btn-dark text-sm" id="btn-nu-invite" title="Parc Pilot envoie un e-mail : la personne choisit ELLE-MÊME son mot de passe"><i data-lucide="mail" class="w-4 h-4"></i> Inviter par e-mail</button>
@@ -3011,8 +3015,9 @@
       const acces = accesSel.value;
       const societe = (acces === 'ceo') ? null : socSel.value;
       if (!email) return setSt(statusEl, 'E-mail requis pour envoyer l\'invitation.', false);
+      const lang = (g('nu-lang') && g('nu-lang').value) || 'fr';   // langue de l'e-mail d'invitation (FR/EN)
       inviteBtn.disabled = true; addBtn.disabled = true; setSt(statusEl, 'Envoi de l\'invitation…', true);
-      const r = await call({ action: 'invite', email, acces, societe, redirectTo: location.origin + '/login.html' });
+      const r = await call({ action: 'invite', email, acces, societe, lang, redirectTo: location.origin + '/login.html' });
       inviteBtn.disabled = false; addBtn.disabled = false;
       if (r.error) return setSt(statusEl, r.error, false);
       if (r.emailSent === false) return setSt(statusEl, '⚠️ ' + (r.warn || 'Compte prêt mais e-mail non envoyé.'), false);
