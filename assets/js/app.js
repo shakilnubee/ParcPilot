@@ -12181,6 +12181,35 @@ FP.affectations = {
     }
     if (changed) { s.affectations[vehId] = list; this._sauver(s, [vehId]); }
   },
+  // ===== CLÔTURE EXPLICITE par RESTITUTION DÉFINITIVE (bouton « Clôturer l'affectation ») =====
+  // Ferme la période EN COURS (date + km de la restitution), puis laisse le véhicule SANS conducteur
+  // (vide veh.chauffeur) → ensureCourante ne rouvre pas, et les futures amendes/conso ne se rattachent
+  // plus à l'ancien conducteur (consigne). IDEMPOTENT : si aucune période ouverte → ne fait rien (on ne
+  // clôt jamais une période au hasard). Ne DEVINE jamais un km : un km absent ou incohérent (< km début)
+  // → kmFin laissé VIDE + anomalie signalée (jamais 0 inventé). Réutilise `record` (aucune nouvelle période).
+  // Renvoie { done, conducteur, date, kmFin, anomalieKm } ou { done:false, raison }.
+  cloturerRestitution(veh, opts) {
+    opts = opts || {};
+    if (!veh || veh.id == null) return { done: false, raison: 'veh' };
+    const cur = this.courante(veh.id);
+    if (!cur) return { done: false, raison: 'aucune' };               // rien d'ouvert → on ne clôt rien
+    const date = (opts.date && /^\d{4}-\d{2}-\d{2}/.test(String(opts.date))) ? String(opts.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const kmDeb = this._km(cur.kmDebut);
+    let kmFin = this._km(opts.km);
+    let anomalieKm = false;
+    if (kmFin != null && kmDeb != null && kmFin < kmDeb) { kmFin = null; anomalieKm = true; }   // km incohérent → non retenu
+    const ancien = cur.conducteur || '';
+    this.record(veh.id, '', date, ancien, kmFin);                     // ferme la période, n'en ouvre AUCUNE
+    // Véhicule SANS conducteur affecté : on vide le champ chauffeur (sinon ensureCourante rouvrirait une
+    // période au prochain rendu, et les amendes/conso se rattacheraient encore à l'ancien). Pas de « Dépôt ».
+    try {
+      if (veh.chauffeur && veh.chauffeur !== '—' && veh.chauffeur !== '') {
+        veh.chauffeur = '';
+        if (FP.persist && FP.persist.update) FP.persist.update('vehicules', veh.id, { chauffeur: '' });
+      }
+    } catch (e) {}
+    return { done: true, conducteur: ancien, date: date, kmFin: kmFin, anomalieKm: anomalieKm };
+  },
   // --- Édition manuelle (crayon dans la fiche véhicule) ---
   // Modifie les dates début/fin (et km début/fin) d'une entrée (index = position dans le tableau stocké).
   setEntry(vehId, index, patch) {

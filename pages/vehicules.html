@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119b">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119b"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119b">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119a"></script>
-<script src="../assets/js/supabase-client.js?v=20261119a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119b"></script>
+<script src="../assets/js/supabase-client.js?v=20261119b"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261119a"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261119a"></script>
+<script src="../assets/js/fleet-docs.js?v=20261119b"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261119b"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261119a"></script><script>
+<script src="../assets/js/app.min.js?v=20261119b"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -2281,7 +2281,7 @@
           <span class="fp-aff-chev text-slate-400" style="flex:none;margin-top:3px;transition:transform .2s">▾</span>
         </summary>
         <div style="padding:2px 13px 13px;border-top:1px solid var(--fp-border)">
-          <div style="margin-top:10px"><button type="button" class="btn btn-outline text-xs" data-affect-edit="${i}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Corriger les dates / km</button></div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-outline text-xs" data-affect-edit="${i}"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Corriger les dates / km</button>${enCours ? `<button type="button" class="btn btn-dark text-xs" data-affect-cloturer="${i}" data-veh="${escapeHtml(vehId)}" data-rdate="${_isoIn(a, 'restitution') || ''}" title="Restitution définitive : clôture la période de ce conducteur ; le véhicule devient SANS conducteur affecté"><i data-lucide="flag" class="w-3.5 h-3.5"></i> ✅ Clôturer — restitution définitive</button>` : ''}</div>
           ${dupN > 1 ? `<div style="margin-top:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:9px;padding:9px 11px;font-size:.79rem;color:var(--fp-text,#7c5300)">⚠️ <b>${dupN} enregistrements identiques</b> pour cette période (doublon). On n'affiche qu'une ligne ; les ${dupN} existent encore en base.<div style="margin-top:7px"><button type="button" class="btn btn-dark text-xs" data-cc-merge="${escapeHtml(vehId)}" data-cc-dup="${dupIdx}"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Nettoyer les doublons (garder 1 ligne)</button></div></div>` : ''}
           <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--fp-faint,#94a3b8);margin:13px 0 0">États des lieux</div>
           ${edlBlock}
@@ -2316,6 +2316,44 @@
   }
 
   // Re-render du corps de l'historique (après édition/ajout) sans rouvrir toute la fiche.
+  // ✅ Clôture « restitution définitive » d'une affectation (bouton sur la carte EN COURS).
+  // Fenêtre : date (pré-remplie depuis l'EDL de restitution, jamais imposée au jour), km (optionnel),
+  // rappel « véhicule sans conducteur », et génération du PDF d'EDL de restitution (flux existant FP.edl.open).
+  function openCloturerModal(v, cur, defDate, defKm) {
+    const esc = (window.FP && FP.esc) ? FP.esc : (x => String(x == null ? '' : x));
+    const ov = document.createElement('div');
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.5)';
+    ov.innerHTML = `<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0b1220);border-radius:16px;max-width:460px;width:100%;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);padding:18px">
+      <div style="font-weight:800;font-size:1.05rem;margin-bottom:4px">✅ Restitution définitive — ${esc(v.immat || '')}</div>
+      <p style="font-size:.84rem;color:var(--fp-muted,#64748b);margin:0 0 12px">Conducteur sortant : <b>${esc(cur.conducteur || '—')}</b>. La période passe en <b>« terminée »</b> et le véhicule devient <b>sans conducteur affecté</b> (plus aucune amende / conso ne lui sera rattachée). Réaffecte-le ensuite si besoin.</p>
+      <label style="display:block;margin-bottom:10px"><span style="font-size:12px;color:var(--fp-muted,#64748b);font-weight:600">Date de restitution *</span><input id="clot-date" type="date" value="${esc(defDate)}" style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit"></label>
+      <label style="display:block;margin-bottom:10px"><span style="font-size:12px;color:var(--fp-muted,#64748b);font-weight:600">Km à la restitution <span style="color:#94a3b8">(laisse vide si inconnu — jamais inventé)</span></span><input id="clot-km" type="text" inputmode="numeric" value="${esc(defKm)}" placeholder="km compteur" style="width:100%;margin-top:3px;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px;background:var(--fp-surface,#fff);color:inherit"></label>
+      <label style="display:flex;align-items:center;gap:8px;margin:2px 0 14px;cursor:pointer"><input id="clot-pdf" type="checkbox" checked style="width:16px;height:16px;flex:none"><span style="font-size:13px">📄 Générer / signer le PDF d'état des lieux de restitution <span style="color:#94a3b8">(si pas déjà fait)</span></span></label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" id="clot-cancel" class="btn btn-outline text-sm">Annuler</button><button type="button" id="clot-ok" class="btn btn-dark text-sm">Confirmer la restitution</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    try { if (FP.scrollLock) FP.scrollLock.on(); } catch (e) {}
+    const close = () => { try { ov.remove(); } catch (e) {} try { if (FP.scrollLock) FP.scrollLock.off(); } catch (e) {} };
+    ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    ov.querySelector('#clot-cancel').addEventListener('click', close);
+    ov.querySelector('#clot-ok').addEventListener('click', () => {
+      const date = ov.querySelector('#clot-date').value || '';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { if (FP.toast) FP.toast('Date de restitution requise.'); return; }
+      const kmRaw = (ov.querySelector('#clot-km').value || '').replace(/[^\d]/g, '');
+      const km = kmRaw === '' ? null : parseInt(kmRaw, 10);
+      const genPdf = !!ov.querySelector('#clot-pdf').checked;
+      const ancien = cur.conducteur || '';
+      const r = (FP.affectations && FP.affectations.cloturerRestitution) ? FP.affectations.cloturerRestitution(v, { date: date, km: km }) : { done: false };
+      if (!r.done) { if (FP.toast) FP.toast('Aucune période en cours à clôturer.'); close(); return; }
+      if (FP.toast) FP.toast(r.anomalieKm ? '✓ Affectation clôturée — ⚠️ km incohérent, à compléter' : '✓ Affectation clôturée — véhicule sans conducteur');
+      close();
+      try { refreshAffect(v.id, null); } catch (e) {}
+      // PDF d'état des lieux de restitution via le flux EXISTANT (photos + signature → edge edl-sign). Pas de 2e générateur.
+      if (genPdf && FP.edl && FP.edl.open) { try { FP.edl.open(v, { sens: 'restitution', conducteur: ancien, date: date }); } catch (e) {} }
+    });
+    setTimeout(() => { const f = ov.querySelector('#clot-km'); if (f) f.focus(); }, 30);
+  }
   function refreshAffect(vehId, editIdx) {
     const body = document.getElementById('veh-affect-body');
     if (!body) return;
@@ -2467,6 +2505,16 @@
       }
       const edit = e.target.closest('[data-affect-edit]');
       if (edit && vehId) { refreshAffect(vehId, +edit.dataset.affectEdit); return; }
+      const clot = e.target.closest('[data-affect-cloturer]');
+      if (clot && vehId) {
+        const vv = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!vv) return;
+        const cur = (window.FP && FP.affectations && FP.affectations.courante) ? FP.affectations.courante(vehId) : null;
+        if (!cur) { if (FP.toast) FP.toast('Aucune affectation en cours à clôturer.'); return; }
+        const defDate = clot.dataset.rdate || new Date().toISOString().slice(0, 10);
+        const defKm = (FP.kmActuel ? FP.kmActuel(vv) : (vv.km || '')) || '';
+        openCloturerModal(vv, cur, defDate, defKm);
+        return;
+      }
       const cancel = e.target.closest('[data-affect-cancel]');
       if (cancel && vehId) { refreshAffect(vehId, null); document.getElementById('veh-affect-add').innerHTML = ''; return; }
       const save = e.target.closest('[data-affect-save]');
