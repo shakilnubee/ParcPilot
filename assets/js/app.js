@@ -6710,6 +6710,9 @@ FP.MAIL_DEFAUT = {
   relanceAmende: `Bonjour {prenom},\n🎫 Une amende concerne le véhicule {immat}. Pense à la régler pour éviter une majoration 💵\nRegarde ta boîte mail 📩`,
   // Modèle FR de la demande de signature d'état des lieux (SOURCE UNIQUE — utilisé aussi comme défaut du champ éditable).
   signature: `Bonjour {prenom},\n\nDernière étape avant de rouler ! 🚀 Signe l'état des lieux de ta {modele} ({immat}) en quelques secondes, directement depuis ce mail.`,
+  // État des lieux SIGNÉ (copie PDF) — message ÉDITABLE (Paramètres → E-mails). Le bouton « Télécharger » + les infos véhicule sont ajoutés automatiquement.
+  edlsigne: `Bonjour,\n\nL'état des lieux du véhicule {immat} a bien été signé par toutes les parties. Une copie PDF est disponible ci-dessous, à conserver.`,
+  edlsigne_en: `Hello,\n\nThe condition report for vehicle {immat} has been signed by all parties. The signed PDF copy is available below, to keep.`,
   // ===== VERSIONS ANGLAISES (envoyées quand la langue du conducteur n'est pas le français). TOUTES
   // ÉDITABLES dans Paramètres → E-mails (section « English e-mails ») — jamais en dur. =====
   relevekm_en: `Hello {prenom},\n\nPlease share the current mileage of vehicle {immat}. It's quick: one tap, one number, done.`,
@@ -6739,7 +6742,7 @@ FP.fillTags = function (tpl, o) {
   let s = String(tpl == null ? '' : tpl);
   const first = String(o.prenom || '').trim().split(/\s+/)[0] || '';
   const _avis = (o.avis != null ? o.avis : o.numeroAvis);
-  const map = { prenom: first, plaque: o.plaque, immat: o.immat, motif: o.motif, date: o.date, email: o.email, modele: o.modele, avis: _avis, numeroAvis: _avis };
+  const map = { prenom: first, plaque: o.plaque, immat: o.immat, motif: o.motif, date: o.date, email: o.email, modele: o.modele, avis: _avis, numeroAvis: _avis, revision: o.revision };
   Object.keys(map).forEach(k => {
     const v = String(map[k] == null ? '' : map[k]).trim();
     s = s.replace(new RegExp('\\{' + k + '\\}', 'gi'), v);   // remplacement DIRECT (pas d'espace ajouté)
@@ -6820,6 +6823,8 @@ FP.MAIL_OBJET_DEFAUT = {
   relanceAmende: 'Amende à régler — {immat}',
   // Objets ANGLAIS (éditables — section « English e-mails »).
   signature_en: 'Condition report to sign — {immat}',
+  edlsigne: 'État des lieux signé — {immat}',
+  edlsigne_en: 'Condition report signed — {immat}',
   bienvenue_en: 'Welcome on board 🚗 — your vehicle space',
   relevekm_en: 'Mileage reading — {immat}',
   rdvgarage_en: '{motif} on {date} ({immat})',
@@ -6950,6 +6955,8 @@ FP.PROFIL_CHAMPS = [
   { key: 'mailModeleRelance_en',    label: "E-mail EN — reminder",             type: 'textarea', ph: 'Use {prenom}.', default: FP.MAIL_DEFAUT.relance_en, lang: 'en' },
   { key: 'mailObjetSignature',   label: "Objet e-mail — signature état des lieux", type: 'text', ph: 'Balises : {immat}, {modele}, {prenom}.', default: FP.MAIL_OBJET_DEFAUT.signature },
   { key: 'mailModeleSignature',  label: "Modèle e-mail — demande de signature (état des lieux)", type: 'textarea', ph: 'Message envoyé au conducteur pour signer. Balises : {prenom}, {immat}, {modele}, {date}. Le bouton « Signer le document » et les infos du véhicule sont ajoutés automatiquement (mise en page soignée).', default: 'Bonjour {prenom},\n\nDernière étape avant de rouler ! 🚀 Signe l\'état des lieux de ta {modele} ({immat}) en quelques secondes, directement depuis ce mail.' },
+  { key: 'mailObjetEdlsigne',    label: "Objet e-mail — état des lieux signé", type: 'text', ph: 'Balises : {immat}, {modele}.', default: FP.MAIL_OBJET_DEFAUT.edlsigne },
+  { key: 'mailModeleEdlsigne',   label: "Modèle e-mail — état des lieux SIGNÉ (copie PDF)", type: 'textarea', ph: 'Message de confirmation envoyé une fois TOUT signé (au conducteur et au signataire société). Balises : {immat}, {modele}, {date}. Le bouton « Télécharger l\'état des lieux signé » et les infos du véhicule sont ajoutés automatiquement.', default: FP.MAIL_DEFAUT.edlsigne },
   // ── Autres e-mails éditables (message seul ; logo/plaque/bouton ajoutés automatiquement) ──
   { key: 'mailObjetBienvenue',     label: "Objet e-mail — bienvenue conducteur",   type: 'text', ph: 'Balises : {prenom}, {plaque}.', default: FP.MAIL_OBJET_DEFAUT.bienvenue },
   { key: 'mailModeleBienvenue',    label: "Modèle e-mail — bienvenue conducteur (QR)",     type: 'textarea', ph: 'Balises : {prenom}, {plaque}. Le bouton « Accéder à mon espace » est ajouté automatiquement.', default: FP.MAIL_DEFAUT.bienvenue },
@@ -7004,6 +7011,8 @@ FP.PROFIL_CHAMPS = [
   { key: 'mailModeleRdvGarage_en', label: "EN — Garage appointment announcement", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {motif}, {date}.', default: FP.MAIL_DEFAUT.rdvgarage_en, lang: 'en' },
   { key: 'mailModeleRappelGarage_en', label: "EN — Garage appointment reminder (day before)", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {motif}.', default: FP.MAIL_DEFAUT.rappelgarage_en, lang: 'en' },
   { key: 'mailModeleSignature_en', label: "EN — Condition report to sign", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {modele}, {date}.', default: FP.MAIL_DEFAUT.signature_en, lang: 'en' },
+  { key: 'mailObjetEdlsigne_en', label: "EN subject — condition report signed", type: 'text', ph: 'Tags: {immat}, {modele}.', default: FP.MAIL_OBJET_DEFAUT.edlsigne_en, lang: 'en' },
+  { key: 'mailModeleEdlsigne_en', label: "EN — Condition report signed (PDF copy)", type: 'textarea', ph: 'Tags: {immat}, {modele}, {date}.', default: FP.MAIL_DEFAUT.edlsigne_en, lang: 'en' },
   { key: 'mailModeleRelanceCt_en', label: "EN — Reminder: roadworthiness test", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {date}.', default: FP.MAIL_DEFAUT.relanceCt_en, lang: 'en' },
   { key: 'mailModeleRelanceEntretien_en', label: "EN — Reminder: service due", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {revision}, {date}. ⚠️ Use {revision}: smart due wording based on BOTH mileage AND date (e.g. "due now — service mileage passed", "to plan before 08/06/2027"). {date} = date only. Write "service {revision}", not "due on {date}".', default: FP.MAIL_DEFAUT.relanceEntretien_en, lang: 'en' },
   { key: 'mailModeleDemandeRdv_en', label: "EN — Service: « Request an appointment »", type: 'textarea', ph: 'Tags: {prenom}, {immat}, {motif}. No date/mileage: just "please book and send me the date".', default: FP.MAIL_DEFAUT.demandeRdv_en, lang: 'en' },
@@ -24098,21 +24107,20 @@ FP.sendMailTest = async function (key, to, lang) {
     key: 'edl-signe', label: 'État des lieux signé (copie)', group: 'États des lieux',
     sample: () => ({ immat: 'AA-123-AA', modele: 'Peugeot 208', date: '01/09/2026', link: '#' }),
     build: (d) => {
-      const en = (d.lang === 'en');
+      const en = (d.lang === 'en'); const lg = en ? 'en' : 'fr';
       const title = en ? '✅ Condition report signed' : '✅ État des lieux signé';
-      const p1 = en ? 'Hello,' : 'Bonjour,';
-      const line = en
-        ? 'The vehicle condition report has been signed by all parties. The signed PDF copy is available below, to keep.'
-        : 'L\'état des lieux du véhicule a bien été signé par toutes les parties. Une copie PDF est disponible ci-dessous, à conserver.';
+      // Corps ÉDITABLE (Paramètres → E-mails → « Modèle e-mail — état des lieux SIGNÉ ») — source unique :
+      // aperçu, testeur ET envoi réel (pré-rendu par l'app, expédié par l'edge edl-sign) lisent CE modèle.
+      const body = tpl('mailModeleEdlsigne', 'edlsigne', { immat: d.immat, modele: d.modele, date: d.date }, lg);
       const btnLbl = en ? '⬇️ Download the signed condition report' : '⬇️ Télécharger l\'état des lieux signé';
       return {
-        subject: en ? ('Condition report signed (' + d.immat + ')') : ('État des lieux signé (' + d.immat + ')'),
+        subject: (FP.mailObjetL ? (FP.mailObjetL('edlsigne', { immat: d.immat, modele: d.modele }, lg) || '') : '')
+          || (en ? ('Condition report signed (' + d.immat + ')') : ('État des lieux signé (' + d.immat + ')')),
         html: FP.mailShell({ brand: d.nomSoc, logoUrl: d.logoUrl, title: title,
-          bodyHtml: '<p style="margin:0 0 16px;line-height:1.55">' + p1 + '</p>'
-            + '<p style="margin:0 0 16px;line-height:1.55">' + line + '</p>'
+          bodyHtml: bodyText(body)
             + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155">🚗 <b>' + esc(d.modele) + '</b> · ' + esc(d.immat) + (d.date ? ' · ' + esc(d.date) : '') + '</div>',
           buttonHtml: btn(d.link, btnLbl) }),
-        text: (en ? 'The signed condition report for ' : 'L\'état des lieux signé du véhicule ') + d.immat + (en ? ' is available: ' : ' est disponible : ') + d.link
+        text: body + '\n\n' + d.link
       };
     }
   });
@@ -24126,9 +24134,12 @@ FP.sendMailTest = async function (key, to, lang) {
   ].forEach(function (r) {
     FP.registerMail({
       key: r.key, label: r.label, group: 'Relances',
-      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', date: '30/09/2026', motif: 'Révision' }),
+      // ⚠️ {revision} = balise INTELLIGENTE remplie au VRAI envoi (cf. ~24705) ; on la fournit aussi dans
+      //    l'échantillon du testeur pour que l'APERÇU colle à l'e-mail réellement envoyé (sinon « {revision} »
+      //    resterait littéral à l'aperçu alors que le vrai e-mail la remplace bien).
+      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', date: '30/09/2026', motif: 'Révision', revision: 'à faire dès maintenant — km de révision dépassé' }),
       build: (d) => {
-        const tags = { prenom: d.prenom, immat: d.immat, date: d.date, motif: d.motif };
+        const tags = { prenom: d.prenom, immat: d.immat, date: d.date, motif: d.motif, revision: d.revision };
         const t = tpl(r.mkey, r.dkey, tags);
         return {
           subject: (FP.mailObjet ? FP.mailObjet(r.defObj, tags) : '') || (r.label + ' — ' + d.immat),
