@@ -21839,7 +21839,7 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
     const doc = new jsPDF({ orientation: _pageW >= _pageH ? 'landscape' : 'portrait', unit: 'mm', format: [_pageW, _pageH] });
     const pageW = doc.internal.pageSize.getWidth();
     const drawHeader = () => {
-      doc.setFillColor(15, 30, 61); doc.roundedRect(10, 10, pageW - 20, 20, 3, 3, 'F');
+      doc.setFillColor(11, 18, 32); doc.roundedRect(10, 10, pageW - 20, 20, 3, 3, 'F');   // navy DA #0B1220
       doc.setFillColor(249, 115, 22); doc.rect(10, 12, 2.4, 16, 'F');       // accent orange à gauche
       doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(clean(title), 16, 20);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(199, 210, 230);
@@ -21898,10 +21898,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
       head: [['#'].concat(cols.map(c2 => clean(c2.label)))],
       body: rows.map((r, i) => [String(i + 1)].concat(cols.map(c2 => clean(c2.get(r))))),
       foot: foot || undefined,
-      footStyles: { fillColor: [241, 245, 249], textColor: [15, 30, 61], fontStyle: 'bold', fontSize: 9, lineColor: [203, 213, 225], lineWidth: 0.1 },
+      footStyles: { fillColor: [241, 245, 249], textColor: [11, 18, 32], fontStyle: 'bold', fontSize: 9, lineColor: [203, 213, 225], lineWidth: 0.1 },
       startY: 36, margin: { top: 36, left: 10, right: 10 }, tableWidth: pageW - 20, theme: 'grid',
       styles: { fontSize: _fs, cellPadding: { top: _pad, right: _pad + 0.4, bottom: _pad, left: _pad + 0.4 }, textColor: [30, 41, 59], lineColor: [233, 238, 245], lineWidth: 0.1, valign: 'middle', overflow: 'linebreak' },
-      headStyles: { fillColor: [15, 30, 61], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: Math.max(6.5, _fs - 0.5), lineColor: [15, 30, 61], lineWidth: 0, cellPadding: { top: _pad + 0.4, right: _pad + 0.4, bottom: _pad + 0.4, left: _pad + 0.4 }, overflow: 'linebreak' },
+      headStyles: { fillColor: [11, 18, 32], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: Math.max(6.5, _fs - 0.5), lineColor: [11, 18, 32], lineWidth: 0, cellPadding: { top: _pad + 0.4, right: _pad + 0.4, bottom: _pad + 0.4, left: _pad + 0.4 }, overflow: 'linebreak' },
       alternateRowStyles: { fillColor: [247, 249, 252] },
       columnStyles: columnStyles,
       didParseCell: (data) => {
@@ -21913,9 +21913,10 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
         drawHeader();
         const h = doc.internal.pageSize.getHeight();
         doc.setDrawColor(233, 238, 245); doc.line(10, h - 9, pageW - 10, h - 9);
+        doc.setFillColor(249, 115, 22); doc.circle(11.1, h - 6.3, 0.9, 'F');   // pastille orange (DA Automotive Tech)
         doc.setFontSize(7.5); doc.setTextColor(148, 163, 184); doc.setFont('helvetica', 'normal');
-        doc.text('Parc Pilot — gestion de flotte', 10, h - 5);
-        doc.text('Page ' + d.pageNumber, pageW - 10, h - 5, { align: 'right' });
+        doc.text('Parc Pilot — gestion de flotte', 13.6, h - 5);
+        doc.setFont('courier', 'normal'); doc.text('PAGE ' + d.pageNumber, pageW - 10, h - 5, { align: 'right' });
       },
     });
     const safe = clean(title).replace(/[^\wÀ-ÿ \-]+/g, '').trim().replace(/\s+/g, '-') || 'fiche';
