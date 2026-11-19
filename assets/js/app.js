@@ -1822,6 +1822,23 @@ FP.leasingLoueurs = () => {
 };
 // Étiquettes « propriétaire » qui désignent un véhicule en leasing.
 FP.leasingProps = () => FP.leasingLoueurs().map(l => String(l.prop || '').trim().toLowerCase()).filter(Boolean);
+// Un propriétaire de véhicule correspond-il à un LOUEUR configuré ? SOURCE UNIQUE de la détection leasing
+// « par propriétaire ». Compare en forme CANONIQUE des deux côtés (FP.proprioCanon) → un ALIAS
+// (« PXPR GE ») est bien rapproché du loueur officiel (« PXPR GE GmbH »). Repli : comparaison brute (compat).
+FP.estProprioLeasing = (proprietaire) => {
+  const raw = String(proprietaire == null ? '' : proprietaire).trim().toLowerCase();
+  if (!raw) return false;
+  const canon = (FP.proprioCanon ? String(FP.proprioCanon(proprietaire) || '') : raw).trim().toLowerCase();
+  let loueurs = []; try { loueurs = FP.leasingLoueurs() || []; } catch (e) {}
+  for (const l of loueurs) {
+    const lraw = String((l && l.prop) || '').trim().toLowerCase();
+    if (!lraw) continue;
+    if (lraw === raw) return true;                                   // brut = brut (compat)
+    const lcanon = (FP.proprioCanon ? String(FP.proprioCanon(l.prop) || '') : lraw).trim().toLowerCase();
+    if (lcanon && canon && lcanon === canon) return true;            // canonique = canonique (gère les alias)
+  }
+  return false;
+};
 // Loyer mensuel BPCE total de la flotte (offre courante sinon médiane des factures 'leasing'). HORS Localease.
 FP.leasingMensuelFlotte = (data) => {
   data = data || {};
@@ -1832,9 +1849,8 @@ FP.leasingMensuelFlotte = (data) => {
     (byVeh[k] = byVeh[k] || []); if ((f.montantTTC || 0) > 0) byVeh[k].push(f.montantTTC);
   });
   const median = arr => { if (!arr || !arr.length) return null; const s = [...arr].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-  const props = FP.leasingProps();
   const immats = new Set([
-    ...actifs.filter(v => { const p = String(v.proprietaire || '').trim().toLowerCase(); return p && props.includes(p); }).map(v => v.immat),
+    ...actifs.filter(v => FP.estProprioLeasing(v.proprietaire)).map(v => v.immat),   // SOURCE UNIQUE (canonicalisé)
     ...Object.keys(byVeh),
   ]);
   // ⚠️ ANTI-DOUBLE-COMPTAGE : les plaques ayant un contrat LLD (settings.localeaseContrats) sont déjà
@@ -11548,8 +11564,7 @@ FP.leasingContrat = (immat) => {
 FP.estLeasing = (v) => {
   if (!v) return false;
   try {
-    const p = String(v.proprietaire || '').trim().toLowerCase();
-    if (p) { let props = []; try { props = FP.leasingProps() || []; } catch (e) {} if (props.indexOf(p) !== -1) return true; }
+    if (FP.estProprioLeasing && FP.estProprioLeasing(v.proprietaire)) return true;   // SOURCE UNIQUE (canonicalisé, gère les alias)
   } catch (e) {}
   try { if (FP.leasingContrat && FP.leasingContrat(v.immat)) return true; } catch (e) {}
   return false;
@@ -24430,10 +24445,19 @@ FP.tachesLiees = function (filter) {
   const vehId = filter.vehId != null ? String(filter.vehId) : null;
   const cond = filter.conducteur ? nrm(filter.conducteur) : '';
   const condFirst = cond ? cond.split(' ')[0] : '';
+  // P2-3 : rattachement par CLÉ STABLE (FP.condGroupKey) → « Charles » et « Charles LENNON » se rejoignent,
+  // mais deux homonymes (Charles DUPONT ≠ Charles LENNON) ne se mélangent PLUS. Repli prénom uniquement si
+  // le helper de clé est indisponible (compat), jamais quand on a pu résoudre une clé des deux côtés.
+  const kCond = (cond && FP.condGroupKey) ? String(FP.condGroupKey(filter.conducteur) || '') : '';
   const out = list.filter(t => {
     if (!t) return false;
     if (vehId && String(t.vehiculeId) === vehId) return true;
-    if (cond && t.conducteur) { const c = nrm(t.conducteur); if (c === cond || (condFirst && c.split(' ')[0] === condFirst)) return true; }
+    if (cond && t.conducteur) {
+      const c = nrm(t.conducteur);
+      if (c === cond) return true;                                         // nom exact
+      if (FP.condGroupKey) { const kT = String(FP.condGroupKey(t.conducteur) || ''); if (kCond && kT && kT === kCond) return true; }  // clé stable (homonymes exclus)
+      else if (condFirst && c.split(' ')[0] === condFirst) return true;    // repli prénom (compat, helper absent)
+    }
     return false;
   });
   const doneOf = t => (t.statut === 'done' || (t.statut == null && !!t.fait));

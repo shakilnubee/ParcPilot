@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119h">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119h"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119h">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -832,8 +832,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119g"></script>
-<script src="../assets/js/supabase-client.js?v=20261119g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119h"></script>
+<script src="../assets/js/supabase-client.js?v=20261119h"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -849,11 +849,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261119g"></script>
+<script src="../assets/js/app.min.js?v=20261119h"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1087,7 +1087,7 @@
     });
     // Set de plaques leasing en clé NORMALISÉE des DEUX côtés (fiches + factures) → plus de doublon de format.
     leasingImmats = new Set([
-      ...vehicules.filter(v => { const props = propsLeasing(); const p = String(v.proprietaire || '').trim().toLowerCase(); return p && props.includes(p); }).map(v => (FP.normImmat ? FP.normImmat(v.immat) : v.immat)),
+      ...vehicules.filter(v => { const props = propsLeasing(); const praw = String(v.proprietaire || '').trim().toLowerCase(); if (praw && props.includes(praw)) return true; const vc = (FP.proprioCanon ? String(FP.proprioCanon(v.proprietaire) || '') : praw).trim().toLowerCase(); const propsC = props.map(x => (FP.proprioCanon ? String(FP.proprioCanon(x) || '') : x).trim().toLowerCase()); return !!(vc && propsC.includes(vc)); }).map(v => (FP.normImmat ? FP.normImmat(v.immat) : v.immat)),
       ...Object.keys(leasingByVeh),
     ]);
     // (Ancien filtre « masquer du leasing » retiré : la corbeille supprime désormais vraiment le
@@ -2163,7 +2163,7 @@
         const dur = Number(c.dureeMois) || 0;
         const autoImmat = c.immat || autoImmatLoc(c);
         const linkedV = autoImmat ? (data.vehicules || []).find(v => normPlaque(v.immat) === normPlaque(autoImmat)) : null;
-        const kmAct = (c.kmActuel != null && c.kmActuel !== '') ? Number(c.kmActuel) : ((linkedV && linkedV.km != null && linkedV.km !== '') ? Number(linkedV.km) : null);
+        const kmAct = (c.kmActuel != null && c.kmActuel !== '') ? Number(c.kmActuel) : (linkedV ? (FP.kmActuel ? FP.kmActuel(linkedV) : ((linkedV.km != null && linkedV.km !== '') ? Number(linkedV.km) : null)) : null);   // P2-6 : km réel (max compteur / dernier relevé)
         const effDebut = effDebutContrat(c, linkedV).debut;
         const durEff = (c.fin && effDebut) ? (monthsBetween(effDebut, c.fin) || dur) : dur;
         const effFinDate = c.fin ? new Date(c.fin) : (effDebut && dur ? addMonths(effDebut, dur) : null);
@@ -4022,9 +4022,14 @@
       const condOk = vc === cond || vcFirst === condFirst || vc.startsWith(cond + ' ') || cond.startsWith(vc + ' ');
       return condOk && (!mdl || norm(v.modele).includes(mdl));
     });
-    // priorité aux véhicules marqués Localease, sinon le 1er trouvé
-    const v = cands.find(x => /localease/.test(norm(x.proprietaire))) || cands[0];
-    return v ? (v.immat || '') : '';
+    // P2-4 : NE PAS deviner. Priorité aux véhicules marqués Localease ; mais si PLUSIEURS véhicules DISTINCTS
+    // correspondent (ambiguïté, ex. homonyme de prénom + même modèle), on ne rattache RIEN (plutôt qu'un
+    // cands[0] arbitraire) → le contrat reste « à confirmer » manuellement. On ne lie que si c'est sans équivoque.
+    const strong = cands.filter(x => /localease/.test(norm(x.proprietaire)));
+    const pool = strong.length ? strong : cands;
+    const uniq = Array.from(new Set(pool.map(v => (FP.normImmat ? FP.normImmat(v.immat) : (v.immat || '')) || '').filter(Boolean)));
+    if (uniq.length === 1) { const v = pool.find(x => ((FP.normImmat ? FP.normImmat(x.immat) : x.immat) || '') === uniq[0]); return v ? (v.immat || '') : ''; }
+    return '';   // 0 correspondance OU ambiguë → pas de rattachement automatique (évite d'attribuer la mauvaise plaque)
   }
   // ⚠️ FUSION : renderLocalease() est un ALIAS de renderLeasing() (défini plus bas) — TOUTE la table
   // leasing se re-peint d'un coup. _renderLocaleaseRows() (ci-dessous) AJOUTE les lignes des contrats
@@ -4070,7 +4075,7 @@
       // Km actuel : saisi sur le contrat, SINON on prend le km RÉEL du véhicule lié (exactement comme
       // BPCE) → la projection et le statut se calculent tout seuls, plus de « contrat non renseigné ».
       const kmAct = (c.kmActuel != null && c.kmActuel !== '') ? Number(c.kmActuel)
-                   : ((linkedV && linkedV.km != null && linkedV.km !== '') ? Number(linkedV.km) : null);
+                   : (linkedV ? (FP.kmActuel ? FP.kmActuel(linkedV) : ((linkedV.km != null && linkedV.km !== '') ? Number(linkedV.km) : null)) : null);   // P2-6 : km réel (max compteur / dernier relevé)
       const _dbt = effDebutContrat(c, linkedV);
       const debutSource = _dbt.source;
       const effDebut = _dbt.debut;
