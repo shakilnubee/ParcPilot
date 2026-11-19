@@ -2950,8 +2950,13 @@ FP.recomputeVehiculeFromFactures = function (v, factures) {
         if (rk != null) FP.setRevisionKmRef(v.id, rk);   // ne touche pas une réf saisie à la main si pas de km facture
       }
     } catch (e) {}
-    // Date pneus = date la plus récente parmi les factures d'entretien « pneu » restantes (sinon vide).
-    const pneuDates = mine.filter(f => /pneu/i.test(String(f.description || ''))).map(f => f.date).filter(Boolean).sort();
+    // Date pneus = date la plus récente parmi les factures « pneu » RESTANTES du véhicule (sinon vide).
+    // ⚠️ On repart de TOUTES les factures de l'immat (pas seulement `mine`=entretien) : une facture explicitement
+    // typée « pneus » (écran Remplacement de pneus) n'est PAS un « entretien » → sinon un simple appui sur
+    // « recalculer » après suppression d'une autre facture EFFAÇAIT à tort une date de pneus pourtant valide.
+    const pneuDates = (factures || [])
+      .filter(f => f && FP.normImmat(f.vehiculeImmat) === nk && ((String(f.type || '').toLowerCase().trim() === 'pneus') || /pneu/i.test(String(f.description || ''))))
+      .map(f => f.date).filter(Boolean).sort();
     const pneu = pneuDates.length ? pneuDates[pneuDates.length - 1] : null;
     if ((v.dateChangementPneus || null) !== (pneu || null)) { v.dateChangementPneus = pneu; patch.dateChangementPneus = pneu; }
     if (!Object.keys(patch).length) return null;
@@ -10956,9 +10961,11 @@ FP.applyFactureToVehicule = function (f, vehicules) {
         v.derniereRevision = f.date; patch.derniereRevision = f.date; bits.push('révision ' + FP.date(f.date));
       }
     }
-    // Pneus : entretien/réparation portant la mention « pneu ».
-    if (estEntretien) {
-      if (/pneu/i.test(`${f.description || ''}`) && f.date && (!v.dateChangementPneus || f.date > v.dateChangementPneus)) {
+    // Pneus : entretien/réparation portant la mention « pneu », OU une facture explicitement typée « pneus »
+    // (créée par l'écran « Remplacement de pneus ») — sinon sa date ne remontait pas à la fiche.
+    {
+      const _estPneu = (String(f.type || '').toLowerCase().trim() === 'pneus') || (estEntretien && /pneu/i.test(`${f.description || ''}`));
+      if (_estPneu && f.date && (!v.dateChangementPneus || f.date > v.dateChangementPneus)) {
         v.dateChangementPneus = f.date; patch.dateChangementPneus = f.date; bits.push('pneus');
       }
     }
@@ -15399,12 +15406,22 @@ FP.ulysApi = (function () {
       for (const inv of invList) {
         const idn = String(inv.invoiceId || '').toUpperCase();
         if (!idn || have.has(idn)) { skipped++; continue; }
+        // ⚠️ RÈGLE LECTURE : un montant absent reste `null` (jamais un 0 inventé qui ferait une « facture à 0 € »
+        // trompeuse ; la checklist « À compléter » le signalera). Et on contrôle HT+TVA≈TTC comme partout ailleurs.
+        const _n = (x) => { if (x === '' || x == null) return null; const v = Number(x); return Number.isFinite(v) ? v : null; };
+        const _ht = _n(inv.vatExcludedTotal), _tva = _n(inv.vatAmount), _ttc = _n(inv.vatIncludedTotal);
+        if (_ht != null && _tva != null && _ttc != null && Math.abs((_ht + _tva) - _ttc) > 0.02) {
+          console.warn('[ulys import] HT+TVA≠TTC pour', inv.invoiceId, { ht: _ht, tva: _tva, ttc: _ttc });
+        }
         const rec = {
           id: 'ULYS-' + inv.invoiceId, societe: soc,
           date: String(inv.invoiceDate || '').slice(0, 10), fournisseur: 'Ulys', numeroFacture: inv.invoiceId,
-          montantHT: Number(inv.vatExcludedTotal) || 0, montantTVA: Number(inv.vatAmount) || 0, montantTTC: Number(inv.vatIncludedTotal) || 0,
+          montantHT: _ht, montantTVA: _tva, montantTTC: _ttc,
           description: inv.invoiceType === 'ELEC' ? 'Recharge électrique Ulys' : 'Péages Ulys (télépéage)', type: 'ulys'
         };
+        // Anti-doublon : SOURCE UNIQUE `FP.dupe` (règle d'identité facture = n° + TTC, sinon fournisseur+TTC+date),
+        // en plus du garde rapide par invoiceId → attrape aussi une même facture déjà entrée par une autre voie.
+        try { if (FP.dupe && FP.dupe.find('factures', rec, facts)) { skipped++; continue; } } catch (e) {}
         try { await FP.persist.insert('factures', rec); facts.push(rec); have.add(idn); added++; } catch (e) { skipped++; }
       }
       // ⚠️ ALERTE (consigne utilisateur) : prévenir dès qu'une facture Ulys est déposée par la clé API.
