@@ -3735,7 +3735,7 @@
       const cat = $('arcdoc-cat'); if (cat) cat.innerHTML = CATS.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
       const yr = $('arcdoc-year'); if (yr) yr.value = guessYear(pending[0] && pending[0].name);
       const vs = $('arcdoc-veh');
-      if (vs) { const vl = (window.FP_DATA && Array.isArray(FP_DATA.vehicules)) ? FP_DATA.vehicules.slice().sort((a, b) => String(a.immat || '').localeCompare(String(b.immat || ''))) : []; vs.innerHTML = '<option value="">— Aucun —</option>' + vl.map(v => `<option value="${esc(v.immat || '')}">${esc(v.immat || '')}${v.marque ? ' · ' + esc(v.marque) : ''}</option>`).join(''); }
+      if (vs) { const vl = (window.FP_DATA && Array.isArray(FP_DATA.vehicules)) ? FP_DATA.vehicules.slice().sort((a, b) => String(a.immat || '').localeCompare(String(b.immat || ''))) : []; vs.innerHTML = '<option value="">— Aucun —</option>' + vl.map(v => `<option value="${esc(v.immat || '')}">${esc(v.immat || '')}${v.marque ? ' · ' + esc(v.marque) : ''}</option>`).join(''); try { if (FP.searchSelect) FP.searchSelect(vs, { placeholder: 'Rechercher un véhicule…' }); } catch (e) {} }   /* P2-14 : sélecteur recherchable */
       $('arcdoc-files').innerHTML = pending.map((f, i) => {
         const base = String(f.name || 'document').replace(/\.[a-z0-9]+$/i, '');
         return '<div class="flex items-center gap-2"><i data-lucide="' + iconFor(f.name) + '" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>'

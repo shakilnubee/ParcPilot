@@ -580,7 +580,10 @@
   // génère un lien signé avant d'ouvrir (comme l'aperçu image). Repli window.open si FP indispo.
   // ⚠️ Ne JAMAIS mettre l'URL de stockage BRUTE dans un href : un n° d'avis est deviné/imprimé sur le PV
   // → sans signature, le scan (nom, plaque, adresse) serait accessible sans authentification.
-  const openScanAttr = u => { const s = safeUrl(u); return `href="#" onclick="event.preventDefault();(window.FP&&FP.openScan)?FP.openScan('${s}'):window.open('${s}','_blank','noopener')"`; };
+  // P2-12 : plus de href="#" (qui ouvrait un onglet VIDE à la molette/Ctrl). On porte data-doc-url → le garde
+  // central (FP.installNavHref) ouvre le document dans un nouvel onglet à la molette / Ctrl / Cmd / Maj, sans
+  // exposer d'URL privée. Le clic GAUCHE simple reste géré par l'onclick (ouverture via FP.openScan, URL signée).
+  const openScanAttr = u => { const s = safeUrl(u); return `role="button" tabindex="0" style="cursor:pointer" data-doc-url="${s}" onclick="event.preventDefault();(window.FP&&FP.openScan)?FP.openScan('${s}'):window.open('${s}','_blank','noopener')"`; };
   // Aperçu inline d'un scan (image -> <img> ; PDF/inconnu -> <iframe>) directement dans le tiroir.
   function scanPreview(url) {
     if (!url) return '';
