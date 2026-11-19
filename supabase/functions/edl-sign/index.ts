@@ -123,7 +123,7 @@ async function sendSignEmail(db: ReturnType<typeof createClient>, societe: strin
   } catch { return false; }
 }
 
-type Signer = { role: string; nom?: string; email?: string; signed?: boolean; signedAt?: string; ip?: string; sigUrl?: string; ordre?: number; notified?: boolean; sigToken?: string; mailSubject?: string; mailHtml?: string; mailText?: string; lang?: string; refused?: boolean; refusMotif?: string; refusedAt?: string };
+type Signer = { role: string; nom?: string; email?: string; signed?: boolean; signedAt?: string; ip?: string; sigUrl?: string; ordre?: number; notified?: boolean; sigToken?: string; mailSubject?: string; mailHtml?: string; mailText?: string; lang?: string; refused?: boolean; refusMotif?: string; refusedAt?: string; signedMailSubject?: string; signedMailHtml?: string; signedMailText?: string };
 
 // Résout le signataire à partir du jeton reçu dans l'URL, de façon SÛRE :
 //  1) jeton PROPRE au signataire (sigToken, liens récents) → identifie le signataire ET son rôle sans se
@@ -408,14 +408,24 @@ Deno.serve(async (req) => {
         };
         const attachName = (lang: string) => (lang === "en" ? "Signed-condition-report-" : "Etat-des-lieux-signe-") + plaque + ".pdf";
         if (key) {
-          // Langue par e-mail : on prend celle du 1er signataire portant cette adresse (repli fr).
-          const langByEmail = new Map<string, string>();
-          for (const s of required) { const em = String(s.email || ""); if (em && !langByEmail.has(em)) langByEmail.set(em, s.lang === "en" ? "en" : "fr"); }
-          const builtByLang: Record<string, { subject: string; html: string; text: string }> = {};
-          for (const to of langByEmail.keys()) {
-            const lang = langByEmail.get(to) || "fr";
-            const m = builtByLang[lang] || (builtByLang[lang] = buildMail(lang));
-            const payload: Record<string, unknown> = { from, to: [to], subject: m.subject, html: m.html, text: m.text, attachments: [{ filename: attachName(lang), path: signedPdfUrl }] };
+          // UN e-mail par destinataire. SOURCE UNIQUE DU DESIGN : on utilise le HTML « signé » PRÉ-RENDU par
+          // l'app (le MÊME modèle que l'aperçu/testeur « edl-signe »), en y injectant l'URL RÉELLE du PDF signé
+          // via le repère __PDF_URL__ (lien généré AU BON MOMENT, jamais stocké périmé). Repli sur le gabarit
+          // LOCAL (buildMail) UNIQUEMENT si ce champ manque (anciens dossiers d'avant ce correctif) → l'edge
+          // reste 100 % autonome (aucune dépendance à un navigateur ; aucune panne si le HTML est absent).
+          const seen = new Set<string>();
+          for (const s of required) {
+            const to = String(s.email || ""); if (!to || seen.has(to)) continue; seen.add(to);
+            const lang = s.lang === "en" ? "en" : "fr";
+            let subject: string, html: string, text: string;
+            if (s.signedMailHtml) {
+              html = String(s.signedMailHtml).split("__PDF_URL__").join(signedPdfUrl);
+              text = String(s.signedMailText || "").split("__PDF_URL__").join(signedPdfUrl);
+              subject = String(s.signedMailSubject || "") || buildMail(lang).subject;
+            } else {
+              const m = buildMail(lang); subject = m.subject; html = m.html; text = m.text;
+            }
+            const payload: Record<string, unknown> = { from, to: [to], subject, html, text, attachments: [{ filename: attachName(lang), path: signedPdfUrl }] };
             if (replyTo) payload.reply_to = replyTo;
             try { await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch { /* best-effort */ }
           }
