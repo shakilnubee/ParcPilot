@@ -18805,148 +18805,187 @@ FP.edl = {
       });
     });
   },
-  // Génère le PDF (jsPDF) au format du modèle client, avec le logo de la société.
+  // Génère le PDF (jsPDF) — Direction artistique « Automotive Tech » : en-tête sombre cockpit,
+  // plaque d'immatriculation + kilométrage en donnée, pastilles de statut (vert RAS / orange anomalie),
+  // grille photo numérotée, pied de page mono. ⚠️ Les coordonnées de signature (doc.__edlSig en POINTS
+  // pour l'edge edl-sign, doc.__edlSigMm en MM pour la signature « sur place ») restent la SOURCE UNIQUE
+  // et coïncident EXACTEMENT avec les traits dessinés — ne pas désynchroniser.
   _pdf(data) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-    const M = 16; let y = 14;
-    // Palette « à la sauce Parc Pilot »
-    const NAVY = [15, 30, 61], ACC = [249, 115, 22], INK = [20, 28, 40], MUT = [100, 112, 128], SOFT = [248, 250, 252], LINE = [226, 232, 240];
+    const M = 14;
+    // Palette DA « Automotive Tech »
+    const NAVY = [11, 18, 32], ACC = [249, 115, 22], LBLUE = [138, 160, 192],
+      INK = [17, 26, 43], MUT = [90, 101, 119], SOFT = [246, 248, 251], LINE = [227, 232, 240],
+      GREEN = [16, 185, 129], GRAY = [122, 138, 160];
     const isRestit = data.sens === 'restitution';
     const lang = (data.lang === 'en') ? 'en' : 'fr';          // langue du DOCUMENT (FR/EN selon le conducteur)
     const L = (FP.edl.TXT[lang] || FP.edl.TXT.fr);
     const trLbl = (s) => FP.edl._lbl(s, lang);                // traduit un libellé de ligne (EXT/INT/ACC)
-    const ensure = need => { if (y + need > H - 16) { doc.addPage(); y = 16; } };
-    // ---- En-tête : logo société (ou nom) à gauche + titre + pastille sous-titre à droite ----
+    const kmFmt = (v) => { const n = String(v == null ? '' : v).replace(/[^\d]/g, ''); return n ? n.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : ''; };
+    const immatTxt = String(data.immat || '—');
+    const kmStr = kmFmt(data.km);
+
+    // ===== EN-TÊTE SOMBRE « cockpit » (pleine largeur, page 1) =====
+    const headerH = 52;
+    doc.setFillColor.apply(doc, NAVY); doc.rect(0, 0, W, headerH, 'F');
+    // Logo société sur pastille blanche (ou nom société en blanc) — à gauche
     if (data.logo && /^data:image\//i.test(data.logo)) {
-      try { const fmt = /png/i.test(data.logo) ? 'PNG' : 'JPEG'; doc.addImage(data.logo, fmt, M, y, 30, 14, undefined, 'FAST'); } catch (e) {}
-    } else if (data.socNom) { doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor.apply(doc, NAVY); doc.text(data.socNom, M, y + 9); }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor.apply(doc, NAVY);
-    doc.text(L.title, W - M, y + 6, { align: 'right' });
-    // Sous-titre dans une PASTILLE arrondie (fond bleu très clair, texte navy) — plus soigné qu'un texte/trait orange.
-    { const sub = isRestit ? L.subRes : L.subRem;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-      const pw = doc.getTextWidth(sub) + 8, ph = 6, px = W - M - pw, py = y + 9.5;
-      doc.setFillColor(236, 241, 248); doc.roundedRect(px, py, pw, ph, 3, 3, 'F');
-      doc.setTextColor.apply(doc, NAVY); doc.text(sub, px + 4, py + 4); }
-    y += 19;
-    // Filet UNIQUE, fin et net (navy) — on retire le trait orange qui jurait juste en dessous du logo.
-    doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(0.4); doc.line(M, y, W - M, y);
-    doc.setLineWidth(0.2);
-    y += 6.5;
-    // ---- Carte infos (fond doux arrondi) ----
-    const info = [[L.nom, data.employe], [L.modele, data.modele], [L.immat, data.immat], [L.km, data.km ? (data.km + ' km') : '—'], [isRestit ? L.dateRes : L.dateRem, data.date ? FP.date(data.date) : '—']];
-    const cardH = 4.5 + info.length * 5.9;
-    ensure(cardH + 4);
-    doc.setFillColor.apply(doc, SOFT); doc.setDrawColor.apply(doc, LINE); doc.setLineWidth(0.3);
-    doc.roundedRect(M, y, W - 2 * M, cardH, 2.5, 2.5, 'FD');
-    doc.setFillColor.apply(doc, NAVY); doc.roundedRect(M, y, 1.8, cardH, 0.9, 0.9, 'F');   // liseré navy premium à gauche
-    let iy = y + 6; doc.setFontSize(10);
-    info.forEach(([l, v]) => {
-      doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, MUT); doc.text(l, M + 4, iy);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor.apply(doc, INK); doc.text(String(v || '—'), M + 60, iy);
-      iy += 5.9;
-    });
-    y += cardH + 5;
-    // ---- Barre de section (navy arrondie + liseré orange) — SOURCE UNIQUE ----
-    const sectionBar = (title) => {
-      ensure(14);
-      doc.setFillColor.apply(doc, NAVY); doc.roundedRect(M, y - 4, W - 2 * M, 7.5, 2, 2, 'F');
-      doc.setFillColor.apply(doc, ACC); doc.roundedRect(M, y - 4, 2.6, 7.5, 1, 1, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(title, M + 6, y + 1.1);
-      y += 8.5;
+      try {
+        doc.setFillColor(255, 255, 255); doc.roundedRect(M, 7, 34, 13, 2, 2, 'F');
+        const fmt = /png/i.test(data.logo) ? 'PNG' : 'JPEG'; doc.addImage(data.logo, fmt, M + 2, 8.5, 30, 10, undefined, 'FAST');
+      } catch (e) { }
+    } else if (data.socNom) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.text(String(data.socNom), M, 16);
+    }
+    // Tag mono à droite : EDL // RESTITUTION|REMISE
+    const tag = 'EDL // ' + (isRestit ? (lang === 'en' ? 'RETURN' : 'RESTITUTION') : (lang === 'en' ? 'HANDOVER' : 'REMISE'));
+    doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.setTextColor.apply(doc, LBLUE); doc.text(tag, W - M, 12, { align: 'right' });
+    // Marque / modèle (petit, bleu clair)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor.apply(doc, LBLUE);
+    doc.text(String(data.modele || '').toUpperCase(), M, 26);
+    // Plaque d'immatriculation mise en avant
+    const plateY = 28.5, plateH = 12;
+    doc.setFont('courier', 'bold'); doc.setFontSize(23);
+    const immW = doc.getTextWidth(immatTxt);
+    let plateW = 11 + immW + 7; const plateMax = W * 0.56; if (plateW > plateMax) plateW = plateMax;
+    doc.setFillColor(255, 255, 255); doc.setDrawColor.apply(doc, NAVY); doc.setLineWidth(0.5);
+    doc.roundedRect(M, plateY, plateW, plateH, 1.5, 1.5, 'FD');
+    doc.setFillColor(11, 53, 201); doc.roundedRect(M + 0.8, plateY + 0.8, 7, plateH - 1.6, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('F', M + 4.3, plateY + plateH / 2 + 2.2, { align: 'center' });
+    doc.setFont('courier', 'bold'); doc.setFontSize(23); doc.setTextColor.apply(doc, NAVY);
+    doc.text(immatTxt, M + 10, plateY + plateH - 3);
+    // Bandeau de données : KM / DATE / CONDUCTEUR
+    const dataY1 = 44, dataY2 = 49;
+    const cell = (x, lbl, val) => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor.apply(doc, LBLUE); doc.text(lbl, x, dataY1);
+      doc.setFont('courier', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.text(String(val || '—'), x, dataY2);
     };
+    cell(M, 'KM', kmStr || '—');
+    cell(W * 0.40, 'DATE', data.date ? FP.date(data.date) : '—');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor.apply(doc, LBLUE); doc.text(lang === 'en' ? 'DRIVER' : 'CONDUCTEUR', W * 0.68, dataY1);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
+    { const nm = doc.splitTextToSize(String(data.employe || '—'), W - (W * 0.68) - M); doc.text(nm[0] || '—', W * 0.68, dataY2); }
+
+    let y = headerH + 9;
+    const ensure = need => { if (y + need > H - 16) { doc.addPage(); y = 18; } };
+
+    // ===== Titre de rapport + rappel immat/km (mono) =====
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor.apply(doc, INK);
+    doc.text(lang === 'en' ? 'INSPECTION REPORT' : "RAPPORT D'INSPECTION", M, y);
+    doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor.apply(doc, MUT);
+    doc.text(immatTxt + (kmStr ? ('  ·  ' + kmStr + ' km') : ''), W - M, y, { align: 'right' });
+    doc.setDrawColor.apply(doc, ACC); doc.setLineWidth(0.6); doc.line(M, y + 2.5, W - M, y + 2.5);
+    y += 9;
+
+    // ===== En-tête de section (titre + filet fin) — SOURCE UNIQUE =====
+    const sectionBar = (title) => {
+      ensure(13);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor.apply(doc, INK); doc.text(title, M, y);
+      doc.setDrawColor.apply(doc, LINE); doc.setLineWidth(0.4); doc.line(M, y + 2, W - M, y + 2);
+      y += 7.5;
+    };
+    // Ligne d'état avec PASTILLE : vert = RAS, orange = anomalie (texte saisi). On ne devine jamais : on LIT
+    // ce qui est écrit dans le champ (vide / « RAS » = conforme ; sinon = l'anomalie telle que saisie).
+    const VAL_X = M + 64, LBL_W = 48, VAL_W = W - M - VAL_X;
     const section = (title, rows, com) => {
       sectionBar(title);
       doc.setFontSize(9.5);
-      // ⚠️ Libellé ET valeur renvoyés à la ligne chacun dans SA colonne (libellé long / valeur longue).
-      const LBL_W = 56, VAL_X = M + 62, VAL_W = W - M - VAL_X;
       rows.forEach((r, idx) => {
+        const hasAno = r.val && String(r.val).trim() && String(r.val).trim().toUpperCase() !== 'RAS';
         const labelLines = doc.splitTextToSize(trLbl(r.label), LBL_W);
-        const _rv = (r.val && r.val !== 'RAS') ? r.val : L.ras;   // « RAS » traduit (OK) en anglais
-        const valLines = doc.splitTextToSize(String(_rv), VAL_W);
+        const valLines = hasAno ? doc.splitTextToSize(String(r.val), VAL_W) : [L.ras];
         const nL = Math.max(labelLines.length, valLines.length);
-        const rowH = nL * 4.2 + 1.5;
+        const rowH = nL * 4.3 + 1.8;
         ensure(rowH);
-        if (idx % 2 === 1) { doc.setFillColor.apply(doc, SOFT); doc.rect(M, y - 3.2, W - 2 * M, rowH, 'F'); }   // zébrage doux
-        doc.setTextColor(60, 70, 85); doc.setFont('helvetica', 'bold'); doc.text(labelLines, M + 3, y);
-        doc.setTextColor.apply(doc, INK); doc.setFont('helvetica', 'normal'); doc.text(valLines, VAL_X, y);
+        if (idx % 2 === 1) { doc.setFillColor.apply(doc, SOFT); doc.rect(M, y - 3.4, W - 2 * M, rowH, 'F'); }
+        doc.setFillColor.apply(doc, hasAno ? ACC : GREEN); doc.circle(M + 2, y - 1.1, 1.1, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); doc.text(labelLines, M + 5.5, y);
+        if (hasAno) { doc.setFont('helvetica', 'normal'); doc.setTextColor.apply(doc, INK); doc.text(valLines, VAL_X, y); }
+        else { doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, GREEN); doc.setFontSize(8.5); doc.text(L.ras, VAL_X, y); doc.setFontSize(9.5); }
         y += rowH;
       });
-      if (com) { ensure(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(90, 100, 115); const lines = doc.splitTextToSize(L.comm + com, W - 2 * M - 6); doc.text(lines, M + 3, y + 1); y += 3.5 + lines.length * 4.4; doc.setFont('helvetica', 'normal'); }
-      y += 1.5;
+      if (com) { ensure(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(90, 100, 115); const lines = doc.splitTextToSize(L.comm + com, W - 2 * M - 6); doc.text(lines, M + 5.5, y + 1); y += 3.5 + lines.length * 4.4; doc.setFont('helvetica', 'normal'); }
+      y += 2;
     };
     section(L.secExt, data.ext, data.comExt);
     section(L.secInt, data.int, data.comInt);
-    // ---- Accessoires (cases à cocher dessinées) ----
+
+    // ===== Accessoires (pastille Fourni / Non fourni) =====
     sectionBar(L.secAcc);
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     (data.acc || []).forEach(a => {
       ensure(5.9);
-      const bx = M + 3, by = y - 3.1, bs = 3.8;
-      if (a.on) {
-        doc.setFillColor.apply(doc, NAVY); doc.setDrawColor.apply(doc, NAVY); doc.roundedRect(bx, by, bs, bs, 0.7, 0.7, 'FD');
-        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.text('X', bx + bs / 2, by + bs - 0.9, { align: 'center' }); doc.setFontSize(10);
-      } else { doc.setDrawColor.apply(doc, MUT); doc.setLineWidth(0.3); doc.roundedRect(bx, by, bs, bs, 0.7, 0.7, 'D'); }
-      doc.setTextColor.apply(doc, INK); doc.setFont('helvetica', 'normal'); doc.text(trLbl(a.label), bx + bs + 3, y);
+      doc.setFillColor.apply(doc, a.on ? GREEN : GRAY); doc.circle(M + 2, y - 1.1, 1.1, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setTextColor.apply(doc, INK); doc.text(trLbl(a.label), M + 5.5, y);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, a.on ? GREEN : GRAY);
+      doc.text(a.on ? (lang === 'en' ? 'Provided' : 'Fourni') : (lang === 'en' ? 'Not provided' : 'Non fourni'), W - M, y, { align: 'right' });
+      doc.setFontSize(9.5);
       y += 5.9;
     });
-    if (data.autres) { ensure(6); doc.setTextColor.apply(doc, INK); doc.setFont('helvetica', 'normal'); doc.text(L.autres + data.autres, M + 3, y); y += 5.9; }
-    if (data.comAcc) { ensure(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(90, 100, 115); const l = doc.splitTextToSize(L.comm + data.comAcc, W - 2 * M - 6); doc.text(l, M + 3, y + 1); y += 3.5 + l.length * 4.4; doc.setFont('helvetica', 'normal'); }
+    if (data.autres) { ensure(6); doc.setTextColor.apply(doc, INK); doc.setFont('helvetica', 'normal'); doc.text(L.autres + data.autres, M + 5.5, y); y += 5.9; }
+    if (data.comAcc) { ensure(8); doc.setFont('helvetica', 'italic'); doc.setTextColor(90, 100, 115); const l = doc.splitTextToSize(L.comm + data.comAcc, W - 2 * M - 6); doc.text(l, M + 5.5, y + 1); y += 3.5 + l.length * 4.4; doc.setFont('helvetica', 'normal'); }
     y += 2;
-    // ---- Photos jointes (2 par ligne, aspect préservé) ----
+
+    // ===== Photos (grille numérotée, 2 par ligne, ratio préservé) =====
     if (Array.isArray(data.photos) && data.photos.length) {
       sectionBar(L.secPhotos);
-      const gap = 6, colW2 = (W - 2 * M - gap) / 2; let col = 0, rowH = 0, rowY = y;
+      const gap = 6, colW2 = (W - 2 * M - gap) / 2; let col = 0, rowH = 0, rowY = y, n = 0;
       data.photos.forEach(p => {
+        n++;
         let aw = colW2, ah = colW2 * 0.72;
-        try { const pr = doc.getImageProperties(p); if (pr && pr.width && pr.height) { ah = colW2 * (pr.height / pr.width); if (ah > 78) { ah = 78; aw = 78 * (pr.width / pr.height); } } } catch (e) {}
-        if (col === 0) { ensure(82); rowY = y; }
+        try { const pr = doc.getImageProperties(p); if (pr && pr.width && pr.height) { ah = colW2 * (pr.height / pr.width); if (ah > 76) { ah = 76; aw = 76 * (pr.width / pr.height); } } } catch (e) { }
+        if (col === 0) { ensure(84); rowY = y; }
         const x = M + col * (colW2 + gap) + (colW2 - aw) / 2;
-        try { doc.addImage(p, /png/i.test(p) ? 'PNG' : 'JPEG', x, rowY, aw, ah, undefined, 'FAST'); } catch (e) {}
+        try { doc.addImage(p, /png/i.test(p) ? 'PNG' : 'JPEG', x, rowY, aw, ah, undefined, 'FAST'); } catch (e) { }
+        doc.setFont('courier', 'bold'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, MUT);
+        doc.text(String(n).padStart(2, '0'), M + col * (colW2 + gap), rowY + Math.min(ah, 76) + 4);
         rowH = Math.max(rowH, ah);
-        if (col === 1) { y = rowY + rowH + gap; col = 0; rowH = 0; } else { col = 1; }
+        if (col === 1) { y = rowY + rowH + 8; col = 0; rowH = 0; } else { col = 1; }
       });
-      if (col === 1) { y = rowY + rowH + gap; }
+      if (col === 1) { y = rowY + rowH + 8; }
     }
-    // ---- Signatures ----
-    y += 3; ensure(44);
+
+    // ===== Signatures (⚠️ géométrie & coordonnées INCHANGÉES — source unique edge/sur-place) =====
+    y += 3; ensure(46);
     sectionBar(L.secSign);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(70, 80, 95);
     doc.text(isRestit ? L.ackRes : L.ackRem, M, y); y += 8;
     const colW = (W - 2 * M) / 2;
     const labelY = y;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor.apply(doc, NAVY);
-    doc.text(L.sigEmp, M, y); doc.text(L.sigSoc + (data.socNom || (lang === 'en' ? 'company' : 'société')), M + colW, y);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor.apply(doc, INK);
+    doc.text(String(L.sigEmp).toUpperCase(), M, y);
+    doc.text(String(L.sigSoc + (data.socNom || (lang === 'en' ? 'company' : 'société'))).toUpperCase(), M + colW, y);
     const lineY = labelY + 16, dateY = lineY + 5, emailY = dateY + 5;
-    const dateLblW = doc.getTextWidth(L.date + ' ') + 1;   // largeur du libellé « Date : » (mm) → valeur juste après
+    const dateLblW = doc.getTextWidth(L.date + ' ') + 1;   // largeur du libellé « Date : » (mm)
     // Champs signature (employé à gauche, société à droite) — position en POINTS, origine HAUT-gauche
-    // (1 mm = 2.83465 pt). L'app envoie chaque signataire sur SON champ ; l'edge y appose l'image de la
-    // signature + la DATE (alignée sur « Date : ») + l'E-MAIL du signataire (sous la date). SOURCE UNIQUE
-    // des coordonnées : ici (l'edge ne fait que dessiner à ces positions) — cf. buildSignedPdf.
+    // (1 mm = 2.83465 pt). L'edge y appose l'image + la DATE (alignée sur « Date : ») + l'E-MAIL. SOURCE
+    // UNIQUE des coordonnées : ici (cf. buildSignedPdf dans supabase/functions/edl-sign/index.ts).
     try {
       const PT = 2.83465, p = doc.internal.getCurrentPageInfo().pageNumber, sy = Math.round((labelY + 2) * PT), sh = Math.round(13 * PT);
       doc.__edlSig = {
         employe: { page: p, x: Math.round(M * PT), y: sy, width: Math.round((colW - 14) * PT), height: sh,
-                   dateX: Math.round((M + dateLblW) * PT), dateY: Math.round(dateY * PT), emailX: Math.round(M * PT), emailY: Math.round(emailY * PT) },
+          dateX: Math.round((M + dateLblW) * PT), dateY: Math.round(dateY * PT), emailX: Math.round(M * PT), emailY: Math.round(emailY * PT) },
         societe: { page: p, x: Math.round((M + colW) * PT), y: sy, width: Math.round((colW - 6) * PT), height: sh,
-                   dateX: Math.round((M + colW + dateLblW) * PT), dateY: Math.round(dateY * PT), emailX: Math.round((M + colW) * PT), emailY: Math.round(emailY * PT) },
+          dateX: Math.round((M + colW + dateLblW) * PT), dateY: Math.round(dateY * PT), emailX: Math.round((M + colW) * PT), emailY: Math.round(emailY * PT) },
       };
-      // Mêmes champs en MILLIMÈTRES (unité de CE doc jsPDF) → pour apposer les signatures CÔTÉ CLIENT
-      // (signature « sur place » sur le téléphone du gestionnaire), sans passer par l'edge/pdf-lib.
+      // Mêmes champs en MILLIMÈTRES (unité de CE doc jsPDF) → signature « sur place » (client), sans l'edge.
       doc.__edlSigMm = {
         employe: { page: p, x: M, y: labelY + 2, w: colW - 14, h: 13, dateX: M + dateLblW, dateY: dateY },
         societe: { page: p, x: M + colW, y: labelY + 2, w: colW - 6, h: 13, dateX: M + colW + dateLblW, dateY: dateY },
       };
-    } catch (e) {}
+    } catch (e) { }
     y = lineY; doc.setFont('helvetica', 'normal'); doc.setDrawColor(150, 160, 175); doc.setLineWidth(0.3); doc.line(M, y, M + colW - 12, y); doc.line(M + colW, y, W - M, y); y = dateY;
-    doc.setTextColor.apply(doc, MUT); doc.text(L.date, M, y); doc.text(L.date, M + colW, y); y = emailY + 2;
-    // ---- Pied de page Parc Pilot (filet + pastille orange) ----
+    doc.setTextColor.apply(doc, MUT); doc.setFontSize(9); doc.text(L.date, M, y); doc.text(L.date, M + colW, y); y = emailY + 2;
+
+    // ===== Pied de page mono (filet + pastille orange + REF) =====
     doc.setDrawColor.apply(doc, LINE); doc.setLineWidth(0.2); doc.line(M, H - 12, W - M, H - 12);
     doc.setFillColor.apply(doc, ACC); doc.circle(M + 1.2, H - 8.7, 1, 'F');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, MUT);
-    doc.text(L.footer, M + 4, H - 8);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, MUT); doc.text(L.footer, M + 4, H - 8);
+    doc.setFont('courier', 'normal'); doc.setFontSize(7.5); doc.setTextColor.apply(doc, MUT);
+    doc.text('REF ' + immatTxt.replace(/[^A-Za-z0-9]/g, '') + '-' + String(data.date || '').replace(/[^0-9]/g, ''), W - M, H - 8, { align: 'right' });
     return doc;
   },
 };
