@@ -340,7 +340,7 @@
     <!-- ===== Vue DOCUMENTS (archives & suivi) ===== -->
     <div id="view-documents" class="hidden">
       <div class="card p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-3">
+        <div id="doc-filterbar" class="flex flex-wrap items-center gap-3">
           <div class="relative flex-1 min-w-[220px]">
             <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input id="doc-search" type="text" placeholder="Véhicule, conducteur, type, nom du document…" class="w-full pl-10 pr-3 py-2 text-sm fp-search-field" />
@@ -2235,6 +2235,16 @@
     })();
 
     ['doc-search','doc-filter-veh','doc-filter-type','doc-hide-arch'].forEach(id => { const el = $(id); if (el) el.addEventListener('input', renderDocuments); });
+    // P2-13 : bouton « ↺ Réinitialiser » de la barre de filtres de la vue Documents (comme les autres barres).
+    try {
+      if (FP.filterResetButton) FP.filterResetButton($('doc-filterbar'), { onReset: () => {
+        const s = $('doc-search'); if (s) s.value = '';
+        const fv = $('doc-filter-veh'); if (fv) fv.value = 'all';
+        const ft = $('doc-filter-type'); if (ft) ft.value = 'all';
+        const ha = $('doc-hide-arch'); if (ha) ha.checked = false;
+        renderDocuments();
+      } });
+    } catch (e) {}
 
     // ===== Vue « Drive » (dossiers par véhicule → tuiles) + expiration & rappel (#22) =====
     let driveFolder = null;   // vehiculeId du dossier ouvert
