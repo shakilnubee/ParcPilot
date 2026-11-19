@@ -17,11 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119f">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119g">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119f"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119g"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119f">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119g">
 <style>
   /* ===== Barre d'onglets = contrôle segmenté (cohérent avec la plateforme) ===== */
   .ctrl-tabs { display:flex; gap:.3rem; flex-wrap:wrap; background:#fff; border:1px solid var(--fp-border); border-radius:.9rem; padding:.35rem; margin-bottom:1.5rem; box-shadow:0 1px 2px rgba(15,30,61,.04); }
@@ -315,8 +315,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119f"></script>
-<script src="../assets/js/supabase-client.js?v=20261119f"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119g"></script>
+<script src="../assets/js/supabase-client.js?v=20261119g"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -332,11 +332,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
 <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261119f"></script>
+<script src="../assets/js/app.min.js?v=20261119g"></script>
 <!-- ⚡ fleet-views.js (~160 Ko : Total Fleet + Ulys) N'EST PLUS chargé ici en SYNCHRONE : l'onglet
      par défaut est « Contrôle » et n'en a pas besoin. Il est injecté à la demande (1re ouverture de
      Total/Ulys) via ensureFleetViews(), et préchargé en douceur sur temps mort → l'arrivée sur
@@ -369,7 +369,7 @@
     _flPromise = new Promise(res => {
       try {
         const s = document.createElement('script');
-        s.src = '../assets/js/fleet-views.min.js?v=20261119f';
+        s.src = '../assets/js/fleet-views.min.js?v=20261119g';
         s.onload = () => res(!!(window.FP && FP.mountTotal));
         s.onerror = () => res(false);
         document.head.appendChild(s);
@@ -824,7 +824,12 @@
         const iso = _snISO(p.date || ''), ttc = _snNum(p.montantTTC);
         if (!iso || !ttc || ttc <= 0) { continue; }
         const plaque = cleanPl(p.plaque) || docPlaque;
-        const id = 'SANEF-' + Date.now().toString(36) + '-' + (seq++).toString(36) + Math.random().toString(36).slice(2, 5);
+        // ⚠️ ID DÉTERMINISTE (P1-2) : construit sur l'IDENTITÉ RÉELLE du passage (plaque + date + gare + TTC)
+        // → ré-importer le même relevé ne crée plus de doublon, mais deux passages DISTINCTS (gare/date/montant
+        // différents) restent bien séparés. Remplace l'ancien id aléatoire (Date.now()+Math.random()).
+        const _plN = FP.normImmat ? FP.normImmat(plaque) : String(plaque || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const _gareN = String(p.gare || '').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 24);
+        const id = 'SANEF-' + _plN + '-' + iso + '-' + _gareN + '-' + Math.round(ttc * 100);
         let ht = _snNum(p.montantHT), tva = _snNum(p.montantTVA);
         if (ht != null && tva != null && Math.abs((ht + tva) - ttc) > 0.02) { ht = null; tva = null; }
         const rec = {
@@ -834,7 +839,11 @@
           type: 'peage', source: 'sanef', categorie: 'peage', conducteur: null,
           montantHT: ht, montantTVA: tva, montantTTC: ttc, km: null, fileId, fileName,
         };
-        if (_seen.has(_sig(rec))) { dup++; continue; } _seen.add(_sig(rec));
+        // Anti-doublon : intra-lot (même id déterministe) ET déjà enregistré en base (FP.dupe sur n°+TTC).
+        if (_seen.has(id)) { dup++; continue; }
+        let _deja = null; try { _deja = (FP.dupe && FP.dupe.find) ? FP.dupe.find('factures', rec, window.FP_DATA.factures) : null; } catch (e) { }
+        if (_deja) { dup++; _seen.add(id); continue; }
+        _seen.add(id);
         window.FP_DATA.factures.push(rec);
         try { if (FP.persistFacture) await FP.persistFacture(rec); else if (FP.persist) FP.persist.insert('factures', rec); } catch (e) { console.error('[sanef save]', e); }
         ok++; anyOk = true;

@@ -11623,6 +11623,15 @@ FP.leasingInfo = (v) => {
            projectionFin, ratio, ecartAJour, depassementProjete, niveau,
            loyer: (c.loyer != null ? Number(c.loyer) : null), avenants: Array.isArray(c.avenants) ? c.avenants : [] };
 };
+// Pénalité kilométrique leasing PRÉVISIONNELLE — SOURCE UNIQUE (alerte dashboard + page Contrats + restitution).
+// On DÉDUIT d'abord la franchise km offerte (kmTolerance) du dépassement projeté, puis × tarif km supplémentaire.
+// ⚠️ Montant ESTIMÉ (projection), jamais une dette certaine. Renvoie 0 si rien de facturable.
+FP.leasingPenalite = function (l) {
+  if (!l) return 0;
+  const billable = Math.max(0, (Number(l.depassementProjete) || 0) - (Number(l.kmTolerance) || 0));
+  const kmSupp = Number(l.kmSupp) || 0;
+  return (billable > 0 && kmSupp > 0) ? Math.round(billable * kmSupp) : 0;
+};
 
 // ===== HISTORIQUE D'AFFECTATION véhicule ↔ conducteur =====
 // Journal DATÉ de « qui conduit quel véhicule et depuis quand » : settings.affectations =
@@ -13253,7 +13262,7 @@ FP.recommandations = (data) => {
       }
     }
     if (l.depassementProjete && l.depassementProjete > 0 && l.kmSupp) {
-      const penalite = Math.round(l.depassementProjete * l.kmSupp);
+      const penalite = FP.leasingPenalite(l);   // SOURCE UNIQUE : déduit la franchise km (comme la page Contrats)
       if (penalite >= 100) out.push({
         id: 'leasing-km-' + v.id, priorite: 74, categorie: 'Leasing', icon: 'gauge',
         titre: `${v.immat} — risque de pénalité kilométrique`,
@@ -14002,7 +14011,7 @@ FP.buildAlertes = (data) => {
     else if (l.niveau === 'warn') msg = `Leasing à surveiller : projection ~${FP.num(l.projectionFin)} km / ${FP.num(l.kmContrat)} km`;
     else msg = `Leasing : rythme soutenu, projection ~${FP.num(l.projectionFin)} km / ${FP.num(l.kmContrat)} km`;
     let detail = `${veh} — ${FP.num(Math.round(l.kmParMoisReel))} km/mois vs ${FP.num(Math.round(l.kmParMoisAutorise))} autorisés`;
-    if (l.kmSupp && l.depassementProjete > 0) detail += ` · pénalité estimée ~${FP.euro(Math.round(l.depassementProjete * l.kmSupp))}`;
+    { const _pen = FP.leasingPenalite(l); if (_pen > 0) detail += ` · pénalité estimée ~${FP.euro(_pen)}`; }   // SOURCE UNIQUE (franchise km déduite)
     out.push({ niveau: l.niveau, categorie: 'Leasing', message: msg, detail, sort: 3000 - Math.round((l.ratio || 0) * 100), target: 'contrats.html', muteKey: 'leasingkm|' + v.id, vehLabel: veh });
   });
 
@@ -17520,14 +17529,23 @@ FP.uploadScan = async function (file, folder, opts) {
   const _msg = (e) => String((e && (e.message || e.error)) || e || '').toLowerCase();
   const _transient = (e) => { const s = _sc(e), m = _msg(e); return /failed to fetch|networkerror|network error|load failed|timeout|connection|gateway|temporar/.test(m) || s === 429 || (s >= 500 && s <= 599); };
   const _alreadyThere = (e) => { const s = _sc(e), m = _msg(e); return s === 409 || /exist|duplicate|resource already/.test(m); };
-  let lastErr = null;
+  let lastErr = null, _suffixed = false;
   for (let attempt = 0; attempt < 3; attempt++) {
     const { error } = await FP.supabase.storage.from(FP.SCAN_BUCKET).upload(path, file, {
-      upsert: named || attempt > 0, // 1er essai d'un fichier aléatoire = jamais d'écrasement ; retentes = même chemin → upsert sûr
+      // ⚠️ ANTI-ÉCRASEMENT (P2-9) : JAMAIS d'upsert au 1er essai, même pour un fichier NOMMÉ → on n'écrase
+      // jamais un original existant (ex. 2 justificatifs au même n° d'avis). upsert seulement sur une
+      // RETENTE (même chemin, notre propre fichier après un échec réseau). Remplacement = action explicite.
+      upsert: attempt > 0,
       contentType: file.type || 'application/octet-stream',
     });
     if (!error) { lastErr = null; break; }
-    if (_alreadyThere(error)) { lastErr = null; break; }   // le fichier est bien en ligne
+    if (_alreadyThere(error)) {
+      // Collision de nom au 1er essai d'un fichier NOMMÉ = un AUTRE original porte déjà ce nom → on NE
+      // l'écrase PAS : on suffixe le chemin (unique) et on réessaie une fois. Sinon (retente de NOTRE
+      // propre upload sur le même chemin) : le fichier est bien en ligne → succès.
+      if (named && attempt === 0 && !_suffixed) { _suffixed = true; path = `${base}/${slug}-${Date.now().toString(36)}${ext}`; continue; }
+      lastErr = null; break;
+    }
     lastErr = error;
     if (!_transient(error) || attempt === 2) break;          // erreur définitive, ou dernier essai
     await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));   // 0,5 s puis 1 s
