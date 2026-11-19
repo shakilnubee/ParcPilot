@@ -18605,37 +18605,34 @@ FP.edl = {
               const prenomS = String(s.nom || '').trim().split(/\s+/)[0] || '';
               // Document/e-mail en anglais (data.lang='en') → modèle EN éditable + libellés EN (société = FR).
               const _sen = (s.role !== 'societe') && (data.lang === 'en');
-              const _tplSign = (FP.mailModeleProfilL ? FP.mailModeleProfilL('mailModeleSignature', 'signature', _sen ? 'en' : 'fr') : tpl) || tpl;
-              // La plaque ne doit JAMAIS se couper en deux lignes → span nowrap partout où elle apparaît.
+              const _lg = _sen ? 'en' : 'fr';
               const plaqueHtml = '<span style="white-space:nowrap">' + esc(data.immat) + '</span>';
-              // Deux messages distincts : le CONDUCTEUR reçoit le modèle configurable (ton libre) ;
-              // le SIGNATAIRE SOCIÉTÉ (gestionnaire, signe en 1er « pour la société ») reçoit un message
-              // dédié — on le salue par son PRÉNOM (jamais « {société} (société) ») et on précise son rôle.
-              let intro;
+              // ⚠️ SOURCE UNIQUE DU DESIGN = le modèle ENREGISTRÉ 'edl-a-signer' (EXACTEMENT celui de l'aperçu /
+              //    testeur « Paramètres → Tester les e-mails »). On ne construit plus de HTML indépendant ici.
+              //    Le signataire SOCIÉTÉ reçoit un corps dédié (introHtml) rendu dans le MÊME habillage.
+              let introHtml = null;
               if (s.role === 'societe') {
-                intro = 'Bonjour ' + esc(prenomS) + ',<br><br>Merci de vérifier et de signer l\'état des lieux du ' + esc(data.modele) + ' (' + plaqueHtml + ') <b>pour la société</b>. Une fois validé, le conducteur recevra automatiquement le lien pour signer à son tour.';
-              } else {
-                intro = esc(_tplSign).replace(/\{prenom\}/g, esc(prenomS)).replace(/\{immat\}/g, plaqueHtml).replace(/\{modele\}/g, esc(data.modele)).replace(/\{date\}/g, esc(FP.date(data.date))).replace(/\n/g, '<br>');
+                introHtml = '<div style="line-height:1.55">Bonjour ' + esc(prenomS) + ',<br><br>Merci de vérifier et de signer l\'état des lieux du ' + esc(data.modele) + ' (' + plaqueHtml + ') <b>pour la société</b>. Une fois validé, le conducteur recevra automatiquement le lien pour signer à son tour.</div>';
               }
-              const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">
-  ${logoSrc ? `<div style="text-align:center;padding:6px 0"><img src="${esc(logoSrc)}" alt="" style="max-height:46px"></div>` : ''}
-  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px 24px">
-    <div style="font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#F97316">${_sen ? 'Condition report to sign' : 'État des lieux à signer'}</div>
-    <div style="font-size:15px;line-height:1.55;margin:10px 0 2px">${intro}</div>
-    <div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155">🚗 <b>${esc(data.modele)}</b> · ${plaqueHtml}${isRestit ? (_sen ? ' · return' : ' · restitution') : ''} · ${esc(FP.date(data.date))}</div>
-    <div style="text-align:center;margin:18px 0 6px"><a href="${link}" style="display:inline-block;background:#0F1E3D;color:#fff;padding:13px 32px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">${_sen ? '✍️ Sign the document' : '✍️ Signer le document'}</a></div>
-    <div style="text-align:center;font-size:11.5px;color:#94a3b8;margin-top:8px">${_sen ? 'Secure electronic signature · takes just seconds' : 'Signature électronique sécurisée · quelques secondes suffisent'}</div>
-  </div>
-  <div style="text-align:center;font-size:11px;color:#cbd5e1;margin-top:10px">— ${esc(data.socNom || 'Gestion de flotte')} · via Parc Pilot</div>
-</div>`;
-              // Objet CONDUCTEUR = ÉDITABLE (Paramètres → E-mails → « Objet — signature EDL »), balises
-              // {immat}{modele}{prenom} ; le signataire SOCIÉTÉ garde son objet dédié (rôle différent).
+              const sensLabel = isRestit ? (_sen ? 'return' : 'restitution') : '';
+              const mkArgs = { prenom: prenomS, immat: data.immat, modele: data.modele, date: FP.date(data.date), sensLabel: sensLabel, link: link, lang: _lg, nomSoc: data.socNom, logoUrl: logoSrc, introHtml: introHtml };
+              const mSign = (FP.mails && FP.mails['edl-a-signer'] && FP.mails['edl-a-signer'].build)
+                ? FP.mails['edl-a-signer'].build(mkArgs) : { subject: '', html: '', text: '' };
+              // Objet CONDUCTEUR = ÉDITABLE (déjà géré par le build via FP.mailObjetL) ; le signataire SOCIÉTÉ
+              // garde son objet dédié (rôle différent).
               const _subjSign = (s.role === 'societe')
                 ? ('À signer pour la société — état des lieux ' + data.immat)
-                : ((FP.mailObjetL ? FP.mailObjetL('signature', { immat: data.immat, modele: data.modele, prenom: prenomS }, _sen ? 'en' : 'fr') : '') || (_sen ? ('To sign — condition report ' + data.immat) : ('À signer — état des lieux ' + data.immat)));
+                : (mSign.subject || (_sen ? ('To sign — condition report ' + data.immat) : ('À signer — état des lieux ' + data.immat)));
+              // E-mail « SIGNÉ » PRÉ-RENDU via le MÊME modèle enregistré 'edl-signe', avec le repère __PDF_URL__
+              // que l'edge edl-sign remplace par l'URL RÉELLE du PDF signé AU MOMENT de l'envoi (lien généré au
+              // bon moment, jamais stocké périmé). L'edge garde un repli si ce champ manque (anciens dossiers).
+              const mSigned = (FP.mails && FP.mails['edl-signe'] && FP.mails['edl-signe'].build)
+                ? FP.mails['edl-signe'].build({ immat: data.immat, modele: data.modele, date: FP.date(data.date), link: '__PDF_URL__', lang: _lg, nomSoc: data.socNom, logoUrl: logoSrc })
+                : { subject: '', html: '', text: '' };
               // `lang` = langue de l'e-mail du signataire (fr/en) → stockée pour que l'edge edl-sign
               // envoie l'e-mail « document signé » dans la MÊME langue (société toujours fr).
-              return { link, subject: _subjSign, html, text: (_sen ? 'Sign the condition report: ' : 'Signer l\'état des lieux : ') + link, lang: (_sen ? 'en' : 'fr') };
+              return { link, subject: _subjSign, html: mSign.html, text: (_sen ? 'Sign the condition report: ' : 'Signer l\'état des lieux : ') + link, lang: _lg,
+                       signedSubject: mSigned.subject, signedHtml: mSigned.html, signedText: mSigned.text };
             };
             const minOrdre = Math.min.apply(null, signersList.map(s => s.ordre));
             const rec = {
@@ -18646,7 +18643,7 @@ FP.edl = {
               // ⚠️ notified = false pour TOUS au départ : on ne marque « notifié » que si l'e-mail PART vraiment
               // (sinon le serveur — qui ne relance QUE si notified!==true — ne rattrapera jamais, et le conducteur
               // ne recevra JAMAIS son lien alors que l'app afficherait « envoyé »). Correctif 0-perte ③.
-              signataires: signersList.map(s => { const mk = renderMail(s); return { role: s.role, nom: s.nom, email: s.email, ordre: s.ordre, sigToken: s.sigToken, signed: false, notified: false, mailSubject: mk.subject, mailHtml: mk.html, mailText: mk.text, lang: mk.lang }; }),
+              signataires: signersList.map(s => { const mk = renderMail(s); return { role: s.role, nom: s.nom, email: s.email, ordre: s.ordre, sigToken: s.sigToken, signed: false, notified: false, mailSubject: mk.subject, mailHtml: mk.html, mailText: mk.text, lang: mk.lang, signedMailSubject: mk.signedSubject, signedMailHtml: mk.signedHtml, signedMailText: mk.signedText }; }),
               statut: 'en_attente',
             };
             const ins = await FP.db.insert('edl_signatures', rec);
@@ -24081,26 +24078,43 @@ FP.sendMailTest = async function (key, to, lang) {
       const en=(d.lang==='en'); const lg=en?'en':'fr';
       const raw = FP.mailModeleProfilL('mailModeleSignature', 'signature', lg);
       const t = FP.fillTags(String(raw).replace(/\{modele\}/gi, d.modele || ''), { prenom: d.prenom, immat: d.immat });
+      // Corps = soit le modèle éditable (conducteur), soit un intro dédié passé par l'appelant (signataire
+      // SOCIÉTÉ). SOURCE UNIQUE : ce build sert à la fois l'APERÇU/TESTEUR et l'ENVOI RÉEL (FP.edl.renderMail).
+      const plaque = '<span style="white-space:nowrap">' + esc(d.immat || '') + '</span>';
+      const bodyMsg = d.introHtml ? String(d.introHtml) : bodyText(t);
+      const info = (d.modele || d.immat)
+        ? '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155">🚗 <b>' + esc(d.modele || '') + '</b> · ' + plaque + (d.sensLabel ? ' · ' + esc(d.sensLabel) : '') + (d.date ? ' · ' + esc(d.date) : '') + '</div>'
+        : '';
       return {
         subject: FP.mailObjetL('signature', { immat: d.immat, modele: d.modele, prenom: d.prenom }, lg) || ((en?'Condition report to sign (':'État des lieux à signer (') + d.immat + ')'),
-        html: FP.mailShell({ brand: d.nomSoc, logoUrl: d.logoUrl, title: en?'Condition report to sign':'État des lieux à signer', bodyHtml: bodyText(t), buttonHtml: btn(d.link, en?'Sign the document →':'Signer le document →') }),
-        text: t + '\n\n' + d.link
+        html: FP.mailShell({ brand: d.nomSoc, logoUrl: d.logoUrl, title: en?'Condition report to sign':'État des lieux à signer', bodyHtml: bodyMsg + info, buttonHtml: btn(d.link, en?'Sign the document →':'Signer le document →') }),
+        text: t + '\n\n' + (d.link || '')
       };
     }
   });
-  // 6) ÉTAT DES LIEUX SIGNÉ (copie PDF) — cf. edl-sign
+  // 6) ÉTAT DES LIEUX SIGNÉ (copie PDF) — cf. edl-sign. SOURCE UNIQUE bilingue : APERÇU/TESTEUR **et** envoi
+  //    RÉEL (l'app pré-rend ce HTML avec le repère __PDF_URL__ ; l'edge y met l'URL réelle du PDF signé).
   FP.registerMail({
     key: 'edl-signe', label: 'État des lieux signé (copie)', group: 'États des lieux',
     sample: () => ({ immat: 'AA-123-AA', modele: 'Peugeot 208', date: '01/09/2026', link: '#' }),
-    build: (d) => ({
-      subject: 'État des lieux signé (' + d.immat + ')',
-      html: FP.mailShell({ brand: d.nomSoc, logoUrl: d.logoUrl, title: '✅ État des lieux signé',
-        bodyHtml: '<p style="margin:0 0 16px;line-height:1.55">Bonjour,</p>'
-          + '<p style="margin:0 0 16px;line-height:1.55">L\'état des lieux a bien été signé. Une copie PDF est disponible ci-dessous.</p>'
-          + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155"><b>' + esc(d.modele) + '</b> · ' + esc(d.immat) + (d.date ? ' · ' + esc(d.date) : '') + '</div>',
-        buttonHtml: btn(d.link, '⬇️ Télécharger l\'état des lieux signé') }),
-      text: 'L\'état des lieux signé du véhicule ' + d.immat + ' est disponible : ' + d.link
-    })
+    build: (d) => {
+      const en = (d.lang === 'en');
+      const title = en ? '✅ Condition report signed' : '✅ État des lieux signé';
+      const p1 = en ? 'Hello,' : 'Bonjour,';
+      const line = en
+        ? 'The vehicle condition report has been signed by all parties. The signed PDF copy is available below, to keep.'
+        : 'L\'état des lieux du véhicule a bien été signé par toutes les parties. Une copie PDF est disponible ci-dessous, à conserver.';
+      const btnLbl = en ? '⬇️ Download the signed condition report' : '⬇️ Télécharger l\'état des lieux signé';
+      return {
+        subject: en ? ('Condition report signed (' + d.immat + ')') : ('État des lieux signé (' + d.immat + ')'),
+        html: FP.mailShell({ brand: d.nomSoc, logoUrl: d.logoUrl, title: title,
+          bodyHtml: '<p style="margin:0 0 16px;line-height:1.55">' + p1 + '</p>'
+            + '<p style="margin:0 0 16px;line-height:1.55">' + line + '</p>'
+            + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:14px 0;font-size:13px;color:#334155">🚗 <b>' + esc(d.modele) + '</b> · ' + esc(d.immat) + (d.date ? ' · ' + esc(d.date) : '') + '</div>',
+          buttonHtml: btn(d.link, btnLbl) }),
+        text: (en ? 'The signed condition report for ' : 'L\'état des lieux signé du véhicule ') + d.immat + (en ? ' is available: ' : ' est disponible : ') + d.link
+      };
+    }
   });
   // 7) RELANCES (écran « 📣 Relances ») — mêmes modèles éditables que FP.relances.message.
   [
