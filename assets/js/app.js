@@ -22929,6 +22929,11 @@ FP.msg = {
       + '<div style="flex:1 1 auto;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px">'
         + '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Numéro de téléphone'
           + '<input id="fp-msg-phone" type="tel" value="' + esc(String(opts.phone || '').replace(/\s+/g, '')) + '" placeholder="ex. 0661779753" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.95rem"></label>'
+        // Objet de l'e-mail : ÉDITABLE (pré-rempli par le modèle), utilisé tel quel à l'envoi (3 canaux).
+        + ((opts.email || opts.mailto)
+            ? '<label style="font-size:.72rem;font-weight:700;color:var(--fp-muted,#64748b)">Objet de l\'e-mail'
+              + '<input id="fp-msg-subject" type="text" value="' + esc(opts.emailSubject || opts.mailtoSubject || opts.title || '') + '" placeholder="Objet" style="width:100%;margin-top:3px;padding:9px 11px;border:1px solid var(--fp-border,#e5e7eb);border-radius:10px;background:var(--fp-bg,#fff);color:inherit;font-size:.92rem"></label>'
+            : '')
         + ((Array.isArray(opts.templates) && opts.templates.length)
             ? '<div id="fp-msg-tpls" style="display:flex;flex-wrap:wrap;gap:6px">'
               + opts.templates.map((t, i) => '<button type="button" class="fp-msg-tpl" data-i="' + i + '" style="font-size:.75rem;font-weight:700;padding:5px 10px;border-radius:9999px;border:1px solid var(--fp-border,#e5e7eb);background:var(--fp-bg,#fff);color:inherit;cursor:pointer">' + esc(t.label) + '</button>').join('')
@@ -22985,6 +22990,10 @@ FP.msg = {
     //     simple. Le textarea CACHÉ #fp-msg-text garde le TEXTE BRUT (SMS/WhatsApp/Copier). L'e-mail, lui,
     //     part en HTML sûr via FP.mailBodyHtml(editor). ───
     const _editor = q('#fp-msg-edit');
+    // ⚠️ SOURCE DE VÉRITÉ DE L'ENVOI : dès que l'utilisateur TOUCHE l'éditeur (frappe, mise en forme, collage,
+    //    choix d'un modèle), l'e-mail envoyé est construit à partir de SON contenu — jamais la chaîne
+    //    `opts.emailHtml` d'origine (qui ne sert qu'au PRÉ-REMPLISSAGE). Correctif « mes modifs sont ignorées ».
+    let _edited = false;
     const _syncPlain = () => { try { if (_editor) q('#fp-msg-text').value = _editor.innerText.replace(/ /g, ' '); } catch (e) {} };
     // CORPS HTML sûr de l'e-mail = éditeur si présent, sinon texte brut du textarea.
     const _emailBodyHtml = () => _editor ? FP.mailBodyHtml(_editor.innerHTML) : null;
@@ -22992,7 +23001,7 @@ FP.msg = {
       // Contenu initial : texte brut (template/opts.text) rendu proprement (markdown éventuel converti).
       try { _editor.innerHTML = FP.mailBodyHtml(String(opts.text || '')); } catch (e) { _editor.textContent = String(opts.text || ''); }
       _syncPlain();
-      _editor.addEventListener('input', _syncPlain);
+      _editor.addEventListener('input', () => { _edited = true; _syncPlain(); });
       // Barre d'outils (execCommand : léger, sans librairie).
       const tb = q('#fp-msg-tb');
       if (tb) tb.addEventListener('click', (e) => {
@@ -23002,7 +23011,7 @@ FP.msg = {
           if (cmd === 'createLink') { const u = prompt('Adresse du lien (https://…) :', 'https://'); if (u && /^(https?:|mailto:)/i.test(u.trim())) document.execCommand('createLink', false, u.trim()); }
           else document.execCommand(cmd, false, null);
         } catch (e2) {}
-        _syncPlain();
+        _edited = true; _syncPlain();
       });
       // Collage : on NETTOIE le HTML collé (Word/Gmail) via la liste blanche, ou on convertit le markdown collé.
       _editor.addEventListener('paste', (e) => {
@@ -23014,7 +23023,7 @@ FP.msg = {
           if (html && html.trim()) safe = FP._sanitizeMailHtml(html);
           else safe = FP.mailBodyHtml(txt || '');   // texte/markdown collé → converti
           document.execCommand('insertHTML', false, safe);
-          _syncPlain();
+          _edited = true; _syncPlain();
         } catch (e2) { /* repli : collage navigateur par défaut */ }
       });
       // Aperçu (même HTML que l'envoi — corps seul, design du modèle inchangé).
@@ -23022,10 +23031,20 @@ FP.msg = {
       if (pvBtn && pv) pvBtn.addEventListener('click', () => {
         const open = pv.style.display !== 'none';
         if (open) { pv.style.display = 'none'; pvBtn.textContent = '👁 Aperçu de l\'e-mail'; return; }
-        pv.innerHTML = FP.mailBodyHtml(_editor.innerHTML);
+        pv.innerHTML = _buildEmailHtml();   // APERÇU = e-mail RÉELLEMENT transmis (brandé, modifs comprises)
         pv.style.display = ''; pvBtn.textContent = '✕ Masquer l\'aperçu';
       });
     }
+    // ⚠️ SOURCE UNIQUE « ce qu'on VOIT = ce qu'on ENVOIE » : l'aperçu ET l'envoi passent par ce builder.
+    const _mLang = (String(opts.lang) === 'en') ? 'en' : 'fr';
+    const _curSubject = () => (q('#fp-msg-subject') && q('#fp-msg-subject').value.trim()) || opts.emailSubject || opts.title || 'Message';
+    const _buildEmailHtml = () => {
+      const body = (_emailBodyHtml && _emailBodyHtml() != null) ? _emailBodyHtml()
+        : ('<div style="white-space:pre-wrap;line-height:1.5">' + (FP.esc ? FP.esc(tx()) : tx()).replace(/\n/g, '<br>') + '</div>');
+      if (typeof opts.emailHtml === 'function') return opts.emailHtml(tx());
+      if (opts.emailHtml && !_edited) return opts.emailHtml;   // non modifié → on garde le branding EXACT du module
+      return FP.mailBrand ? FP.mailBrand({ title: _curSubject(), prenom: opts.nom || '', nomSoc: opts.emailNomSoc || '', logoUrl: opts.emailLogo || '', lang: _mLang, bodyHtml: body }) : body;
+    };
     // --- Pièces jointes e-mail (format Resend { filename, path|content }) : pré-attachées (PDF du garage)
     //     + ajouts manuels. On les envoie telles quelles à FP.sendEmail (le serveur send-email les gère).
     let atts = Array.isArray(opts.attachments) ? opts.attachments.filter(a => a && a.filename && (a.path || a.content)) : [];
@@ -23123,25 +23142,18 @@ FP.msg = {
     // opts.mailto est vrai, le bouton 📧 ouvre le client mail (mailto) avec sujet + corps pré-remplis —
     // l'utilisateur saisit l'adresse dans son appli. Permet le 3e canal (e-mail) même sans adresse.
     if (!opts.email && opts.mailto) { const eb = q('#fp-msg-email'); if (eb) eb.addEventListener('click', () => {
-      const subj = opts.emailSubject || opts.mailtoSubject || opts.title || 'Message';
+      const subj = (q('#fp-msg-subject') && q('#fp-msg-subject').value.trim()) || opts.emailSubject || opts.mailtoSubject || opts.title || 'Message';
       window.location.href = 'mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(txFull());
     }); }
     if (opts.email) { const eb = q('#fp-msg-email'); if (eb) eb.addEventListener('click', async () => {
       if (!(window.FP && FP.sendEmail)) { if (FP.toast) FP.toast('Envoi e-mail indisponible'); return; }
-      // ⚠️ RÈGLE : dans un E-MAIL, jamais d'URL brute → on la remplace par un lien « cliquez ici ».
-      //    (Le SMS/WhatsApp, lui, garde l'URL en clair via `text` — un lien n'y est pas cliquable.)
-      const _mlang = (String(opts.lang) === 'en') ? 'en' : 'fr';
-      const _clic = (_mlang === 'en') ? 'click here' : 'cliquez ici';
-      const _linkify = (s) => esc(s).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#0EA5A0;font-weight:700;text-decoration:underline">' + _clic + '</a>');
-      // CORPS libre : désormais HTML SÛR issu de l'éditeur (gras/puces/liens conservés) via FP.mailBodyHtml.
-      // Repli (pas d'éditeur) : ancien rendu texte pré-formaté + linkify. Les modèles (opts.emailHtml) : intacts.
-      const _freeBody = (typeof FP.mailBodyHtml === 'function' && _emailBodyHtml) ? _emailBodyHtml() : null;
-      const _bodyHtml = (_freeBody != null) ? _freeBody : ('<div style="white-space:pre-wrap;line-height:1.5">' + _linkify(tx()) + '</div>');
-      const html = (typeof opts.emailHtml === 'function') ? opts.emailHtml(tx())
-        : (opts.emailHtml || (FP.mailBrand ? FP.mailBrand({ title: opts.emailSubject || opts.title || '', prenom: opts.nom || '', nomSoc: opts.emailNomSoc || '', logoUrl: opts.emailLogo || '', lang: _mlang, bodyHtml: _bodyHtml }) : _bodyHtml));
+      // CONTENU ENVOYÉ = exactement l'aperçu (objet édité + corps de l'éditeur rebrandé, ou chaîne d'origine
+      // si rien n'a été modifié). Source unique : _buildEmailHtml / _curSubject (voir plus haut).
+      const _subject = _curSubject();
+      const html = _buildEmailHtml();
       const oldTxt = eb.textContent; eb.disabled = true; eb.textContent = 'Envoi…';
       try {
-        const payload = Object.assign({ to: opts.email, subject: opts.emailSubject || opts.title || 'Message', html: html, text: tx() }, opts.emailOpts || {});
+        const payload = Object.assign({ to: opts.email, subject: _subject, html: html, text: tx() }, opts.emailOpts || {});
         // Pièces jointes = celles de la modale (PDF garage auto + ajouts) fusionnées avec un éventuel emailOpts.attachments.
         const extra = Array.isArray(payload.attachments) ? payload.attachments : [];
         const merged = atts.concat(extra.filter(a => a && a.filename && (a.path || a.content)));
@@ -23168,6 +23180,7 @@ FP.msg = {
     const tpls = Array.isArray(opts.templates) ? opts.templates : [];
     ov.querySelectorAll('.fp-msg-tpl').forEach(btn => btn.addEventListener('click', () => {
       const t = tpls[+btn.getAttribute('data-i')]; if (!t) return;
+      _edited = true;   // choisir un modèle = nouveau contenu → l'envoi suit l'éditeur, pas l'emailHtml d'origine
       if (_editor) { try { _editor.innerHTML = FP.mailBodyHtml(String(t.text || '')); } catch (e) { _editor.textContent = String(t.text || ''); } _syncPlain(); _editor.focus(); }
       else { q('#fp-msg-text').value = t.text || ''; q('#fp-msg-text').focus(); }
     }));
