@@ -199,20 +199,41 @@ Deno.serve(async (req) => {
       if (!RESEND) return json({ ok: true, id: userId, emailSent: false, warn: "Compte prêt, mais RESEND_API_KEY absent → e-mail non envoyé. Configure Resend puis renvoie l'invitation." });
       const esc = (s: string) => String(s).replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c] || c));
       // Message ÉDITABLE (Paramètres → E-mails → « invitation à un compte »), lu depuis la config société.
+      // 🌐 Langue de l'invitation : passée par l'app (body.lang), défaut FR. Un invité anglophone doit
+      //     recevoir l'anglais → on lit AUSSI les champs *_en configurés par l'admin (miroir FP.mailModeleProfilL).
+      const lang = (String(body.lang || "").toLowerCase() === "en") ? "en" : "fr";
       let inviteMsg = "";
       let inviteObjet = "";
       try {
         const sid = societe || "global";
         const { data: st } = await admin.from("app_settings").select("data").eq("id", sid).maybeSingle();
         const pr = (st && st.data && typeof st.data === "object" ? (st.data as Record<string, unknown>).profil : null) as Record<string, unknown> | null;
-        if (pr && pr.mailModeleInvitation) inviteMsg = String(pr.mailModeleInvitation);
-        if (pr && pr.mailObjetInvitation) inviteObjet = String(pr.mailObjetInvitation);
+        if (pr) {
+          const mk = lang === "en" ? "mailModeleInvitation_en" : "mailModeleInvitation";
+          const ok = lang === "en" ? "mailObjetInvitation_en" : "mailObjetInvitation";
+          if (pr[mk]) inviteMsg = String(pr[mk]);
+          else if (lang === "en" && pr.mailModeleInvitation) inviteMsg = String(pr.mailModeleInvitation); // repli FR si EN non configuré
+          if (pr[ok]) inviteObjet = String(pr[ok]);
+          else if (lang === "en" && pr.mailObjetInvitation) inviteObjet = String(pr.mailObjetInvitation);
+        }
       } catch (_) { /* repli défaut */ }
-      const DEF_INVITE = "Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗";
-      const DEF_RESET = "Bonjour,\n\nUne réinitialisation de ton mot de passe Parc Pilot a été demandée.\n\nChoisis un nouveau mot de passe en un clic (bouton juste en dessous).\n\nTon identifiant : {email}\n\nSi tu n'es pas à l'origine de cette demande, ignore simplement cet e-mail.";
+      const DEF_INVITE = lang === "en"
+        ? "Hello,\n\nWelcome to Parc Pilot! 🎉 Your access to the fleet management platform is ready.\n\nChoose your password in one click (button just below) and you can log in right away. Everything in one place, simple and fast.\n\nYour login: {email}\n\nSee you soon! 🚗"
+        : "Bonjour,\n\nBienvenue sur Parc Pilot ! 🎉 Ton accès à la plateforme de gestion de flotte est prêt.\n\nChoisis ton mot de passe en un clic (bouton juste en dessous) et tu pourras te connecter tout de suite. Tout est réuni au même endroit, simple et rapide.\n\nTon identifiant : {email}\n\nÀ très vite ! 🚗";
+      const DEF_RESET = lang === "en"
+        ? "Hello,\n\nA reset of your Parc Pilot password has been requested.\n\nChoose a new password in one click (button just below).\n\nYour login: {email}\n\nIf you didn't request this, simply ignore this email."
+        : "Bonjour,\n\nUne réinitialisation de ton mot de passe Parc Pilot a été demandée.\n\nChoisis un nouveau mot de passe en un clic (bouton juste en dessous).\n\nTon identifiant : {email}\n\nSi tu n'es pas à l'origine de cette demande, ignore simplement cet e-mail.";
+      // Libellés fixes de l'e-mail, localisés (le design NE change pas, seul le texte suit la langue).
+      const L = lang === "en"
+        ? { title: resetOnly ? "New password" : "Welcome!", btn: "Set my password →", note: "This link is personal and temporary; if it has expired, use « Forgot password » on the login page.", textCta: "Set your password here:", subj: resetOnly ? "Reset your Parc Pilot password" : "Your Parc Pilot access · set your password" }
+        : { title: resetOnly ? "Nouveau mot de passe" : "Bienvenue !", btn: "Définir mon mot de passe →", note: "Ce lien est personnel et temporaire ; s'il a expiré, utilise « Mot de passe oublié » sur la page de connexion.", textCta: "Définis ton mot de passe ici :", subj: resetOnly ? "Réinitialise ton mot de passe Parc Pilot" : "Ton accès à Parc Pilot · définis ton mot de passe" };
+      // Résolution des balises : {email} rempli ; toute AUTRE balise {…} est RETIRÉE (jamais affichée brute — P3-2).
+      const fillTags = (s: string) => String(s)
+        .replace(/ ?\{email\}/gi, email ? " " + email : "")
+        .replace(/\{[a-zA-Z_]+\}/g, "")
+        .replace(/\n{3,}/g, "\n\n").trim();
       // En réinitialisation, on utilise TOUJOURS le message dédié (le modèle d'invitation parle de « bienvenue »).
-      const inviteBody = String((inviteMsg && inviteMsg.trim() && !resetOnly) ? inviteMsg : (resetOnly ? DEF_RESET : DEF_INVITE))
-        .replace(/ ?\{email\}/gi, email ? " " + email : "").replace(/\n{3,}/g, "\n\n").trim();
+      const inviteBody = fillTags((inviteMsg && inviteMsg.trim() && !resetOnly) ? inviteMsg : (resetOnly ? DEF_RESET : DEF_INVITE));
       const inviteBodyHtml = '<div style="white-space:pre-wrap;line-height:1.55">' + esc(inviteBody).replace(/\n/g, "<br>") + "</div>";
       // Design BRANDÉ (même en-tête sombre que le relevé km / les amendes), robuste au mode sombre Gmail
       // (background-color solide → le texte blanc reste blanc).
@@ -227,7 +248,7 @@ Deno.serve(async (req) => {
         '<span style="vertical-align:middle">&#160;</span>' +
         '<span style="font-weight:900;font-style:italic;font-size:16px;color:#F97316;vertical-align:middle">Pilot</span>';
       // Document forçant le SCHÉMA CLAIR → mêmes couleurs en clair ET en sombre (pas d'inversion Gmail).
-      const mailDoc = (inner: string) => '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'
+      const mailDoc = (inner: string) => '<!DOCTYPE html><html lang="' + lang + '"><head><meta charset="utf-8">'
         + '<meta name="viewport" content="width=device-width,initial-scale=1">'
         + '<meta name="color-scheme" content="only light"><meta name="supported-color-schemes" content="only light">'
         + '</head><body style="margin:0;padding:0;background:#EEF2F7;color:#0F1E3D">' + inner + '</body></html>';
@@ -235,20 +256,20 @@ Deno.serve(async (req) => {
         '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F1E3D">' +
         '<div style="background-color:#0B1220;background-image:linear-gradient(135deg,#0B1220,#1E293B);color:#ffffff;padding:22px 24px;border-radius:14px 14px 0 0">' +
         '<div>' + ppLogo + '</div>' +
-        '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + (resetOnly ? 'Nouveau mot de passe' : 'Bienvenue !') + '</div>' +
+        '<div style="font-size:20px;font-weight:800;font-style:italic;margin-top:16px;line-height:1.25;color:#ffffff">' + esc(L.title) + '</div>' +
         '</div>' +
         '<div style="border:1px solid #E7EBF0;border-top:none;padding:22px;color:#0F1E3D">' +
         inviteBodyHtml +
-        '<p style="text-align:center;margin:22px 0"><a href="' + esc(actionLink) + '" style="display:inline-block;background:#0B1220;color:#ffffff;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">Définir mon mot de passe →</a></p>' +
-        '<p style="font-size:12.5px;line-height:1.5;color:#64748b;margin:12px 0 0">Ce lien est personnel et temporaire ; s\'il a expiré, utilise « Mot de passe oublié » sur la page de connexion.</p>' +
+        '<p style="text-align:center;margin:22px 0"><a href="' + esc(actionLink) + '" style="display:inline-block;background:#0B1220;color:#ffffff;padding:14px 30px;border-radius:10px;text-decoration:none;font-weight:800;font-size:15px">' + esc(L.btn) + '</a></p>' +
+        '<p style="font-size:12.5px;line-height:1.5;color:#64748b;margin:12px 0 0">' + esc(L.note) + '</p>' +
         '</div>' +
         '<div style="background-color:#0B1220;padding:18px 22px;border-radius:0 0 14px 14px;text-align:center">' +
         '<div>' + ppLogo + '</div>' +
         '</div></div>');
-      const text = inviteBody + "\n\nDéfinis ton mot de passe ici :\n" + actionLink + "\n\nParc Pilot · parc-pilot.fr";
-      // Objet ÉDITABLE (Paramètres → E-mails → « Objet — invitation »), balise {email} ; repli défaut.
-      const inviteSubject = String((inviteObjet && inviteObjet.trim() && !resetOnly) ? inviteObjet : (resetOnly ? "Réinitialise ton mot de passe Parc Pilot" : "Ton accès à Parc Pilot · définis ton mot de passe"))
-        .replace(/ ?\{email\}/gi, email ? " " + email : "").replace(/[ \t]{2,}/g, " ").trim();
+      const text = inviteBody + "\n\n" + L.textCta + "\n" + actionLink + "\n\nParc Pilot · parc-pilot.fr";
+      // Objet ÉDITABLE (Paramètres → E-mails → « Objet — invitation », + variante EN), balise {email} ; repli défaut.
+      const inviteSubject = String((inviteObjet && inviteObjet.trim() && !resetOnly) ? inviteObjet : L.subj)
+        .replace(/ ?\{email\}/gi, email ? " " + email : "").replace(/\{[a-zA-Z_]+\}/g, "").replace(/[ \t]{2,}/g, " ").trim();
       try {
         const r = await fetch("https://api.resend.com/emails", {
           method: "POST",
