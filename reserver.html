@@ -12,10 +12,14 @@
   html,body{overflow-x:hidden;max-width:100%}
   body{margin:0;font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
   .wrap{max-width:640px;margin:0 auto;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
-  header{background:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;border-radius:18px;padding:20px 18px;margin:0 0 14px}
+  header{position:relative;background:linear-gradient(135deg,#0B1220,#1E293B);color:#fff;border-radius:18px;padding:20px 18px;margin:0 0 14px}
   .logo{font-weight:900;font-style:italic;font-size:19px}.logo .o{color:var(--accent)}
   h1{font-size:1.35rem;margin:12px 0 4px;font-weight:800}
   .sub{color:#cbd6e6;font-size:.9rem;margin:0}
+  /* Sélecteur de langue FR / EN (coin haut droit de l'en-tête) */
+  .lang-sw{position:absolute;top:14px;right:14px;display:inline-flex;border:1px solid rgba(255,255,255,.28);border-radius:9999px;overflow:hidden;background:rgba(255,255,255,.06)}
+  .lang-sw button{appearance:none;border:none;background:none;color:#cbd6e6;font-weight:800;font-size:.72rem;letter-spacing:.03em;padding:5px 11px;cursor:pointer;line-height:1}
+  .lang-sw button.on{background:var(--accent);color:#150a02}
   .accent-line{height:4px;background:var(--accent);margin:0 0 18px;border-radius:2px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px;margin-bottom:14px}
   .step-t{font-weight:800;font-size:1.02rem;margin:0 0 12px;display:flex;align-items:center;gap:8px}
@@ -62,9 +66,13 @@
 <body>
 <div class="wrap">
   <header>
+    <div class="lang-sw" role="group" aria-label="Langue / Language">
+      <button type="button" id="lang-fr" data-lang="fr">FR</button>
+      <button type="button" id="lang-en" data-lang="en">EN</button>
+    </div>
     <div class="logo">Parc<span class="o">Pilot</span></div>
-    <h1 id="soc-nom">Réserver un véhicule</h1>
-    <p class="sub" id="sub">Choisissez vos dates, puis un véhicule disponible.</p>
+    <h1 id="soc-nom" data-i18n="h1">Réserver un véhicule</h1>
+    <p class="sub" id="sub" data-i18n="sub">Choisissez vos dates, puis un véhicule disponible.</p>
   </header>
   <div class="accent-line"></div>
 
@@ -72,52 +80,52 @@
 
   <!-- Étape 1 : dates -->
   <div class="card" id="step-dates">
-    <div class="step-t"><span class="step-n">1</span> Vos dates</div>
+    <div class="step-t"><span class="step-n">1</span> <span data-i18n="step1">Vos dates</span></div>
     <div class="grid2">
-      <div><label>Date de départ</label><input type="date" id="d-debut"></div>
-      <div><label>Heure de départ</label><input type="time" id="h-debut" value="09:00"></div>
-      <div><label>Date de retour</label><input type="date" id="d-fin"></div>
-      <div><label>Heure de retour</label><input type="time" id="h-fin" value="18:00"></div>
+      <div><label data-i18n="lblDateDep">Date de départ</label><input type="date" id="d-debut"></div>
+      <div><label data-i18n="lblHeureDep">Heure de départ</label><input type="time" id="h-debut" value="09:00"></div>
+      <div><label data-i18n="lblDateRet">Date de retour</label><input type="date" id="d-fin"></div>
+      <div><label data-i18n="lblHeureRet">Heure de retour</label><input type="time" id="h-fin" value="18:00"></div>
     </div>
-    <div style="margin-top:14px"><button class="btn" id="btn-voir">Voir les véhicules disponibles</button></div>
+    <div style="margin-top:14px"><button class="btn" id="btn-voir" data-i18n="btnVoir">Voir les véhicules disponibles</button></div>
   </div>
 
   <!-- Étape 2 : véhicules disponibles -->
   <div class="card hidden" id="step-vehs">
-    <button type="button" class="lnk-back" data-reserve-back="dates">‹ Retour aux dates</button>
-    <div class="step-t"><span class="step-n">2</span> Véhicules disponibles<span id="veh-count" style="color:var(--muted);font-weight:700;font-size:.9rem"></span></div>
+    <button type="button" class="lnk-back" data-reserve-back="dates" data-i18n="backDates">‹ Retour aux dates</button>
+    <div class="step-t"><span class="step-n">2</span> <span data-i18n="step2">Véhicules disponibles</span><span id="veh-count" style="color:var(--muted);font-weight:700;font-size:.9rem"></span></div>
     <div id="veh-list"></div>
   </div>
 
   <!-- Étape 3 : coordonnées -->
   <div class="card hidden" id="step-form">
-    <button type="button" class="lnk-back" data-reserve-back="vehs">‹ Retour aux véhicules</button>
-    <div class="step-t"><span class="step-n">3</span> Votre demande</div>
+    <button type="button" class="lnk-back" data-reserve-back="vehs" data-i18n="backVehs">‹ Retour aux véhicules</button>
+    <div class="step-t"><span class="step-n">3</span> <span data-i18n="step3">Votre demande</span></div>
     <div class="recap" id="recap"></div>
     <div class="grid2">
-      <div><label>Prénom *</label><input id="f-prenom" placeholder="Ex. : Jean" autocomplete="given-name"></div>
-      <div><label>Nom *</label><input id="f-nom" placeholder="Ex. : Dupont" autocomplete="family-name"></div>
+      <div><label data-i18n="lblPrenom">Prénom *</label><input id="f-prenom" data-i18n-ph="phPrenom" placeholder="Ex. : Jean" autocomplete="given-name"></div>
+      <div><label data-i18n="lblNom">Nom *</label><input id="f-nom" data-i18n-ph="phNom" placeholder="Ex. : Dupont" autocomplete="family-name"></div>
     </div>
-    <label>E-mail professionnel</label><input id="f-email" type="email" placeholder="vous@societe.fr" autocomplete="email">
-    <label>Téléphone</label><input id="f-tel" type="tel" placeholder="06 12 34 56 78" autocomplete="tel">
-    <p class="hint">Indiquez au moins un moyen de vous joindre : e-mail <b>ou</b> téléphone.</p>
-    <label>Motif de la réservation (facultatif)</label><textarea id="f-motif" rows="2" placeholder="Déplacement client, livraison…"></textarea>
-    <div style="margin-top:14px"><button class="btn" id="btn-send">Envoyer ma demande</button></div>
-    <p class="muted" style="margin-top:8px">Votre demande sera envoyée au gestionnaire pour validation. Si vous avez indiqué un e-mail, vous recevrez une confirmation.</p>
+    <label data-i18n="lblEmail">E-mail professionnel</label><input id="f-email" type="email" data-i18n-ph="phEmail" placeholder="vous@societe.fr" autocomplete="email">
+    <label data-i18n="lblTel">Téléphone</label><input id="f-tel" type="tel" data-i18n-ph="phTel" placeholder="06 12 34 56 78" autocomplete="tel">
+    <p class="hint" data-i18n="hintContact">Indiquez au moins un moyen de vous joindre : e-mail <b>ou</b> téléphone.</p>
+    <label data-i18n="lblMotif">Motif de la réservation (facultatif)</label><textarea id="f-motif" rows="2" data-i18n-ph="phMotif" placeholder="Déplacement client, livraison…"></textarea>
+    <div style="margin-top:14px"><button class="btn" id="btn-send" data-i18n="btnSend">Envoyer ma demande</button></div>
+    <p class="muted" style="margin-top:8px" data-i18n="noteValidation">Votre demande sera envoyée au gestionnaire pour validation. Si vous avez indiqué un e-mail, vous recevrez une confirmation.</p>
   </div>
 
   <!-- Confirmation -->
-  <div class="card hidden" id="step-done"><div class="ok-box">✓ Demande envoyée ! Le gestionnaire va la valider et vous recontacter.</div></div>
+  <div class="card hidden" id="step-done"><div class="ok-box" id="done-msg" data-i18n="doneMsg">✓ Demande envoyée ! Le gestionnaire va la valider et vous recontacter.</div></div>
 
-  <footer>Réservation sécurisée · via Parc Pilot</footer>
+  <footer data-i18n="footer">Réservation sécurisée · via Parc Pilot</footer>
 </div>
 
 <!-- Lightbox galerie photos véhicule -->
-<div id="lb" role="dialog" aria-modal="true" aria-label="Photos du véhicule">
-  <button class="lb-x" id="lb-x" type="button" aria-label="Fermer">×</button>
-  <button class="lb-nav lb-prev" id="lb-prev" type="button" aria-label="Photo précédente">‹</button>
+<div id="lb" role="dialog" aria-modal="true" data-i18n-aria="lbAria" aria-label="Photos du véhicule">
+  <button class="lb-x" id="lb-x" type="button" data-i18n-aria="lbClose" aria-label="Fermer">×</button>
+  <button class="lb-nav lb-prev" id="lb-prev" type="button" data-i18n-aria="lbPrev" aria-label="Photo précédente">‹</button>
   <img id="lb-img" src="" alt="Photo du véhicule">
-  <button class="lb-nav lb-next" id="lb-next" type="button" aria-label="Photo suivante">›</button>
+  <button class="lb-nav lb-next" id="lb-next" type="button" data-i18n-aria="lbNext" aria-label="Photo suivante">›</button>
   <div class="lb-count" id="lb-count"></div>
 </div>
 
@@ -129,13 +137,108 @@
   var token = new URLSearchParams(location.search).get('t') || '';
   var sel = null;          // véhicule sélectionné
   var winDebut = '', winFin = '';  // créneau ISO
+  var SOC = '';            // nom de la société (pour re-rendre le titre à chaque changement de langue)
+
+  // ===== Bilingue FR / EN (page publique, autonome : ne charge pas app.js) =====
+  var T = {
+    fr: {
+      docTitle: 'Réserver un véhicule — Parc Pilot',
+      h1: 'Réserver un véhicule', h1pre: 'Réserver un véhicule — ',
+      sub: 'Choisissez vos dates, puis un véhicule disponible.',
+      step1: 'Vos dates', lblDateDep: 'Date de départ', lblHeureDep: 'Heure de départ', lblDateRet: 'Date de retour', lblHeureRet: 'Heure de retour',
+      btnVoir: 'Voir les véhicules disponibles', btnVoirSearch: 'Recherche…',
+      step2: 'Véhicules disponibles', backDates: '‹ Retour aux dates',
+      step3: 'Votre demande', backVehs: '‹ Retour aux véhicules',
+      lblPrenom: 'Prénom *', phPrenom: 'Ex. : Jean', lblNom: 'Nom *', phNom: 'Ex. : Dupont',
+      lblEmail: 'E-mail professionnel', phEmail: 'vous@societe.fr', lblTel: 'Téléphone', phTel: '06 12 34 56 78',
+      hintContact: 'Indiquez au moins un moyen de vous joindre : e-mail <b>ou</b> téléphone.',
+      lblMotif: 'Motif de la réservation (facultatif)', phMotif: 'Déplacement client, livraison…',
+      btnSend: 'Envoyer ma demande', btnSendSending: 'Envoi…',
+      noteValidation: 'Votre demande sera envoyée au gestionnaire pour validation. Si vous avez indiqué un e-mail, vous recevrez une confirmation.',
+      doneMsg: '✓ Demande envoyée ! Le gestionnaire va la valider et vous recontacter.',
+      footer: 'Réservation sécurisée · via Parc Pilot',
+      lbAria: 'Photos du véhicule', lbClose: 'Fermer', lbPrev: 'Photo précédente', lbNext: 'Photo suivante',
+      errGeneric: 'Une erreur est survenue.', errLink: 'Lien incomplet — demandez un nouveau lien au gestionnaire.',
+      errDates: 'Choisissez les dates et heures de départ et de retour.', errRetour: 'Le retour doit être après le départ.',
+      errErreur: 'Erreur.', errLoadVehs: 'Impossible de charger les véhicules. Vérifiez votre connexion.',
+      errChooseVeh: 'Choisissez un véhicule.', errPrenom: 'Indiquez votre prénom.',
+      errEmail: 'E-mail invalide — corrigez-le ou laissez-le vide.', errContact: 'Indiquez un e-mail OU un téléphone, pour qu’on puisse vous répondre.',
+      errSend: 'Échec de l’envoi.', errSendNet: 'Impossible d’envoyer. Vérifiez votre connexion.',
+      noneAvail: 'Aucun véhicule disponible sur ce créneau', noneAvailPool: ' (aucun véhicule n’est proposé à la réservation pour le moment)', tryOther: '. Essayez d’autres dates.',
+      vehDefault: 'Véhicule', seePhotos: 'Voir les photos',
+      boiteAuto: 'Automatique', boiteMan: 'Manuelle', boiteNR: 'Non renseignée',
+      locale: 'fr-FR'
+    },
+    en: {
+      docTitle: 'Book a vehicle — Parc Pilot',
+      h1: 'Book a vehicle', h1pre: 'Book a vehicle — ',
+      sub: 'Pick your dates, then an available vehicle.',
+      step1: 'Your dates', lblDateDep: 'Pick-up date', lblHeureDep: 'Pick-up time', lblDateRet: 'Return date', lblHeureRet: 'Return time',
+      btnVoir: 'See available vehicles', btnVoirSearch: 'Searching…',
+      step2: 'Available vehicles', backDates: '‹ Back to dates',
+      step3: 'Your request', backVehs: '‹ Back to vehicles',
+      lblPrenom: 'First name *', phPrenom: 'e.g. John', lblNom: 'Last name *', phNom: 'e.g. Smith',
+      lblEmail: 'Work email', phEmail: 'you@company.com', lblTel: 'Phone', phTel: '+44 7700 900000',
+      hintContact: 'Give at least one way to reach you: email <b>or</b> phone.',
+      lblMotif: 'Reason for booking (optional)', phMotif: 'Client visit, delivery…',
+      btnSend: 'Send my request', btnSendSending: 'Sending…',
+      noteValidation: 'Your request will be sent to the manager for approval. If you provided an email, you’ll receive a confirmation.',
+      doneMsg: '✓ Request sent! The manager will review it and get back to you.',
+      footer: 'Secure booking · via Parc Pilot',
+      lbAria: 'Vehicle photos', lbClose: 'Close', lbPrev: 'Previous photo', lbNext: 'Next photo',
+      errGeneric: 'Something went wrong.', errLink: 'Incomplete link — ask the manager for a new one.',
+      errDates: 'Choose the pick-up and return dates and times.', errRetour: 'The return must be after the pick-up.',
+      errErreur: 'Error.', errLoadVehs: 'Could not load vehicles. Check your connection.',
+      errChooseVeh: 'Choose a vehicle.', errPrenom: 'Enter your first name.',
+      errEmail: 'Invalid email — fix it or leave it blank.', errContact: 'Give an email OR a phone number so we can reply.',
+      errSend: 'Sending failed.', errSendNet: 'Could not send. Check your connection.',
+      noneAvail: 'No vehicle available for this period', noneAvailPool: ' (no vehicle is currently offered for booking)', tryOther: '. Try other dates.',
+      vehDefault: 'Vehicle', seePhotos: 'View photos',
+      boiteAuto: 'Automatic', boiteMan: 'Manual', boiteNR: 'Not specified',
+      locale: 'en-GB'
+    }
+  };
+  function pickLang() {
+    var q = (new URLSearchParams(location.search).get('lang') || '').toLowerCase();
+    if (q === 'fr' || q === 'en') return q;
+    try { var sv = localStorage.getItem('pp_resa_lang'); if (sv === 'fr' || sv === 'en') return sv; } catch (e) {}
+    var nav = (navigator.language || navigator.userLanguage || 'fr').toLowerCase();
+    return nav.indexOf('fr') === 0 ? 'fr' : (nav.indexOf('en') === 0 ? 'en' : 'fr');
+  }
+  var LANG = pickLang();
+  function t(k) { return (T[LANG] && T[LANG][k] != null) ? T[LANG][k] : (T.fr[k] != null ? T.fr[k] : k); }
+  function applyLang(l) {
+    LANG = (l === 'en') ? 'en' : 'fr';
+    try { localStorage.setItem('pp_resa_lang', LANG); } catch (e) {}
+    document.documentElement.lang = LANG;
+    document.title = t('docTitle');
+    // Texte statique (innerHTML pour autoriser le <b> du hint)
+    Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (el) {
+      var k = el.getAttribute('data-i18n'); if (T[LANG][k] != null) el.innerHTML = T[LANG][k];
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-ph]'), function (el) {
+      var k = el.getAttribute('data-i18n-ph'); if (T[LANG][k] != null) el.setAttribute('placeholder', T[LANG][k]);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-aria]'), function (el) {
+      var k = el.getAttribute('data-i18n-aria'); if (T[LANG][k] != null) el.setAttribute('aria-label', T[LANG][k]);
+    });
+    // Titre : nom de société si connu (sinon libellé par défaut)
+    $('soc-nom').textContent = SOC ? (t('h1pre') + SOC) : t('h1');
+    // Boutons des étapes de langue
+    $('lang-fr').classList.toggle('on', LANG === 'fr');
+    $('lang-en').classList.toggle('on', LANG === 'en');
+  }
+  $('lang-fr').addEventListener('click', function () { applyLang('fr'); });
+  $('lang-en').addEventListener('click', function () { applyLang('en'); });
+
   function headers() { return { 'Content-Type': 'application/json', 'apikey': APIKEY, 'Authorization': 'Bearer ' + APIKEY }; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function showErr(m){ var e=$('err'); e.textContent=m||'Une erreur est survenue.'; e.style.display=''; try{e.scrollIntoView({behavior:'smooth',block:'center'});}catch(x){} }
+  function showErr(m){ var e=$('err'); e.textContent=m||t('errGeneric'); e.style.display=''; try{e.scrollIntoView({behavior:'smooth',block:'center'});}catch(x){} }
   function hideErr(){ $('err').style.display='none'; }
-  function iso(dateId, timeId){ var d=$(dateId).value, t=$(timeId).value||'00:00'; if(!d) return ''; var dt=new Date(d+'T'+t); return isNaN(dt.getTime())?'':dt.toISOString(); }
-  // Boîte de vitesses lisible (Automatique / Manuelle / Non renseignée) — ne devine jamais depuis le modèle.
-  function boiteLabel(b){ var s=String(b==null?'':b).toLowerCase(); if(s.indexOf('auto')>=0) return 'Automatique'; if(s.indexOf('man')>=0) return 'Manuelle'; return 'Non renseignée'; }
+  function iso(dateId, timeId){ var d=$(dateId).value, t2=$(timeId).value||'00:00'; if(!d) return ''; var dt=new Date(d+'T'+t2); return isNaN(dt.getTime())?'':dt.toISOString(); }
+  function fmtDate(iso){ try { return new Date(iso).toLocaleString(t('locale')); } catch(x){ return new Date(iso).toLocaleString(); } }
+  // Boîte de vitesses lisible — ne devine jamais depuis le modèle.
+  function boiteLabel(b){ var s=String(b==null?'':b).toLowerCase(); if(s.indexOf('auto')>=0) return t('boiteAuto'); if(s.indexOf('man')>=0) return t('boiteMan'); return t('boiteNR'); }
   // ---- Lightbox galerie photos (vanilla, autonome : ce portail ne charge pas app.js) ----
   var _lb = { photos: [], i: 0 };
   function lbRender(){ var im=$('lb-img'); im.src=_lb.photos[_lb.i]||''; var multi=_lb.photos.length>1; $('lb-prev').style.display=multi?'flex':'none'; $('lb-next').style.display=multi?'flex':'none'; $('lb-count').textContent=multi?((_lb.i+1)+' / '+_lb.photos.length):''; }
@@ -149,42 +252,44 @@
   document.addEventListener('keydown', function(e){ if(!$('lb').classList.contains('open')) return; if(e.key==='Escape') lbClose(); else if(e.key==='ArrowLeft') lbMove(-1); else if(e.key==='ArrowRight') lbMove(1); });
   (function(){ var x0=null; var el=$('lb'); el.addEventListener('touchstart', function(e){ x0=e.touches[0].clientX; }, {passive:true}); el.addEventListener('touchend', function(e){ if(x0==null) return; var dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>40) lbMove(dx<0?1:-1); x0=null; }, {passive:true}); })();
 
-  if (!token) { showErr('Lien incomplet — demandez un nouveau lien au gestionnaire.'); $('step-dates').classList.add('hidden'); return; }
+  applyLang(LANG);   // 1er rendu dans la langue détectée
+
+  if (!token) { showErr(t('errLink')); $('step-dates').classList.add('hidden'); return; }
 
   // Date par défaut : aujourd'hui → demain
-  (function(){ var t=new Date(), tm=new Date(Date.now()+86400000); $('d-debut').value=t.toISOString().slice(0,10); $('d-fin').value=tm.toISOString().slice(0,10); })();
+  (function(){ var tt=new Date(), tm=new Date(Date.now()+86400000); $('d-debut').value=tt.toISOString().slice(0,10); $('d-fin').value=tm.toISOString().slice(0,10); })();
 
   // Nom de la société (GET sans dates).
   fetch(FN + '?t=' + encodeURIComponent(token), { headers: headers(), cache: 'no-store' })
     .then(function(r){ return r.json(); })
-    .then(function(d){ if (d && d.societe) { $('soc-nom').textContent = 'Réserver un véhicule — ' + d.societe; }
+    .then(function(d){ if (d && d.societe) { SOC = d.societe; $('soc-nom').textContent = t('h1pre') + SOC; }
       if (d && d.error) showErr(d.error); })
     .catch(function(){});
 
   $('btn-voir').addEventListener('click', function () {
     hideErr();
     winDebut = iso('d-debut','h-debut'); winFin = iso('d-fin','h-fin');
-    if (!winDebut || !winFin) { showErr('Choisissez les dates et heures de départ et de retour.'); return; }
-    if (new Date(winFin) <= new Date(winDebut)) { showErr('Le retour doit être après le départ.'); return; }
-    var b = $('btn-voir'); b.disabled = true; b.textContent = 'Recherche…';
+    if (!winDebut || !winFin) { showErr(t('errDates')); return; }
+    if (new Date(winFin) <= new Date(winDebut)) { showErr(t('errRetour')); return; }
+    var b = $('btn-voir'); b.disabled = true; b.textContent = t('btnVoirSearch');
     fetch(FN + '?t=' + encodeURIComponent(token) + '&debut=' + encodeURIComponent(winDebut) + '&fin=' + encodeURIComponent(winFin), { headers: headers(), cache: 'no-store' })
       .then(function(r){ return r.json(); })
       .then(function(d){
-        b.disabled = false; b.textContent = 'Voir les véhicules disponibles';
-        if (!d || d.error) { showErr((d && d.error) || 'Erreur.'); return; }
+        b.disabled = false; b.textContent = t('btnVoir');
+        if (!d || d.error) { showErr((d && d.error) || t('errErreur')); return; }
         sel = null; $('step-form').classList.add('hidden'); $('step-done').classList.add('hidden');
         var list = (d.vehicules || []);
         var box = $('veh-list');
         try { $('veh-count').textContent = list.length ? ' (' + list.length + ')' : ''; } catch(x){}
         if (!list.length) {
-          box.innerHTML = '<p class="muted">Aucun véhicule disponible sur ce créneau' + (d.total ? '' : ' (aucun véhicule n\'est proposé à la réservation pour le moment)') + '. Essayez d\'autres dates.</p>';
+          box.innerHTML = '<p class="muted">' + t('noneAvail') + (d.total ? '' : t('noneAvailPool')) + t('tryOther') + '</p>';
         } else {
           box.innerHTML = list.map(function(v){
-            var titre = [v.marque, v.modele].filter(Boolean).join(' ') || 'Véhicule';
+            var titre = [v.marque, v.modele].filter(Boolean).join(' ') || t('vehDefault');
             var photos = (v.photos && v.photos.length) ? v.photos : (v.photoUrl ? [v.photoUrl] : []);
             var thumb = photos[0] || '';
             var ph = thumb
-              ? '<div class="ph-wrap" data-gal="'+esc(v.id)+'" title="Voir les photos"><img class="ph" src="'+esc(thumb)+'" alt="Photo" loading="lazy">'+(photos.length>1?'<span class="ph-badge">'+photos.length+' 📷</span>':'')+'</div>'
+              ? '<div class="ph-wrap" data-gal="'+esc(v.id)+'" title="'+esc(t('seePhotos'))+'"><img class="ph" src="'+esc(thumb)+'" alt="Photo" loading="lazy">'+(photos.length>1?'<span class="ph-badge">'+photos.length+' 📷</span>':'')+'</div>'
               : '<div class="ph-ph">🚗</div>';
             var meta = [v.categorie, v.carburant, boiteLabel(v.boite)].filter(Boolean).join(' · ');
             return '<div class="veh" data-id="'+esc(v.id)+'">'+ph+'<div style="min-width:0"><b>'+esc(titre)+'</b><div class="pl">'+esc(v.immat||'')+(meta?' · '+esc(meta):'')+'</div></div><span class="chk">✓</span></div>';
@@ -205,8 +310,8 @@
               el.classList.add('sel');
               sel = list.filter(function(v){ return String(v.id)===el.getAttribute('data-id'); })[0] || null;
               if (sel) {
-                var titre = [sel.marque, sel.modele].filter(Boolean).join(' ') || 'Véhicule';
-                $('recap').innerHTML = '🚗 <b>'+esc(titre)+'</b> · '+esc(sel.immat||'')+'<br>📅 '+esc(new Date(winDebut).toLocaleString('fr-FR'))+' → '+esc(new Date(winFin).toLocaleString('fr-FR'));
+                var titre = [sel.marque, sel.modele].filter(Boolean).join(' ') || t('vehDefault');
+                $('recap').innerHTML = '🚗 <b>'+esc(titre)+'</b> · '+esc(sel.immat||'')+'<br>📅 '+esc(fmtDate(winDebut))+' → '+esc(fmtDate(winFin));
                 $('step-form').classList.remove('hidden');
                 try { $('step-form').scrollIntoView({behavior:'smooth',block:'start'}); } catch(x){}
               }
@@ -216,30 +321,30 @@
         $('step-vehs').classList.remove('hidden');
         try { $('step-vehs').scrollIntoView({behavior:'smooth',block:'start'}); } catch(x){}
       })
-      .catch(function(){ b.disabled=false; b.textContent='Voir les véhicules disponibles'; showErr('Impossible de charger les véhicules. Vérifiez votre connexion.'); });
+      .catch(function(){ b.disabled=false; b.textContent=t('btnVoir'); showErr(t('errLoadVehs')); });
   });
 
   $('btn-send').addEventListener('click', function () {
     hideErr();
-    if (!sel) { showErr('Choisissez un véhicule.'); return; }
+    if (!sel) { showErr(t('errChooseVeh')); return; }
     var prenom = ($('f-prenom').value||'').trim(), nomFam = ($('f-nom').value||'').trim();
     // Saisie séparée Prénom/Nom ; on stocke/transmet le nom combiné « Prénom Nom » (compatibilité, pas de nouvelle colonne).
     var nom = [prenom, nomFam].filter(Boolean).join(' ');
     var email = ($('f-email').value||'').trim(), tel = ($('f-tel').value||'').trim(), motif = ($('f-motif').value||'').trim();
-    if (!prenom) { showErr('Indiquez votre prénom.'); return; }
-    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr('E-mail invalide — corrigez-le ou laissez-le vide.'); return; }
-    if (!email && !tel) { showErr('Indiquez un e-mail OU un téléphone, pour qu\'on puisse vous répondre.'); return; }
-    var b = $('btn-send'); b.disabled = true; b.textContent = 'Envoi…';
-    fetch(FN, { method:'POST', headers: headers(), body: JSON.stringify({ action:'submit', t: token, vehiculeId: sel.id, debut: winDebut, fin: winFin, nom: nom, email: email, tel: tel, motif: motif }) })
+    if (!prenom) { showErr(t('errPrenom')); return; }
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr(t('errEmail')); return; }
+    if (!email && !tel) { showErr(t('errContact')); return; }
+    var b = $('btn-send'); b.disabled = true; b.textContent = t('btnSendSending');
+    fetch(FN, { method:'POST', headers: headers(), body: JSON.stringify({ action:'submit', t: token, lang: LANG, vehiculeId: sel.id, debut: winDebut, fin: winFin, nom: nom, email: email, tel: tel, motif: motif }) })
       .then(function(r){ return r.json(); })
       .then(function(d){
-        b.disabled = false; b.textContent = 'Envoyer ma demande';
-        if (!d || d.error) { showErr((d && d.error) || 'Échec de l\'envoi.'); return; }
+        b.disabled = false; b.textContent = t('btnSend');
+        if (!d || d.error) { showErr((d && d.error) || t('errSend')); return; }
         $('step-dates').classList.add('hidden'); $('step-vehs').classList.add('hidden'); $('step-form').classList.add('hidden');
         $('step-done').classList.remove('hidden');
         try { $('step-done').scrollIntoView({behavior:'smooth',block:'center'}); } catch(x){}
       })
-      .catch(function(){ b.disabled=false; b.textContent='Envoyer ma demande'; showErr('Impossible d\'envoyer. Vérifiez votre connexion.'); });
+      .catch(function(){ b.disabled=false; b.textContent=t('btnSend'); showErr(t('errSendNet')); });
   });
 
   // Boutons « ‹ Retour » : revenir à l'étape précédente (dates ou liste des véhicules).

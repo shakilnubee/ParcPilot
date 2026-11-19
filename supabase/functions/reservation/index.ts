@@ -195,9 +195,9 @@ async function sendEmail(key: string, from: string, to: string[], subject: strin
   if (replyTo) payload.reply_to = replyTo;
   try { await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }); } catch { /* best-effort */ }
 }
-function mailWrap(titre: string, corps: string): string {
+function mailWrap(titre: string, corps: string, lang = "fr"): string {
   const ppLogo = '<span style="font-weight:900;font-style:italic;font-size:16px;color:#ffffff">Parc</span><span>&#160;</span><span style="font-weight:900;font-style:italic;font-size:16px;color:#F97316">Pilot</span>';
-  return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+  return '<!DOCTYPE html><html lang="' + lang + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     + '<meta name="color-scheme" content="only light"><meta name="supported-color-schemes" content="only light"></head>'
     + '<body style="margin:0;padding:0;background:#EEF2F7;color:#0F1E3D">'
     + '<div style="font-family:Inter,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:480px;margin:0 auto">'
@@ -282,6 +282,8 @@ Deno.serve(async (req) => {
       const vehId = clean(body.vehiculeId, 80);
       const d0 = ts(body.debut), f0 = ts(body.fin);
       const nom = clean(body.nom, 120), email = clean(body.email, 160), tel = clean(body.tel, 40), motif = clean(body.motif, 400);
+      // Langue choisie par le demandeur sur la page publique (reserver.html → body.lang), défaut FR.
+      const lang = (String(body.lang || "").toLowerCase() === "en") ? "en" : "fr";
       if (!vehId || d0 == null || f0 == null) return json({ error: "Créneau ou véhicule manquant." }, 400);
       if (f0 <= d0) return json({ error: "La fin doit être après le début." }, 400);
       // E-mail FACULTATIF (comme le téléphone) : on exige le nom + AU MOINS un moyen de contact
@@ -324,12 +326,25 @@ Deno.serve(async (req) => {
         await sendEmail(key, cfg.from, cfg.to, "Demande de réservation — " + vehLbl, mailWrap("🚗 Demande de réservation", corps), nom + " demande à réserver " + vehLbl + " (" + per + "). À valider dans Parc Pilot.", cfg.replyTo || email);
       }
       // Confirme la réception au demandeur — UNIQUEMENT s'il a laissé un e-mail (désormais facultatif).
+      // Dans la LANGUE qu'il a choisie sur la page publique (FR/EN) : corps, objet, titre, texte et date localisés.
       if (key && email) {
-        const corpsD = '<p style="margin:0 0 12px;line-height:1.55">Bonjour ' + esc(nom.split(" ")[0] || "") + ',</p>'
-          + '<p style="margin:0 0 12px;line-height:1.55">Ta demande de réservation a bien été reçue :</p>'
-          + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">🚗 <b>' + esc(vehLbl) + '</b><br>📅 ' + esc(per) + '</div>'
-          + '<p style="margin:0;line-height:1.55">Elle est <b>en attente de validation</b> par le gestionnaire. Tu recevras une confirmation dès qu\'elle est acceptée.</p>';
-        await sendEmail(key, cfg.from, [email], "Votre demande de réservation — " + vehLbl, mailWrap("🚗 Demande reçue", corpsD), "Ta demande de réservation de " + vehLbl + " (" + per + ") est en attente de validation.", cfg.replyTo || "");
+        const perReq = new Date(d0).toLocaleString(lang === "en" ? "en-GB" : "fr-FR") + " → " + new Date(f0).toLocaleString(lang === "en" ? "en-GB" : "fr-FR");
+        const prenom = esc(nom.split(" ")[0] || "");
+        const corpsD = lang === "en"
+          ? '<p style="margin:0 0 12px;line-height:1.55">Hi ' + prenom + ',</p>'
+            + '<p style="margin:0 0 12px;line-height:1.55">Your booking request has been received:</p>'
+            + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">🚗 <b>' + esc(vehLbl) + '</b><br>📅 ' + esc(perReq) + '</div>'
+            + '<p style="margin:0;line-height:1.55">It is <b>awaiting approval</b> by the manager. You\'ll get a confirmation as soon as it\'s accepted.</p>'
+          : '<p style="margin:0 0 12px;line-height:1.55">Bonjour ' + prenom + ',</p>'
+            + '<p style="margin:0 0 12px;line-height:1.55">Ta demande de réservation a bien été reçue :</p>'
+            + '<div style="background:#f8fafc;border-radius:10px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#334155">🚗 <b>' + esc(vehLbl) + '</b><br>📅 ' + esc(perReq) + '</div>'
+            + '<p style="margin:0;line-height:1.55">Elle est <b>en attente de validation</b> par le gestionnaire. Tu recevras une confirmation dès qu\'elle est acceptée.</p>';
+        const subjReq = lang === "en" ? ("Your booking request — " + vehLbl) : ("Votre demande de réservation — " + vehLbl);
+        const titleReq = lang === "en" ? "🚗 Request received" : "🚗 Demande reçue";
+        const textReq = lang === "en"
+          ? ("Your booking request for " + vehLbl + " (" + perReq + ") is awaiting approval.")
+          : ("Ta demande de réservation de " + vehLbl + " (" + perReq + ") est en attente de validation.");
+        await sendEmail(key, cfg.from, [email], subjReq, mailWrap(titleReq, corpsD, lang), textReq, cfg.replyTo || "");
       }
       return json({ ok: true });
     }
