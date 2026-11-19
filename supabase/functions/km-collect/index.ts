@@ -671,6 +671,16 @@ Deno.serve(async (req) => {
               if (notif.revAlerteKm != null && notif.revAlerteKm !== "") revAlerteKm = Number(notif.revAlerteKm) || revAlerteKm;
               if (notif.revAlerteJours != null && notif.revAlerteJours !== "") revAlerteJours = Number(notif.revAlerteJours) || revAlerteJours;
             }
+            // P2-7 — SURCHARGE PAR VÉHICULE (même règle que FP.revisionIntervalle côté app) : l'intervalle
+            // propre au véhicule (revisionIntervalleVeh[vehId] = { km, mois }) PRIME sur le réglage global
+            // → le portail QR affiche la MÊME prochaine révision que la fiche / les alertes / Entretiens.
+            const riv = (sd && sd.revisionIntervalleVeh) as Record<string, unknown> | undefined;
+            const ovRaw = (riv && qr.vehicule_id) ? riv[qr.vehicule_id as string] : null;
+            const ov = (ovRaw && typeof ovRaw === "object") ? ovRaw as Record<string, unknown> : null;
+            if (ov) {
+              if (ov.km != null && ov.km !== "" && Number(ov.km) > 0) revKm = Number(ov.km);
+              if (ov.mois != null && ov.mois !== "" && Number(ov.mois) > 0) revMois = Number(ov.mois);
+            }
             // km À LA RÉVISION (base stable du seuil de prochaine révision) — posé par l'app (FP.setRevisionKmRef).
             const rkr = (sd && sd.revisionKmRef) as Record<string, unknown> | undefined;
             const rawRk = rkr && qr.vehicule_id ? rkr[qr.vehicule_id as string] : null;
