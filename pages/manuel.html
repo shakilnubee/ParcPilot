@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119i">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -627,6 +627,7 @@
         <p>Un sinistre = une facture de type « sinistre ». Plusieurs documents (devis + facture) sont regroupés en un seul <b>incident</b>. Les chiffres suivent la période choisie.</p>
         <div class="man-note"><b>🔒 Où sont rangés les fichiers d'un sinistre ?</b> Constat, photos et courrier de l'assureur sont stockés dans le <b>coffre privé sécurisé de l'appli</b> (Supabase Storage), classés <b>par plaque puis par année</b> — <b>pas</b> dans ton Google Drive. Détails complets dans la section <b>Factures → « Où sont physiquement rangés les fichiers ? »</b>.</div>
         <div class="man-item"><b>Déclarer un sinistre</b> (bouton en haut) : un formulaire pas-à-pas (véhicule, date, lieu, circonstances, <b>tiers impliqué</b>, dépôt du <b>constat + photos</b>) qui <b>crée le dossier tout seul</b> (statut « en attente ») et range les pièces dans le dossier du véhicule. Tu complètes le montant plus tard quand tu reçois la facture — un sinistre <b>sans montant</b> (aucun dégât) est parfaitement normal et compte 0 €. « Ajouter une facture sinistre » reste dispo pour scanner directement une facture de réparation.</div>
+        <div class="man-item"><b>Anti-doublon à la déclaration</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Corrigé</span> — si tu redéclares un sinistre <b>identique</b> (même véhicule, même date, même description), Parc Pilot te <b>demande confirmation</b> avant d'en créer un second (plus de dossier en double compté à tort dans « à rembourser »). Deux sinistres <b>différents</b> le même jour restent possibles — tu valides simplement.</div>
         <div class="man-item"><b>✏️ Modifier une longue description</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en cliquant sur la <b>Description</b> d'un sinistre (ou d'une facture), l'éditeur s'ouvre maintenant en <b>vraie zone multiligne</b> qui <b>grandit avec le texte</b> : tu vois et modifies l'<b>intégralité</b> du texte, les <b>retours à la ligne sont conservés</b>. <b>Entrée</b> = nouvelle ligne, <b>Ctrl (ou ⌘) + Entrée</b> = enregistrer, <b>Échap</b> = annuler (et cliquer ailleurs enregistre aussi).</div>
         <div class="man-item"><b>📷 Photos du sinistre</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fiche d'un sinistre, onglet <b>Documents</b>, une section <b>« 📷 Photos du sinistre »</b> regroupe toutes les photos de l'incident (celles envoyées par le conducteur via QR <b>et</b> celles ajoutées à la main). Le bouton <b>« ＋ Ajouter »</b> permet d'en ajouter <b>plusieurs d'un coup</b> (et de <b>prendre une photo</b> depuis le téléphone), <b>à la création du dossier comme à tout moment ensuite</b>. Les nouvelles photos <b>s'ajoutent</b> aux anciennes (rien n'est remplacé) ; les <b>constats, devis et factures</b> restent dans leur zone. Clique une vignette pour l'<b>agrandir</b> ; la croix ✕ retire une photo (traçable, jamais en silence). Chaque photo reste rattachée au <b>bon sinistre</b> (jamais mélangée avec les photos d'état des lieux).</div>
         <div class="man-item"><b>📎 Déposer la facture sur un sinistre</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — sur chaque carte d'incident, le bouton <b>« Déposer la facture »</b> te laisse joindre <b>la facture de réparation de CET accident</b> en un geste : tu choisis le PDF/photo, <b>l'IA lit le montant</b>, et la facture est <b>rattachée directement à cet incident</b> — <b>sans créer de doublon</b> de coût. Si l'incident n'avait qu'une déclaration avec un <b>montant estimé</b>, celui-ci est <b>remplacé</b> par le montant réel de la facture (donc jamais 2× le montant). La facture est ensuite <b>consultable</b> via « Voir le document », la section « Constats, photos &amp; documents » et le Rapport PDF. Pense à passer le statut sur <b>« ✓ Remboursé »</b> (menu déroulant de la carte) quand l'assurance a remboursé. <i>(À la différence d'« Associer », qui sert à relier un devis/une facture <b>déjà enregistrés</b>.)</i></div>
@@ -1199,8 +1200,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119h"></script>
-<script src="../assets/js/supabase-client.js?v=20261119h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119i"></script>
+<script src="../assets/js/supabase-client.js?v=20261119i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1216,10 +1217,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261119h"></script>
+<script src="../assets/js/app.min.js?v=20261119i"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
