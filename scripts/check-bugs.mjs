@@ -153,6 +153,27 @@ for (const h of htmlFiles()) {
   });
 }
 
+// 9) BALISES E-MAIL INCONNUES (classe du bug {revision} parti littéralement) : toute balise {xxx} présente
+//    dans les modèles canoniques FP.MAIL_DEFAUT / FP.MAIL_OBJET_DEFAUT (app.js) DOIT être résolue par
+//    FP.fillTags (sa `map`) — sinon elle partirait telle quelle dans l'e-mail. L'allowlist se DÉDUIT
+//    automatiquement de la map de fillTags (+ {lien}, résolu par les messages « Prévenir »), donc ajouter
+//    une balise à fillTags suffit à l'autoriser. Si la structure n'est pas analysable, on n'émet qu'un warn.
+try {
+  const appTxt = readFileSync(join(ROOT, 'assets/js/app.js'), 'utf8');
+  const mapM = /FP\.fillTags\s*=[\s\S]*?const map = \{([^}]*)\}/.exec(appTxt);
+  const grab = (name) => { const i = appTxt.indexOf('FP.' + name); if (i < 0) return ''; const j = appTxt.indexOf('\n};', i); return j < 0 ? '' : appTxt.slice(i, j); };
+  const templates = grab('MAIL_DEFAUT') + '\n' + grab('MAIL_OBJET_DEFAUT');
+  if (!mapM || !templates.trim()) {
+    warn.push('Balises e-mail : impossible de localiser FP.fillTags/MAIL_DEFAUT dans app.js → garde anti-{balise inconnue} non appliqué (vérifie manuellement).');
+  } else {
+    const allow = new Set((mapM[1].match(/[a-zA-Z_]+\s*:/g) || []).map(s => s.replace(/\s*:$/, '')));
+    allow.add('lien'); // résolu par les messages « Prévenir » (FP.msg/prev*), pas par fillTags
+    const used = [...new Set((templates.match(/\{[a-zA-Z_]+\}/g) || []).map(t => t.slice(1, -1)))];
+    const unknown = used.filter(t => !allow.has(t));
+    if (unknown.length) errors.push(`Balise(s) e-mail INCONNUE(S) dans FP.MAIL_DEFAUT/MAIL_OBJET_DEFAUT : {${unknown.join('}, {')}} — non résolue(s) par FP.fillTags (partirait(ent) littéralement dans l'e-mail, comme le bug {revision}). Ajoute la balise à la map de FP.fillTags (app.js), ou corrige le modèle.`);
+  }
+} catch (e) { warn.push('Balises e-mail : garde non exécuté (' + String(e).slice(0, 80) + ').'); }
+
 // 6) GARDE-FOU ANTI-PERTE (NON bloquant, warning seulement) : vérifie que le correctif de FOND du moteur
 //    de fusion (« une suppression de clé synchronisée est vraiment appliquée », pas de husk {} qui
 //    ressuscite l'entrée) est toujours présent dans mergeMap. S'il disparaissait, toute la famille de bugs
