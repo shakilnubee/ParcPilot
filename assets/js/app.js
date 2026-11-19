@@ -6739,7 +6739,7 @@ FP.fillTags = function (tpl, o) {
   let s = String(tpl == null ? '' : tpl);
   const first = String(o.prenom || '').trim().split(/\s+/)[0] || '';
   const _avis = (o.avis != null ? o.avis : o.numeroAvis);
-  const map = { prenom: first, plaque: o.plaque, immat: o.immat, motif: o.motif, date: o.date, email: o.email, modele: o.modele, avis: _avis, numeroAvis: _avis };
+  const map = { prenom: first, plaque: o.plaque, immat: o.immat, motif: o.motif, date: o.date, email: o.email, modele: o.modele, avis: _avis, numeroAvis: _avis, revision: o.revision };
   Object.keys(map).forEach(k => {
     const v = String(map[k] == null ? '' : map[k]).trim();
     s = s.replace(new RegExp('\\{' + k + '\\}', 'gi'), v);   // remplacement DIRECT (pas d'espace ajouté)
@@ -24126,9 +24126,12 @@ FP.sendMailTest = async function (key, to, lang) {
   ].forEach(function (r) {
     FP.registerMail({
       key: r.key, label: r.label, group: 'Relances',
-      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', date: '30/09/2026', motif: 'Révision' }),
+      // ⚠️ {revision} = balise INTELLIGENTE remplie au VRAI envoi (cf. ~24705) ; on la fournit aussi dans
+      //    l'échantillon du testeur pour que l'APERÇU colle à l'e-mail réellement envoyé (sinon « {revision} »
+      //    resterait littéral à l'aperçu alors que le vrai e-mail la remplace bien).
+      sample: () => ({ prenom: 'Alex', immat: 'AA-123-AA', date: '30/09/2026', motif: 'Révision', revision: 'à faire dès maintenant — km de révision dépassé' }),
       build: (d) => {
-        const tags = { prenom: d.prenom, immat: d.immat, date: d.date, motif: d.motif };
+        const tags = { prenom: d.prenom, immat: d.immat, date: d.date, motif: d.motif, revision: d.revision };
         const t = tpl(r.mkey, r.dkey, tags);
         return {
           subject: (FP.mailObjet ? FP.mailObjet(r.defObj, tags) : '') || (r.label + ' — ' + d.immat),
