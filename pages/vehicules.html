@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<script>/* pp-build */(function(){try{var B="20261026i",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
+<script>/* pp-build */(function(){try{var B="20261119b",K="pp_build",cur=null;try{cur=localStorage.getItem(K);}catch(e){return;}if(cur===B)return;var ok=false;try{localStorage.setItem(K,B);ok=true;}catch(e){}if(!ok)return;if("serviceWorker"in navigator){try{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){try{r.update();}catch(e){}});}).catch(function(){});}catch(e){}}if(cur===null)return;var done=function(){try{location.reload();}catch(e){}};if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).then(done).catch(done);}else{done();}}catch(e){}})();</script>
 <script>try{if(localStorage.getItem("fp_dark_mode")!=="0"){var d=document.documentElement;d.classList.add("fp-dark");d.style.background="#0b1220";d.style.colorScheme="dark";}}catch(e){}</script>
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <title>Véhicules — Parc Pilot</title>
@@ -2249,7 +2249,11 @@
       // Km parcourus (source unique kmParcouruAffect) + km compteur début→fin.
       const kmP = _vAff ? kmParcouruAffect(_vAff, a) : null;
       const kmRange = (a.kmDebut != null || a.kmFin != null) ? `${a.kmDebut != null ? FP.num(a.kmDebut) : '—'} → ${a.kmFin != null ? FP.num(a.kmFin) : '…'} km` : '';
-      const kmParc = (kmP != null && kmP > 0) ? `${FP.num(kmP)} km parcourus` : '';
+      // ⚠️ Ne jamais afficher « X km parcourus » quand le km de DÉBUT n'a pas été réellement saisi : le calcul
+      // retombe alors sur un 0 de repli (leasing) → chiffre trompeur (ex. « 16 861 km parcourus / début 0 »).
+      // Sans vrai km de début, on affiche une ANOMALIE à corriger plutôt qu'un résultat faux (consigne).
+      const kmParc = (kmP != null && kmP > 0 && a.kmDebut != null) ? `${FP.num(kmP)} km parcourus`
+        : ((kmP != null && kmP > 0 && a.kmDebut == null) ? '⚠️ km de début à compléter' : '');
       const ep = _edlFor(a);
       // Photos COMPLÉMENTAIRES (ajoutées après coup / après signature) : sorties des galeries initiales
       // et regroupées dans leur propre section (source unique FP.edlCompl). Le PDF signé n'est pas touché.
