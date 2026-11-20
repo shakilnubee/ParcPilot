@@ -1270,6 +1270,43 @@
   function sinDocsSectionHTML(g, s, dv, big) {
     const annee = escapeHtml((s.date || '').slice(0, 4) || String(new Date().getFullYear()));
     const immat = escapeHtml(s.vehiculeImmat || ''), sinDate = escapeHtml(String(s.date || '').slice(0, 10));
+    // ── TOUS les documents du dossier visibles au même endroit (demande explicite) ──
+    // 1) Factures & devis rattachés à l'incident (gérés dans Factures) ; 2) catch-all « Autres documents »
+    // (sinistre-doc rattaché par docSub mais ni photo, ni courrier/constat déjà listés). Lecture seule ici :
+    // chaque pièce est consultable (Voir) et téléchargeable ; rien n'est dupliqué ni supprimé depuis cette liste.
+    const _factDocUrl = (f) => { if (!f) return ''; if (f.url) return f.url; const id = f.fileId; if (!id || /^IMP-/.test(String(id))) return ''; return /^https?:\/\//.test(String(id)) ? id : ('https://drive.google.com/file/d/' + id + '/view'); };
+    const _dlBtn = (u, nm) => `<button type="button" class="sin-fdoc-dl" data-url="${escapeHtml(u)}" data-name="${escapeHtml(nm)}" title="Télécharger" style="${SIN_DOC_ACT};padding:3px 7px;font-size:11px"><i data-lucide="download" class="w-3.5 h-3.5"></i></button>`;
+    const _rowCss = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--fp-border);font-size:12.5px';
+    const _lines = (g.lines || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const _factRows = _lines.map(l => {
+      const u = _factDocUrl(l), stg = stageOf(l.id);
+      const bdg = stg === 'devis'
+        ? '<span style="font-size:10px;font-weight:700;color:#b45309;background:var(--fp-warn-bg,#fef3c7);border-radius:6px;padding:1px 6px">Devis</span>'
+        : '<span style="font-size:10px;font-weight:700;color:#047857;background:#d1fae5;border-radius:6px;padding:1px 6px">Facture</span>';
+      const meta = [FP.date(l.date), l.fournisseur ? escapeHtml(l.fournisseur) : '', (l.montantTTC ? FP.euroPrecis(l.montantTTC) : '')].filter(Boolean).join(' · ');
+      const nm = (stg === 'devis' ? 'Devis' : 'Facture') + ' ' + (l.fournisseur || s.vehiculeImmat || '');
+      const name = `<span style="font-weight:700;color:#334155;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(l.description || (stg === 'devis' ? 'Devis' : 'Facture'))}</span>`;
+      const open = u
+        ? `<span class="sin-doc-view" data-url="${escapeHtml(u)}" data-doc-url="${escapeHtml(u)}" role="button" tabindex="0" title="Voir le document" style="display:inline-flex;align-items:center;gap:4px;color:var(--fp-accent);font-weight:600;cursor:pointer"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</span>${_dlBtn(u, nm)}`
+        : '<span class="text-slate-300" style="font-size:11px;font-style:italic">pas de fichier joint</span>';
+      return `<div style="${_rowCss}">${bdg}<div style="min-width:0;flex:1">${name}<div class="text-slate-400" style="font-size:11px">${meta || '—'}</div></div><div style="display:flex;align-items:center;gap:8px;flex-shrink:0">${open}</div></div>`;
+    }).join('');
+    const _factBlock = _lines.length
+      ? `<div class="sin-det-sec" style="padding:4px 0 6px">🧾 Factures &amp; devis du dossier · ${_lines.length}</div>${_factRows}<div class="text-slate-400" style="font-size:11px;margin:6px 0 14px">Gérés dans l'onglet <b>Factures</b> (montants, suppression). Ici en lecture : consultation et téléchargement.</div>`
+      : '';
+    let _autres = [];
+    try {
+      const _sub = 'sin:' + g.key, _seen = new Set();
+      const _inCC = new Set([].concat(sinDocUrls(dv, 'courrier'), sinDocUrls(dv, 'constat')).map(String));
+      _autres = (sinDocs || []).filter(d => d && d.type === 'sinistre-doc' && docSub(d.id) === _sub && !isImg(d.url) && !_inCC.has(String(d.url)))
+        .filter(d => { const k = String(d.url || ''); if (!k || _seen.has(k)) return false; _seen.add(k); return true; });
+    } catch (e) {}
+    const _autresBlock = _autres.length
+      ? `<div class="sin-det-sec" style="padding:6px 0 6px">📎 Autres documents rattachés · ${_autres.length}</div>` + _autres.map(d => {
+          const u = escapeHtml(d.url || ''), nm = d.label || 'document';
+          return `<div style="${_rowCss}"><i data-lucide="file-text" class="w-4 h-4" style="color:#059669;flex-shrink:0"></i><span style="font-weight:700;color:#334155;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(nm)}</span><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span class="sin-doc-view" data-url="${u}" data-doc-url="${u}" role="button" tabindex="0" title="Voir le document" style="display:inline-flex;align-items:center;gap:4px;color:var(--fp-accent);font-weight:600;cursor:pointer"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Voir</span>${_dlBtn(d.url || '', nm)}</div></div>`;
+        }).join('')
+      : '';
     // ── PHOTOS DU SINISTRE : images rattachées à CET incident (ajout manuel + QR), dédoublonnées par URL.
     // Séparées des courriers/constats (lus par l'IA). Ajout via le bouton (plusieurs photos / appareil photo).
     let _sinPhotos = [];
@@ -1295,7 +1332,7 @@
       </div>
       <input type="file" class="sin-photos-file hidden" data-key="${g.key}" data-immat="${immat}" accept="image/*" multiple capture="environment">
       <div class="sin-det-sec" style="padding:2px 0 6px">📄 Courrier &amp; constat <span class="text-slate-400" style="font-weight:400;font-size:11px">(lus par l'IA)</span></div>`;
-    return photosBlock + `<div class="sin-docs">
+    return _factBlock + photosBlock + `<div class="sin-docs">
         <div class="sin-dz" data-key="${g.key}" data-immat="${immat}" data-annee="${annee}" data-sindate="${sinDate}" tabindex="0" role="button" title="Glissez un document ici ou cliquez pour en choisir un — l'IA le lit automatiquement">
           <div class="sin-dz-idle">
             <i data-lucide="upload-cloud" class="w-5 h-5" style="color:var(--fp-accent)"></i>
@@ -1314,7 +1351,7 @@
         ${sinDocRowsHTML(g, s, 'courrier', "Courrier de l'assureur", sinDocUrls(dv, 'courrier'), true, big)}
         ${sinDocRowsHTML(g, s, 'constat', 'Constat amiable', sinDocUrls(dv, 'constat'), false, big)}
         ${sinDocUrls(dv, 'courrier').length ? `<button type="button" class="sin-analyze-all" data-key="${g.key}" data-immat="${immat}" data-sindate="${sinDate}" title="Relit par l'IA TOUS les courriers déjà importés et propose de remplir les champs d'assurance manquants (responsabilité, n° de police, dossier, courtier, franchise…). Aucun nouvel envoi." style="display:inline-flex;align-items:center;gap:.3rem;font-size:11.5px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:8px;padding:5px 10px;cursor:pointer;margin-top:6px"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Analyser les documents existants</button>` : ''}
-      </div>
+      </div>${_autresBlock}
       <input type="file" class="sin-courrier-file hidden" data-key="${g.key}" data-immat="${immat}" data-annee="${annee}" data-sindate="${sinDate}" accept="image/*,application/pdf,.pdf">
       <input type="file" class="sin-constat-file hidden" data-key="${g.key}" data-immat="${immat}" accept="image/*,application/pdf,.pdf">
       <div class="sin-courrier-status text-xs mt-1" data-key="${g.key}"></div>
@@ -1446,7 +1483,12 @@
     const kv = v => (v == null) ? td : `<span${v === 0 ? ' style="color:#047857"' : ''}>${eur(v)}</span>`;
     const _chip = sinStatutChip(fin, dv, cur);
     const chipLbl = _chip.lbl, chipCol = _chip.col;
-    const nDocs = sinDocUrls(dv, 'courrier').length + sinDocUrls(dv, 'constat').length;
+    // Compteur « Documents » = TOUTES les pièces du dossier : courrier + constat + factures/devis + photos
+    // (source unique, même logique que la liste unifiée du tab Documents).
+    const _nFact = (g.lines || []).filter(l => l && (l.url || (l.fileId && !/^IMP-/.test(String(l.fileId))))).length;
+    let _nPhotos = 0;
+    try { const _sub = 'sin:' + g.key, _s = new Set(); _nPhotos = (sinDocs || []).filter(d => d && d.type === 'sinistre-doc' && isImg(d.url) && docSub(d.id) === _sub && !_s.has(String(d.url)) && _s.add(String(d.url))).length; } catch (e) {}
+    const nDocs = sinDocUrls(dv, 'courrier').length + sinDocUrls(dv, 'constat').length + _nFact + _nPhotos;
     const toneCss = { do: 'sin-cta-do', wait: 'sin-cta-wait', done: 'sin-cta-done' };
     const tab = sinDetailTab || 'fin';
     const tabBtn = (id, label) => `<button type="button" class="sin-dtab2${tab === id ? ' on' : ''}" data-key="${g.key}" data-tab="${id}">${label}</button>`;
@@ -2540,6 +2582,9 @@
     // Document : Voir (lien signé, bucket privé ; repli Drive pour un id hérité).
     const dView = e.target.closest('.sin-doc-view');
     if (dView) { sinDocView(dView.dataset.url || ''); return; }
+    // Télécharger une facture/devis ou un « autre document » de la liste unifiée (lecture seule).
+    const dDl = e.target.closest('.sin-fdoc-dl');
+    if (dDl) { sinDocDownload(dDl.dataset.url || '', dDl.dataset.name || 'document'); return; }
     // Document : menu « ⋯ » → actions secondaires regroupées (Télécharger / Relire (IA) / Remplacer / Supprimer).
     const dMenu = e.target.closest('.sin-doc-menu');
     if (dMenu) { openSinDocMenu(dMenu, _openSinFile); return; }
