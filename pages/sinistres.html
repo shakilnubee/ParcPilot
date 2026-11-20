@@ -1267,7 +1267,7 @@
       </div>
       <div class="mt-3 text-xs text-slate-600">
         <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600">Décision de l'assurance${hint('decision')}
-          <select class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="decisionStatut" style="${inCss};font-weight:600;cursor:pointer">
+          <select class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="decisionStatut" style="${css};font-weight:600;cursor:pointer">
             ${[['', 'En attente'], ['conditionnel', 'Accord conditionnel reçu'], ['confirme', 'Accord confirmé'], ['refus', 'Refus de prise en charge'], ['sans-pec', 'Sans prise en charge']].map(([v, l]) => `<option value="${v}" ${(fin.decisionStatut || '') === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select>
         </label>
