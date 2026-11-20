@@ -21942,6 +21942,8 @@ FP.exportRows = function (baseName, colDefs, rows, kind, opts) {
         cfg = { key: 'exp-' + (opts.sheetName || 'export'), title: opts.sheetName || 'Export', cols: cols, getRows: () => { try { return (typeof opts.getRows === 'function' ? opts.getRows() : []) || []; } catch (e) { return []; } }, date: hasPeriod ? (row => opts.period.dateOf(row)) : null };
       }
       cfg.imports = imports; cfg.baseName = opts.baseName; cfg.filters = opts.filters;
+      // Filtres ACTIFS de la page (affichés « Filtres repris ») + jeu COMPLET autorisé (bouton « tout »).
+      cfg.activeFilters = opts.activeFilters; cfg.allRows = opts.allRows;
       return cfg;
     }
     wrap.querySelector('.fp-export-btn').addEventListener('click', () => { if (FP.exportCenter && FP.exportCenter.open) FP.exportCenter.open(buildCfg()); else if (releveFn && FP.fiche) FP.fiche.open(releveFn()); });
@@ -22358,11 +22360,14 @@ FP.ficheColsFromExport = function (cols) {
 //   FP.fiche.exportFile (mêmes colonnes/ordre), l'import par les lecteurs métier EXISTANTS de la page.
 //   Ouverture : FP.exportCenter.open({ key, title, cols:[{id,label,def,get,align,num,sum,mono,tint}],
 //     rows | getRows(), date?(row), filters?:[{k,label,type:'select'|'month'|'date',opts?,apply(row,val)}],
-//     imports?:[{label,icon,run}], baseName })
+//     activeFilters?:()=>[{label,value}], allRows?:()=>[...], imports?:[{label,icon,run}], baseName })
+//   ⚠️ getRows() = les lignes DÉJÀ FILTRÉES de la page (ce qui est à l'écran) → compteur/aperçu/fichier
+//   sortent EXACTEMENT la même chose (« ce que je filtre = ce que j'exporte »). activeFilters() décrit ces
+//   filtres (bandeau « Filtres repris ») et allRows() fournit le jeu COMPLET pour le bouton « Exporter tout ».
 // ============================================================
 (function () {
   const esc = (s) => (FP.esc ? FP.esc(s) : String(s == null ? '' : s));
-  let modal = null, cur = null, fmt = 'pdf', dragEl = null;
+  let modal = null, cur = null, fmt = 'pdf', dragEl = null, showAll = false;
   function injectStyle() {
     if (document.getElementById('fp-xc-style')) return;
     const st = document.createElement('style'); st.id = 'fp-xc-style';
@@ -22410,6 +22415,16 @@ FP.ficheColsFromExport = function (cols) {
     .fp-xc-sec{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin:0 0 7px;display:flex;align-items:center;justify-content:space-between}
     .fp-xc-sec .r{font-weight:700;text-transform:none;letter-spacing:0;font-size:12px}
     .fp-xc-sec .r a{color:#f97316;cursor:pointer;margin-left:7px}
+    /* Bandeau « Filtres repris » : rappelle quels filtres de la page sont appliqués à l'export + bascule « tout ». */
+    .fp-xc-reprise{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px;padding:8px 11px;border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;font-size:12.5px;color:#9a3412}
+    .fp-xc-reprise .lbl{font-weight:800;text-transform:none}
+    .fp-xc-reprise .chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #fdba74;border-radius:9999px;padding:1px 9px;font-weight:600;color:#9a3412}
+    .fp-xc-reprise .chip b{font-weight:800}
+    .fp-xc-reprise .fp-xc-allbtn{margin-left:auto;border:1px solid #fdba74;background:#fff;color:#9a3412;font:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:3px 10px;cursor:pointer}
+    .fp-xc-reprise .fp-xc-allbtn:hover{background:#ffedd5}
+    .fp-xc-reprise.all{border-color:#cbd5e1;background:#f8fafc;color:#475569}
+    .fp-xc-reprise.all .chip{border-color:#cbd5e1;color:#475569}
+    .fp-xc-reprise.all .fp-xc-allbtn{border-color:#cbd5e1;color:#334155}
     .fp-xc-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
     .fp-xc-card{border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 8px;cursor:pointer;text-align:center;background:#fff}
     .fp-xc-card:hover{border-color:#f97316}
@@ -22496,6 +22511,7 @@ FP.ficheColsFromExport = function (cols) {
             <div class="fp-xc-favs" id="fp-xc-favs"></div>
           </div>
           <div class="fp-xc-pane">
+            <div id="fp-xc-reprise" class="fp-xc-reprise" hidden></div>
             <div class="fp-xc-pvhead"><p class="fp-xc-sec" style="margin:0">Aperçu</p><span class="cnt" id="fp-xc-cnt"></span></div>
             <div class="fp-xc-pv" id="fp-xc-preview"></div>
             <p class="fp-xc-hint" style="margin-top:7px">L'aperçu reflète les données, colonnes et filtres de l'export (échantillon des 1res lignes).</p>
@@ -22540,7 +22556,13 @@ FP.ficheColsFromExport = function (cols) {
     list.addEventListener('drop', e => { e.preventDefault(); reorderFromDom(); renderAll(); });
   }
   function showTab(w) { modal.querySelector('#fp-xc-view-exp').hidden = w !== 'exp'; modal.querySelector('#fp-xc-view-imp').hidden = w !== 'imp'; modal.querySelector('#fp-xc-tab-exp').setAttribute('aria-selected', w === 'exp'); modal.querySelector('#fp-xc-tab-imp').setAttribute('aria-selected', w === 'imp'); }
-  function rowsAll() { try { return (typeof cur.getRows === 'function' ? cur.getRows() : cur.rows) || []; } catch (e) { return []; } }
+  // Jeu de base : par DÉFAUT les lignes FILTRÉES de la page (getRows = ce qui est à l'écran). Le bouton
+  // « Exporter toutes les données » (si la page fournit cur.allRows) bascule sur le jeu COMPLET autorisé.
+  function rowsAll() { try { const src = (showAll && typeof cur.allRows === 'function') ? cur.allRows() : (typeof cur.getRows === 'function' ? cur.getRows() : cur.rows); return src || []; } catch (e) { return []; } }
+  // Compte du jeu complet autorisé (pour l'étiquette du bouton bascule) — sans filtres de page.
+  function allRowsCount() { try { return (typeof cur.allRows === 'function' ? (cur.allRows() || []).length : null); } catch (e) { return null; } }
+  // Filtres ACTIFS de la page (repris dans le centre) : [{label,value}] fournis par la page.
+  function activeFiltersList() { try { return (typeof cur.activeFilters === 'function' ? (cur.activeFilters() || []) : []).filter(f => f && f.value != null && String(f.value) !== ''); } catch (e) { return []; } }
   function filteredRows() {
     let rows = rowsAll().slice();
     const du = modal.querySelector('#fp-xc-du'), au = modal.querySelector('#fp-xc-au');
@@ -22587,8 +22609,33 @@ FP.ficheColsFromExport = function (cols) {
   function optsOf() { return { totaux: modal.querySelector('#fp-xc-opt-totaux').checked, logo: modal.querySelector('#fp-xc-opt-logo').checked, paysage: modal.querySelector('#fp-xc-opt-paysage').checked }; }
   function titleOf() { return (modal.querySelector('#fp-xc-title').value || '').trim() || cur.title; }
   function cellTxt(r, c) { try { const v = c.get(r); return (v == null || v === '') ? '—' : String(v); } catch (e) { return '—'; } }
+  // Bandeau « Filtres repris » : affiche les filtres de la PAGE appliqués à l'export (source unique = la page),
+  // et, si la page fournit cur.allRows, un bouton « Exporter toutes les données » / « Revenir aux résultats filtrés ».
+  function renderReprise(curCount) {
+    const host = modal.querySelector('#fp-xc-reprise'); if (!host) return;
+    const list = activeFiltersList(), hasAll = (typeof cur.allRows === 'function');
+    const m = hasAll ? allRowsCount() : null;
+    // « Des lignes sont-elles masquées par les filtres de la page ? » — vrai si le jeu complet est plus grand
+    // que l'affiché. Permet d'afficher le bandeau + le bouton « tout » même si la page n'a pas déclaré ses filtres.
+    const hidden = (!showAll && m != null && curCount != null && m > curCount);
+    if (!showAll && !list.length && !hidden) { host.hidden = true; host.innerHTML = ''; host.classList.remove('all'); return; }
+    host.hidden = false; host.classList.toggle('all', showAll);
+    let html = '';
+    if (showAll) html += '<span class="lbl">Export : toutes les données autorisées</span>';
+    else if (list.length) html += '<span class="lbl">Filtres repris :</span>' + list.map(f => `<span class="chip">${esc(f.label)}${f.value != null ? ` <b>${esc(f.value)}</b>` : ''}</span>`).join('');
+    else html += '<span class="lbl">Filtres de la page appliqués</span>';
+    if (hasAll && (hidden || showAll)) {
+      html += showAll
+        ? '<button type="button" class="fp-xc-allbtn" data-xc-all="0">↩ Revenir aux résultats filtrés</button>'
+        : `<button type="button" class="fp-xc-allbtn" data-xc-all="1">Exporter toutes les données${m != null ? ` (${m})` : ''}</button>`;
+    }
+    host.innerHTML = html;
+    const b = host.querySelector('[data-xc-all]');
+    if (b) b.onclick = () => { showAll = (b.getAttribute('data-xc-all') === '1'); renderAll(); };
+  }
   function renderAll() {
     const rows = filteredRows(), cols = chosenCols();
+    renderReprise(rows.length);
     modal.querySelector('#fp-xc-cnt').textContent = rows.length + ' ligne' + (rows.length > 1 ? 's' : '') + ' · ' + cols.length + ' colonne' + (cols.length > 1 ? 's' : '');
     modal.querySelector('#fp-xc-info').textContent = rows.length + ' ligne' + (rows.length > 1 ? 's' : '') + ' · ' + fmt.toUpperCase();
     const btn = modal.querySelector('#fp-xc-do'); btn.textContent = fmt === 'pdf' ? 'Exporter en PDF' : (fmt === 'xlsx' ? 'Exporter en Excel' : 'Exporter en CSV'); btn.disabled = (!rows.length || !cols.length);
@@ -22697,7 +22744,7 @@ FP.ficheColsFromExport = function (cols) {
       if (savedOn && savedOn.length) { const set = new Set(savedOn); base.forEach(c => c.on = set.has(c.id)); }
       cur.cols = base;
       modal.querySelector('#fp-xc-title').value = cfg.title || 'Relevé';
-      fmt = 'pdf'; modal.querySelectorAll('.fp-xc-card').forEach(b => b.setAttribute('aria-pressed', b.dataset.fmt === 'pdf'));
+      fmt = 'pdf'; showAll = false; modal.querySelectorAll('.fp-xc-card').forEach(b => b.setAttribute('aria-pressed', b.dataset.fmt === 'pdf'));
       modal.querySelector('#fp-xc-opt-totaux').checked = true; modal.querySelector('#fp-xc-opt-logo').checked = true; modal.querySelector('#fp-xc-opt-paysage').checked = false;
       modal.querySelector('#fp-xc-tab-imp').style.display = (cur.imports && cur.imports.length) ? '' : 'none';
       showTab('exp');

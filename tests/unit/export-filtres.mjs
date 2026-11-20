@@ -94,7 +94,9 @@ test('export filtre par loueurFiltrePasse(u.loueurRaw, …)', () => {
   assert.match(src, /leasingUnitsAll\(\)\s*\n\s*\.filter\(u => loueurFiltrePasse\(u\.loueurRaw, u\.source === 'lld'\)\)/);
 });
 test('export applique AUSSI la recherche texte (leasingSearch)', () => {
-  assert.ok(/function leasingExportRows\(\)[\s\S]*?FP\.norm\(leasingSearch\)[\s\S]*?\.map\(u =>/.test(src), 'leasingExportRows doit filtrer par leasingSearch avant le .map');
+  // Le filtrage (loueur + recherche) est centralisé dans leasingUnitsVisibles(), consommé par leasingExportRows().
+  assert.ok(/function leasingUnitsVisibles\(\)[\s\S]*?FP\.norm\(leasingSearch\)[\s\S]*?loueurFiltrePasse/.test(src), 'leasingUnitsVisibles doit filtrer par loueur + leasingSearch');
+  assert.match(src, /function leasingExportRows\(\) \{ return leasingUnitsVisibles\(\)\.map\(leasingUnitToRow\); \}/);
 });
 test('chaque unité porte loueurRaw (BPCE + LLD)', () => {
   assert.match(src, /loueurRaw: \(FP\.loueurOf \? FP\.loueurOf\(v\) : ''\)/);
@@ -114,6 +116,27 @@ test('export CSV (getRows) lit visibleDrivers()', () => {
 });
 test('relevé PDF/Excel (releve) lit visibleDrivers()', () => {
   assert.match(cond, /rows: visibleDrivers\(\) \}\)/);
+});
+
+console.log('\nCentre export — « Filtres repris » + « Exporter tout » (assets/js/app.js)');
+const app = fs.readFileSync(new URL('../../assets/js/app.js', import.meta.url), 'utf8');
+test('exportCenter : rowsAll() bascule sur cur.allRows quand showAll', () => {
+  assert.match(app, /showAll && typeof cur\.allRows === 'function'\) \? cur\.allRows\(\)/);
+});
+test('exportCenter : renderReprise() affiche le bandeau Filtres repris', () => {
+  assert.match(app, /function renderReprise\(curCount\)/);
+  assert.match(app, /Filtres repris/);
+});
+test('makeExportMenu : transmet activeFilters + allRows au centre', () => {
+  assert.match(app, /cfg\.activeFilters = opts\.activeFilters; cfg\.allRows = opts\.allRows;/);
+});
+test('contrats : passe activeFilters (Loueur/Recherche) + allRows au centre', () => {
+  assert.match(src, /activeFilters: \(\) => \{\s*\n\s*if \(activeCtab\(\) !== 'leasing'\) return \[\];/);
+  assert.match(src, /allRows: \(\) => \(activeCtab\(\) === 'leasing'\) \? leasingUnitsAll\(\)\.map\(leasingUnitToRow\)/);
+});
+test('conducteurs : passe activeFilters (Recherche/Filtre) + allRows au centre', () => {
+  assert.match(cond, /activeFilters: \(\) => \{[\s\S]*?state\.search[\s\S]*?state\.cardFilter/);
+  assert.match(cond, /allRows: \(\) => \(drivers \|\| \[\]\)\.slice\(\)/);
 });
 
 console.log(`\n${ko ? '❌' : '✅'} export-filtres : ${ok} ok, ${ko} ko\n`);
