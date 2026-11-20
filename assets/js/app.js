@@ -9565,6 +9565,39 @@ FP.addr = {
   },
 };
 
+// ===== GOOGLE MAPS — LIENS SANS CLÉ NI QUOTA (schéma officiel « Maps URLs ») — SOURCE UNIQUE =====
+// https://developers.google.com/maps/documentation/urls/get-started
+// Ce sont de simples LIENS https qui ouvrent Google Maps (ou l'appli) dans un nouvel onglet :
+//   • aucune clé API, aucun secret, aucun appel serveur, AUCUN quota, AUCUN coût ;
+//   • rien n'est envoyé à Google tant que l'utilisateur ne clique pas ;
+//   • `dir/?api=1&destination=…` = itinéraire (origine = position de l'utilisateur, choisie par Maps) ;
+//   • `search/?api=1&query=…` = fiche lieu / épingle.
+// ⚠️ Tout « Itinéraire / Voir sur la carte » de la plateforme DOIT passer par ici (source unique) : si un
+// jour on ajoute une carte intégrée à clé, on ne touchera qu'ICI. L'adresse peut être une CHAÎNE ou un objet
+// {rue,cp,ville,pays} (recomposé via FP.addr). Comme ce sont de vrais <a href>, la molette / Ctrl+clic ouvrent
+// un nouvel onglet gratuitement (règle 0octies) sans code supplémentaire.
+FP._mapsAddr = function (a) {
+  if (!a) return '';
+  if (typeof a === 'object') { try { a = (FP.addr && FP.addr.compose) ? FP.addr.compose(a) : ''; } catch (e) { a = ''; } }
+  return String(a || '').replace(/\s+/g, ' ').trim();
+};
+FP.mapsUrl = {
+  itineraire(dest) { const q = FP._mapsAddr(dest); return q ? ('https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q)) : ''; },
+  recherche(lieu) { const q = FP._mapsAddr(lieu); return q ? ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q)) : ''; },
+};
+// Bouton/lien « Itinéraire » réutilisable (renvoie une chaîne HTML, '' si pas d'adresse).
+//   opts = { label, className, icon(bool, def true), search(bool → fiche lieu au lieu d'itinéraire) }
+FP.lienItineraire = function (dest, opts) {
+  opts = opts || {};
+  const url = opts.search ? FP.mapsUrl.recherche(dest) : FP.mapsUrl.itineraire(dest);
+  if (!url) return '';
+  const label = (opts.label != null) ? opts.label : 'Itinéraire';
+  const cls = opts.className || 'btn btn-outline text-sm';
+  const ico = (opts.icon === false) ? '' : '<i data-lucide="navigation" class="w-4 h-4"></i> ';
+  const esc = FP.esc || (s => s);
+  return '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" class="' + esc(cls) + '" title="Ouvrir l\'itinéraire dans Google Maps (nouvel onglet)">' + ico + esc(label) + '</a>';
+};
+
 // ===== CHAMPS PERSONNALISÉS (par société) — SOURCE UNIQUE =====
 // Définitions dans settings.customFields ; valeurs dans settings.vehCustom / condCustom (keyées par fiche).
 // Utilisé par l'écran Paramètres (gestion des champs) ET le rendu sur les fiches véhicule/conducteur.
