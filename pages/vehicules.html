@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261120d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261120e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261120d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261120e">
 <style>
   /* Petites additions locales pour cette page */
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
@@ -1212,8 +1212,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261120d"></script>
-<script src="../assets/js/supabase-client.js?v=20261120d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261120e"></script>
+<script src="../assets/js/supabase-client.js?v=20261120e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1229,13 +1229,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/fleet-docs.js?v=20261120d"></script>
-<script src="../assets/js/vendor/qrcode.js?v=20261120d"></script>
+<script src="../assets/js/fleet-docs.js?v=20261120e"></script>
+<script src="../assets/js/vendor/qrcode.js?v=20261120e"></script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261120d"></script><script>
+<script src="../assets/js/app.min.js?v=20261120e"></script><script>
   lucide.createIcons();
 
   // Charge les overrides utilisateur (cases cochées/décochées, etc.) AVANT le 1er rendu
@@ -1899,7 +1899,9 @@
       <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="field-label !mb-0">Date</label><input type="date" id="rdvg-date" class="field-input" value="${escapeHtml(r.date || '')}" style="width:auto"></div>
         <div><label class="field-label !mb-0">Motif</label><select id="rdvg-motif" class="field-input" style="width:auto">${motifs.map(m => `<option ${((r.motif || '') === m) ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+        <div style="flex:1 1 220px;min-width:160px"><label class="field-label !mb-0">Lieu <span class="text-slate-400 font-normal">(garage / centre — optionnel)</span></label><input type="text" id="rdvg-lieu" class="field-input" value="${escapeHtml(r.lieu || '')}" placeholder="Nom ou adresse du garage" style="width:100%"></div>
         <button type="button" id="rdvg-save" class="btn btn-dark text-sm">${done ? 'Reprogrammer' : 'Enregistrer'}</button>
+        ${(r.lieu && window.FP && FP.lienItineraire) ? FP.lienItineraire(r.lieu, { className: 'btn btn-outline text-sm' }) : ''}
         ${(r.date && !done) ? '<button type="button" id="rdvg-done" class="btn btn-dark text-sm"><i data-lucide="check" class="w-4 h-4"></i> C\'est fait</button>' : ''}
         ${r.date ? '<button type="button" id="rdvg-clear" class="btn btn-outline text-sm">Retirer</button>' : ''}
         ${done
@@ -2434,8 +2436,9 @@
         else {
           const dt = (rdvg.querySelector('#rdvg-date') || {}).value || '';
           const mo = (rdvg.querySelector('#rdvg-motif') || {}).value || '';
+          const li = (rdvg.querySelector('#rdvg-lieu') || {}).value || '';
           if (!dt) { if (FP.toast) FP.toast('Choisis une date'); return; }
-          FP.rdvGarage.set(vid, dt, mo);
+          FP.rdvGarage.set(vid, dt, mo, li);
           if (FP.toast) FP.toast('✓ Rendez-vous garage enregistré');
           // Proposer de PRÉVENIR le conducteur (e-mail / SMS / WhatsApp). Le RAPPEL la veille partira
           // ensuite tout seul, en reprenant ce rendez-vous (date + motif).
