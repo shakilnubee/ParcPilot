@@ -260,7 +260,7 @@
   (function(){ var tt=new Date(), tm=new Date(Date.now()+86400000); $('d-debut').value=tt.toISOString().slice(0,10); $('d-fin').value=tm.toISOString().slice(0,10); })();
 
   // Nom de la société (GET sans dates).
-  fetch(FN + '?t=' + encodeURIComponent(token), { headers: headers(), cache: 'no-store' })
+  fetch(FN + '?t=' + encodeURIComponent(token) + '&lang=' + LANG, { headers: headers(), cache: 'no-store' })
     .then(function(r){ return r.json(); })
     .then(function(d){ if (d && d.societe) { SOC = d.societe; $('soc-nom').textContent = t('h1pre') + SOC; }
       if (d && d.error) showErr(d.error); })
@@ -272,7 +272,7 @@
     if (!winDebut || !winFin) { showErr(t('errDates')); return; }
     if (new Date(winFin) <= new Date(winDebut)) { showErr(t('errRetour')); return; }
     var b = $('btn-voir'); b.disabled = true; b.textContent = t('btnVoirSearch');
-    fetch(FN + '?t=' + encodeURIComponent(token) + '&debut=' + encodeURIComponent(winDebut) + '&fin=' + encodeURIComponent(winFin), { headers: headers(), cache: 'no-store' })
+    fetch(FN + '?t=' + encodeURIComponent(token) + '&debut=' + encodeURIComponent(winDebut) + '&fin=' + encodeURIComponent(winFin) + '&lang=' + LANG, { headers: headers(), cache: 'no-store' })
       .then(function(r){ return r.json(); })
       .then(function(d){
         b.disabled = false; b.textContent = t('btnVoir');
