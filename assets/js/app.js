@@ -9598,6 +9598,33 @@ FP.lienItineraire = function (dest, opts) {
   return '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" class="' + esc(cls) + '" title="Ouvrir l\'itinéraire dans Google Maps (nouvel onglet)">' + ico + esc(label) + '</a>';
 };
 
+// ===== GOOGLE — COMPTEUR DE QUOTA (fondation, Lot 2a) — SOURCE UNIQUE côté client =====
+// Rien n'appelle Google ici : ce helper interroge l'Edge Function `google-quota` qui COMPTE l'usage
+// par société / API / mois (table google_api_usage) pour alerter à 80 % et COUPER à 90 % de la limite
+// gratuite. Les plafonds qui FONT AUTORITÉ sont côté serveur (un navigateur ne peut pas relever sa limite).
+// `status()` = conso du mois (écran Paramètres → Intégrations Google). `consume(api, unites)` = à utiliser
+// AVANT un appel Google au Lot 2b (si `autorise` est faux, NE PAS appeler Google).
+FP.GOOGLE_QUOTA_SEUILS = { alerte: 0.80, coupure: 0.90 };
+FP.googleQuota = {
+  async status() {
+    try {
+      if (!(FP.supabase && FP.supabase.functions)) return { ok: false, configured: false, cleConfiguree: false, apis: [] };
+      const { data, error } = await FP.supabase.functions.invoke('google-quota', { body: { action: 'status' } });
+      if (error) throw error;
+      return data || { ok: false, configured: false, cleConfiguree: false, apis: [] };
+    } catch (e) { return { ok: false, configured: false, cleConfiguree: false, apis: [], error: String(e && e.message || e) }; }
+  },
+  // Réserve des unités AVANT un appel Google (Lot 2b). Renvoie { autorise, compteur, plafond, pct, suspendu }.
+  async consume(api, unites) {
+    try {
+      if (!(FP.supabase && FP.supabase.functions)) return { ok: false, autorise: false, raison: 'hors ligne' };
+      const { data, error } = await FP.supabase.functions.invoke('google-quota', { body: { action: 'consume', api, unites: unites || 1 } });
+      if (error) throw error;
+      return data || { ok: false, autorise: false };
+    } catch (e) { return { ok: false, autorise: false, raison: String(e && e.message || e) }; }
+  },
+};
+
 // ===== CHAMPS PERSONNALISÉS (par société) — SOURCE UNIQUE =====
 // Définitions dans settings.customFields ; valeurs dans settings.vehCustom / condCustom (keyées par fiche).
 // Utilisé par l'écran Paramètres (gestion des champs) ET le rendu sur les fiches véhicule/conducteur.
