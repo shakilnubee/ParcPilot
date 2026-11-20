@@ -144,6 +144,22 @@
   .sin-cta-btn { margin-left: auto; background: var(--fp-accent); color: #fff; border: none; border-radius: 9px; padding: 8px 14px; font-weight: 800; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
   .sin-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 16px 18px; }
   @media (max-width: 760px) { .sin-kpis { grid-template-columns: repeat(2, 1fr); } }
+  /* Synthèse financière (Lot E) — 10 tuiles compactes, sobres (les gros KPI restent au-dessus) */
+  .sin-fin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .sin-fin-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .sin-fin-grid { grid-template-columns: repeat(2, 1fr); } }
+  .sin-fin-tile { border: 1px solid var(--fp-border); border-radius: 10px; padding: 9px 11px; background: #fbfcfe; min-width: 0; }
+  .sin-fin-lbl { font-size: 11px; font-weight: 600; color: #64748b; line-height: 1.25; cursor: help; }
+  .sin-fin-sub { font-weight: 400; color: #94a3b8; }
+  .sin-fin-val { font-size: 1.1rem; font-weight: 800; color: #334155; margin-top: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sin-fin-val.danger { color: var(--fp-danger, #dc2626); }
+  .sin-fin-val.ok { color: var(--fp-success, #047857); }
+  .sin-fin-val.amber { color: #b45309; }
+  .sin-fin-val.warn { color: #b45309; }
+  .sin-fin-val.na { color: #94a3b8; font-weight: 700; font-size: .92rem; }
+  body.fp-dark .sin-fin-tile { background: #0e1830; }
+  body.fp-dark .sin-fin-lbl { color: #94a3b8; }
+  body.fp-dark .sin-fin-val { color: #e6edf6; }
   .sin-k { border: 1px solid var(--fp-border); border-radius: 13px; padding: 10px 12px; background: var(--fp-soft, #f8fafc); }
   body.fp-dark .sin-k { background: #0f1829; }
   .sin-k .l { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--fp-muted); }
@@ -454,6 +470,29 @@
       </div><div class="kpi-ic warn"><i data-lucide="calendar"></i></div></div></div>
     </div>
 
+    <!-- Synthèse financière des sinistres (Lot E) : 10 indicateurs DISTINCTS, source unique FP.sinistreFin.
+         Ne mélange jamais estimé / confirmé / encaissé. Suit la période ET les filtres choisis.
+         Une valeur « À déterminer » (inconnue) ne compte pas (jamais remplacée par 0 artificiel). -->
+    <div class="card p-4 mb-6" id="sin-finbar">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <h3 class="font-bold text-slate-900 flex items-center gap-2"><i data-lucide="wallet" class="w-4 h-4" style="color:var(--fp-accent)"></i> Synthèse financière
+          <span class="text-xs font-normal text-slate-400">— montants <b>réels</b> (confirmés / facturés / encaissés), jamais estimés mélangés aux confirmés</span></h3>
+        <span id="fs-scope" class="text-xs text-slate-400"></span>
+      </div>
+      <div class="sin-fin-grid">
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Nombre total de sinistres sur la période et les filtres choisis.">Sinistres</div><div class="sin-fin-val" id="fs-nb">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Dossiers sans aucun chiffrage : ni devis, ni facture enregistrés. À faire chiffrer.">À chiffrer</div><div class="sin-fin-val warn" id="fs-achiffrer">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Somme des coûts ESTIMÉS (devis) des dossiers pas encore facturés. Montant prévisionnel, non définitif.">Coût estimé <span class="sin-fin-sub">(non facturés)</span></div><div class="sin-fin-val" id="fs-estime">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Somme des factures de réparation réellement enregistrées (TTC), hors devis, sans doublon. Source : module Factures.">Coût facturé</div><div class="sin-fin-val danger" id="fs-facture">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Coût réellement supporté : facturé si disponible, sinon estimé. C'est la base du reste à charge.">Coût économique</div><div class="sin-fin-val danger" id="fs-eco">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Montant officiellement ACCEPTÉ par les assureurs (prise en charge confirmée). Jamais une simple estimation ni une franchise.">Prise en charge confirmée</div><div class="sin-fin-val ok" id="fs-pec">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Remboursements réellement ENCAISSÉS par l'entreprise (versements enregistrés). Un remboursement promis n'est pas encaissé.">Remboursements encaissés</div><div class="sin-fin-val ok" id="fs-encaisse">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Prise en charge confirmée − déjà encaissé − part payée directement au garage. Ce que l'assurance doit encore verser.">Reste à recevoir</div><div class="sin-fin-val amber" id="fs-arecevoir">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Ce que l'entreprise devrait finalement supporter selon les montants connus (coût éco − prise en charge, ou franchise). Prévisionnel.">Reste à charge prévisionnel</div><div class="sin-fin-val danger" id="fs-rcprev">—</div></div>
+        <div class="sin-fin-tile"><div class="sin-fin-lbl" title="Coût final supporté par l'entreprise, UNIQUEMENT pour les dossiers financièrement SOLDÉS. Les dossiers en cours n'y figurent pas.">Reste à charge définitif <span class="sin-fin-sub">(soldés)</span></div><div class="sin-fin-val danger" id="fs-rcdef">—</div></div>
+      </div>
+    </div>
+
     <!-- Fenêtre « Véhicules concernés » (liste cliquable) -->
     <div id="kpi-veh-modal" style="position:fixed;inset:0;background:rgba(15,30,61,.5);display:none;align-items:center;justify-content:center;z-index:80;padding:1rem">
       <div style="background:#fff;border-radius:1rem;max-width:440px;width:100%;max-height:80vh;overflow:auto;padding:1.1rem 1.2rem" onclick="event.stopPropagation()">
@@ -550,6 +589,19 @@
         <select id="filter-vehicule" class="text-sm border border-slate-200 rounded-lg px-3 py-2">
           <option value="all">Tous véhicules</option>
         </select>
+        <select id="filter-conducteur" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Filtrer par conducteur">
+          <option value="all">Tous conducteurs</option>
+        </select>
+        <select id="filter-assureur" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Filtrer par assureur du véhicule">
+          <option value="all">Tous assureurs</option>
+        </select>
+        <select id="filter-resp" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Filtrer par responsabilité">
+          <option value="all">Toute responsabilité</option>
+          <option value="responsable">Responsable</option>
+          <option value="non-responsable">Non responsable</option>
+          <option value="partagee">Partagée</option>
+          <option value="en-cours">En cours</option>
+        </select>
         <select id="sin-sort-key" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Trier">
           <option value="date">Tri : Date</option>
           <option value="cost">Tri : Coût</option>
@@ -621,7 +673,7 @@
   // Tous les sinistres = factures type=sinistre
   let sinistres = (data.factures || []).filter(f => f.type === 'sinistre');
   let sinBulk = null; // barre de sélection multiple (instanciée à l'init)
-  const state = { search: '', annee: 'all', vehicule: 'all', remb: 'all', dateFrom: '', dateTo: '', sortKey: 'date', sortDir: 'desc' };
+  const state = { search: '', annee: 'all', vehicule: 'all', conducteur: 'all', assureur: 'all', resp: 'all', remb: 'all', dateFrom: '', dateTo: '', sortKey: 'date', sortDir: 'desc' };
   const REGLES = ['rembourse', 'pec', 'refuse'];
   const rembOf = (g) => { try { return (FP.settings.get().sinistreStatut || {})[g.key] || ''; } catch (e) { return ''; } };
   // Dossier clôturé = date de clôture renseignée (source unique : sinistreAssurance).
@@ -650,6 +702,11 @@
     const vehs = [...new Set(sinistres.map(s => s.vehiculeImmat).filter(Boolean))].sort();
     fillSel('filter-annee', annees, 'Toutes années');
     fillSel('filter-vehicule', vehs, 'Tous véhicules');
+    const byName = (a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' });
+    const conducteurs = [...new Set(sinistres.map(conducteurOfSin).filter(Boolean))].sort(byName);
+    const assureurs = [...new Set(sinistres.map(assureurOfSin).filter(Boolean))].sort(byName);
+    fillSel('filter-conducteur', conducteurs, 'Tous conducteurs');
+    fillSel('filter-assureur', assureurs, 'Tous assureurs');
   }
   rebuildFiltres();
 
@@ -668,12 +725,27 @@
   }
   applyVehFromUrl();
 
+  // ── Lot E — résolution dossier / conducteur / assureur d'un sinistre (niveau INCIDENT), pour les filtres.
+  // Sources UNIQUES : sinistreGroupes + sinistreAssurance (dossier), conducteur figé sinon chauffeur du
+  // véhicule, assureur = assureur rattaché au véhicule (FP.assureurLabelVeh). Aucune donnée inventée.
+  function _dossierOf(s) { try { const st = FP.settings.get(); const gk = (st.sinistreGroupes || {})[s.id] || s.id; return (st.sinistreAssurance || {})[gk] || {}; } catch (e) { return {}; } }
+  function conducteurOfSin(s) {
+    const frozen = (_dossierOf(s).conducteur || '').trim(); if (frozen) return frozen;
+    const veh = FP.vehByImmat ? FP.vehByImmat(s.vehiculeImmat) : null;
+    return (veh && veh.chauffeur && veh.chauffeur !== '—') ? veh.chauffeur : '';
+  }
+  function assureurOfSin(s) {
+    try { const veh = FP.vehByImmat ? FP.vehByImmat(s.vehiculeImmat) : null; return (veh && FP.assureurLabelVeh) ? (FP.assureurLabelVeh(veh) || '') : ''; } catch (e) { return ''; }
+  }
   function matchFilter(s) {
     const q = FP.norm(state.search).trim();
     if (state.annee !== 'all' && !(s.date || '').startsWith(state.annee)) return false;
     if (state.dateFrom && (s.date || '') < state.dateFrom) return false;
     if (state.dateTo && (s.date || '') > state.dateTo) return false;
     if (state.vehicule !== 'all' && s.vehiculeImmat !== state.vehicule) return false;
+    if (state.resp !== 'all' && (_dossierOf(s).resp || '') !== state.resp) return false;
+    if (state.conducteur !== 'all' && FP.norm(conducteurOfSin(s)) !== FP.norm(state.conducteur)) return false;
+    if (state.assureur !== 'all' && FP.norm(assureurOfSin(s)) !== FP.norm(state.assureur)) return false;
     if (q) {
       // Recherche élargie : on retrouve aussi un sinistre par CONDUCTEUR, n° de dossier assureur et tiers
       // (avant : seulement plaque/description/fournisseur → « le sinistre de Charles » ne remontait pas).
@@ -783,6 +855,46 @@
     if ($('kpi-reste')) $('kpi-reste').textContent = FP.euro(reste);
     if ($('kpi-rembourse')) $('kpi-rembourse').textContent = FP.euro(rembourse);
     if ($('kpi-resp')) $('kpi-resp').textContent = resp;
+  }
+
+  // ── Lot E — Synthèse financière : 10 indicateurs DISTINCTS, source UNIQUE FP.sinistreFin par incident.
+  // Suit la période ET les filtres (visibleGroups). Ne mélange jamais estimé / confirmé / encaissé.
+  // Une valeur inconnue (null) ne compte pas et s'affiche « À déterminer » — jamais 0 artificiel.
+  function renderFinSynthese() {
+    const groups = visibleGroups();
+    const setV = (id, val, isCount) => {
+      const el = $(id); if (!el) return;
+      if (val == null) { el.textContent = 'À déterminer'; el.classList.add('na'); }
+      else { el.textContent = isCount ? String(val) : FP.euro(val); el.classList.remove('na'); }
+    };
+    let aChiffrer = 0;
+    let estime = 0, hasEstime = false, facture = 0, hasFacture = false, eco = 0, hasEco = false;
+    let pec = 0, hasPec = false, encaisse = 0, arecevoir = 0, hasAR = false;
+    let rcprev = 0, hasRcprev = false, rcdef = 0, hasRcdef = false;
+    groups.forEach(g => {
+      const fin = FP.sinistreFin ? FP.sinistreFin(g.key, g.lines) : null; if (!fin) return;
+      if (fin.coutEstime == null && fin.coutFacture == null) aChiffrer++;
+      if (fin.coutFacture == null && fin.coutEstime != null) { estime += fin.coutEstime; hasEstime = true; } // estimé des NON facturés
+      if (fin.coutFacture != null) { facture += fin.coutFacture; hasFacture = true; }
+      if (fin.coutEco != null) { eco += fin.coutEco; hasEco = true; }
+      // PEC confirmée = montant officiellement accepté (ou 0 explicite sur refus/sans-pec) ; jamais une estimation.
+      if (fin.pecConfirmee != null || fin.decisionRefus) { pec += (fin.pecConfirmeeEff || 0); hasPec = true; }
+      encaisse += (fin.encaisse || 0);
+      if (fin.resteARecevoir != null) { arecevoir += fin.resteARecevoir; hasAR = true; }
+      if (fin.resteChargePrev != null) { rcprev += fin.resteChargePrev; hasRcprev = true; }
+      if (fin.solde && fin.resteChargeDef != null) { rcdef += fin.resteChargeDef; hasRcdef = true; } // dossiers SOLDÉS uniquement
+    });
+    setV('fs-nb', groups.length, true);
+    setV('fs-achiffrer', aChiffrer, true);
+    setV('fs-estime', hasEstime ? estime : null);
+    setV('fs-facture', hasFacture ? facture : null);
+    setV('fs-eco', hasEco ? eco : null);
+    setV('fs-pec', hasPec ? pec : null);
+    setV('fs-encaisse', encaisse);                 // toujours un montant (0 = rien encaissé, info connue)
+    setV('fs-arecevoir', hasAR ? arecevoir : null);
+    setV('fs-rcprev', hasRcprev ? rcprev : null);
+    setV('fs-rcdef', hasRcdef ? rcdef : null);
+    const scope = $('fs-scope'); if (scope) scope.textContent = periodActive() ? 'sur la période choisie' : 'tout l’historique';
   }
 
   // --- Fenêtre « Véhicules concernés » : liste les véhicules de la période, chacun cliquable vers sa fiche ---
@@ -1688,7 +1800,7 @@
     }
     if (window.lucide) try { lucide.createIcons(); } catch (e) {}
   }
-  function refreshAll() { renderKPIs(); renderTimeline(); renderCharts(); renderConducteursRisque(); coutPeriode.render(); }
+  function refreshAll() { renderKPIs(); renderFinSynthese(); renderTimeline(); renderCharts(); renderConducteursRisque(); coutPeriode.render(); }
 
   // Rattache un sinistre (memberId) à l'incident de clé groupKey
   function associate(groupKey, memberId) {
@@ -2663,15 +2775,20 @@
   { const sf = $('sin-filters'); if (sf) sf.addEventListener('click', e => { const b = e.target.closest('.sin-chip'); if (!b) return; state.remb = b.dataset.remb || 'all'; sinExpanded = false; renderTimeline(); }); }
   $('search').addEventListener('input', e => { state.search = e.target.value; sinExpanded = false; renderTimeline(); });
   $('filter-annee').addEventListener('change', e => { state.annee = e.target.value; sinExpanded = false; refreshAll(); });
-  $('filter-vehicule').addEventListener('change', e => { state.vehicule = e.target.value; sinExpanded = false; renderTimeline(); });
+  $('filter-vehicule').addEventListener('change', e => { state.vehicule = e.target.value; sinExpanded = false; refreshAll(); });
+  // Lot E — filtres conducteur / assureur / responsabilité (mettent à jour KPI + synthèse + liste).
+  if ($('filter-conducteur')) $('filter-conducteur').addEventListener('change', e => { state.conducteur = e.target.value; sinExpanded = false; refreshAll(); });
+  if ($('filter-assureur')) $('filter-assureur').addEventListener('change', e => { state.assureur = e.target.value; sinExpanded = false; refreshAll(); });
+  if ($('filter-resp')) $('filter-resp').addEventListener('change', e => { state.resp = e.target.value; sinExpanded = false; refreshAll(); });
   // Bouton « Réinitialiser » de la barre de filtres (remet TOUT à zéro : recherche, année, véhicule,
-  // suivi de remboursement, période) puis re-render.
+  // conducteur, assureur, responsabilité, suivi de remboursement, période) puis re-render.
   function resetSinFilters() {
-    state.search = ''; state.annee = 'all'; state.vehicule = 'all'; state.remb = 'all'; state.dateFrom = ''; state.dateTo = '';
+    state.search = ''; state.annee = 'all'; state.vehicule = 'all'; state.conducteur = 'all'; state.assureur = 'all'; state.resp = 'all'; state.remb = 'all'; state.dateFrom = ''; state.dateTo = '';
     if ($('search')) $('search').value = '';
     if ($('filter-from')) $('filter-from').value = '';
     if ($('filter-to')) $('filter-to').value = '';
     if ($('filter-annee')) $('filter-annee').value = 'all';
+    ['filter-conducteur', 'filter-assureur', 'filter-resp'].forEach(id => { const el = $(id); if (el) { el.value = 'all'; el.dispatchEvent(new Event('change', { bubbles: true })); } });
     if ($('filter-vehicule')) { $('filter-vehicule').value = 'all'; $('filter-vehicule').dispatchEvent(new Event('change', { bubbles: true })); }
     document.querySelectorAll('#sin-filters .sin-chip').forEach(ch => ch.classList.toggle('active', ch.dataset.remb === 'all'));
     state.sortKey = 'date'; state.sortDir = 'desc';
@@ -2742,6 +2859,7 @@
   });
   // Filtre véhicule CHERCHABLE (taper plaque / marque / modèle) — règle projet.
   if (FP.searchSelect) FP.searchSelect($('filter-vehicule'), { placeholder: 'Rechercher un véhicule…' });
+  if (FP.searchSelect) { if ($('filter-conducteur')) FP.searchSelect($('filter-conducteur'), { placeholder: 'Rechercher un conducteur…' }); if ($('filter-assureur')) FP.searchSelect($('filter-assureur'), { placeholder: 'Rechercher un assureur…' }); }
 
   // === Ajouter une facture sinistre (scan) — crée une facture type='sinistre', identique au scan du tableau de bord ===
   (function sinFactureImport(){
@@ -3054,7 +3172,7 @@
   });
 
   // ⚡ PERF « coquille d'abord » : rendus lourds (KPIs, timeline, graphiques, conducteurs à risque) après le 1er affichage.
-  (window.FP && FP.afterPaint ? FP.afterPaint : function(f){f();})(function(){ try{renderKPIs();}catch(e){} try{renderTimeline();}catch(e){} try{renderCharts();}catch(e){} try{renderConducteursRisque();}catch(e){} });
+  (window.FP && FP.afterPaint ? FP.afterPaint : function(f){f();})(function(){ try{renderKPIs();}catch(e){} try{renderFinSynthese();}catch(e){} try{renderTimeline();}catch(e){} try{renderCharts();}catch(e){} try{renderConducteursRisque();}catch(e){} });
   syncPeriodUI();
   // Chart.js est en defer : s'il n'est pas encore là à l'init, on rend les graphiques dès qu'il l'est.
   if (typeof Chart === 'undefined') document.addEventListener('DOMContentLoaded', renderCharts);
@@ -3068,7 +3186,7 @@
     sinistres = (data.factures || []).filter(f => f.type === 'sinistre');
     rebuildFiltres();
     applyVehFromUrl();   // le véhicule du ?veh peut n'apparaître qu'une fois les données live chargées
-    renderKPIs(); renderTimeline(); renderCharts(); renderConducteursRisque(); coutPeriode.render();
+    renderKPIs(); renderFinSynthese(); renderTimeline(); renderCharts(); renderConducteursRisque(); coutPeriode.render();
     if (typeof renderDrive === 'function') renderDrive();
   });
 
