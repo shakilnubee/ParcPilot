@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261120c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261120d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261120c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261120d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -328,6 +328,7 @@
         <div class="man-item"><b>⏰ Rappel automatique la veille</b> — chaque matin, le site envoie <b>tout seul</b> un e-mail de rappel <b>la veille</b> d'un rendez-vous garage — le <b>contrôle technique</b> (date « Prochain CT ») <b>ou</b> un <b>rendez-vous garage saisi</b> (CT / révision / entretien) — <b>au conducteur ET à toi (gestionnaire) en copie</b>. Aucun réglage à faire : ça marche avec la même relance automatique que les relevés km. Un CT marqué « ignoré » n'envoie pas de rappel. <i>(La « prochaine révision » <u>estimée</u> reste indicative dans la liste Relances ; pour un rappel auto sur une révision, pose un rendez-vous garage avec sa vraie date.)</i></div>
         <div class="man-item" style="color:var(--fp-muted)"><b>Bon à savoir</b> — WhatsApp/SMS <b>ne peuvent pas partir automatiquement tout seuls</b> (ce serait payant, via l'API WhatsApp Business) : le site te prépare tout, tu appuies sur Envoyer. Les <b>e-mails</b>, eux, peuvent être <b>automatiques</b> (rappel CT ci-dessus + relances km).</div>
         <div class="man-item"><b>📎 Joindre un document (PDF du garage, etc.) par TOUS les canaux</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fenêtre <b>« Prévenir »</b>, un document joint (ex. le PDF du garage, ou un fichier que tu ajoutes avec « 📎 Joindre un PDF ») part maintenant sur <b>les trois canaux</b> : en <b>vraie pièce jointe</b> par <b>e-mail</b>, et en <b>lien à ouvrir</b> (ajouté au message) par <b>SMS</b> et <b>WhatsApp</b> — car ces apps ne permettent pas d'attacher un fichier via un lien. Sur <b>mobile</b>, un bouton <b>« 📤 Partager le fichier (WhatsApp…) »</b> apparaît en plus pour l'envoyer en <b>vraie pièce jointe</b> via le partage du téléphone. <i>(Correctif au passage : l'e-mail avec pièce jointe partait parfois « en échec » côté serveur quand le fichier venait du stockage privé — le lien est désormais signé, l'e-mail part correctement.)</i></div>
+        <div class="man-item"><b>🧭 Itinéraire Google Maps (gratuit, sans compte)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — partout où une <b>adresse</b> est enregistrée, un bouton <b>« Itinéraire »</b> ouvre <b>Google Maps</b> dans un nouvel onglet et trace le trajet depuis ta position. C'est déjà en place sur le <b>carnet d'adresses des garages</b> (Entretiens) et sur la <b>fiche d'un conducteur</b> (sous son adresse). C'est un <b>simple lien</b> : aucun compte Google, aucune clé, <b>aucun coût</b>, et rien n'est envoyé à Google tant que tu ne cliques pas. <i>(Astuce : clic molette ou Ctrl+clic = ouvrir dans un nouvel onglet, comme tout lien.)</i></div>
         <div class="man-item"><b>✍️ Mise en forme du message e-mail (gras, puces, liens) conservée</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dans la fenêtre <b>« Prévenir / Email »</b>, le champ message est maintenant un <b>petit éditeur</b> : une barre d'outils (<b>Gras</b>, <i>Italique</i>, Souligné, <b>liste à puces</b>, <b>liste numérotée</b>, <b>lien</b>, annuler/rétablir). Surtout, quand tu <b>colles</b> un texte depuis <b>Word, Gmail, Outlook ou ChatGPT</b>, la mise en forme est <b>conservée</b> (fini les puces qui disparaissent et les titres qui perdent leur gras) ; si tu colles du <b>markdown</b> (<code>**gras**</code>, <code>- puce</code>), il est <b>converti</b> tout seul (plus de <code>**</code> visibles). Le bouton <b>« 👁 Aperçu de l'e-mail »</b> montre le corps <b>exactement</b> tel qu'il partira. <i>Cela ne change rien au design des e-mails (logo, bandeau, pied de page, signatures) ni aux e-mails automatiques (amendes, rappels, états des lieux…) : seule la mise en forme de <b>ton texte</b> est désormais fidèle.</i> Le SMS et le WhatsApp, eux, partent en texte simple (normal, ces apps n'ont pas de gras).</div>
         <div class="man-item"><b>📎 Plusieurs pièces jointes (PDF, JPG, PNG, DOCX, XLSX)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — le bouton <b>« Ajouter une pièce jointe »</b> accepte maintenant <b>plusieurs fichiers d'un coup</b> et les formats <b>PDF, JPG, PNG, DOCX, XLSX</b>. Chaque fichier s'affiche avec son <b>nom</b> et sa <b>taille</b> ; une <b>croix ×</b> le retire avant l'envoi. Limites : <b>15 Mo par fichier</b>, <b>25 Mo au total</b> ; un fichier trop lourd ou d'un format non accepté est <b>refusé avec un message clair</b> (il n'est pas ajouté). Les fichiers partent en <b>vraie pièce jointe</b> par e-mail, de façon <b>privée</b> (lien signé temporaire, jamais public). Si une pièce jointe ne peut pas être transférée, tu es prévenu — l'envoi ne « fait pas semblant » d'avoir réussi.</div>
         <div class="man-zone">Onglet « 📝 À compléter »</div>
@@ -1208,8 +1209,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261120c"></script>
-<script src="../assets/js/supabase-client.js?v=20261120c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261120d"></script>
+<script src="../assets/js/supabase-client.js?v=20261120d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1225,10 +1226,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261120c"></script>
+<script src="../assets/js/app.min.js?v=20261120d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
