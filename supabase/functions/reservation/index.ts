@@ -207,10 +207,57 @@ function mailWrap(titre: string, corps: string, lang = "fr"): string {
     + '<div style="border:1px solid #E7EBF0;border-top:none;padding:20px;border-radius:0 0 14px 14px">' + corps + '</div></div></body></html>';
 }
 
+// Messages d'erreur renvoyés au visiteur, bilingues (FR/EN). La langue vient de ?lang= (page publique)
+// puis, en POST, de body.lang. Repli FR. Pour que l'erreur suive la langue choisie, reserver.html ajoute
+// &lang=<fr|en> à ses requêtes GET et envoie lang dans le POST.
+const ERRT: Record<string, Record<string, string>> = {
+  fr: {
+    service: "Service indisponible (configuration serveur).",
+    lienGet: "Lien de réservation invalide ou désactivé.",
+    reqInvalide: "Requête invalide.",
+    actionInconnue: "Action inconnue.",
+    lienPost: "Lien invalide ou désactivé.",
+    creneauManque: "Créneau ou véhicule manquant.",
+    finAvant: "La fin doit être après le début.",
+    nomRequis: "Nom et prénom requis.",
+    emailInvalide: "E-mail invalide.",
+    contactRequis: "Indiquez un e-mail ou un téléphone pour qu'on puisse vous répondre.",
+    vehNonPropose: "Ce véhicule n'est pas proposé à la réservation.",
+    vehPris: "Désolé, ce véhicule vient d'être pris sur ce créneau. Choisissez un autre créneau ou véhicule.",
+    echecEnreg: "Échec de l'enregistrement. Réessayez.",
+    methode: "Méthode non autorisée.",
+    serveur: "Erreur serveur.",
+  },
+  en: {
+    service: "Service unavailable (server configuration).",
+    lienGet: "Reservation link invalid or disabled.",
+    reqInvalide: "Invalid request.",
+    actionInconnue: "Unknown action.",
+    lienPost: "Link invalid or disabled.",
+    creneauManque: "Missing time slot or vehicle.",
+    finAvant: "The end must be after the start.",
+    nomRequis: "First and last name required.",
+    emailInvalide: "Invalid email.",
+    contactRequis: "Enter an email or a phone number so we can reply.",
+    vehNonPropose: "This vehicle is not offered for booking.",
+    vehPris: "Sorry, this vehicle was just taken for this slot. Choose another slot or vehicle.",
+    echecEnreg: "Save failed. Please try again.",
+    methode: "Method not allowed.",
+    serveur: "Server error.",
+  },
+};
+function errMsg(key: string, lang: string): string {
+  const l = (lang === "en") ? "en" : "fr";
+  return (ERRT[l] && ERRT[l][key]) || ERRT.fr[key] || key;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin();
-  if (!db) return json({ error: "Service indisponible (configuration serveur)." }, 500);
+  // Langue de la réponse d'erreur : ?lang= au départ (sera affinée par body.lang en POST).
+  let reqLang = "fr";
+  try { const _u = new URL(req.url); if (String(_u.searchParams.get("lang") || "").toLowerCase() === "en") reqLang = "en"; } catch (_) { /* défaut fr */ }
+  if (!db) return json({ error: errMsg("service", reqLang) }, 500);
 
   try {
     // ---------- GET : société + véhicules réservables disponibles sur le créneau ----------
@@ -218,7 +265,7 @@ Deno.serve(async (req) => {
       const url = new URL(req.url);
       const token = clean(url.searchParams.get("t") || "", 120);
       const ctx = await resoudreToken(db, token);
-      if (!ctx) return json({ error: "Lien de réservation invalide ou désactivé." }, 404);
+      if (!ctx) return json({ error: errMsg("lienGet", reqLang) }, 404);
       const cfg = await societeConfig(db, ctx.societe, ctx.data);
       const d0 = ts(url.searchParams.get("debut")), f0 = ts(url.searchParams.get("fin"));
 
@@ -273,35 +320,37 @@ Deno.serve(async (req) => {
     // ---------- POST : demande de réservation ----------
     if (req.method === "POST") {
       let body: Record<string, unknown> = {};
-      try { body = await req.json(); } catch { return json({ error: "Requête invalide." }, 400); }
-      if (String(body.action || "") !== "submit") return json({ error: "Action inconnue." }, 400);
+      try { body = await req.json(); } catch { return json({ error: errMsg("reqInvalide", reqLang) }, 400); }
+      // La langue du demandeur (body.lang) affine la langue des messages d'erreur.
+      if (String(body.lang || "").toLowerCase() === "en") reqLang = "en";
+      if (String(body.action || "") !== "submit") return json({ error: errMsg("actionInconnue", reqLang) }, 400);
       const token = clean(body.t, 120);
       const ctx = await resoudreToken(db, token);
-      if (!ctx) return json({ error: "Lien invalide ou désactivé." }, 404);
+      if (!ctx) return json({ error: errMsg("lienPost", reqLang) }, 404);
 
       const vehId = clean(body.vehiculeId, 80);
       const d0 = ts(body.debut), f0 = ts(body.fin);
       const nom = clean(body.nom, 120), email = clean(body.email, 160), tel = clean(body.tel, 40), motif = clean(body.motif, 400);
-      // Langue choisie par le demandeur sur la page publique (reserver.html → body.lang), défaut FR.
-      const lang = (String(body.lang || "").toLowerCase() === "en") ? "en" : "fr";
-      if (!vehId || d0 == null || f0 == null) return json({ error: "Créneau ou véhicule manquant." }, 400);
-      if (f0 <= d0) return json({ error: "La fin doit être après le début." }, 400);
+      // Langue choisie par le demandeur (déjà appliquée à reqLang ci-dessus) ; réutilisée pour l'e-mail.
+      const lang = reqLang;
+      if (!vehId || d0 == null || f0 == null) return json({ error: errMsg("creneauManque", reqLang) }, 400);
+      if (f0 <= d0) return json({ error: errMsg("finAvant", reqLang) }, 400);
       // E-mail FACULTATIF (comme le téléphone) : on exige le nom + AU MOINS un moyen de contact
       // (e-mail valide OU téléphone) pour que le gestionnaire puisse répondre (WhatsApp/SMS/e-mail).
-      if (!nom) return json({ error: "Nom et prénom requis." }, 400);
-      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "E-mail invalide." }, 400);
-      if (!email && !tel) return json({ error: "Indiquez un e-mail ou un téléphone pour qu'on puisse vous répondre." }, 400);
+      if (!nom) return json({ error: errMsg("nomRequis", reqLang) }, 400);
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: errMsg("emailInvalide", reqLang) }, 400);
+      if (!email && !tel) return json({ error: errMsg("contactRequis", reqLang) }, 400);
 
       // Véhicule de CETTE société, réservable, et LIBRE (autorité serveur, anti-concurrence).
       const { data: vehsRaw } = await db.from("vehicules").select("id,immat,marque,modele,groupes,statut").eq("societe", ctx.societe);
       const vehs = Array.isArray(vehsRaw) ? vehsRaw as Array<Record<string, unknown>> : [];
       const veh = vehs.find((v) => String(v.id) === vehId);
-      if (!veh || !reservableIds(ctx.data, vehs).has(vehId)) return json({ error: "Ce véhicule n'est pas proposé à la réservation." }, 400);
+      if (!veh || !reservableIds(ctx.data, vehs).has(vehId)) return json({ error: errMsg("vehNonPropose", reqLang) }, 400);
       const { data: r } = await db.from("reservations").select("vehicule_id,debut,fin,statut,deleted_at").eq("societe", ctx.societe);
       const resas = Array.isArray(r) ? r as Array<Record<string, unknown>> : [];
       const { data: em } = await db.from("emprunts").select("vehicule,date_retour").eq("societe", ctx.societe);
       const emprunts = Array.isArray(em) ? em as Array<Record<string, unknown>> : [];
-      if (!vehiculeLibre(veh, ctx.data, resas, emprunts, vehId, String(veh.immat || ""), d0, f0)) return json({ error: "Désolé, ce véhicule vient d'être pris sur ce créneau. Choisis un autre créneau ou véhicule." }, 409);
+      if (!vehiculeLibre(veh, ctx.data, resas, emprunts, vehId, String(veh.immat || ""), d0, f0)) return json({ error: errMsg("vehPris", reqLang) }, 409);
 
       const rec = {
         id: genId("RES"), societe: ctx.societe, vehicule_id: vehId, immat: String(veh.immat || ""),
@@ -310,7 +359,7 @@ Deno.serve(async (req) => {
         statut: "en_attente", verifie: false, source: "public",
       };
       const ins = await db.from("reservations").insert(rec);
-      if (ins.error) return json({ error: "Échec de l'enregistrement. Réessaie." }, 500);
+      if (ins.error) return json({ error: errMsg("echecEnreg", reqLang) }, 500);
 
       const vehLbl = [veh.marque, veh.modele].filter(Boolean).join(" ") || String(veh.immat || "le véhicule");
       const per = new Date(d0).toLocaleString("fr-FR") + " → " + new Date(f0).toLocaleString("fr-FR");
@@ -349,8 +398,8 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
-    return json({ error: "Méthode non autorisée." }, 405);
+    return json({ error: errMsg("methode", reqLang) }, 405);
   } catch (e) {
-    return json({ error: (e && (e as Error).message) || "Erreur serveur." }, 500);
+    return json({ error: (e && (e as Error).message) || errMsg("serveur", reqLang) }, 500);
   }
 });
