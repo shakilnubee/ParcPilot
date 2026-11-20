@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119k">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119k"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261120a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119k">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261120a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -242,6 +242,7 @@
         <div class="man-item">Vous photographiez (ou PDF) un document, l'IA le lit en <b>3 étapes</b> — (1) elle <b>détecte le type</b> du document et sa qualité, (2) elle <b>extrait les informations</b> avec le bon modèle selon le type, (3) elle <b>vérifie la cohérence</b> (ex. HT + TVA = TTC, VIN à 17 caractères, les 3 montants d'une amende, véhicule connu…). Puis un <b>écran de validation</b> s'affiche : les champs incertains sont <b>surlignés</b> (jaune = à confirmer, rouge = incertain), tout est <b>modifiable</b>, et <b>rien n'est enregistré tant que vous n'avez pas cliqué sur « Confirmer »</b>. Une fois validé, l'IA <b>range le document au bon endroit</b> et met à jour les fiches. Chaque document analysé est tracé (type, champs lus, provenance, anomalies).</div>
         <div class="man-item"><b>📦 Dépose tout en vrac (plusieurs documents d'un coup)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — idéal pour <b>démarrer un nouveau client</b> : glisse <b>plusieurs fichiers à la fois</b> (cartes grises + cartes vertes + permis + factures… mélangés). L'IA lit chacun, <b>détecte son type tout seul</b>, et affiche une <b>liste</b> : chaque document avec son type reconnu, un résumé, et une case à cocher. Les documents « propres » sont <b>cochés d'avance</b> ; ceux de qualité douteuse sont <b>décochés</b> pour que tu les regardes. Bouton <b>« Modifier »</b> sur chaque ligne pour corriger un champ avant d'enregistrer. Puis <b>« Tout enregistrer »</b> crée/complète d'un coup les fiches véhicules, l'assurance, les conducteurs et les documents. <b>Rien n'est enregistré sans ta validation.</b> (Les péages Ulys d'un lot sont lus précisément ; un document non reconnu est simplement signalé, pas enregistré.) <b>✨ Suivi fichier par fichier</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — dès que tu déposes plusieurs documents, <b>ils apparaissent tous aussitôt dans une liste</b>, chacun avec sa <b>vignette</b>, son nom, sa taille et son <b>statut propre</b> (en attente → analyse en cours → prêt/échec). Les documents sont analysés <b>en parallèle</b> (quelques-uns à la fois) et <b>un échec n'arrête pas les autres</b> : le fichier en erreur affiche un bouton <b>« ↻ Réessayer ce fichier »</b> qui relance <b>uniquement celui-là</b>, sans toucher aux documents déjà lus.</div>
         <div class="man-note"><b>Péages Ulys / VINCI :</b> le scanner les lit <b>précisément</b> (il reconstitue les colonnes du relevé pour donner le bon total <b>et le détail par collaborateur</b>, exactement comme l'import de la page Factures) — dépose simplement le <b>PDF</b> du relevé. Si c'est une photo/scan sans texte, il vous renvoie vers l'outil dédié (Factures → onglet Ulys).</div>
+        <div class="man-item"><b>🔍 Aperçu du document : lecture confortable (PDF page par page)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — à côté des champs lus par l'IA (dans le <b>Scanner</b>, la page <b>Factures</b> et les <b>Sinistres</b>), l'aperçu du document affiche désormais <b>la première page en entier dès l'ouverture</b> (plus de PDF coupé en haut). Pour un PDF de plusieurs pages, une barre d'outils permet de : <b>changer de page</b> avec les flèches <b>‹ ›</b> et le compteur <b>« Page X / N »</b> (ou au clavier : <b>←</b> / <b>→</b>, <b>Page préc.</b> / <b>Page suiv.</b>) ; <b>ajuster à la page</b> ⤢ ou <b>à la largeur</b> ↔ ; <b>zoomer</b> <b>−</b> / <b>+</b> ; passer en <b>plein écran</b> ⛶ (grande lecture, on ferme avec <b>Échap</b> ou la croix) ; <b>télécharger</b> ⤓, <b>imprimer</b> ⎙ ou <b>ouvrir dans un nouvel onglet</b> ↗. Les documents <b>image</b> gardent le zoom / la rotation. Tout fonctionne sur <b>ordinateur et mobile</b> (sur téléphone, l'aperçu et les champs sont sur deux onglets « Document / Infos »).</div>
 
         <div class="man-item">🩺 <b>État du service IA</b> — le <b>scanner de documents</b> utilise un petit service serveur qui lit les documents. Dans <b>Paramètres → Données → « État du service IA »</b>, un bouton <b>« Tester l'IA maintenant »</b> te dit en un clic si tout va bien (✅) ou <b>pourquoi</b> ça bloque (modèle indisponible, clé manquante, quota épuisé…). Pratique pour vérifier avant de scanner.</div>
         <div class="man-item">🔔 <b>Alerte automatique si l'IA tombe en panne</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — plus besoin d'y penser : à l'ouverture du <b>tableau de bord</b>, l'appli <b>teste l'IA en silence (1×/jour)</b> et n'affiche un bandeau orange <b>que si c'est en panne</b>, avec la <b>vraie raison</b> et un accès direct au test. Tu es donc prévenu <b>tout de suite</b> (au lieu de le découvrir en plein scan). Réservé à l'<b>administrateur</b> (c'est lui qui peut réparer). Bouton <b>« Masquer aujourd'hui »</b> si tu es déjà au courant. À noter aussi : si l'IA échoue pendant un scan, le message indique désormais la <b>cause exacte</b> renvoyée par l'IA (au lieu d'un simple « indisponible »).</div>
@@ -1204,8 +1205,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119k"></script>
-<script src="../assets/js/supabase-client.js?v=20261119k"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261120a"></script>
+<script src="../assets/js/supabase-client.js?v=20261120a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1221,10 +1222,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261119k"></script>
+<script src="../assets/js/app.min.js?v=20261120a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

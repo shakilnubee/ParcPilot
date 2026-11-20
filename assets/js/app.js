@@ -9095,8 +9095,12 @@ FP.docReview = {
   // Construit le panneau d'aperçu. opts : { label, alt, openLabel, showName }.
   // Retourne { html, url, isImage, isPdf, imgId, wire(root), destroy() }.
   //   html    = l'intérieur du panneau (barre + scène) → à injecter dans TON conteneur (colonne doc).
-  //   wire()  = branche le zoom/rotation/ajuster sur l'image (à appeler APRÈS insertion dans le DOM).
-  //   destroy() = révoque l'URL objet (à appeler à la fermeture).
+  //   wire()  = branche zoom/rotation (image) OU le rendu pdf.js paginé (PDF) — à appeler APRÈS insertion.
+  //   destroy() = révoque l'URL objet + libère pdf.js + ferme le plein écran (à appeler à la fermeture).
+  // ⚠️ PDF : rendu PAGE PAR PAGE sur <canvas> via pdf.js (déjà chargé pour l'OCR) en « Ajuster à la page »
+  //   par défaut → 1re page ENTIÈRE sans défilement (plus de lecteur natif coupé à 67 %). Flèches + compteur
+  //   + clavier + zoom (page/largeur/±) + plein écran + télécharger/imprimer/nouvel onglet. Repli <iframe>
+  //   si pdf.js indisponible. N'influe JAMAIS sur FP.scanIA ni sur les champs extraits (viewer indépendant).
   build: function (file, opts) {
     opts = opts || {};
     const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
@@ -9105,37 +9109,219 @@ FP.docReview = {
     const pfx = 'fpdr' + (++FP.docReview._n);
     const imgId = pfx + '-img', zId = pfx + '-z';
     const alt = esc(opts.alt || 'Document');
-    const viewer = d.isImg
-      ? '<img id="' + imgId + '" class="fpdr-img" alt="' + alt + '" src="' + (url || '') + '">'
-      : (d.isPdf
-          ? '<iframe id="' + imgId + '" class="fpdr-pdf" title="' + alt + '" src="' + (url || '') + '"></iframe>'
-          : '<a href="' + (url || '') + '" target="_blank" rel="noopener" class="btn btn-outline text-sm">' + esc(opts.openLabel || 'Ouvrir le document') + '</a>');
-    const tools = d.isImg
-      ? '<span class="fpdr-tools"><button type="button" class="fpdr-tool" data-z="out" title="Dézoomer">−</button><span class="fpdr-zoom" id="' + zId + '">100 %</span><button type="button" class="fpdr-tool" data-z="in" title="Zoomer">+</button><button type="button" class="fpdr-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="fpdr-tool" data-z="fit" title="Ajuster">⤢</button></span>'
-      : '';
-    const name = opts.showName === false ? '' : '<span class="fpdr-name">' + esc((file && file.name) || 'document') + '</span>';
-    const html = '<div class="fpdr-bar"><span class="fpdr-t">' + (opts.label || '📄 Document') + '</span>' + name + tools + '</div>'
-      + '<div class="fpdr-stage' + (d.isImg ? '' : ' pdf') + '">' + viewer + '</div>';
+    const fileName = (file && file.name) || 'document';
+    const name = opts.showName === false ? '' : '<span class="fpdr-name">' + esc(fileName) + '</span>';
+    const barL = '<div class="fpdr-bar"><span class="fpdr-t">' + (opts.label || '📄 Document') + '</span>' + name;
+
+    // ───────── IMAGE (inchangé : zoom / rotation / ajuster) ─────────
+    if (d.isImg) {
+      const tools = '<span class="fpdr-tools"><button type="button" class="fpdr-tool" data-z="out" title="Dézoomer">−</button><span class="fpdr-zoom" id="' + zId + '">100 %</span><button type="button" class="fpdr-tool" data-z="in" title="Zoomer">+</button><button type="button" class="fpdr-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="fpdr-tool" data-z="fit" title="Ajuster">⤢</button></span>';
+      const html = barL + tools + '</div><div class="fpdr-stage"><img id="' + imgId + '" class="fpdr-img" alt="' + alt + '" src="' + (url || '') + '"></div>';
+      return {
+        url: url, isImage: true, isPdf: false, html: html, imgId: imgId,
+        wire: function (root) {
+          let z = 1, r = 0;
+          const el = document.getElementById(imgId), zl = document.getElementById(zId);
+          if (!el) return;
+          const ap = () => { el.style.transform = 'scale(' + z + ') rotate(' + r + 'deg)'; if (zl) zl.textContent = Math.round(z * 100) + ' %'; };
+          const scope = (root && root.querySelectorAll) ? root : document;
+          Array.prototype.forEach.call(scope.querySelectorAll('.fpdr-tool'), (b) => b.addEventListener('click', () => {
+            const a = b.getAttribute('data-z');
+            if (a === 'in') z = Math.min(3, z + 0.2);
+            else if (a === 'out') z = Math.max(0.4, z - 0.2);
+            else if (a === 'rot') r = (r + 90) % 360;
+            else { z = 1; r = 0; }
+            ap();
+          }));
+        },
+        destroy: function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} }
+      };
+    }
+
+    // ───────── Ni image ni PDF : lien d'ouverture ─────────
+    if (!d.isPdf) {
+      const html = barL + '</div><div class="fpdr-stage"><a href="' + (url || '') + '" target="_blank" rel="noopener" class="btn btn-outline text-sm">' + esc(opts.openLabel || 'Ouvrir le document') + '</a></div>';
+      return { url: url, isImage: false, isPdf: false, html: html, imgId: imgId, wire: function () {}, destroy: function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} } };
+    }
+
+    // ───────── PDF (pdf.js, paginé, fit-to-page) ─────────
+    const cvId = pfx + '-cv', wrapId = pfx + '-wrap';
+    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
+    const pdfBar = '<span class="fpdr-tools fpdr-pdfbar">'
+      + tool('prev', '‹', 'Page précédente', ' disabled')
+      + '<span class="fpdr-count" id="' + pfx + '-count">1 / 1</span>'
+      + tool('next', '›', 'Page suivante')
+      + '<span class="fpdr-sep"></span>'
+      + tool('fitpage', '⤢', 'Ajuster à la page')
+      + tool('fitwidth', '↔', 'Ajuster à la largeur')
+      + tool('out', '−', 'Dézoomer') + '<span class="fpdr-zoom" id="' + zId + '">—</span>' + tool('in', '+', 'Zoomer')
+      + '<span class="fpdr-sep"></span>'
+      + tool('full', '⛶', 'Plein écran') + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Ouvrir dans un nouvel onglet')
+      + '</span>';
+    const html = barL + pdfBar + '</div>'
+      + '<div class="fpdr-stage pdf" id="' + wrapId + '" tabindex="0" aria-label="' + alt + '">'
+      + '<canvas id="' + cvId + '" class="fpdr-canvas"></canvas>'
+      + '<div class="fpdr-fallback" hidden></div></div>';
+
+    const st = { destroyed: false, pdf: null, ctrls: [], fullEl: null, fullKey: null };
+    const self = this;
     return {
-      url: url, isImage: d.isImg, isPdf: d.isPdf, html: html, imgId: imgId,
+      url: url, isImage: false, isPdf: true, html: html, imgId: imgId,
       wire: function (root) {
-        if (!d.isImg) return;
-        let z = 1, r = 0;
-        const el = document.getElementById(imgId), zl = document.getElementById(zId);
-        if (!el || el.tagName === 'IFRAME') return;
-        const ap = () => { el.style.transform = 'scale(' + z + ') rotate(' + r + 'deg)'; if (zl) zl.textContent = Math.round(z * 100) + ' %'; };
-        const scope = (root && root.querySelectorAll) ? root : document;
-        Array.prototype.forEach.call(scope.querySelectorAll('.fpdr-tool'), (b) => b.addEventListener('click', () => {
-          const a = b.getAttribute('data-z');
-          if (a === 'in') z = Math.min(3, z + 0.2);
-          else if (a === 'out') z = Math.max(0.4, z - 0.2);
-          else if (a === 'rot') r = (r + 90) % 360;
-          else { z = 1; r = 0; }
-          ap();
-        }));
+        const scope = (root && root.querySelector) ? root : document;
+        const wrap = scope.querySelector('#' + wrapId) || document.getElementById(wrapId);
+        const cv = scope.querySelector('#' + cvId) || document.getElementById(cvId);
+        if (!wrap || !cv) return;
+        const bar = (wrap.previousElementSibling && wrap.previousElementSibling.querySelector)
+          ? wrap.previousElementSibling.querySelector('.fpdr-pdfbar') : scope.querySelector('.fpdr-pdfbar');
+        const countEl = document.getElementById(pfx + '-count'), zoomEl = document.getElementById(zId);
+        (async () => {
+          try {
+            if (!(FP.ocr && FP.ocr.loadScript && FP.ocr.PDFJS_CDN)) throw new Error('pdfjs-indispo');
+            await FP.ocr.loadScript(FP.ocr.PDFJS_CDN);
+            if (st.destroyed) return;
+            try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = FP.ocr.PDFJS_WORKER; } catch (e) {}
+            const buf = await file.arrayBuffer(); if (st.destroyed) return;
+            st.pdf = await window.pdfjsLib.getDocument({ data: buf }).promise; if (st.destroyed) { try { st.pdf.destroy(); } catch (e) {} return; }
+            const openFull = () => self._pdfFull(st, { file: file, url: url, alt: alt, pfx: pfx });
+            const c = self._pdfView(st.pdf, { wrap: wrap, canvas: cv, bar: bar, countEl: countEl, zoomEl: zoomEl, file: file, url: url, fileName: fileName, keyboard: 'element', openFull: openFull });
+            st.ctrls.push(c);
+          } catch (e) {
+            // Repli : lecteur natif (iframe) si pdf.js ne charge pas → aucune régression.
+            try { wrap.innerHTML = '<iframe class="fpdr-pdf" title="' + alt + '" src="' + (url || '') + '"></iframe>'; } catch (e2) {}
+          }
+        })();
       },
-      destroy: function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} }
+      destroy: function () {
+        st.destroyed = true;
+        st.ctrls.forEach(c => { try { c.cancel(); } catch (e) {} });
+        try { if (st.fullEl) st.fullEl.remove(); } catch (e) {}
+        if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey); } catch (e) {} }
+        try { if (st.pdf) st.pdf.destroy(); } catch (e) {}
+        try { if (url) URL.revokeObjectURL(url); } catch (e) {}
+      }
     };
+  },
+
+  // Contrôleur d'UNE instance de rendu PDF (inline OU plein écran). Rend la page courante sur un <canvas>
+  // via pdf.js, en « ajuster à la page » (défaut) / « ajuster à la largeur » / zoom manuel. Gère flèches,
+  // compteur, clavier, et les actions télécharger/imprimer/nouvel onglet/plein écran. Renvoie { cancel, render }.
+  _pdfView: function (pdf, o) {
+    const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
+    const S = { num: 1, pages: pdf.numPages || 1, mode: 'page', zoom: 1, task: null, dead: false };
+    const ctx = o.canvas.getContext('2d');
+    const btns = {};
+    if (o.bar) Array.prototype.forEach.call(o.bar.querySelectorAll('[data-pdf]'), b => { btns[b.getAttribute('data-pdf')] = b; });
+    const setDisabled = (b, v) => { if (b) { b.disabled = !!v; b.style.opacity = v ? '.35' : ''; b.style.pointerEvents = v ? 'none' : ''; } };
+
+    function fitScale(vp1) {
+      // vp1 = viewport à scale 1. On calcule l'échelle qui fait tenir la page dans la zone (page) ou en largeur.
+      const pad = 16;
+      const availW = Math.max(60, (o.wrap.clientWidth || 320) - pad);
+      const availH = Math.max(60, (o.wrap.clientHeight || 300) - pad);
+      if (S.mode === 'width') return availW / vp1.width;
+      return Math.min(availW / vp1.width, availH / vp1.height); // page
+    }
+    async function render() {
+      if (S.dead) return;
+      // Conteneur pas encore mis en page (overlay qui vient d'être inséré) → réessayer à la frame suivante.
+      if (((o.wrap.clientWidth || 0) < 20 || (o.wrap.clientHeight || 0) < 20) && (S.retry = (S.retry || 0) + 1) <= 30) {
+        requestAnimationFrame(() => { if (!S.dead) render(); }); return;
+      }
+      S.retry = 0;
+      let page; try { page = await pdf.getPage(S.num); } catch (e) { return; }
+      if (S.dead) return;
+      const vp1 = page.getViewport({ scale: 1 });
+      const base = fitScale(vp1);
+      const scale = base * (S.zoom || 1);
+      const dpr = Math.min(2, (window.devicePixelRatio || 1));
+      const vp = page.getViewport({ scale: scale * dpr });
+      o.canvas.width = Math.ceil(vp.width); o.canvas.height = Math.ceil(vp.height);
+      o.canvas.style.width = Math.ceil(vp.width / dpr) + 'px';
+      o.canvas.style.height = Math.ceil(vp.height / dpr) + 'px';
+      try { if (S.task && S.task.cancel) S.task.cancel(); } catch (e) {}
+      try { S.task = page.render({ canvasContext: ctx, viewport: vp }); await S.task.promise; } catch (e) { /* render annulé */ }
+      // Changement de page / re-render → on revient toujours en HAUT (jamais le bas de la page précédente).
+      try { o.wrap.scrollTop = 0; o.wrap.scrollLeft = 0; } catch (e) {}
+      if (o.countEl) o.countEl.textContent = S.num + ' / ' + S.pages;
+      if (o.zoomEl) o.zoomEl.textContent = Math.round(base * (S.zoom || 1) * 100) + ' %';
+      setDisabled(btns.prev, S.num <= 1); setDisabled(btns.next, S.num >= S.pages);
+    }
+    const go = (d) => { const n = Math.min(S.pages, Math.max(1, S.num + d)); if (n !== S.num) { S.num = n; S.zoom = 1; render(); } };
+    const setMode = (m) => { S.mode = m; S.zoom = 1; render(); };
+    const zoomBy = (f) => { S.zoom = Math.min(5, Math.max(0.3, (S.zoom || 1) + f)); render(); };
+
+    // Si 1 seule page : masquer les flèches + compteur (document mono-page → pas de pagination inutile).
+    if (S.pages <= 1) { ['prev', 'next'].forEach(k => { if (btns[k]) btns[k].style.display = 'none'; }); if (o.countEl) o.countEl.style.display = 'none'; }
+
+    const act = {
+      prev: () => go(-1), next: () => go(1),
+      fitpage: () => setMode('page'), fitwidth: () => setMode('width'),
+      in: () => zoomBy(0.2), out: () => zoomBy(-0.2),
+      full: () => { if (o.openFull) o.openFull(); },
+      tab: () => { try { window.open(o.url, '_blank', 'noopener'); } catch (e) {} },
+      print: () => { try { const w = window.open(o.url, '_blank'); if (w) { try { w.addEventListener('load', () => { try { w.print(); } catch (e) {} }); } catch (e) {} } } catch (e) {} },
+      dl: () => { try { const a = document.createElement('a'); a.href = o.url; a.download = o.fileName || 'document.pdf'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) {} },
+    };
+    Object.keys(btns).forEach(k => { if (act[k]) btns[k].addEventListener('click', act[k]); });
+
+    // Clavier : flèches / PageUp-Down / +/- ; jamais pendant la saisie d'un champ. 'element' = quand le
+    // focus est dans le visualiseur (scanner/factures/sinistres côte-à-côte avec les champs) ; 'document' = plein écran.
+    const inField = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '') || t.isContentEditable);
+    const onKey = (e) => {
+      if (S.dead) return;
+      if (o.keyboard === 'element' && !(o.wrap.contains(document.activeElement))) return;
+      if (inField(e.target)) return;
+      const k = e.key;
+      if (k === 'ArrowRight' || k === 'PageDown') { e.preventDefault(); go(1); }
+      else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); go(-1); }
+      else if (k === '+' || k === '=') { e.preventDefault(); zoomBy(0.2); }
+      else if (k === '-' || k === '_') { e.preventDefault(); zoomBy(-0.2); }
+      else if (k === 'Escape' && o.onEscape) { o.onEscape(); }
+    };
+    const keyTarget = o.keyboard === 'document' ? document : o.wrap;
+    keyTarget.addEventListener('keydown', onKey);
+    // Re-fit au redimensionnement (rotation mobile, fenêtre PC) — seulement en mode ajusté (pas zoom manuel).
+    let rAf = 0; const onResize = () => { if (S.dead) return; cancelAnimationFrame(rAf); rAf = requestAnimationFrame(() => { if (S.zoom === 1) render(); }); };
+    window.addEventListener('resize', onResize);
+
+    render();
+    return {
+      render: render,
+      cancel: function () { S.dead = true; try { if (S.task && S.task.cancel) S.task.cancel(); } catch (e) {} try { keyTarget.removeEventListener('keydown', onKey); } catch (e) {} try { window.removeEventListener('resize', onResize); } catch (e) {} }
+    };
+  },
+
+  // Plein écran : overlay quasi-plein-écran réutilisant le MÊME objet pdf (aucun re-téléchargement, aucun
+  // re-scan IA). Flèches + compteur + zoom + télécharger/imprimer/nouvel onglet + fermeture (croix ou Échap).
+  _pdfFull: function (st, o) {
+    if (st.fullEl || !st.pdf) return;
+    const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
+    const cvId = o.pfx + '-fcv', wrapId = o.pfx + '-fwrap', cntId = o.pfx + '-fcount', zId = o.pfx + '-fz';
+    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
+    const ov = document.createElement('div');
+    ov.className = 'fpdr-full';
+    ov.innerHTML = '<div class="fpdr-full-bar"><span class="fpdr-tools fpdr-pdfbar">'
+      + tool('prev', '‹', 'Page précédente') + '<span class="fpdr-count" id="' + cntId + '">1 / 1</span>' + tool('next', '›', 'Page suivante')
+      + '<span class="fpdr-sep"></span>' + tool('fitpage', '⤢', 'Ajuster à la page') + tool('fitwidth', '↔', 'Ajuster à la largeur')
+      + tool('out', '−', 'Dézoomer') + '<span class="fpdr-zoom" id="' + zId + '">—</span>' + tool('in', '+', 'Zoomer')
+      + '<span class="fpdr-sep"></span>' + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Nouvel onglet')
+      + '</span><button type="button" class="fpdr-full-x" title="Fermer (Échap)" aria-label="Fermer">✕</button></div>'
+      + '<div class="fpdr-stage pdf fpdr-full-stage" id="' + wrapId + '" tabindex="0"><canvas id="' + cvId + '" class="fpdr-canvas"></canvas></div>';
+    document.body.appendChild(ov);
+    st.fullEl = ov;
+    const close = () => { try { if (c) c.cancel(); } catch (e) {} try { ov.remove(); } catch (e) {} st.fullEl = null; if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey); } catch (e) {} st.fullKey = null; } };
+    ov.querySelector('.fpdr-full-x').addEventListener('click', close);
+    const self = this;
+    const c = self._pdfView(st.pdf, {
+      wrap: ov.querySelector('#' + wrapId), canvas: ov.querySelector('#' + cvId),
+      bar: ov.querySelector('.fpdr-pdfbar'), countEl: ov.querySelector('#' + cntId), zoomEl: ov.querySelector('#' + zId),
+      file: o.file, url: o.url, fileName: (o.file && o.file.name) || 'document.pdf', keyboard: 'document', onEscape: close,
+    });
+    st.ctrls.push(c);
+    st.fullKey = function (e) { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', st.fullKey);
+    try { ov.querySelector('#' + wrapId).focus(); } catch (e) {}
   }
 };
 // ⚠️ SOURCE UNIQUE — VERROU DE DÉFILEMENT DE LA PAGE quand une fenêtre plein écran est ouverte.
