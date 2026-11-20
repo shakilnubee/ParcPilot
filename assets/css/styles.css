@@ -2195,6 +2195,14 @@ a.st-glass { display:block; color:inherit; }
   opacity: 0; transform: translateY(2px); transition: opacity .13s ease, transform .13s ease;
 }
 .fp-tip.on { transform: translateY(0); }
+/* Badge d'aide « ⓘ » discret (FP.infoHint) — réutilise l'infobulle .fp-tip ci-dessus */
+.fp-hint {
+  display: inline-block; margin-left: 4px; font-size: 12px; line-height: 1; font-style: normal;
+  color: #94a3b8; cursor: help; vertical-align: middle; user-select: none; -webkit-user-select: none;
+  transition: color .12s ease;
+}
+.fp-hint:hover, .fp-hint:focus { color: var(--fp-accent, #F97316); outline: none; }
+.fp-hint:focus-visible { outline: 2px solid var(--fp-accent, #F97316); outline-offset: 2px; border-radius: 50%; }
 
 /* ═══ Champ obligatoire non rempli (remplace la bulle de validation native) ═══ */
 .fp-invalid {

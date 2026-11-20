@@ -15144,9 +15144,22 @@ try { window.alert = function (m) { FP.alert(m); }; } catch (e) {}
   document.addEventListener('mouseout',  (e) => { const el = target(e); if (!el) return; const to = e.relatedTarget; if (to && el.contains(to)) return; hide(); }, true);
   document.addEventListener('focusin',   (e) => { const el = target(e); if (el) show(el); });
   document.addEventListener('focusout', hide);
+  // Tap (mobile) + clic : affiche l'infobulle de la cible, sinon referme (clic ailleurs). Ne bloque rien
+  // (pas de preventDefault) → les boutons/inputs gardent leur comportement. Échap referme (accessibilité).
+  document.addEventListener('click', (e) => { const el = target(e); if (el) show(el); else hide(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
   window.addEventListener('scroll', hide, true);
   window.addEventListener('resize', hide);
 })();
+// Petit badge d'aide « ⓘ » réutilisable (UI only — aucune donnée ni calcul). Réutilise le moteur
+// d'infobulles ci-dessus via `data-fp-tip`. Focusable au clavier (Tab), affiché au survol / focus / tap,
+// refermé par Échap ou clic ailleurs. Texte échappé (FP.esc). À placer à côté d'un libellé technique.
+FP.infoHint = function (text, opts) {
+  opts = opts || {};
+  const raw = String(text == null ? '' : text);
+  const t = (FP.esc ? FP.esc(raw) : raw.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])));
+  return '<span class="fp-hint' + (opts.cls ? ' ' + opts.cls : '') + '" role="button" tabindex="0" aria-label="' + t + '" data-fp-tip="' + t + '">ⓘ</span>';
+};
 
 // ── Validation de formulaire « à la sauce Parc Pilot » — remplace la bulle native ──
 // ("Veuillez remplir ce champ."). On intercepte l'événement `invalid` (capture) : on empêche
