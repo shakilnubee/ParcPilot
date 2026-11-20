@@ -2743,7 +2743,36 @@ body.fp-dark .fp-scan-zone:hover, body.fp-dark .fp-scan-btn:hover { background:r
 .fpdr-tool:hover { border-color: var(--fp-accent); color: var(--fp-accent); }
 .fpdr-zoom { font-size: .72rem; color: #64748b; min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
 .fpdr-stage { background: #eef2f7; max-height: var(--fpdr-stage-h, 420px); min-height: var(--fpdr-stage-min, 220px); overflow: auto; display: grid; place-items: center; padding: 12px; }
-.fpdr-stage.pdf { padding: 0; }
 .fpdr-img { transform-origin: center center; transition: transform .18s ease; max-width: 100%; max-height: var(--fpdr-img-h, 380px); border-radius: 6px; }
-.fpdr-pdf { width: 100%; height: var(--fpdr-pdf-h, 420px); border: 0; display: block; }
 @media (prefers-reduced-motion: reduce) { .fpdr-img { transition: none; } }
+/* PDF paginé (pdf.js → <canvas>) : hauteur fixe pour « ajuster à la page », centré horizontalement,
+   défile quand on zoome / « ajuster à la largeur ». Le canvas revient en haut à chaque changement de page. */
+.fpdr-stage.pdf { display: block; place-items: unset; padding: 10px; text-align: center; height: var(--fpdr-stage-h, 460px); max-height: var(--fpdr-stage-h, 460px); outline: none; }
+.fpdr-stage.pdf:focus-visible { box-shadow: inset 0 0 0 2px var(--fp-accent); }
+.fpdr-canvas { display: inline-block; vertical-align: top; max-width: 100%; background: #fff; box-shadow: 0 1px 6px rgba(15, 23, 42, .18); border-radius: 4px; }
+.fpdr-pdfbar { flex-wrap: wrap; }
+.fpdr-sep { display: inline-block; width: 1px; height: 18px; background: var(--fp-border); margin: 0 2px; }
+.fpdr-count { font-size: .72rem; color: #475569; min-width: 58px; text-align: center; font-variant-numeric: tabular-nums; }
+.fpdr-fallback { padding: 16px; text-align: center; }
+/* Repli lecteur natif si pdf.js ne charge pas (aucune régression) */
+.fpdr-pdf { width: 100%; height: var(--fpdr-pdf-h, 420px); border: 0; display: block; }
+/* Plein écran : overlay au-dessus de tout (y compris la fenêtre de validation des sinistres) */
+.fpdr-full { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 2147483000; background: rgba(8, 12, 22, .93); display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); box-sizing: border-box; }
+.fpdr-full-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: rgba(15, 23, 42, .65); border-bottom: 1px solid rgba(255, 255, 255, .12); }
+.fpdr-full-bar .fpdr-pdfbar { margin-left: 0; }
+.fpdr-full-bar .fpdr-tool { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .18); color: #e6edf6; }
+.fpdr-full-bar .fpdr-tool:hover { border-color: #38bdf8; color: #38bdf8; }
+.fpdr-full-bar .fpdr-count, .fpdr-full-bar .fpdr-zoom { color: #cbd5e1; }
+.fpdr-full-x { margin-left: auto; width: 34px; height: 30px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .08); color: #fff; font-size: 16px; cursor: pointer; }
+.fpdr-full-x:hover { border-color: #f87171; color: #fecaca; }
+/* Scène du plein écran : doit battre .fpdr-stage.pdf (hauteur fixe) → sélecteur plus spécifique */
+.fpdr-full .fpdr-full-stage { flex: 1 1 auto; min-height: 0; height: auto; max-height: none; background: transparent; }
+.fpdr-full .fpdr-full-stage .fpdr-canvas { box-shadow: 0 6px 30px rgba(0, 0, 0, .5); }
+/* Mode sombre (classe body.fp-dark) */
+body.fp-dark .fpdr-bar { background: #182234; border-color: var(--fp-border); }
+body.fp-dark .fpdr-t { color: #e6edf6; }
+body.fp-dark .fpdr-tool { background: #0e1830; border-color: var(--fp-border); color: #e6edf6; }
+body.fp-dark .fpdr-stage { background: #0b1220; }
+body.fp-dark .fpdr-count { color: #94a3b8; }
+body.fp-dark .fpdr-sep { background: var(--fp-border); }
