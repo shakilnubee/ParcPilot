@@ -11614,6 +11614,19 @@ FP.kmSousContrat = (kmActuel, kmDebut) => {
   return a;
 };
 
+// ⚠️ SOURCE UNIQUE — niveau de risque de dépassement d'un forfait leasing, déduit du ratio
+// (projection fin de contrat ÷ forfait km). MÊMES SEUILS PARTOUT — BPCE (via FP.leasingInfo) ET
+// LLD/Ayvens (page Contrats) : ≥ 1,05 → danger · ≥ 0,98 → warn · ≥ 0,90 → info. On exige au moins
+// 1 mois écoulé (sinon la projection linéaire n'est pas fiable) → sinon null. Renvoie 'danger'|'warn'|'info'|null.
+// Avant, la page Contrats utilisait des seuils divergents (> 1 / > 0,9) → badges Ayvens incohérents avec BPCE.
+FP.leasingNiveau = (ratio, moisEcoules) => {
+  if (ratio == null || !(Number(moisEcoules) >= 1)) return null;
+  if (ratio >= 1.05) return 'danger';
+  if (ratio >= 0.98) return 'warn';
+  if (ratio >= 0.90) return 'info';
+  return null;
+};
+
 // Suivi du forfait : rythme autorisé vs réel, projection en fin de contrat,
 // risque de dépassement. Renvoie null si le véhicule n'a pas de contrat connu.
 FP.leasingInfo = (v) => {
@@ -11634,12 +11647,7 @@ FP.leasingInfo = (v) => {
   const ratio = projectionFin !== null ? projectionFin / c.kmContrat : null;
   const ecartAJour = Math.round(kmParcouru - kmAutoriseAJour);         // > 0 = en avance (à risque)
   const depassementProjete = projectionFin !== null ? projectionFin - c.kmContrat : null;
-  let niveau = null;
-  if (ratio !== null && moisEcoules >= 1) {
-    if (ratio >= 1.05) niveau = 'danger';
-    else if (ratio >= 0.98) niveau = 'warn';
-    else if (ratio >= 0.90) niveau = 'info';
-  }
+  const niveau = FP.leasingNiveau(ratio, moisEcoules);   // SOURCE UNIQUE (mêmes seuils que la page Contrats)
   return { kmContrat: c.kmContrat, dureeMois: c.dureeMois, kmSupp: c.kmSupp, kmTolerance: c.kmTolerance, debut, finContrat,
            moisEcoules, km, kmDepart, kmParcouru, kmParMoisAutorise, kmAutoriseAJour, kmParMoisReel,
            projectionFin, ratio, ecartAJour, depassementProjete, niveau,
