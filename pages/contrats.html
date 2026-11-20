@@ -1041,6 +1041,19 @@
   // Libellé GÉNÉRIQUE (aucun nom de loueur codé en dur) — identique pour TOUTES les sociétés.
   // Le vrai nom du loueur vient des données (registre loueurs / champ c.loueur du contrat).
   function localeaseLabel(){ return 'Leasing (LLD)'; }
+  // ⚠️ SOURCE UNIQUE d'INTERPRÉTATION du filtre « par loueur » (règle 0-source / point 4 « une seule
+  // logique de filtrage ») : réutilisée À L'IDENTIQUE par le tableau BPCE (dérivé), le tableau LLD
+  // (Ayvens) ET l'export (centre Import/Export) → « ce que je filtre = ce que j'exporte ». On ne
+  // compare JAMAIS deux fois la même règle à la main.
+  //  - nomClair = nom de loueur EN CLAIR de la ligne (vide si aucun loueur nommé)
+  //  - estLLD   = true pour une unité LLD/Ayvens (seule une unité LLD sans loueur nommé = « Leasing (LLD) »)
+  function loueurFiltrePasse(nomClair, estLLD){
+    const f = leasingLoueurFilter;
+    if (f === 'all') return true;
+    const nom = (nomClair || '').toString().trim();
+    if (f === LOCALEASE_VAL) return !!estLLD && !nom;   // bac « Leasing (LLD) » = LLD sans loueur nommé
+    return nom === f;                                   // loueur nommé (BPCE, AYVENS…) : égalité stricte du nom clair
+  }
   function populateLeasingLoueurFilter(){
     const sel = $('leasing-loueur-filter'); if (!sel) return;
     const cur = leasingLoueurFilter;
@@ -1960,7 +1973,7 @@
         return { v, agg: leasingByVeh[immat] || { count: 0, total: 0, lastDate: '', lastFile: null, amounts: [] } };
       })
       .filter(({ v }) => !_lldImmats.has(FP.normImmat(v.immat || '')))     // déjà compté côté LLD
-      .filter(({ v }) => leasingLoueurFilter === 'all' || loueurNomOf(v) === leasingLoueurFilter)
+      .filter(({ v }) => loueurFiltrePasse(loueurNomOf(v), false))   // SOURCE UNIQUE d'interprétation (= export)
       .sort((a,b) => b.agg.total - a.agg.total);
     const rows = q ? rowsAll.filter(({ v }) => FP.norm(`${v.immat} ${v.marque} ${v.modele} ${v.chauffeur}`).includes(q)) : rowsAll;
 
@@ -2146,6 +2159,7 @@
         source: 'bpce', vehicule: v, immat: v.immat || immat, marque: v.marque || '', modele: v.modele || '',
         chauffeur: (v.chauffeur && v.chauffeur !== '—') ? v.chauffeur : '',
         loueur: (FP.loueurOf ? FP.loueurOf(v) : '') || 'Leasing',
+        loueurRaw: (FP.loueurOf ? FP.loueurOf(v) : ''),   // nom clair brut (vide si aucun) — pour le filtre d'export (source unique)
         debut: (cRaw && cRaw.debut) || v.dateMiseEnCirculation || '',
         finContrat: (l && l.finContrat && !isNaN(l.finContrat)) ? l.finContrat : null,
         dureeMois: (cRaw && cRaw.dureeMois) || moisT || null,
@@ -2185,7 +2199,7 @@
           // ⚠️ SOURCE UNIQUE : si le contrat est lié à un véhicule de la flotte, le conducteur = le CHAUFFEUR
           // ACTUEL du véhicule (fiche = leasing = export), jamais le champ figé du contrat (qui « restait » à
           // Dépôt après un changement sur la fiche). Hors flotte : repli sur le conducteur saisi sur le contrat.
-          chauffeur: (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—') ? linkedV.chauffeur : (c.conducteur || ''), loueur: (c.loueur || '').toString().trim() || localeaseLabel(),
+          chauffeur: (linkedV && linkedV.chauffeur && linkedV.chauffeur !== '—') ? linkedV.chauffeur : (c.conducteur || ''), loueur: (c.loueur || '').toString().trim() || localeaseLabel(), loueurRaw: (c.loueur || '').toString().trim(),
           debut: effDebut, finContrat: (effFinDate && !isNaN(effFinDate)) ? effFinDate : null,
           dureeMois: durEff || c.dureeMois || null, kmContrat: c.kmTotal || null, km: (kmAct != null ? kmAct : null),
           projectionFin: (proj != null ? proj : null), depassementProjete: (over > 0 ? over : 0),
@@ -2203,7 +2217,14 @@
   function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : (t === 'cadre') ? 'cadre' : 'leasing'; } catch (e) { return 'leasing'; } }
   // Lignes LEASING (toutes les unités : BPCE + Ayvens/LLD, source unique leasingUnitsAll).
   function leasingExportRows() {
-    return leasingUnitsAll().map(u => ({
+    // ⚠️ « Ce que je filtre = ce que j'exporte » : on applique au jeu COMPLET (leasingUnitsAll) EXACTEMENT
+    // les mêmes filtres que le tableau affiché — le filtre LOUEUR via la source unique loueurFiltrePasse,
+    // et la RECHERCHE texte via le même champ/même norme que renderLeasing (immat/marque/modèle/chauffeur).
+    const q = (FP.norm ? FP.norm(leasingSearch) : String(leasingSearch || '').toLowerCase()).trim();
+    return leasingUnitsAll()
+      .filter(u => loueurFiltrePasse(u.loueurRaw, u.source === 'lld'))
+      .filter(u => !q || (FP.norm ? FP.norm(`${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`) : `${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`.toLowerCase()).includes(q))
+      .map(u => ({
       loueur: u.loueur, immat: u.immat, vehicule: `${u.marque || ''} ${u.modele || ''}`.trim(), chauffeur: u.chauffeur,
       debut: _fmtDateExp(u.debut), kmContrat: (u.kmContrat != null ? u.kmContrat : ''), kmActuel: (u.km != null ? u.km : ''),
       duree: (u.dureeMois != null ? u.dureeMois : ''), loyer: (u.loyer != null ? u.loyer : ''), total: (u.total != null ? u.total : ''),
@@ -4038,7 +4059,7 @@
   // compteurs { nb, mens, eng, nbAvecLoyer } pour que l'orchestrateur additionne les KPIs.
   function _renderLocaleaseRows(){
     // Un contrat saisi appartient à un loueur (c.loueur) ; vide = « Leasing (LLD) » générique.
-    const matchLoueur = (c) => leasingLoueurFilter === 'all' || (leasingLoueurFilter === LOCALEASE_VAL ? !((c.loueur || '').toString().trim()) : (c.loueur || '').toString().trim() === leasingLoueurFilter);
+    const matchLoueur = (c) => loueurFiltrePasse((c.loueur || '').toString().trim(), true);   // SOURCE UNIQUE d'interprétation (= tableau BPCE + export)
     const tit = $('loc-title'); if (tit) tit.textContent = (leasingLoueurFilter !== 'all' && leasingLoueurFilter !== LOCALEASE_VAL) ? ('Contrats saisis — ' + leasingLoueurFilter) : 'Leasing (LLD)';
     const desc = $('loc-desc'); if (desc) desc.textContent = 'Contrats de leasing — loyers mensuels, échéances et documents.';
     // « Retrouver les PDF » : masqué hors PXP — il liste un dossier de stockage PARTAGÉ (isolation
