@@ -101,5 +101,20 @@ test('chaque unité porte loueurRaw (BPCE + LLD)', () => {
   assert.match(src, /loueurRaw: \(c\.loueur \|\| ''\)\.toString\(\)\.trim\(\)/);
 });
 
+console.log('\nCâblage SOURCE UNIQUE (pages/conducteurs.html)');
+const cond = fs.readFileSync(new URL('../../pages/conducteurs.html', import.meta.url), 'utf8');
+test('helper visibleDrivers() applique recherche + pastilles (vue cartes)', () => {
+  assert.match(cond, /function visibleDrivers\(\)\s*\{[\s\S]*?state\.search[\s\S]*?state\.view === 'cards'[\s\S]*?state\.cardFilter/);
+});
+test('la grille (renderGrid) lit visibleDrivers()', () => {
+  assert.match(cond, /function renderGrid\(\)\s*\{\s*\n\s*const filtered = visibleDrivers\(\);/);
+});
+test('export CSV (getRows) lit visibleDrivers()', () => {
+  assert.match(cond, /getRows: \(\) => visibleDrivers\(\)\.map\(d =>/);
+});
+test('relevé PDF/Excel (releve) lit visibleDrivers()', () => {
+  assert.match(cond, /rows: visibleDrivers\(\) \}\)/);
+});
+
 console.log(`\n${ko ? '❌' : '✅'} export-filtres : ${ok} ok, ${ko} ko\n`);
 process.exit(ko ? 1 : 0);

@@ -1472,9 +1472,21 @@
     if (none.length) sections.push({ title: 'Sans groupe', color: '#94A3B8', cardsHtml: none.map(cardAppHtml) });
     FP.galerie3d.mount(grid, sections, { empty: 'Aucun conducteur pour cette recherche.' });
   }
-  function renderGrid() {
+  // ⚠️ SOURCE UNIQUE des conducteurs VISIBLES (recherche + pastilles) — réutilisée par la grille ET par
+  // les exports (CSV, relevé PDF/Excel) → « ce que je filtre = ce que j'exporte ». La recherche
+  // (nom/prénom) s'applique dans toutes les vues ; les pastilles tous/actifs/en congé/avec amende ne
+  // concernent que la vue Cartes (comme à l'écran).
+  function visibleDrivers() {
     const q = FP.norm(state.search).trim();
-    const filtered = drivers.filter(d => !q || FP.norm(`${d.name} ${d.nom || ''} ${d.prenom || ''}`).includes(q));
+    let list = drivers.filter(d => !q || FP.norm(`${d.name} ${d.nom || ''} ${d.prenom || ''}`).includes(q));
+    if (state.view === 'cards') {
+      const statusFn = ({ tous: () => true, actifs: d => !enCongeAuj(d), conge: d => enCongeAuj(d), amende: d => d.amendes.length > 0 })[state.cardFilter] || (() => true);
+      list = list.filter(statusFn);
+    }
+    return list;
+  }
+  function renderGrid() {
+    const filtered = visibleDrivers();
     const grid = $('drivers-grid');
     // En quittant la Galerie, on coupe son animation (requestAnimationFrame) avant de re-rendre une autre vue.
     if (grid && state.view !== 'galerie' && grid._fpgDestroy) { try { grid._fpgDestroy(); } catch (e) {} }
@@ -3439,7 +3451,7 @@
       { key: 'nbAmendes',  label: 'Nb amendes', readonly: true, number: true },  // lecture seule
       { key: 'points',     label: 'Points retirés', readonly: true, number: true }, // lecture seule
     ],
-    getRows: () => drivers.map(d => {
+    getRows: () => visibleDrivers().map(d => {   // export = conducteurs affichés (recherche + pastilles)
       const r = condRow(d.key) || {};
       return {
         name: d.name, key: d.key,
@@ -3511,7 +3523,7 @@
   if (FP.makeExportMenu) FP.makeExportMenu({
     mount: '#cond-io-mount', sheetName: 'Conducteurs',
     baseName: () => 'conducteurs-' + new Date().toISOString().slice(0, 10),
-    releve: () => ({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows: (drivers || []).slice() }),
+    releve: () => ({ key: 'conducteurs', title: 'Relevé des conducteurs', cols: COND_FICHE_COLS.concat(cfFicheColsCond()), rows: visibleDrivers() }),   // export = conducteurs affichés (recherche + pastilles)
     imports: [{ label: 'Importer (coller Excel / CSV)', icon: 'clipboard-paste', run: () => { const bs = document.querySelectorAll('[data-data-io] button'); const b = Array.from(bs).find(x => /import/i.test(x.textContent)) || bs[bs.length - 1]; if (b) b.click(); } }],
   });
 
