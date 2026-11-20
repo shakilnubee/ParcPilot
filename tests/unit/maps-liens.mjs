@@ -75,6 +75,23 @@ test('entretiens : carnet garages → bouton Itinéraire si adresse', () => {
 test('conducteurs : fiche → lien Itinéraire hors cellule éditable', () => {
   assert.match(cond, /FP\.lienItineraire\(s, \{ className:/);
 });
+const veh = fs.readFileSync(new URL('../../pages/vehicules.html', import.meta.url), 'utf8');
+const ctr = fs.readFileSync(new URL('../../pages/contrats.html', import.meta.url), 'utf8');
+test('RDV garage (CT/révision/entretien) : champ Lieu + Itinéraire', () => {
+  assert.match(veh, /id="rdvg-lieu"/);
+  assert.match(veh, /r\.lieu && window\.FP && FP\.lienItineraire/);
+  assert.match(veh, /FP\.rdvGarage\.set\(vid, dt, mo, li\)/);
+});
+test('FP.rdvGarage stocke/propage le lieu (set + done + rouvrir)', () => {
+  assert.match(src, /set\(vehId, date, motif, lieu\)/);
+  assert.match(src, /lieu: String\(lieu \|\| ''\)\.slice\(0, 160\)/);
+  assert.ok((src.match(/lieu: r\.lieu \|\| ''/g) || []).length >= 2, 'done() et rouvrir() doivent préserver r.lieu');
+});
+test('Restitution : champ Lieu de restitution + Itinéraire, persisté', () => {
+  assert.match(ctr, /id="restit-lieu"/);
+  assert.match(ctr, /restitSet\(restitVehId, 'lieu', val\)/);
+  assert.match(ctr, /id="restit-itin"/);
+});
 
 console.log(`\n${ko ? '❌' : '✅'} maps-liens : ${ok} ok, ${ko} ko\n`);
 process.exit(ko ? 1 : 0);

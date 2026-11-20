@@ -24811,10 +24811,11 @@ FP.tachesLiees = function (filter) {
 FP.rdvGarage = {
   _map() { try { const m = FP.settings.get().vehRdvGarage; return (m && typeof m === 'object') ? m : {}; } catch (e) { return {}; } },
   get(vehId) { const r = this._map()[vehId]; return (r && typeof r === 'object' && r.date) ? r : null; },
-  set(vehId, date, motif) {
+  set(vehId, date, motif, lieu) {
     const s = FP.settings.get(); s.vehRdvGarage = (s.vehRdvGarage && typeof s.vehRdvGarage === 'object') ? s.vehRdvGarage : {};
     // ⚠️ Un nouveau RDV (date) = un rendez-vous À VENIR → on repart « non fait ». Pas de date = on retire.
-    if (!date) delete s.vehRdvGarage[vehId]; else s.vehRdvGarage[vehId] = { date: String(date).slice(0, 10), motif: String(motif || '').slice(0, 40), fait: false };
+    // `lieu` = adresse/nom du garage ou centre (optionnel) → sert au bouton Itinéraire (lien Maps sans clé).
+    if (!date) delete s.vehRdvGarage[vehId]; else s.vehRdvGarage[vehId] = { date: String(date).slice(0, 10), motif: String(motif || '').slice(0, 40), lieu: String(lieu || '').slice(0, 160), fait: false };
     FP.settings.save(s);
   },
   // « C'est fait » : on MARQUE le RDV comme fait au lieu de le SUPPRIMER. ⚠️ Une suppression de clé ne se
@@ -24824,14 +24825,14 @@ FP.rdvGarage = {
   done(vehId) {
     const s = FP.settings.get(); const m = (s.vehRdvGarage && typeof s.vehRdvGarage === 'object') ? s.vehRdvGarage : {};
     const r = m[vehId]; if (!r || !r.date) return;
-    m[vehId] = { date: r.date, motif: r.motif || '', fait: true, faitLe: new Date().toISOString().slice(0, 10) };
+    m[vehId] = { date: r.date, motif: r.motif || '', lieu: r.lieu || '', fait: true, faitLe: new Date().toISOString().slice(0, 10) };
     s.vehRdvGarage = m; FP.settings.save(s);
   },
   // Ré-ouvrir un RDV marqué fait par erreur (le remet « à faire »).
   rouvrir(vehId) {
     const s = FP.settings.get(); const m = (s.vehRdvGarage && typeof s.vehRdvGarage === 'object') ? s.vehRdvGarage : {};
     const r = m[vehId]; if (!r || !r.date) return;
-    m[vehId] = { date: r.date, motif: r.motif || '', fait: false }; s.vehRdvGarage = m; FP.settings.save(s);
+    m[vehId] = { date: r.date, motif: r.motif || '', lieu: r.lieu || '', fait: false }; s.vehRdvGarage = m; FP.settings.save(s);
   }
 };
 
