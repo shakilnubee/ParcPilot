@@ -502,6 +502,15 @@
       </div>
     </div>
 
+    <!-- 💳 Remboursements (Lot D) : fenêtre dédiée — saisie + historique + corrections. HORS #timeline → reste
+         ouverte malgré les re-rendus de la fiche. Contenu rendu par renderRembModal(). -->
+    <div id="sin-remb-modal" style="position:fixed;inset:0;background:rgba(15,30,61,.5);display:none;align-items:center;justify-content:center;z-index:85;padding:1rem">
+      <div style="background:var(--fp-surface,#fff);color:var(--fp-text,#1f2937);border-radius:1rem;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:1.1rem 1.2rem;border:1px solid var(--fp-border)">
+        <div class="flex items-center justify-between mb-2"><h3 class="font-bold flex items-center gap-2" style="color:var(--fp-primary)"><i data-lucide="hand-coins" class="w-4 h-4" style="color:var(--fp-accent)"></i> Remboursements</h3><button id="sin-remb-close" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button></div>
+        <div id="sin-remb-body"></div>
+      </div>
+    </div>
+
     <!-- Graphes -->
     <div class="grid lg:grid-cols-2 gap-6 mb-6">
       <div class="card p-6">
@@ -929,6 +938,103 @@
     if (close) close.addEventListener('click', (e) => { e.stopPropagation(); if (modal) modal.style.display = 'none'; });
   })();
 
+  // ─── 💳 Lot D — fenêtre dédiée « Remboursements » (saisie + historique + corrections) ───
+  // La saisie n'est plus inline dans la fiche : la fiche montre un résumé (Total remboursé) + un bouton
+  // qui ouvre CETTE fenêtre (hors #timeline → elle reste ouverte malgré les re-rendus de la fiche).
+  // Données : sinistreAssurance[key].versements (migration douce de l'ancien scalaire « rembourse », anti-perte).
+  // Un versement = { date, montant, reference, libelle (= commentaire, rétro-compatible) }. Un « promis » n'est
+  // jamais un encaissé : on ne saisit ici QUE des versements réellement reçus. Justificatif PDF = onglet Documents.
+  let _rembKey = null, _rembEdit = -1;
+  function _rembArr(o) {
+    if (Array.isArray(o.versements)) return o.versements.slice();
+    return (Number(o.rembourse) > 0) ? [{ date: o.dateRemboursement || '', montant: Number(o.rembourse), libelle: '(remboursement)' }] : [];
+  }
+  // Mutation + persistance (même modèle que l'ancien ajout/retrait inline) : FP.settings.save → refreshAll,
+  // puis on re-rend la fenêtre (elle est hors #timeline, donc refreshAll ne la reconstruit pas).
+  function _rembMutate(key, fn) {
+    const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
+    const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
+    o.versements = _rembArr(o); delete o.rembourse; delete o.dateRemboursement;
+    fn(o.versements);
+    if (!o.versements.length) delete o.versements;
+    // Cohérence du statut : un encaissement bascule « en attente » → « remboursé » (une seule source).
+    if ((o.versements || []).length) { s.sinistreStatut = s.sinistreStatut || {}; const c = String(s.sinistreStatut[key] || '').toLowerCase(); if (!c || c === 'attente') s.sinistreStatut[key] = 'rembourse'; }
+    if (!Object.keys(o).length) delete s.sinistreAssurance[key];
+    FP.settings.save(s); refreshAll(); if (_rembKey) renderRembModal(_rembKey);
+  }
+  function openRembModal(key) { _rembKey = key; _rembEdit = -1; renderRembModal(key); const m = $('sin-remb-modal'); if (m) { m.style.display = 'flex'; } if (window.lucide) lucide.createIcons(); }
+  function closeRembModal() { const m = $('sin-remb-modal'); if (m) m.style.display = 'none'; _rembKey = null; _rembEdit = -1; }
+  function renderRembModal(key) {
+    const body = $('sin-remb-body'); if (!body) return;
+    const s = FP.settings.get(); const o = (s.sinistreAssurance || {})[key] || {};
+    const arr = _rembArr(o);
+    const g = allGroups().find(x => x.key === key);
+    const fin = (g && FP.sinistreFin) ? FP.sinistreFin(key, g.lines) : null;
+    const immat = g ? (g.rep.vehiculeImmat || '') : '';
+    const total = arr.reduce((a, v) => a + (Number(v.montant) || 0), 0);
+    const arecevoir = fin ? fin.resteARecevoir : null;
+    const inCss = 'font-size:13px;padding:6px 8px;border:1px solid var(--fp-border);border-radius:8px;background:var(--fp-surface,#fff);color:var(--fp-text,#1f2937);width:100%;margin-top:3px';
+    const rowsHTML = arr.length ? arr.map((v, i) => `
+      <div class="flex items-center" style="gap:10px;padding:8px 0;border-bottom:1px dashed var(--fp-border);font-size:13px">
+        <span style="min-width:76px;white-space:nowrap;color:var(--fp-muted,#64748b)">${v.date ? FP.date(v.date) : '—'}</span>
+        <b style="min-width:84px;font-variant-numeric:tabular-nums">${FP.euro(v.montant)}</b>
+        <div style="flex:1;min-width:0">${v.reference ? `<div style="font-size:11px;color:var(--fp-muted,#64748b)">Réf. ${escapeHtml(v.reference)}</div>` : ''}<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(v.libelle || '')}</div></div>
+        <button type="button" class="sin-remb-edit" data-i="${i}" title="Modifier" style="color:var(--fp-accent);background:none;border:none;cursor:pointer;font-weight:600;font-size:12px">Modifier</button>
+        <button type="button" class="sin-remb-del" data-i="${i}" title="Supprimer" style="color:#b91c1c;background:none;border:none;cursor:pointer;font-weight:800;font-size:16px;line-height:1">×</button>
+      </div>`).join('') : '<div class="text-xs italic" style="color:var(--fp-muted,#94a3b8);padding:6px 0">Aucun remboursement enregistré.</div>';
+    const ed = _rembEdit >= 0 ? (arr[_rembEdit] || null) : null;
+    body.innerHTML = `
+      <div class="text-xs mb-2" style="color:var(--fp-muted,#64748b)">${escapeHtml(immat)}${total ? ' · <b>Total remboursé : ' + FP.euro(total) + '</b>' : ''}${(arecevoir != null && arecevoir > 0) ? ' · reste à recevoir ' + FP.euro(arecevoir) : ''}</div>
+      <div style="max-height:34vh;overflow:auto;margin-bottom:12px">${rowsHTML}</div>
+      <div style="border:1px solid var(--fp-border);border-radius:12px;padding:12px;background:color-mix(in srgb, var(--fp-muted, #64748b) 8%, var(--fp-surface, #fff))">
+        <div class="text-[11px] font-bold uppercase mb-2" style="color:var(--fp-muted,#64748b)">${ed ? '✏️ Modifier le remboursement' : '➕ Ajouter un remboursement'}</div>
+        <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
+          <label class="text-xs" style="color:var(--fp-muted,#64748b)">Date du versement<input id="sin-remb-date" type="date" value="${escapeHtml(ed ? (ed.date || '') : '')}" style="${inCss}"></label>
+          <label class="text-xs" style="color:var(--fp-muted,#64748b)">Montant reçu (€)<input id="sin-remb-montant" type="number" step="0.01" value="${ed && ed.montant != null ? escapeHtml(String(ed.montant)) : ''}" placeholder="0,00" style="${inCss}"></label>
+          <label class="text-xs" style="color:var(--fp-muted,#64748b)">Référence <span class="text-slate-400">(virement/chèque)</span><input id="sin-remb-ref" type="text" value="${escapeHtml(ed ? (ed.reference || '') : '')}" placeholder="—" style="${inCss}"></label>
+          <label class="text-xs" style="color:var(--fp-muted,#64748b)">Commentaire<input id="sin-remb-com" type="text" value="${escapeHtml(ed ? (ed.libelle || '') : '')}" placeholder="ex. acompte assureur" style="${inCss}"></label>
+        </div>
+        <div class="flex items-center gap-2 mt-3 flex-wrap">
+          <button type="button" class="sin-remb-save" style="font-size:13px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:8px;padding:7px 14px;cursor:pointer">${ed ? 'Enregistrer' : '+ Ajouter'}</button>
+          ${ed ? '<button type="button" class="sin-remb-canceledit" style="font-size:12px;color:var(--fp-muted,#94a3b8);background:none;border:none;cursor:pointer">Annuler la modification</button>' : ''}
+          <span class="text-[11px]" style="color:var(--fp-muted,#94a3b8);margin-left:auto">Un justificatif PDF se dépose dans l'onglet <b>Documents</b>.</span>
+        </div>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+  }
+  (function wireRembModal() {
+    const m = $('sin-remb-modal'), c = $('sin-remb-close');
+    if (c) c.addEventListener('click', (e) => { e.stopPropagation(); closeRembModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const mm = $('sin-remb-modal'); if (mm && mm.style.display === 'flex') closeRembModal(); } });
+    if (!m) return;
+    m.addEventListener('click', (e) => {
+      if (e.target === m) { closeRembModal(); return; }             // clic sur le fond = fermer
+      const key = _rembKey; if (!key) return;
+      const edit = e.target.closest('.sin-remb-edit');
+      if (edit) { _rembEdit = parseInt(edit.dataset.i, 10); renderRembModal(key); return; }
+      const cancel = e.target.closest('.sin-remb-canceledit');
+      if (cancel) { _rembEdit = -1; renderRembModal(key); return; }
+      const del = e.target.closest('.sin-remb-del');
+      if (del) { const i = parseInt(del.dataset.i, 10); if (_rembEdit === i) _rembEdit = -1; _rembMutate(key, arr => { if (i >= 0 && i < arr.length) arr.splice(i, 1); }); return; }
+      const save = e.target.closest('.sin-remb-save');
+      if (save) {
+        const d = $('sin-remb-date'), mo = $('sin-remb-montant'), rf = $('sin-remb-ref'), co = $('sin-remb-com');
+        const montant = mo ? parseFloat(String(mo.value).replace(',', '.')) : NaN;
+        if (!(montant > 0)) { if (FP.toast) FP.toast('Saisis un montant de remboursement reçu.'); if (mo) mo.focus(); return; }
+        const rec = { date: (d && d.value) || '', montant: montant, reference: ((rf && rf.value) || '').trim(), libelle: ((co && co.value) || '').trim() };
+        if (!rec.reference) delete rec.reference;
+        const s = FP.settings.get(); const o = (s.sinistreAssurance || {})[key] || {}; const arr = _rembArr(o);
+        const dup = arr.some((v, ix) => ix !== _rembEdit && Number(v.montant) === montant && (v.date || '') === rec.date);
+        if (dup && !confirm('Un remboursement du même montant à la même date existe déjà. L\'ajouter quand même ?')) return;
+        const ei = _rembEdit;
+        _rembMutate(key, a => { if (ei >= 0 && ei < a.length) a[ei] = rec; else a.push(rec); });
+        _rembEdit = -1; renderRembModal(key);
+        if (FP.toast) FP.toast(ei >= 0 ? 'Remboursement modifié.' : 'Remboursement ajouté.');
+        return;
+      }
+    });
+  })();
+
   // Suivi du remboursement (stocké dans les réglages partagés)
   const STAT_LABELS = { '': '— suivi remb.', 'attente': '⏳ En attente', 'pec': '🛡️ Prise en charge', 'rembourse': '✓ Remboursé', 'refuse': '✗ Refusé' };
   const statColor = (cur) => cur === 'rembourse' || cur === 'pec' ? '#047857' : cur === 'attente' ? '#B45309' : cur === 'refuse' ? '#B91C1C' : '#94A3B8';
@@ -1132,13 +1238,6 @@
     };
     const hint = (k) => (window.FP && FP.infoHint) ? FP.infoHint(TIP[k] || '') : '';
     const vers = fin.versements || [];
-    const versRows = vers.length ? vers.map((v, i) => `<div class="flex items-center gap-2 text-xs" style="padding:2px 0;border-bottom:1px dashed var(--fp-border)">
-        <span style="color:#64748b;min-width:68px">${v.date ? FP.date(v.date) : '—'}</span>
-        <b style="min-width:70px">${eur(v.montant)}</b>
-        <span class="text-slate-400 flex-1">${escapeHtml(v.libelle || '')}</span>
-        <button type="button" class="sin-vers-del" data-key="${escapeHtml(g.key)}" data-idx="${i}" title="Retirer ce versement" style="color:#b91c1c;background:none;border:none;cursor:pointer;font-weight:800;font-size:15px;line-height:1">×</button>
-      </div>`).join('') : '<div class="text-xs text-slate-400 italic" style="padding:2px 0">Aucun versement enregistré.</div>';
-    const inCss = 'font-size:12px;padding:3px 6px;border:1px solid var(--fp-border);border-radius:6px';
     return `
       ${opts.noParcours ? '' : `<div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">🧭 Parcours financier</div>
       ${sinFinParcoursHTML(g, fin, dv, cur)}`}
@@ -1152,13 +1251,10 @@
         <label class="text-xs text-slate-500">PEC confirmée (€)${hint('pecConfirmee')}${money('pecConfirmee', fin.pecConfirmee)}</label>
         <label class="text-xs text-slate-500">PEC payée au garage (€)${hint('pecGarage')}${money('pecGarage', fin.pecGarage)}</label>
       </div>
-      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💳 Remboursements${hint('remboursements')} <span class="text-slate-400 normal-case font-normal">· encaissé ${eur(fin.encaisse)}</span></div>
-      <div>${versRows}</div>
-      <div class="flex flex-wrap gap-1 mt-1 items-center">
-        <input class="sin-vers-date" data-key="${escapeHtml(g.key)}" type="date" style="${inCss}">
-        <input class="sin-vers-montant" data-key="${escapeHtml(g.key)}" type="number" step="0.01" placeholder="Montant €" style="width:110px;${inCss}">
-        <input class="sin-vers-lib" data-key="${escapeHtml(g.key)}" type="text" placeholder="libellé (ex. acompte)" style="flex:1;min-width:120px;${inCss}">
-        <button type="button" class="sin-vers-add" data-key="${escapeHtml(g.key)}" style="font-size:12px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:7px;padding:4px 10px;cursor:pointer">+ Ajouter</button>
+      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💳 Remboursements${hint('remboursements')}</div>
+      <div class="flex items-center justify-between gap-2 flex-wrap" style="padding:2px 0 2px">
+        <div class="text-xs">${vers.length ? `<b>Total remboursé : ${eur(fin.encaisse)}</b> <span class="text-slate-400">· ${vers.length} versement${vers.length > 1 ? 's' : ''}</span>` : '<span class="text-slate-400 italic">Aucun remboursement encaissé.</span>'}</div>
+        <button type="button" class="sin-rembours-open" data-key="${escapeHtml(g.key)}" style="font-size:12px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:8px;padding:5px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><i data-lucide="${vers.length ? 'pencil' : 'plus'}" class="w-3.5 h-3.5"></i> ${vers.length ? 'Gérer les remboursements' : 'Ajouter un remboursement'}</button>
       </div>
       <div class="grid grid-cols-3 gap-2 mt-3 text-center">
         <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à recevoir${hint('resteARecevoir')}</div><div style="margin-top:3px">${synth(fin.resteARecevoir)}</div></div>
@@ -1435,7 +1531,7 @@
         act: '' },
       { id: 'reglements', t: 'Remboursements', done: encaisse, cur: false,
         d: (fin.encaisse || 0) > 0 ? ('Encaissé : ' + eur(fin.encaisse) + '.' + (fin.resteARecevoir != null && fin.resteARecevoir > 0 ? ' Reste à recevoir : ' + eur(fin.resteARecevoir) + '.' : '')) : 'Enregistre les versements réellement reçus de l’assurance.',
-        act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter un versement</button>` },
+        act: `<button type="button" class="btn sin-rembours-open" data-key="${g.key}"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter un remboursement</button>` },
       { id: 'solde', t: 'Solde financier', done: solde, cur: false,
         d: solde ? ('Dossier soldé.' + (fin.resteChargeDef != null ? ' Reste à charge définitif : ' + eur(fin.resteChargeDef) + '.' : '')) : 'Le reste à charge définitif s’affiche une fois le dossier financièrement soldé (≠ clôture administrative).',
         act: '' },
@@ -2517,39 +2613,9 @@
       if (FP.toast) FP.toast('Photo retirée');
       return;
     }
-    // 💳 Ajouter un versement (remboursement encaissé) à un incident — tableau sinistreAssurance[key].versements
-    const vadd = e.target.closest('.sin-vers-add');
-    if (vadd) {
-      const key = vadd.dataset.key;
-      const q = sel => $('timeline').querySelector(`${sel}[data-key="${key}"]`);
-      const dEl = q('.sin-vers-date'), mEl = q('.sin-vers-montant'), lEl = q('.sin-vers-lib');
-      const montant = mEl ? parseFloat(String(mEl.value).replace(',', '.')) : NaN;
-      if (!(montant > 0)) { if (FP.toast) FP.toast('Saisis un montant de versement.'); if (mEl) mEl.focus(); return; }
-      const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
-      const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-      // Migration douce : un ancien « remboursé » scalaire devient le 1er versement, puis tableau (anti-perte).
-      if (!Array.isArray(o.versements)) o.versements = (Number(o.rembourse) > 0) ? [{ date: o.dateRemboursement || '', montant: Number(o.rembourse), libelle: '(remboursement)' }] : [];
-      delete o.rembourse; delete o.dateRemboursement;
-      o.versements.push({ date: (dEl && dEl.value) || '', montant: montant, libelle: ((lEl && lEl.value) || '').trim() });
-      // Cohérence du statut : un encaissement bascule « en attente » → « remboursé » (une seule source).
-      s.sinistreStatut = s.sinistreStatut || {};
-      const _cur = String(s.sinistreStatut[key] || '').toLowerCase();
-      if (!_cur || _cur === 'attente') s.sinistreStatut[key] = 'rembourse';
-      FP.settings.save(s); refreshAll(); return;
-    }
-    // 💳 Retirer un versement
-    const vdel = e.target.closest('.sin-vers-del');
-    if (vdel) {
-      const key = vdel.dataset.key, idx = parseInt(vdel.dataset.idx, 10);
-      const s = FP.settings.get(); s.sinistreAssurance = s.sinistreAssurance || {};
-      const o = s.sinistreAssurance[key] = s.sinistreAssurance[key] || {};
-      if (!Array.isArray(o.versements)) o.versements = (Number(o.rembourse) > 0) ? [{ date: o.dateRemboursement || '', montant: Number(o.rembourse), libelle: '(remboursement)' }] : [];
-      delete o.rembourse; delete o.dateRemboursement;
-      if (idx >= 0 && idx < o.versements.length) o.versements.splice(idx, 1);
-      if (!o.versements.length) delete o.versements;
-      if (!Object.keys(o).length) delete s.sinistreAssurance[key];
-      FP.settings.save(s); refreshAll(); return;
-    }
+    // 💳 Ouvrir la fenêtre dédiée « Remboursements » (Lot D) — saisie + historique + corrections.
+    const rOpen = e.target.closest('.sin-rembours-open');
+    if (rOpen) { openRembModal(rOpen.dataset.key); return; }
     // Helper : ouvre le sélecteur de fichier (courrier/constat) de CE dossier (input repéré par data-key —
     // les inputs ne sont plus enfants du bouton depuis la refonte « Documents du dossier »).
     const _openSinFile = (cls, key, replaceUrl) => { const inp = $('timeline').querySelector('.' + cls + '[data-key="' + key + '"]'); if (inp) { if (replaceUrl) inp.dataset.replace = replaceUrl; else delete inp.dataset.replace; inp.click(); } };
