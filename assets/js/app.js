@@ -13759,6 +13759,43 @@ FP.buildAlertes = (data) => {
     else if (diff < _aI) out.push({ niveau: 'info',   categorie: 'Assurance', message: `Assurance à renouveler (${diff}j)`, detail: veh, sort: diff, target: tgt, muteKey: mk, vehLabel: veh });
   });
 
+  // --- Sinistres CLÔTURÉS administrativement mais PAS encore SOLDÉS financièrement ---
+  // Alerte IN-APP uniquement (aucun envoi automatique). Un dossier dont le suivi administratif est
+  // terminé (dateCloture) alors que des montants restent à régler/encaisser (solde non coché) : son
+  // reste à charge n'est PAS définitif. Source unique : FP.sinistreFin (mêmes règles que la fiche).
+  // Regroupé en UNE alerte dépliable (« Voir tout (N) »), chaque ligne cliquable vers le véhicule concerné.
+  try {
+    if (FP.sinistreFin) {
+      const _s = FP.settings.get();
+      const _grp = _s.sinistreGroupes || {}, _doss = _s.sinistreAssurance || {};
+      const _byInc = {};
+      (data.factures || []).forEach(f => { if (f && String(f.type || '').toLowerCase() === 'sinistre') { const k = _grp[f.id] || f.id; (_byInc[k] = _byInc[k] || []).push(f); } });
+      Object.keys(_doss).forEach(k => { if (!_byInc[k]) _byInc[k] = []; });   // dossiers ouverts sans facture
+      const _items = [];
+      Object.keys(_byInc).forEach(k => {
+        const dv = _doss[k] || {};
+        if (!dv.dateCloture) return;                        // pas clôturé administrativement
+        const fin = FP.sinistreFin(k, _byInc[k]);
+        if (!fin || fin.solde) return;                      // déjà soldé financièrement → rien à signaler
+        const rep = _byInc[k][0];
+        const immat = (rep && rep.vehiculeImmat) || dv.plaque || '';
+        const vv = (immat && FP.vehByImmat) ? FP.vehByImmat(immat) : null;
+        const reste = (fin.resteARecevoir != null && fin.resteARecevoir > 0) ? (' · reste à recevoir ' + (FP.euro ? FP.euro(fin.resteARecevoir) : fin.resteARecevoir + ' €')) : '';
+        const lbl = ((immat || 'Sinistre') + (vv ? (' · ' + ((vv.marque || '') + ' ' + (vv.modele || '')).trim()) : '')
+          + (dv.dateCloture && FP.date ? (' — clôturé le ' + FP.date(dv.dateCloture)) : '') + reste).trim();
+        _items.push({ label: lbl, target: 'sinistres.html' + (immat ? ('?veh=' + encodeURIComponent(immat)) : '') });
+      });
+      if (_items.length) {
+        out.push({
+          niveau: 'warn', categorie: 'Sinistres',
+          message: _items.length === 1 ? '1 sinistre clôturé mais pas encore soldé' : (_items.length + ' sinistres clôturés mais pas encore soldés'),
+          detail: 'Dossier(s) terminé(s) administrativement alors que des montants restent à régler/encaisser — le reste à charge définitif n’est pas figé.',
+          target: 'sinistres.html', vehicules: _items, muteKey: 'sin-nonsolde', sort: 9000
+        });
+      }
+    }
+  } catch (e) {}
+
   // --- Contrats cadre à renouveler (accords prestataires : carte carburant, badge péage, maintenance,
   //     télématique, assurance par entité…). Échéance = dateFin, mêmes paliers que le CT/l'assurance. ---
   try {
