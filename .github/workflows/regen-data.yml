@@ -1,0 +1,61 @@
+name: Régénérer data.js
+
+# Régénère assets/js/data.js (instantané de SECOURS hors-ligne) depuis la base de PRODUCTION.
+# Déclenchement MANUEL uniquement (onglet Actions → « Run workflow »). Lecture seule de la prod via le
+# secret PROD_DB_URL (le MÊME que la sauvegarde nocturne), mapping snake→camel et strip RGPD complet
+# (dépôt public → 0 donnée personnelle). Le résultat arrive en PULL REQUEST (jamais poussé sur main) :
+# la CI (controles, e2e) doit passer avant fusion. Aucune écriture en base (SELECT uniquement).
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Dumps JSON des 4 tables (lecture seule)
+        env:
+          PROD_DB_URL: ${{ secrets.PROD_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_DB_URL:-}" ]; then echo "::error::Secret PROD_DB_URL manquant (Settings → Secrets)."; exit 1; fi
+          command -v psql >/dev/null 2>&1 || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          mkdir -p /tmp/pp-regen
+          for t in vehicules amendes factures conducteurs; do
+            psql "$PROD_DB_URL" -tAc "select coalesce(json_agg(row_to_json(x)), '[]'::json)::text from public.$t x" > "/tmp/pp-regen/$t.json"
+            echo "  $t : $(wc -c < "/tmp/pp-regen/$t.json") octets"
+          done
+
+      - name: Régénérer data.js (map camel + strip RGPD)
+        run: node scripts/regen-data.mjs /tmp/pp-regen
+
+      - name: Contrôle statique (check-bugs — inclut la garde RGPD data.js)
+        run: node scripts/check-bugs.mjs .
+
+      - name: Ouvrir la Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: data/regen-${{ github.run_id }}
+          add-paths: assets/js/data.js
+          commit-message: "data.js : régénération depuis la prod (strip RGPD)"
+          title: "data.js — régénération depuis la production (strip RGPD)"
+          body: |
+            Régénération automatique de `assets/js/data.js` (instantané de secours hors-ligne) depuis la
+            base de **production** en lecture seule, avec mapping snake→camel (identique à `FP.db`) et
+            **strip RGPD complet** : aucune donnée personnelle (dépôt public). Conducteurs anonymisés par
+            liste blanche (`key` → c1, c2…).
+
+            Déclenché manuellement via l'onglet **Actions**. À fusionner une fois la CI (`controles`, `e2e`)
+            au vert. `data.js` = instantané d'affichage hors-ligne (immat, marques, montants…), pas un annuaire.
