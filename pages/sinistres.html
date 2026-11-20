@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119j">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261119k">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261119j"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261119k"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261119j">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261119k">
 <style>
   /* Dossier assurance (mobile) : les grilles à 3 colonnes contiennent des champs date/select dont la
      largeur minimale ne rentre pas sur un petit écran → débordement. On autorise le rétrécissement
@@ -589,8 +589,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261119j"></script>
-<script src="../assets/js/supabase-client.js?v=20261119j"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261119k"></script>
+<script src="../assets/js/supabase-client.js?v=20261119k"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -606,12 +606,12 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119j"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261119k"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261119j"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261119j" defer></script>
+<script src="../assets/js/app.min.js?v=20261119k"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261119k" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1001,6 +1001,24 @@
     const synth = v => (v == null) ? td : `<b style="color:${v > 0 ? '#b45309' : '#047857'}">${eur(v)}</b>`;
     const money = (k, val) => `<input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="${k}" type="number" step="0.01" value="${val == null ? '' : val}" placeholder="—" style="${css}">`;
     const coutFactTxt = (fin.coutFacture == null) ? '<span class="text-slate-400 italic text-xs">Aucune facture</span>' : `<b>${eur(fin.coutFacture)}</b>`;
+    // ── Infobulles d'aide (UI only) : réutilisent FP.infoHint (moteur .fp-tip). Textes pédagogiques, aucun
+    //    montant d'exemple n'est jamais injecté comme valeur. PEC = Prise en charge.
+    const TIP = {
+      coutEstime: 'Montant prévisionnel des réparations, généralement indiqué sur le devis. Il peut évoluer après expertise ou démontage.',
+      coutFacture: 'Montant total TTC de la facture définitive du garage. Ce montant ne signifie pas que l’entreprise l’a payé.\n\nExemple : le garage facture 3 634,27 € TTC — c’est le coût des réparations, quel que soit celui qui règle la facture.',
+      franchiseContractuelle: 'Montant de franchise prévu dans le contrat d’assurance. Il peut différer du montant finalement appliqué.',
+      franchiseAppliquee: 'Montant de franchise effectivement retenu par l’assurance pour ce sinistre. À renseigner lorsqu’il est confirmé.\n\nExemple : l’assurance confirme une franchise de 300 €. Tu renseignes 300 €, même si la facture du garage est de 3 634,27 €.',
+      pecAnnoncee: 'Montant de prise en charge (PEC) annoncé par l’assurance, mais pas encore définitivement validé. Ne pas confondre avec la franchise.',
+      pecConfirmee: 'Montant de réparation que l’assurance a officiellement accepté de prendre en charge. Ce montant n’est pas nécessairement déjà payé.',
+      pecGarage: 'Montant réellement versé par l’assureur DIRECTEMENT au réparateur. Il ne transite pas par l’entreprise et ne doit pas être compté comme un remboursement encaissé.\n\nExemple : l’assureur verse directement 3 334,27 € au garage. Tu renseignes ce montant uniquement quand le paiement est confirmé.',
+      remboursements: 'Sommes réellement reçues par l’entreprise de la part de l’assurance. Ne pas saisir ici les paiements directs au garage.',
+      decision: 'Indique si l’assurance a accepté, refusé ou accepté sous conditions la prise en charge du sinistre.',
+      resteARecevoir: 'Montant encore attendu par l’entreprise de la part de l’assurance, selon les informations financières disponibles.',
+      resteChargePrev: 'Estimation du coût qui pourrait rester à la charge de l’entreprise après prise en charge de l’assurance. Ce montant n’est pas définitif.',
+      resteChargeDef: 'Coût réellement supporté par l’entreprise une fois les factures, prises en charge et règlements vérifiés.',
+      solde: 'À cocher uniquement lorsque la situation financière est vérifiée et qu’aucun règlement ou remboursement attendu ne reste à traiter.',
+    };
+    const hint = (k) => (window.FP && FP.infoHint) ? FP.infoHint(TIP[k] || '') : '';
     const vers = fin.versements || [];
     const versRows = vers.length ? vers.map((v, i) => `<div class="flex items-center gap-2 text-xs" style="padding:2px 0;border-bottom:1px dashed var(--fp-border)">
         <span style="color:#64748b;min-width:68px">${v.date ? FP.date(v.date) : '—'}</span>
@@ -1014,15 +1032,15 @@
       ${sinFinParcoursHTML(g, fin, dv, cur)}`}
       <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💶 Suivi financier</div>
       <div class="grid grid-cols-2 gap-2 sin-dg">
-        <label class="text-xs text-slate-500">Coût estimé (€)${money('coutEstime', fin.coutEstime)}</label>
-        <label class="text-xs text-slate-500">Coût facturé (TTC)<div style="margin-top:5px">${coutFactTxt}</div></label>
-        <label class="text-xs text-slate-500">Franchise contractuelle (€)${money('franchiseContractuelle', fin.franchiseContractuelle)}</label>
-        <label class="text-xs text-slate-500">Franchise appliquée (€)${money('franchiseAppliquee', fin.franchiseAppliquee)}</label>
-        <label class="text-xs text-slate-500">PEC annoncée (€)${money('pecAnnoncee', fin.pecAnnoncee)}</label>
-        <label class="text-xs text-slate-500">PEC confirmée (€)${money('pecConfirmee', fin.pecConfirmee)}</label>
-        <label class="text-xs text-slate-500" title="Montant payé DIRECTEMENT par l'assureur au garage (ne transite pas par l'entreprise). Il n'est donc jamais compté comme « reste à recevoir » par l'entreprise.">PEC payée au garage (€)${money('pecGarage', fin.pecGarage)}</label>
+        <label class="text-xs text-slate-500">Coût estimé (€)${hint('coutEstime')}${money('coutEstime', fin.coutEstime)}</label>
+        <label class="text-xs text-slate-500">Coût facturé (TTC)${hint('coutFacture')}<div style="margin-top:5px">${coutFactTxt}</div></label>
+        <label class="text-xs text-slate-500">Franchise contractuelle (€)${hint('franchiseContractuelle')}${money('franchiseContractuelle', fin.franchiseContractuelle)}</label>
+        <label class="text-xs text-slate-500">Franchise appliquée (€)${hint('franchiseAppliquee')}${money('franchiseAppliquee', fin.franchiseAppliquee)}</label>
+        <label class="text-xs text-slate-500">PEC annoncée (€)${hint('pecAnnoncee')}${money('pecAnnoncee', fin.pecAnnoncee)}</label>
+        <label class="text-xs text-slate-500">PEC confirmée (€)${hint('pecConfirmee')}${money('pecConfirmee', fin.pecConfirmee)}</label>
+        <label class="text-xs text-slate-500">PEC payée au garage (€)${hint('pecGarage')}${money('pecGarage', fin.pecGarage)}</label>
       </div>
-      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💳 Remboursements <span class="text-slate-400 normal-case font-normal">· encaissé ${eur(fin.encaisse)}</span></div>
+      <div class="text-[11px] font-semibold text-slate-400 uppercase mt-3 mb-1">💳 Remboursements${hint('remboursements')} <span class="text-slate-400 normal-case font-normal">· encaissé ${eur(fin.encaisse)}</span></div>
       <div>${versRows}</div>
       <div class="flex flex-wrap gap-1 mt-1 items-center">
         <input class="sin-vers-date" data-key="${escapeHtml(g.key)}" type="date" style="${inCss}">
@@ -1031,19 +1049,19 @@
         <button type="button" class="sin-vers-add" data-key="${escapeHtml(g.key)}" style="font-size:12px;font-weight:700;color:#fff;background:var(--fp-accent);border:none;border-radius:7px;padding:4px 10px;cursor:pointer">+ Ajouter</button>
       </div>
       <div class="grid grid-cols-3 gap-2 mt-3 text-center">
-        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à recevoir</div><div style="margin-top:3px">${synth(fin.resteARecevoir)}</div></div>
-        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge prévisionnel</div><div style="margin-top:3px">${fin.resteChargeIncertain ? ('<b style="color:#b45309">' + eur(fin.resteChargeMin) + ' – ' + eur(fin.resteChargeMax) + '</b><div class="text-[9px] text-slate-400 normal-case" style="font-weight:600;line-height:1.3">fourchette — sous réserve de confirmation</div>') : synth(fin.resteChargePrev)}</div></div>
-        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px;background:#fafbfc"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge définitif</div><div style="margin-top:3px">${fin.solde ? synth(fin.resteChargeDef) : '<span class="text-xs text-slate-400 italic">dossier non soldé</span>'}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à recevoir${hint('resteARecevoir')}</div><div style="margin-top:3px">${synth(fin.resteARecevoir)}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge prévisionnel${hint('resteChargePrev')}</div><div style="margin-top:3px">${fin.resteChargeIncertain ? ('<b style="color:#b45309">' + eur(fin.resteChargeMin) + ' – ' + eur(fin.resteChargeMax) + '</b><div class="text-[9px] text-slate-400 normal-case" style="font-weight:600;line-height:1.3">fourchette — sous réserve de confirmation</div>') : synth(fin.resteChargePrev)}</div></div>
+        <div style="border:1px solid var(--fp-border);border-radius:10px;padding:8px;background:#fafbfc"><div class="text-[10px] font-bold uppercase text-slate-400">Reste à charge définitif${hint('resteChargeDef')}</div><div style="margin-top:3px">${fin.solde ? synth(fin.resteChargeDef) : '<span class="text-xs text-slate-400 italic">dossier non soldé</span>'}</div></div>
       </div>
       <div class="mt-3 text-xs text-slate-600">
-        <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600">Décision de l'assurance
+        <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600">Décision de l'assurance${hint('decision')}
           <select class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="decisionStatut" style="${inCss};font-weight:600;cursor:pointer">
             ${[['', 'En attente'], ['conditionnel', 'Accord conditionnel reçu'], ['confirme', 'Accord confirmé'], ['refus', 'Refus de prise en charge'], ['sans-pec', 'Sans prise en charge']].map(([v, l]) => `<option value="${v}" ${(fin.decisionStatut || '') === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select>
         </label>
         <div class="text-[11px] text-slate-400 mt-1" style="line-height:1.4">« Accord conditionnel » = décision reçue sans montant définitif (reste à charge affiché en fourchette). « Refus » / « Sans prise en charge » → reste à charge = coût total. PEC annoncée et PEC confirmée restent distinctes ; rien n'est inventé.</div>
       </div>
-      <label class="flex items-center gap-2 mt-2 text-xs text-slate-600" style="cursor:pointer"><input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="solde" type="checkbox" ${fin.solde ? 'checked' : ''}> Dossier financièrement soldé (affiche le reste à charge définitif)</label>
+      <label class="flex items-center gap-2 mt-2 text-xs text-slate-600" style="cursor:pointer"><input class="sin-doss" data-key="${escapeHtml(g.key)}" data-k="solde" type="checkbox" ${fin.solde ? 'checked' : ''}> Dossier financièrement soldé (affiche le reste à charge définitif)${hint('solde')}</label>
       <div class="text-[11px] text-slate-400 mt-2" style="line-height:1.5">Légende : ${td} = information inconnue (jamais 0) · <b style="color:#047857">0 €</b> = valeur confirmée. La plateforme n'invente aucun montant.</div>
     `;
   }
@@ -1215,7 +1233,7 @@
   }
   // Bouton Clôturer / Rouvrir le dossier.
   function sinCloturerBtnHTML(g, dv) {
-    return `<button type="button" class="sin-cloturer" data-key="${g.key}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;border-radius:8px;padding:4px 10px;cursor:pointer;${dv.dateCloture ? 'color:#475569;background:#fff;border:1px solid var(--fp-border)' : 'color:#047857;background:#ECFDF5;border:1px solid #A7F3D0'}"><i data-lucide="${dv.dateCloture ? 'rotate-ccw' : 'check-circle-2'}" class="w-3.5 h-3.5"></i> ${dv.dateCloture ? 'Rouvrir le dossier' : 'Clôturer le dossier'}</button>`;
+    return `<button type="button" class="sin-cloturer" data-key="${g.key}" title="${dv.dateCloture ? 'Rouvrir le dossier pour reprendre le suivi.' : 'Terminer le suivi administratif du dossier. Les montants financiers ne sont pas considérés comme justifiés pour autant.'}" style="display:inline-flex;align-items:center;gap:.3rem;font-size:12px;font-weight:700;border-radius:8px;padding:4px 10px;cursor:pointer;${dv.dateCloture ? 'color:#475569;background:#fff;border:1px solid var(--fp-border)' : 'color:#047857;background:#ECFDF5;border:1px solid #A7F3D0'}"><i data-lucide="${dv.dateCloture ? 'rotate-ccw' : 'check-circle-2'}" class="w-3.5 h-3.5"></i> ${dv.dateCloture ? 'Rouvrir le dossier' : 'Clôturer le dossier'}</button>`;
   }
 
   // ─── FICHE DÉTAIL plein écran d'UN incident (design « maquette B » : hero + KPI + parcours vertical + onglets) ───
@@ -1262,7 +1280,7 @@
           : (fin.decisionStatut === 'conditionnel') ? ('Décision reçue — montants à confirmer.' + (fin.franchiseContractuelle != null ? ' Franchise contractuelle : ' + eur(fin.franchiseContractuelle) + ' (appliquée à confirmer).' : ''))
           : (dv.resp ? ('Responsabilité : ' + escapeHtml(respLbl) + '. Prise en charge à confirmer.')
           : 'Franchise appliquée · prise en charge annoncée puis confirmée — uniquement si le document le confirme.'),
-        act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Compléter</button>` },
+        act: `<button type="button" class="btn sin-dtab" data-key="${g.key}" data-tab="fin" title="Renseigner les informations nécessaires à cette étape."><i data-lucide="pencil" class="w-3.5 h-3.5"></i> Compléter</button>` },
       { id: 'facture', t: 'Facture définitive', done: facture, cur: false,
         d: facture ? ('Facturé : ' + eur(fin.coutFacture) + '.') : 'Associe la facture (module Factures) — jamais recréée, jamais additionnée au devis.',
         act: '' },
@@ -1287,8 +1305,8 @@
         ? `<div class="sin-jd" style="font-style:italic;color:#94a3b8;margin-top:2px">Ignorée${st.ig && st.ig.date ? ' le ' + fmtD(st.ig.date) : ''}${st.ig && st.ig.motif ? ' — ' + escapeHtml(st.ig.motif) : ''}${st.ig && st.ig.by ? ' · par ' + escapeHtml(st.ig.by) : ''}. Les informations saisies sont conservées.</div>`
         : '';
       const actRow = st.ignored
-        ? `<div class="sin-jact"><button type="button" class="btn sin-step-react" data-key="${escapeHtml(g.key)}" data-step="${st.id}"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Réactiver l’étape</button></div>`
-        : `<div class="sin-jact">${(st.cur && st.act) ? st.act : ''}<button type="button" class="btn sin-step-ignore" data-key="${escapeHtml(g.key)}" data-step="${st.id}" title="Passer volontairement cette étape (réversible, sans perdre les infos déjà saisies)"><i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> Ignorer</button></div>`;
+        ? `<div class="sin-jact"><button type="button" class="btn sin-step-react" data-key="${escapeHtml(g.key)}" data-step="${st.id}" title="Rouvrir une étape ignorée, sans perdre les informations déjà enregistrées."><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Réactiver l’étape</button></div>`
+        : `<div class="sin-jact">${(st.cur && st.act) ? st.act : ''}<button type="button" class="btn sin-step-ignore" data-key="${escapeHtml(g.key)}" data-step="${st.id}" title="Passer volontairement cette étape sans la considérer comme terminée (réversible, les infos et documents déjà saisis sont conservés)."><i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> Ignorer</button></div>`;
       return `<div class="sin-jstep ${cls}">
         <div class="sin-jbadge">${badge}</div>
         <div class="sin-jmain">
