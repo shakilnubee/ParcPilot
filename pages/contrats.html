@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120b">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261120b"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261120c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261120b">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261120c">
 <style>
   .filter-chip { padding: .35rem .8rem; border-radius: 9999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--fp-border); background: white; color: var(--fp-muted); cursor: pointer; transition: all .12s; }
   .filter-chip:hover { border-color: var(--fp-accent); color: var(--fp-primary); }
@@ -832,8 +832,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261120b"></script>
-<script src="../assets/js/supabase-client.js?v=20261120b"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261120c"></script>
+<script src="../assets/js/supabase-client.js?v=20261120c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -849,11 +849,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120b"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261120b"></script>
+<script src="../assets/js/app.min.js?v=20261120c"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -2216,22 +2216,25 @@
   // Avant, seul « assurance » était reconnu → sur l'onglet « Contrats cadre » l'export sortait du LEASING (bug).
   function activeCtab() { try { const h = $('contrat-sections'); const t = h && h.getAttribute('data-ctab'); return (t === 'assurance') ? 'assurance' : (t === 'cadre') ? 'cadre' : 'leasing'; } catch (e) { return 'leasing'; } }
   // Lignes LEASING (toutes les unités : BPCE + Ayvens/LLD, source unique leasingUnitsAll).
-  function leasingExportRows() {
-    // ⚠️ « Ce que je filtre = ce que j'exporte » : on applique au jeu COMPLET (leasingUnitsAll) EXACTEMENT
-    // les mêmes filtres que le tableau affiché — le filtre LOUEUR via la source unique loueurFiltrePasse,
-    // et la RECHERCHE texte via le même champ/même norme que renderLeasing (immat/marque/modèle/chauffeur).
-    const q = (FP.norm ? FP.norm(leasingSearch) : String(leasingSearch || '').toLowerCase()).trim();
-    return leasingUnitsAll()
-      .filter(u => loueurFiltrePasse(u.loueurRaw, u.source === 'lld'))
-      .filter(u => !q || (FP.norm ? FP.norm(`${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`) : `${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`.toLowerCase()).includes(q))
-      .map(u => ({
+  // Conversion d'une unité leasing → ligne d'export (source unique du format, filtrée OU complète).
+  function leasingUnitToRow(u) {
+    return {
       loueur: u.loueur, immat: u.immat, vehicule: `${u.marque || ''} ${u.modele || ''}`.trim(), chauffeur: u.chauffeur,
       debut: _fmtDateExp(u.debut), kmContrat: (u.kmContrat != null ? u.kmContrat : ''), kmActuel: (u.km != null ? u.km : ''),
       duree: (u.dureeMois != null ? u.dureeMois : ''), loyer: (u.loyer != null ? u.loyer : ''), total: (u.total != null ? u.total : ''),
       fin: u.finContrat ? _fmtDateExp(u.finContrat.toISOString().slice(0, 10)) : '',
       statutKm: _statutKmTxt(u.niveau), depassement: ((u.niveau === 'danger' || u.niveau === 'warn') && u.depassementProjete > 0 ? u.depassementProjete : ''),
-    }));
+    };
   }
+  // Unités leasing VISIBLES (filtres de la page) — source unique du filtrage d'export (loueur + recherche),
+  // alignée sur le tableau affiché.
+  function leasingUnitsVisibles() {
+    const q = (FP.norm ? FP.norm(leasingSearch) : String(leasingSearch || '').toLowerCase()).trim();
+    return leasingUnitsAll()
+      .filter(u => loueurFiltrePasse(u.loueurRaw, u.source === 'lld'))
+      .filter(u => !q || (FP.norm ? FP.norm(`${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`) : `${u.immat || ''} ${u.marque || ''} ${u.modele || ''} ${u.chauffeur || ''}`.toLowerCase()).includes(q));
+  }
+  function leasingExportRows() { return leasingUnitsVisibles().map(leasingUnitToRow); }
   // Lignes ASSURANCE (une par véhicule) : assureur rattaché + prime HT/TTC annuelle.
   // ⚠️ MÊME liste que l'écran (filtre assureur + tri) via assurVisibleVehicles → export = affichage.
   function assuranceExportRows() {
@@ -2332,6 +2335,15 @@
     mount: '#contrat-io-mount', sheetName: 'Contrats',
     baseName: () => (typeof activeCtab === 'function' ? activeCtab() : 'contrats') + '-' + new Date().toISOString().slice(0, 10),
     releve: () => ({ key: 'contrats-' + activeCtab(), title: ctabTitle(), cols: toFicheCols(ctabCols()), rows: ctabRows() }),
+    // Filtres repris dans le centre + jeu complet (bouton « Exporter toutes les données ») — onglet Leasing.
+    activeFilters: () => {
+      if (activeCtab() !== 'leasing') return [];
+      const out = [];
+      if (leasingLoueurFilter && leasingLoueurFilter !== 'all') out.push({ label: 'Loueur', value: (leasingLoueurFilter === LOCALEASE_VAL ? localeaseLabel() : leasingLoueurFilter) });
+      if ((leasingSearch || '').trim()) out.push({ label: 'Recherche', value: leasingSearch.trim() });
+      return out;
+    },
+    allRows: () => (activeCtab() === 'leasing') ? leasingUnitsAll().map(leasingUnitToRow) : ctabRows(),
   });
 
   // ---------- Édition du forfait leasing ----------
