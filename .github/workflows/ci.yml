@@ -60,6 +60,9 @@ jobs:
       - name: File d'écriture (rien de perdu pendant un renvoi)
         run: node tests/unit/persist-file.mjs
 
+      - name: Exports — ce que je filtre = ce que j'exporte (Contrats/Leasing)
+        run: node tests/unit/export-filtres.mjs
+
   # Tests « fumée » Playwright : chaque page clé se charge-t-elle sans erreur JS ? (page blanche = JS cassé)
   # Job séparé car il installe un navigateur (plus lourd) ; reste bloquant pour une PR.
   e2e:
