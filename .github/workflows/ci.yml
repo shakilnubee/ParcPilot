@@ -69,6 +69,9 @@ jobs:
       - name: Fondations quota Google (compteur, 80/90 %, sécurité)
         run: node tests/unit/google-quota.mjs
 
+      - name: Passerelle Google Maps (clé serveur, quota avant appel)
+        run: node tests/unit/google-maps.mjs
+
   # Tests « fumée » Playwright : chaque page clé se charge-t-elle sans erreur JS ? (page blanche = JS cassé)
   # Job séparé car il installe un navigateur (plus lourd) ; reste bloquant pour une PR.
   e2e:
