@@ -9625,6 +9625,56 @@ FP.googleQuota = {
   },
 };
 
+// ===== GOOGLE MAPS — Geocoding & autocomplétion d'adresse (passerelle serveur google-maps) =====
+// Tout passe par l'Edge Function `google-maps` : la clé reste côté serveur et chaque appel est COMPTÉ
+// (coupure 90 %). DORMANT tant qu'aucune clé n'est posée (ping → configured:false) : les helpers ne
+// déclenchent alors AUCUN appel. ⚠️ Ne JAMAIS appeler Google directement depuis le navigateur.
+FP.geo = {
+  _invoke(body) {
+    if (!(FP.supabase && FP.supabase.functions)) return Promise.resolve({ ok: false, configured: false });
+    return FP.supabase.functions.invoke('google-maps', { body }).then(r => (r && r.data) || { ok: false }).catch(e => ({ ok: false, error: String(e && e.message || e) }));
+  },
+  _configured: null,
+  async ping() { try { const d = await this._invoke({ action: 'ping' }); this._configured = !!(d && d.configured); return this._configured; } catch (e) { return false; } },
+  async geocode(q) { if (!String(q || '').trim()) return { ok: false }; return this._invoke({ action: 'geocode', q: String(q) }); },
+  async autocomplete(q, pays) { if (!String(q || '').trim()) return { ok: true, suggestions: [] }; return this._invoke({ action: 'autocomplete', q: String(q), pays: pays || 'fr' }); },
+};
+// Attache une autocomplétion d'adresse sur un <input> (dormante tant que la clé n'est pas posée).
+// Débounce 350 ms, menu au style du site, résultats via la passerelle (donc comptés). onPick(suggestion).
+// Lot 2b : prête à être branchée sur les champs adresse (garages, conducteurs, société) une fois la clé
+// configurée et testée en vrai.
+FP.adresseAutocomplete = function (input, opts) {
+  opts = opts || {};
+  if (!input || input._fpGeoWired) return;
+  input._fpGeoWired = true;
+  let t = null, box = null;
+  const close = () => { if (box) { box.remove(); box = null; } };
+  const run = async () => {
+    const q = (input.value || '').trim();
+    if (q.length < 4) { close(); return; }
+    let r; try { r = await FP.geo.autocomplete(q, opts.pays); } catch (e) { return; }
+    if (!r || r.configured === false || !Array.isArray(r.suggestions) || !r.suggestions.length) { close(); return; }
+    close();
+    box = document.createElement('div');
+    box.style.cssText = 'position:absolute;z-index:70;background:var(--fp-surface,#fff);border:1px solid var(--fp-border,#e2e8f0);border-radius:8px;box-shadow:0 10px 30px rgba(15,23,42,.18);max-height:240px;overflow:auto;min-width:220px;font-size:13px';
+    const rect = input.getBoundingClientRect();
+    box.style.left = (window.scrollX + rect.left) + 'px';
+    box.style.top = (window.scrollY + rect.bottom + 2) + 'px';
+    box.style.width = rect.width + 'px';
+    r.suggestions.slice(0, 6).forEach(s => {
+      const it = document.createElement('div');
+      it.textContent = s.description; it.style.cssText = 'padding:7px 10px;cursor:pointer';
+      it.addEventListener('mousedown', (e) => { e.preventDefault(); input.value = s.description; close(); if (typeof opts.onPick === 'function') opts.onPick(s); input.dispatchEvent(new Event('change', { bubbles: true })); });
+      it.addEventListener('mouseenter', () => { it.style.background = 'var(--fp-muted-bg,#f1f5f9)'; });
+      it.addEventListener('mouseleave', () => { it.style.background = ''; });
+      box.appendChild(it);
+    });
+    document.body.appendChild(box);
+  };
+  input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 350); });
+  input.addEventListener('blur', () => setTimeout(close, 150));
+};
+
 // ===== CHAMPS PERSONNALISÉS (par société) — SOURCE UNIQUE =====
 // Définitions dans settings.customFields ; valeurs dans settings.vehCustom / condCustom (keyées par fiche).
 // Utilisé par l'écran Paramètres (gestion des champs) ET le rendu sur les fiches véhicule/conducteur.
