@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120e">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120f">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261120e"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261120f"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261120e">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261120f">
 <style>
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
@@ -213,6 +213,7 @@
       <button class="set-tab" data-sec="automatisations"><i data-lucide="zap"></i> Automatisations</button>
       <button class="set-tab" data-sec="societe"><i data-lucide="building-2"></i> Société</button>
       <button class="set-tab" data-sec="proprietaires"><i data-lucide="landmark"></i> Propriétaires</button>
+      <button class="set-tab" data-sec="google"><i data-lucide="globe"></i> Intégrations Google</button>
       <button class="set-tab" data-sec="emails"><i data-lucide="mail"></i> E-mails</button>
       <button class="set-tab" data-sec="donnees"><i data-lucide="database"></i> Données</button>
       <button class="set-tab" data-sec="journal"><i data-lucide="history"></i> Journal</button>
@@ -571,6 +572,17 @@
         <button class="btn btn-outline text-sm" id="btn-proprio-add"><i data-lucide="plus" class="w-4 h-4"></i> Ajouter une entité</button>
       </div>
       <div id="proprio-list" class="text-sm"></div>
+    </div>
+
+    <!-- Section Intégrations Google (CEO/Admin) — compteur de quota gratuit (Lot 2a) -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="google">
+      <div class="set-head">
+        <h2 class="set-title"><i data-lucide="globe"></i> Intégrations Google</h2>
+        <p>Suivi de la consommation des API Google et de la <b>limite gratuite</b>. Alerte à <b>80&nbsp;%</b>, coupure automatique à <b>90&nbsp;%</b> — pour ne jamais payer sans l'avoir décidé.</p>
+      </div>
+      <div id="google-quota-box" class="text-sm">
+        <div class="text-slate-500">Chargement…</div>
+      </div>
     </div>
 
     <!-- Section Données -->
@@ -980,8 +992,8 @@
 <!-- Toast -->
 <div class="toast" id="toast">Enregistré ✓</div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261120e"></script>
-<script src="../assets/js/supabase-client.js?v=20261120e"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261120f"></script>
+<script src="../assets/js/supabase-client.js?v=20261120f"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -997,10 +1009,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120f"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261120e"></script>
+<script src="../assets/js/app.min.js?v=20261120f"></script>
 <script>
   lucide.createIcons();
   const $ = (id) => document.getElementById(id);
@@ -1141,6 +1153,47 @@
     if (sec === 'donnees') { try { renderAutoBackups(); } catch (e) {} try { renderServerBackups(); } catch (e) {} }
     // Onglet « Envois e-mails » : charger le journal Resend à la première ouverture (puis mémorisé).
     if (sec === 'envois') { try { renderEnvois(); } catch (e) {} }
+    // Onglet « Intégrations Google » : charger la conso quota à l'ouverture.
+    if (sec === 'google') { try { renderGoogleQuota(); } catch (e) {} }
+  }
+
+  // Écran « Intégrations Google » : affiche, par API, la conso du mois vs la limite GRATUITE, avec
+  // alerte 80 % / coupure 90 %. Source unique = FP.googleQuota.status() (Edge Function google-quota).
+  // Lot 2a : aucune clé n'est encore posée → bandeau « désactivé » ; les compteurs sont à 0 jusqu'au Lot 2b.
+  async function renderGoogleQuota() {
+    const box = document.getElementById('google-quota-box'); if (!box) return;
+    box.innerHTML = '<div class="text-slate-500">Chargement…</div>';
+    let st = null;
+    try { st = (window.FP && FP.googleQuota) ? await FP.googleQuota.status() : null; } catch (e) { st = null; }
+    const esc = (window.FP && FP.esc) ? FP.esc : (s => s);
+    const banner = (st && st.cleConfiguree)
+      ? '<div class="p-3 rounded-lg mb-3" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46"><b>✅ Intégration active.</b> Les appels sont comptés et coupés à 90 % de la limite gratuite.</div>'
+      : '<div class="p-3 rounded-lg mb-3" style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412"><b>🔌 Intégration désactivée.</b> Aucune clé Google n\'est configurée pour le moment : aucun appel, aucun coût. Le suivi ci-dessous s\'activera dès qu\'une clé sera posée (étape suivante).</div>';
+    const apis = (st && Array.isArray(st.apis)) ? st.apis : [];
+    let resetTxt = '';
+    try { if (st && st.reset) { const d = new Date(st.reset); resetTxt = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' }); } } catch (e) {}
+    const rows = apis.map(a => {
+      const pct = (a.pct != null) ? a.pct : 0;
+      const col = a.suspendu ? '#dc2626' : (a.alerte ? '#d97706' : '#059669');
+      const w = Math.max(2, Math.min(100, pct));
+      const etat = a.suspendu ? '⛔ Coupé (90 %)' : (a.alerte ? '⚠️ Proche de la limite (80 %)' : 'OK');
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--fp-border,#e2e8f0)">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline">
+          <div><b>${esc(a.label)}</b> <span class="text-xs text-slate-400">· palier ${esc(a.palier || '')}</span></div>
+          <div class="text-xs" style="color:${col};font-weight:700">${esc(etat)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:5px">
+          <div style="flex:1;height:8px;border-radius:9999px;background:#eef2f7;overflow:hidden"><div style="height:100%;width:${w}%;background:${col}"></div></div>
+          <div class="text-xs" style="white-space:nowrap;color:#475569"><b>${(a.compteur || 0).toLocaleString('fr-FR')}</b> / ${(a.plafond || 0).toLocaleString('fr-FR')} ${a.pct != null ? '· ' + a.pct + '%' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+    box.innerHTML = banner
+      + '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px"><div class="text-xs text-slate-500">Consommation du mois en cours (limite gratuite mensuelle par API).</div>'
+      + (resetTxt ? `<div class="text-xs text-slate-500">Réinitialisation le <b>${esc(resetTxt)}</b></div>` : '') + '</div>'
+      + (rows || '<div class="text-slate-500 text-sm">Aucune API suivie pour le moment.</div>')
+      + '<p class="text-xs text-slate-400 mt-3">🔒 Les clés et jetons restent côté serveur. Le comptage est fiable même si plusieurs personnes utilisent l\'app en même temps. En cas d\'indisponibilité de Google, Parc Pilot reste utilisable (lien Maps, saisie manuelle, export local).</p>';
+    if (window.lucide && lucide.createIcons) { try { lucide.createIcons(); } catch (e) {} }
   }
 
   function setupSettingsTabs() {
