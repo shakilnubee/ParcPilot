@@ -1899,7 +1899,7 @@
       <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div><label class="field-label !mb-0">Date</label><input type="date" id="rdvg-date" class="field-input" value="${escapeHtml(r.date || '')}" style="width:auto"></div>
         <div><label class="field-label !mb-0">Motif</label><select id="rdvg-motif" class="field-input" style="width:auto">${motifs.map(m => `<option ${((r.motif || '') === m) ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-        <div style="flex:1 1 220px;min-width:160px"><label class="field-label !mb-0">Lieu <span class="text-slate-400 font-normal">(garage / centre — optionnel)</span></label><input type="text" id="rdvg-lieu" class="field-input" value="${escapeHtml(r.lieu || '')}" placeholder="Nom ou adresse du garage" style="width:100%"></div>
+        <div style="flex:1 1 220px;min-width:160px"><label class="field-label !mb-0">Lieu <span class="text-slate-400 font-normal">(garage / centre — optionnel)</span></label><input type="text" id="rdvg-lieu" class="field-input" data-fp-adresse value="${escapeHtml(r.lieu || '')}" placeholder="Nom ou adresse du garage" style="width:100%"></div>
         <button type="button" id="rdvg-save" class="btn btn-dark text-sm">${done ? 'Reprogrammer' : 'Enregistrer'}</button>
         ${(r.lieu && window.FP && FP.lienItineraire) ? FP.lienItineraire(r.lieu, { className: 'btn btn-outline text-sm' }) : ''}
         ${(r.date && !done) ? '<button type="button" id="rdvg-done" class="btn btn-dark text-sm"><i data-lucide="check" class="w-4 h-4"></i> C\'est fait</button>' : ''}

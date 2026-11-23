@@ -9704,6 +9704,18 @@ FP.adresseAutocomplete = function (input, opts) {
   input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 350); });
   input.addEventListener('blur', () => setTimeout(close, 150));
 };
+// Câblage GLOBAL (source unique) : tout <input data-fp-adresse> reçoit l'autocomplétion au 1er focus,
+// y compris les champs créés dynamiquement dans les modales. Idempotent (flag _fpGeoWired), dormant si
+// la clé Google est absente. Pays via data-fp-pays (défaut 'fr'). → plus besoin de câbler page par page.
+(function () {
+  if (FP._adresseGlobalWired) return; FP._adresseGlobalWired = true;
+  document.addEventListener('focusin', function (e) {
+    var el = e.target;
+    if (el && el.matches && el.matches('input[data-fp-adresse]') && !el._fpGeoWired) {
+      try { FP.adresseAutocomplete(el, { pays: el.getAttribute('data-fp-pays') || 'fr' }); } catch (_) {}
+    }
+  });
+})();
 
 // ===== CHAMPS PERSONNALISÉS (par société) — SOURCE UNIQUE =====
 // Définitions dans settings.customFields ; valeurs dans settings.vehCustom / condCustom (keyées par fiche).
