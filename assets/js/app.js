@@ -9694,7 +9694,7 @@ FP.adresseAutocomplete = function (input, opts) {
     r.suggestions.slice(0, 6).forEach(s => {
       const it = document.createElement('div');
       it.textContent = s.description; it.style.cssText = 'padding:7px 10px;cursor:pointer';
-      it.addEventListener('mousedown', (e) => { e.preventDefault(); input.value = s.description; close(); if (typeof opts.onPick === 'function') opts.onPick(s); input.dispatchEvent(new Event('change', { bubbles: true })); });
+      it.addEventListener('mousedown', (e) => { e.preventDefault(); input.value = s.description; close(); if (typeof opts.onPick === 'function') opts.onPick(s); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); });
       it.addEventListener('mouseenter', () => { it.style.background = 'var(--fp-muted-bg,#f1f5f9)'; });
       it.addEventListener('mouseleave', () => { it.style.background = ''; });
       box.appendChild(it);
