@@ -685,6 +685,12 @@
   const state = { search: '', annee: 'all', vehicule: 'all', conducteur: 'all', assureur: 'all', resp: 'all', remb: 'all', dateFrom: '', dateTo: '', sortKey: 'date', sortDir: 'desc' };
   const REGLES = ['rembourse', 'pec', 'refuse'];
   const rembOf = (g) => { try { return (FP.settings.get().sinistreStatut || {})[g.key] || ''; } catch (e) { return ''; } };
+  // Étape « Remboursements » (id 'reglements') IGNORÉE / sans objet pour ce dossier ?
+  const rembEtapeIgnoree = (key) => { try { return !!(((FP.settings.get().sinistreEtapeIgnore || {})[key] || {})['reglements']); } catch (e) { return false; } };
+  // Statut EFFECTIF « remboursement en attente » — SOURCE UNIQUE (filtre + badge onglet + compteur bas de
+  // page) : explicitement 'attente' ET l'étape Remboursements n'est NI ignorée NI sans objet. Un montant
+  // remboursé à 0 € ou un reste à charge positif ne suffisent pas (on se fie au statut, pas aux montants).
+  const rembEnAttente = (g) => rembOf(g) === 'attente' && !rembEtapeIgnoree(g.key);
   // Dossier clôturé = date de clôture renseignée (source unique : sinistreAssurance).
   const clotOf = (g) => { try { return !!(((FP.settings.get().sinistreAssurance || {})[g.key]) || {}).dateCloture; } catch (e) { return false; } };
   // « Action requise » = le parcours du dossier attend une action de TA part (même source
@@ -693,7 +699,7 @@
   // Filtre « suivi » unique (priorité / financier / clôturé), partagé par la liste ET la sélection multiple.
   function filterByTab(groups) {
     if (state.remb === 'action') return groups.filter(actionRequiseOf);
-    if (state.remb === 'attente') return groups.filter(g => rembOf(g) === 'attente');
+    if (state.remb === 'attente') return groups.filter(rembEnAttente);
     if (state.remb === 'regles') return groups.filter(g => REGLES.includes(rembOf(g)));
     if (state.remb === 'clotures') return groups.filter(clotOf);
     return groups;
@@ -1827,14 +1833,14 @@
     // Onglet de suivi : Action requise (priorité) · Remb. en attente / Réglés (financier) · Clôturés (source unique : filterByTab).
     groups = filterByTab(groups);
     // TRI : « en attente » toujours EN HAUT, puis non suivis, puis réglés ; par date dans chaque groupe.
-    const prio = g => { const s = rembOf(g); if (s === 'attente') return 0; if (s === '') return 1; if (s === 'pec') return 2; return 3; };
+    const prio = g => { if (rembEnAttente(g)) return 0; const s = rembOf(g); if (s === '') return 1; if (s === 'pec') return 2; return 3; };
     // Tri utilisateur (colonne + sens) appliqué DANS chaque niveau de priorité : on trie d'abord
     // selon le choix (sortRowsSin), puis un tri STABLE par priorité garde « en attente » en haut.
     groups = sortRowsSin(groups).sort((a, b) => prio(a) - prio(b));
     // Compteurs + onglet actif
     { const all = allGroups();
       const nac = $('sin-n-action'); if (nac) nac.textContent = all.filter(actionRequiseOf).length;
-      const na = $('sin-n-attente'); if (na) na.textContent = all.filter(g => rembOf(g) === 'attente').length;
+      const na = $('sin-n-attente'); if (na) na.textContent = all.filter(rembEnAttente).length;
       const nr = $('sin-n-regles'); if (nr) nr.textContent = all.filter(g => REGLES.includes(rembOf(g))).length;
       const nc = $('sin-n-clotures'); if (nc) nc.textContent = all.filter(clotOf).length;
       document.querySelectorAll('#sin-filters .sin-chip').forEach(ch => ch.classList.toggle('active', ch.dataset.remb === state.remb));
@@ -1859,9 +1865,8 @@
       tl.innerHTML = (sinListMode === 'tableau') ? sinTableHTML(shown) : sinApercuHTML(shown);
       sinSyncViewToggle();
     }
-    const stat = FP.settings.get().sinistreStatut || {};
     const all = allGroups();
-    const attente = all.filter(g => stat[g.key] === 'attente').length;
+    const attente = all.filter(rembEnAttente).length;
     $('result-count').innerHTML = `${groups.length} incident${groups.length > 1 ? 's' : ''} sur ${all.length}` + (attente ? ` · <b style="color:#B45309">${attente} en attente de remboursement</b>` : '');
     if (sinBulk) sinBulk.refresh();
     lucide.createIcons();
