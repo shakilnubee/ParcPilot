@@ -75,6 +75,9 @@ jobs:
       - name: Isolation EDL par affectation (sécurité portail conducteur)
         run: node tests/unit/edl-isolation.mjs
 
+      - name: Visionneuse PDF — ajustement initial fiable + netteté
+        run: node tests/unit/viewer-fit.mjs
+
   # Tests « fumée » Playwright : chaque page clé se charge-t-elle sans erreur JS ? (page blanche = JS cassé)
   # Job séparé car il installe un navigateur (plus lourd) ; reste bloquant pour une PR.
   e2e:
