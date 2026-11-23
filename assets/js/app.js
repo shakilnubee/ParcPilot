@@ -9216,9 +9216,12 @@ FP.docReview = {
 
     function fitScale(vp1) {
       // vp1 = viewport à scale 1. On calcule l'échelle qui fait tenir la page dans la zone (page) ou en largeur.
-      const pad = 16;
-      const availW = Math.max(60, (o.wrap.clientWidth || 320) - pad);
-      const availH = Math.max(60, (o.wrap.clientHeight || 300) - pad);
+      // ⚠️ On déduit le PADDING RÉEL de la scène (variable selon la page : 10px, 14px…) — sinon un padding
+      // plus grand que l'estimation faisait légèrement DÉPASSER la page (barre de défilement / bas coupé).
+      let padX = 16, padY = 16;
+      try { const cs = getComputedStyle(o.wrap); padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0); padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0); } catch (e) {}
+      const availW = Math.max(60, (o.wrap.clientWidth || 320) - padX - 2);
+      const availH = Math.max(60, (o.wrap.clientHeight || 300) - padY - 2);
       if (S.mode === 'width') return availW / vp1.width;
       return Math.min(availW / vp1.width, availH / vp1.height); // page
     }
@@ -9293,11 +9296,29 @@ FP.docReview = {
     // Re-fit au redimensionnement (rotation mobile, fenêtre PC) — seulement en mode ajusté (pas zoom manuel).
     let rAf = 0; const onResize = () => { if (S.dead) return; cancelAnimationFrame(rAf); rAf = requestAnimationFrame(() => { if (S.zoom === 1) render(); }); };
     window.addEventListener('resize', onResize);
+    // ⚠️ AJUSTEMENT INITIAL FIABLE : la scène atteint souvent sa taille DÉFINITIVE APRÈS le 1er rendu
+    // (panneau sticky/flex, polices, mise en page tardive) → sans ça, la 1re page pouvait être coupée en bas
+    // et il fallait cliquer +/− pour réajuster. Un ResizeObserver re-calcule le fit dès que la BOÎTE change
+    // de taille (en mode ajusté uniquement) → page entière correcte dès l'ouverture, sans action.
+    let ro = null, lastW = 0, lastH = 0;
+    try {
+      if (typeof ResizeObserver === 'function') {
+        ro = new ResizeObserver(() => {
+          if (S.dead || S.zoom !== 1) return;
+          const w = o.wrap.clientWidth || 0, h = o.wrap.clientHeight || 0;
+          if (w < 20 || h < 20) return;
+          if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) return;  // ignore les micro-variations (anti-boucle)
+          lastW = w; lastH = h;
+          cancelAnimationFrame(rAf); rAf = requestAnimationFrame(() => { if (!S.dead && S.zoom === 1) render(); });
+        });
+        ro.observe(o.wrap);
+      }
+    } catch (e) { ro = null; }
 
     render();
     return {
       render: render,
-      cancel: function () { S.dead = true; try { if (S.task && S.task.cancel) S.task.cancel(); } catch (e) {} try { keyTarget.removeEventListener('keydown', onKey); } catch (e) {} try { window.removeEventListener('resize', onResize); } catch (e) {} }
+      cancel: function () { S.dead = true; try { if (S.task && S.task.cancel) S.task.cancel(); } catch (e) {} try { if (ro) ro.disconnect(); } catch (e) {} try { keyTarget.removeEventListener('keydown', onKey); } catch (e) {} try { window.removeEventListener('resize', onResize); } catch (e) {} }
     };
   },
 
