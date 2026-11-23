@@ -1258,7 +1258,7 @@
       { key: 'heureRetour',  label: 'Heure de retour' },
       { key: 'renduPar',     label: 'Rendu par' },
     ],
-    getRows: () => cache,
+    getRows: () => filteredEmprunts(),   // ⚠️ exporter la LISTE FILTRÉE (recherche + statut + période), pas tout le cache
     onImport: (records) => {
       let added = 0, updated = 0;
       records.forEach(rec => {
