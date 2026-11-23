@@ -156,5 +156,15 @@ test('véhicules : Excel/CSV et relevé PDF partagent la même source filtrée',
   assert.match(veh, /releve: vehFicheConfig/);
 });
 
+const emp = fs.readFileSync(new URL('../../pages/emprunts.html', import.meta.url), 'utf8');
+test('emprunts : l\'export CSV (injectDataIO) lit la liste FILTRÉE, pas tout le cache', () => {
+  // injectDataIO rend son propre bouton export → doit exporter filteredEmprunts(), jamais le cache complet.
+  assert.match(emp, /getRows: \(\) => filteredEmprunts\(\),\s*\/\/ ⚠️ exporter la LISTE FILTRÉE/);
+  const io = emp.match(/FP\.injectDataIO\(\{[\s\S]*?getRows:[^\n]*\n/);
+  assert.ok(io && !/getRows: \(\) => cache\b/.test(io[0]), 'injectDataIO ne doit plus exporter cache brut');
+  // Le centre d'export (makeExportMenu) utilise déjà filteredEmprunts via releve.
+  assert.match(emp, /releve: \(\) => \(\{ key: 'emprunts'[\s\S]*?rows: filteredEmprunts\(\)/);
+});
+
 console.log(`\n${ko ? '❌' : '✅'} export-filtres : ${ok} ok, ${ko} ko\n`);
 process.exit(ko ? 1 : 0);
