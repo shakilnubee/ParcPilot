@@ -9677,6 +9677,10 @@ FP.adresseAutocomplete = function (input, opts) {
   opts = opts || {};
   if (!input || input._fpGeoWired) return;
   input._fpGeoWired = true;
+  // Neutralise l'autofill natif du navigateur (Chrome ignore autocomplete="off" pour les adresses et se
+  // base sur le libellé « Adresse » → sa liste se superposerait à la nôtre). 'new-password' le désactive
+  // de façon fiable sans déclencher de gestion de mot de passe sur un champ texte.
+  try { input.setAttribute('autocomplete', 'new-password'); input.setAttribute('autocorrect', 'off'); input.setAttribute('autocapitalize', 'off'); input.setAttribute('spellcheck', 'false'); } catch (e) {}
   let t = null, box = null;
   const close = () => { if (box) { box.remove(); box = null; } };
   const run = async () => {
