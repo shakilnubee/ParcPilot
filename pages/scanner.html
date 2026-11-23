@@ -9,11 +9,11 @@
 <title>Scanner IA — Parc Pilot</title>
 <link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#0F1E3D">
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261120g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261123a">
 <script>window.lucide={createIcons:function(){}};</script>
-<script defer src="../assets/js/lucide.min.js?v=20261120g"></script>
+<script defer src="../assets/js/lucide.min.js?v=20261123a"></script>
 <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261120g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261123a">
 <style>
   .drop { border:2px dashed var(--fp-border); border-radius:1rem; padding:2.5rem 1.5rem; text-align:center; cursor:pointer; transition:.15s; background:#fff; }
   .drop:hover, .drop.over { border-color:var(--fp-accent); background:#FFF7ED; }
@@ -35,9 +35,17 @@
   /* Lot 2 — revue mono-fichier : document à gauche / formulaire à droite */
   .sc-rev { display:grid; grid-template-columns:1.05fr .95fr; gap:14px; align-items:start; }
   .panel-like { background:#fff; border:1px solid var(--fp-border); border-radius:1rem; overflow:hidden; }
-  /* Aperçu (barre + scène + zoom) = composant partagé FP.docReview (.fpdr-* dans styles.css) ; tailles du scanner : */
-  .sc-rev-doc { --fpdr-stage-h:520px; --fpdr-stage-min:300px; --fpdr-img-h:480px; --fpdr-pdf-h:500px; }
+  /* Aperçu (barre + scène + zoom) = composant partagé FP.docReview (.fpdr-* dans styles.css).
+     La visionneuse REMPLIT la hauteur réellement disponible (plus de hauteur fixe 520px qui laissait un
+     grand vide et forçait un fit-page à ~60%). Panneau = colonne flex STICKY : la barre d'outils reste en
+     haut, la scène prend tout le reste (flex:1) → le fit-page se calcule contre la vraie hauteur. La
+     hauteur exacte est affinée en JS (espace réel sous la barre) ; ce calc() reste un repli sûr. */
+  .sc-rev-doc { --fpdr-stage-min:300px; --fpdr-img-h:480px;
+    position:sticky; top:12px; display:flex; flex-direction:column; overflow:hidden;
+    height:calc(100dvh - 140px); min-height:420px; }
+  .sc-rev-doc .fpdr-bar { flex:0 0 auto; }
   .sc-rev-doc .fpdr-stage { padding:14px; }
+  .sc-rev-doc .fpdr-stage, .sc-rev-doc .fpdr-stage.pdf { flex:1 1 auto; height:auto; max-height:none; min-height:0; }
   .sc-rev-doc .fpdr-img { box-shadow:0 8px 22px rgba(15,30,61,.14); }
   .sc-rev-formbody { padding:1rem; }
   .sc-rev-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:.8rem; }
@@ -48,7 +56,9 @@
     .sc-rev { grid-template-columns:1fr; }
     .sc-rev-tabs { display:flex; }
     .sc-rev-doc[hidden], .sc-rev-form[hidden] { display:none; }
-    .sc-rev-doc { --fpdr-stage-h:44vh; }
+    /* Mobile : pas de sticky plein écran ; la scène occupe une grande part de l'écran (62vh). */
+    .sc-rev-doc { position:static; display:block; height:auto; min-height:0; overflow:visible; }
+    .sc-rev-doc .fpdr-stage, .sc-rev-doc .fpdr-stage.pdf { flex:none; height:62vh; max-height:62vh; }
   }
   .steps { display:flex; gap:.5rem; margin:1rem 0; }
   .step { flex:1; text-align:center; font-size:.78rem; font-weight:700; color:#94a3b8; padding:.5rem; border-radius:.6rem; background:#F1F5F9; }
@@ -139,8 +149,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261120g"></script>
-<script src="../assets/js/supabase-client.js?v=20261120g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261123a"></script>
+<script src="../assets/js/supabase-client.js?v=20261123a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -156,11 +166,11 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261120g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261123a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261120g"></script>
-<script src="../assets/js/scanner2.js?v=20261120g"></script>
+<script src="../assets/js/app.min.js?v=20261123a"></script>
+<script src="../assets/js/scanner2.js?v=20261123a"></script>
 <script>
   if (window.lucide) lucide.createIcons();
   var $ = function (id) { return document.getElementById(id); };
@@ -305,6 +315,25 @@
     var tabs = '<div class="sc-rev-tabs" role="tablist"><button type="button" class="sc-rev-tab on" data-rt="doc">📄 Document</button><button type="button" class="sc-rev-tab" data-rt="form">📝 Informations</button></div>';
     $('sc-result').innerHTML = tabs + '<div class="sc-rev">'+docHtml+formHtml+'</div>';
     if(window.lucide) lucide.createIcons();
+
+    // La colonne Document remplit la hauteur RÉELLEMENT disponible sous sa barre (desktop) : on mesure
+    // l'espace entre le haut du panneau et le bas de la fenêtre → le fit-page se calcule sur cette vraie
+    // hauteur (fini le vide + le 60%). Mobile : le CSS gère (62vh). On dimensionne AVANT wire() pour que
+    // le 1er rendu PDF utilise déjà la bonne hauteur, et on garde un écouteur resize (ajouté AVANT celui du
+    // viewer → il redimensionne le panneau, puis le viewer réajuste le fit sur la nouvelle hauteur).
+    var _docCol = $('sc-result').querySelector('.sc-rev-doc');
+    function sizeDocPanel(){
+      try {
+        if(!_docCol) return;
+        if(window.matchMedia('(max-width:860px)').matches){ _docCol.style.height=''; return; }
+        var top = _docCol.getBoundingClientRect().top;
+        _docCol.style.height = Math.max(420, Math.round(window.innerHeight - top - 16)) + 'px';
+      } catch(e){}
+    }
+    sizeDocPanel();
+    if(window._scSizeHandler) window.removeEventListener('resize', window._scSizeHandler);
+    window._scSizeHandler = sizeDocPanel;   // synchrone : redimensionne le panneau AVANT que le viewer ne réajuste (rAF)
+    window.addEventListener('resize', window._scSizeHandler);
 
     // Viewer : zoom / rotation / ajuster (images ; le PDF garde les contrôles natifs du lecteur) — composant partagé
     if (_docPane) _docPane.wire($('sc-result'));
