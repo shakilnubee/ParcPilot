@@ -139,5 +139,22 @@ test('conducteurs : passe activeFilters (Recherche/Filtre) + allRows au centre',
   assert.match(cond, /allRows: \(\) => \(drivers \|\| \[\]\)\.slice\(\)/);
 });
 
+const veh = fs.readFileSync(new URL('../../pages/vehicules.html', import.meta.url), 'utf8');
+test('véhicules : le relevé/export PDF (vehFicheConfig) lit la LISTE FILTRÉE, jamais le groupe brut', () => {
+  // Périmètre = sélection si cochée, sinon filtered() (qui applique loueur/détention/proprio/pays/etc.).
+  assert.match(veh, /else \{ const bits = activeFilterSummary\(\); list = filtered\(\); label =/);
+  // Garde-fou : ne JAMAIS retomber sur le filtre « groupe » brut dans vehFicheConfig.
+  const fn = veh.match(/function vehFicheConfig\(\)[\s\S]*?\n  \}/);
+  assert.ok(fn, 'vehFicheConfig introuvable');
+  assert.ok(!/FP\.vehGroupes\(v\)\.includes\(grp\)/.test(fn[0]), 'vehFicheConfig ne doit plus filtrer par groupe brut');
+});
+test('véhicules : export bloqué + message quand aucun résultat', () => {
+  assert.match(veh, /if \(!cfg\.rows \|\| !cfg\.rows\.length\) \{ if \(FP\.toast\) FP\.toast\('Aucun résultat à exporter/);
+});
+test('véhicules : Excel/CSV et relevé PDF partagent la même source filtrée', () => {
+  assert.match(veh, /getRows: \(\) => filtered\(\)/);
+  assert.match(veh, /releve: vehFicheConfig/);
+});
+
 console.log(`\n${ko ? '❌' : '✅'} export-filtres : ${ok} ok, ${ko} ko\n`);
 process.exit(ko ? 1 : 0);
