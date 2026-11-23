@@ -6270,15 +6270,37 @@
 
   // Relevé PDF/Excel de la liste : sélection cochée en priorité, sinon le groupe/filtre affiché.
   // Config factorisée (même sélection de lignes) → réutilisée par le centre unifié « Importer / Exporter ».
+  // Résumé lisible des filtres ACTIFS (pour le titre du relevé/export : « ce que je filtre = ce que j'exporte »).
+  function activeFilterSummary() {
+    const bits = [];
+    if (state.groupe && state.groupe !== 'all') bits.push(FP.groupeLabel(state.groupe));
+    if (state.statut && state.statut !== 'all') bits.push(state.statut === 'vendu' ? 'Vendus' : state.statut);
+    if (state.categorie && state.categorie !== 'all') bits.push(state.categorie);
+    if (state.entite && state.entite !== 'all') bits.push(state.entite);
+    if (state.detention && state.detention !== 'all') bits.push(state.detention);
+    if (state.proprio && state.proprio !== 'all') bits.push(state.proprio === '__none__' ? 'Propriétaire non renseigné' : state.proprio);
+    if (state.pays && state.pays !== 'all') bits.push(state.pays);
+    if (state.search && String(state.search).trim()) bits.push('« ' + String(state.search).trim() + ' »');
+    return bits;
+  }
+  // Périmètre d'export = SÉLECTION si des véhicules sont cochés, sinon la LISTE FILTRÉE à l'écran
+  // (filtered() applique TOUS les filtres : recherche, statut, catégorie, loueur/détention, propriétaire,
+  // entité, pays, groupe). Source UNIQUE pour le relevé PDF, l'Excel et le CSV → « ce que je filtre = ce
+  // que j'exporte » (cartes = tableau = galerie = fichier).
   function vehFicheConfig() {
     const sel = data.vehicules.filter(v => state.selectedIds.has(v.id));
     let list, label;
     if (sel.length) { list = sel; label = 'Véhicules sélectionnés'; }
-    else { const grp = state.groupe; label = grp === 'all' ? 'Liste des véhicules' : ('Véhicules — ' + FP.groupeLabel(grp)); list = data.vehicules.filter(v => grp === 'all' ? !FP.estVendu(v) : FP.vehGroupes(v).includes(grp)); }
+    else { const bits = activeFilterSummary(); list = filtered(); label = bits.length ? ('Véhicules — ' + bits.join(' · ')) : 'Liste des véhicules'; }
     const rows = (list || []).slice().sort((a, b) => (a.immat || '').localeCompare(b.immat || ''));
     return { key: 'vehicules', title: label, cols: FICHE_COLS.concat(cfFicheCols()), rows: rows };
   }
-  function openVehReleve() { if (window.FP && FP.fiche && FP.fiche.open) FP.fiche.open(vehFicheConfig()); }
+  function openVehReleve() {
+    if (!(window.FP && FP.fiche && FP.fiche.open)) return;
+    const cfg = vehFicheConfig();
+    if (!cfg.rows || !cfg.rows.length) { if (FP.toast) FP.toast('Aucun résultat à exporter — ajuste ou réinitialise les filtres.'); return; }
+    FP.fiche.open(cfg);
+  }
   { const b = $('btn-fiche-groupe'); if (b) b.addEventListener('click', openVehReleve); }
   { const b = $('btn-releve-veh'); if (b) b.addEventListener('click', openVehReleve); }
   // « Tous les QR (PDF) » — un PDF avec le QR de CHAQUE véhicule de la flotte (liste LIVE complète,
@@ -6335,6 +6357,21 @@
       { label: 'Groupes',         value: v => (FP.vehGroupes(v) || []).map(k => FP.groupeLabel(k)).join(', ') },
     ],
     getRows: () => filtered(),
+    // Bandeau « Filtres repris » (centre d'export) : liste les filtres ACTIFS appliqués à l'export.
+    activeFilters: () => {
+      const out = [];
+      if (state.groupe && state.groupe !== 'all') out.push({ label: 'Groupe', value: FP.groupeLabel(state.groupe) });
+      if (state.statut && state.statut !== 'all') out.push({ label: 'Statut', value: state.statut === 'vendu' ? 'Vendus' : state.statut });
+      if (state.categorie && state.categorie !== 'all') out.push({ label: 'Catégorie', value: state.categorie });
+      if (state.entite && state.entite !== 'all') out.push({ label: 'Entité', value: state.entite });
+      if (state.detention && state.detention !== 'all') out.push({ label: 'Détention / loueur', value: state.detention });
+      if (state.proprio && state.proprio !== 'all') out.push({ label: 'Propriétaire', value: state.proprio === '__none__' ? 'Non renseigné' : state.proprio });
+      if (state.pays && state.pays !== 'all') out.push({ label: 'Pays', value: state.pays });
+      if (state.search && String(state.search).trim()) out.push({ label: 'Recherche', value: String(state.search).trim() });
+      return out;
+    },
+    // « Exporter toutes les données » : toute la flotte active (hors véhicules vendus/archivés), sans filtre.
+    allRows: () => (data.vehicules || []).filter(v => !(FP.estVendu && FP.estVendu(v))),
     baseName: () => 'vehicules-' + (state.groupe === 'all' ? 'tous' : state.groupe),
   });
 
