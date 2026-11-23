@@ -9208,7 +9208,9 @@ FP.docReview = {
   // compteur, clavier, et les actions télécharger/imprimer/nouvel onglet/plein écran. Renvoie { cancel, render }.
   _pdfView: function (pdf, o) {
     const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
-    const S = { num: 1, pages: pdf.numPages || 1, mode: 'page', zoom: 1, task: null, dead: false };
+    // Défaut = ajuster à la LARGEUR : la page remplit la colonne (grande + nette), défilement vertical pour
+    // lire la suite (comportement d'une visionneuse de document). Le bouton « ⤢ Ajuster » bascule en page entière.
+    const S = { num: 1, pages: pdf.numPages || 1, mode: 'width', zoom: 1, task: null, dead: false };
     const ctx = o.canvas.getContext('2d');
     const btns = {};
     if (o.bar) Array.prototype.forEach.call(o.bar.querySelectorAll('[data-pdf]'), b => { btns[b.getAttribute('data-pdf')] = b; });
@@ -9240,8 +9242,12 @@ FP.docReview = {
       // ⚠️ NETTETÉ : un PDF affiché à ~100% ne fait que ~72 DPI → texte flou sur écran non-Retina. On
       // SURÉCHANTILLONNE : le canvas est rasterisé à au moins 2× la taille d'affichage (jusqu'à 3× sur
       // écran Retina), puis réduit en CSS → texte net partout. (Pattern HiDPI officiel pdf.js, cf. docs.)
-      const over = Math.max(2, Math.min(3, (window.devicePixelRatio || 1)));
-      let renderScale = scale * over;
+      const dpr = (window.devicePixelRatio || 1);
+      const over = Math.max(2, Math.min(3, dpr));
+      // Le canvas est rasterisé à AU MOINS 2× l'affichage, ET à un minimum ABSOLU (~2× le DPI écran, soit
+      // ~144 DPI) pour rester NET même quand la page est affichée petite (fit-page sur une colonne large) :
+      // sans ce plancher, une page à 60 % ne faisait que ~110 DPI → texte flou.
+      let renderScale = Math.max(scale * over, 2 * dpr);
       // Garde-fou : un canvas trop grand (zoom manuel fort) blanchit sur certains navigateurs → on plafonne
       // la dimension de rendu (la taille d'AFFICHAGE CSS, elle, ne change pas).
       const MAXPX = 4096;
