@@ -9233,12 +9233,21 @@ FP.docReview = {
       if (S.dead) return;
       const vp1 = page.getViewport({ scale: 1 });
       const base = fitScale(vp1);
-      const scale = base * (S.zoom || 1);
-      const dpr = Math.min(2, (window.devicePixelRatio || 1));
-      const vp = page.getViewport({ scale: scale * dpr });
+      const scale = base * (S.zoom || 1);          // échelle d'AFFICHAGE (taille CSS voulue)
+      // ⚠️ NETTETÉ : un PDF affiché à ~100% ne fait que ~72 DPI → texte flou sur écran non-Retina. On
+      // SURÉCHANTILLONNE : le canvas est rasterisé à au moins 2× la taille d'affichage (jusqu'à 3× sur
+      // écran Retina), puis réduit en CSS → texte net partout. (Pattern HiDPI officiel pdf.js, cf. docs.)
+      const over = Math.max(2, Math.min(3, (window.devicePixelRatio || 1)));
+      let renderScale = scale * over;
+      // Garde-fou : un canvas trop grand (zoom manuel fort) blanchit sur certains navigateurs → on plafonne
+      // la dimension de rendu (la taille d'AFFICHAGE CSS, elle, ne change pas).
+      const MAXPX = 4096;
+      const maxSide = Math.max(vp1.width, vp1.height) * renderScale;
+      if (maxSide > MAXPX) renderScale *= MAXPX / maxSide;
+      const vp = page.getViewport({ scale: renderScale });
       o.canvas.width = Math.ceil(vp.width); o.canvas.height = Math.ceil(vp.height);
-      o.canvas.style.width = Math.ceil(vp.width / dpr) + 'px';
-      o.canvas.style.height = Math.ceil(vp.height / dpr) + 'px';
+      o.canvas.style.width = Math.ceil(vp1.width * scale) + 'px';    // taille d'affichage = échelle voulue (indépendante du suréchantillonnage)
+      o.canvas.style.height = Math.ceil(vp1.height * scale) + 'px';
       try { if (S.task && S.task.cancel) S.task.cancel(); } catch (e) {}
       try { S.task = page.render({ canvasContext: ctx, viewport: vp }); await S.task.promise; } catch (e) { /* render annulé */ }
       // Changement de page / re-render → on revient toujours en HAUT (jamais le bas de la page précédente).
