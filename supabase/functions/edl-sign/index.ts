@@ -35,6 +35,38 @@ const BUCKET = "scans";
 // « societes/<dossier-société>/… ». fpSlug DOIT rester identique à public.fp_slug (SQL) et FP.storageSlug (app.js).
 function fpSlug(s: unknown): string { return String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "societe"; }
 function dossierSociete(societe: unknown): string { return "societes/" + fpSlug(societe || "PXP"); }
+// ⚠️ ISOLATION EDL (même règle que km-collect) : on estampille le PDF signé avec l'affectation EN COURS
+// (conducteur normalisé + début) → SEUL ce conducteur le verra dans son portail. _norm doit être IDENTIQUE
+// à celui de km-collect (sinon les clés ne correspondent pas).
+function _norm(s: string) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, ""); }
+async function currentAffectation(db: ReturnType<typeof createClient>, vehiculeId: string | null, societe: string): Promise<{ conducteur: string; debut: string } | null> {
+  if (!vehiculeId) return null;
+  const soc = societe || "PXP";
+  const pickFrom = (rows: Record<string, unknown>[]): { conducteur: string; debut: string } | null => {
+    const withNom = (rows || []).filter((a) => a && a.conducteur);
+    if (!withNom.length) return null;
+    const encours = withNom.filter((a) => !a.fin);
+    const pick = (encours.length ? encours : withNom)
+      .sort((a, b) => String(b.debut || "").localeCompare(String(a.debut || "")) || (Number(b.ordre || 0) - Number(a.ordre || 0)))[0];
+    return pick ? { conducteur: String(pick.conducteur || "").trim(), debut: String(pick.debut || "") } : null;
+  };
+  try {
+    const { data: rows } = await db.from("vehicle_assignments").select("conducteur,debut,fin,ordre")
+      .eq("societe", soc).eq("veh_id", vehiculeId).is("deleted_at", null);
+    if (Array.isArray(rows) && rows.length) { const p = pickFrom(rows as Record<string, unknown>[]); if (p) return p; }
+  } catch { /* repli */ }
+  try {
+    const { data } = await db.from("app_settings").select("data").eq("id", soc).maybeSingle();
+    const s = (data && data.data && typeof data.data === "object") ? data.data as Record<string, unknown> : {};
+    const affAll = (s.affectations && typeof s.affectations === "object") ? s.affectations as Record<string, unknown> : {};
+    const aff = affAll[vehiculeId];
+    if (Array.isArray(aff) && aff.length) return pickFrom(aff as Record<string, unknown>[]);
+  } catch { /* ignore */ }
+  return null;
+}
+function edlPeriode(aff: { conducteur: string; debut: string } | null) {
+  return aff ? { conducteurKey: _norm(aff.conducteur || ""), debut: String(aff.debut || "") } : null;
+}
 
 // Extrait {bucket, path} d'une URL Supabase Storage (public|sign|authenticated) → pour re-signer.
 function storagePath(url: string): { bucket: string; path: string } | null {
@@ -315,10 +347,14 @@ Deno.serve(async (req) => {
           } catch { /* upload best-effort */ }
           if (signedPdfUrl && row.vehicule_id) {
             try {
+              // ⚠️ ISOLATION : on estampille le PDF signé avec l'affectation EN COURS → seul ce conducteur le
+              // verra dans son portail (jamais le suivant). Même clé que km-collect (edlPeriode).
+              const perSign = edlPeriode(await currentAffectation(db, String(row.vehicule_id), String(row.societe || "PXP")));
               await db.from("documents").insert({
                 id: genId("D"), vehicule_id: row.vehicule_id, type: "etat-des-lieux",
                 label: "État des lieux " + (row.sens === "restitution" ? "restitution" : "remise") + " — signé " + String(row.date || "").slice(0, 10),
                 url: signedPdfUrl, societe: row.societe || "PXP",
+                meta: perSign ? { periode: perSign } : {},
               });
             } catch (e) { console.error("[edl-sign] documents insert échec (PDF signé récupérable via edl_signatures.signed_pdf_url)", e); }
           }

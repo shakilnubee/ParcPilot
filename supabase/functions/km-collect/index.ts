@@ -313,6 +313,42 @@ async function chauffeurActuel(db: ReturnType<typeof createClient>, vehiculeId: 
   return "";
 }
 
+// AFFECTATION EN COURS d'un véhicule (table source vehicle_assignments) → { conducteur, debut }.
+// Sert à RATTACHER un état des lieux à la bonne affectation (isolation : un nouveau conducteur ne doit
+// PAS voir les EDL de l'ancien). Repli sur l'ancienne copie app_settings.affectations (transition).
+// Renvoie null s'il n'y a pas d'affectation nommée → dans ce cas le portail n'affiche AUCUN EDL (fail-closed).
+async function currentAffectation(db: ReturnType<typeof createClient>, vehiculeId: string | null, societe: string): Promise<{ conducteur: string; debut: string } | null> {
+  if (!vehiculeId) return null;
+  const soc = societe || "PXP";
+  const pickFrom = (rows: Record<string, unknown>[]): { conducteur: string; debut: string } | null => {
+    const withNom = (rows || []).filter((a) => a && a.conducteur);
+    if (!withNom.length) return null;
+    const encours = withNom.filter((a) => !a.fin);
+    const pick = (encours.length ? encours : withNom)
+      .sort((a, b) => String(b.debut || "").localeCompare(String(a.debut || "")) || (Number(b.ordre || 0) - Number(a.ordre || 0)))[0];
+    return pick ? { conducteur: String(pick.conducteur || "").trim(), debut: String(pick.debut || "") } : null;
+  };
+  try {
+    const { data: rows } = await db.from("vehicle_assignments")
+      .select("conducteur,debut,fin,ordre")
+      .eq("societe", soc).eq("veh_id", vehiculeId).is("deleted_at", null);
+    if (Array.isArray(rows) && rows.length) { const p = pickFrom(rows as Record<string, unknown>[]); if (p) return p; }
+  } catch { /* repli */ }
+  try {
+    const { data } = await db.from("app_settings").select("data").eq("id", soc).maybeSingle();
+    const s = (data && data.data && typeof data.data === "object") ? data.data as Record<string, unknown> : {};
+    const affAll = (s.affectations && typeof s.affectations === "object") ? s.affectations as Record<string, unknown> : {};
+    const aff = affAll[vehiculeId];
+    if (Array.isArray(aff) && aff.length) return pickFrom(aff as Record<string, unknown>[]);
+  } catch { /* ignore */ }
+  return null;
+}
+// Clé d'estampillage d'un EDL = période d'affectation (conducteur normalisé + date de début). Source UNIQUE.
+function edlPeriode(aff: { conducteur: string; debut: string } | null) {
+  if (!aff) return null;
+  return { conducteurKey: _norm(aff.conducteur || ""), debut: String(aff.debut || "") };
+}
+
 // Langue d'un conducteur (par son nom + société) via la carte app_settings.condLangues. 'fr' par défaut.
 async function condLangueDe(db: ReturnType<typeof createClient>, societe: string, chauffeur: string) {
   const name = String(chauffeur || "").trim();
@@ -361,15 +397,27 @@ async function vehDocs(db: ReturnType<typeof createClient>, vehiculeId: string |
 
 // Photos « état des lieux » du véhicule. Le SENS est stocké dans `label` ('Entrée'/'Sortie'),
 // il n'y a pas de colonne dédiée (même convention que la fiche véhicule).
-async function vehEdl(db: ReturnType<typeof createClient>, vehiculeId: string | null) {
+// ⚠️ ISOLATION PAR AFFECTATION (sécurité) : le portail conducteur n'affiche QUE les EDL rattachés à
+// l'AFFECTATION EN COURS (meta.periode = { conducteurKey, debut }), jamais ceux de l'ancien conducteur.
+// Les EDL NON estampillés (anciens, rattachement incertain) sont EXCLUS du portail (fail-closed) — ils
+// restent visibles pour les gestionnaires via l'app (isolation société inchangée). `aff` = affectation
+// en cours ({conducteur, debut}) ; si null → aucun EDL affiché.
+async function vehEdl(db: ReturnType<typeof createClient>, vehiculeId: string | null, aff: { conducteur: string; debut: string } | null) {
   if (!vehiculeId) return [];
-  const { data } = await db.from("documents").select("label,url").eq("vehicule_id", vehiculeId).eq("type", "etat-des-lieux");
-  return (data || []).filter((d: Record<string, unknown>) => d && d.url)
-    .map((d: Record<string, unknown>) => {
-      const lbl = String(d.label || "").toLowerCase();
-      const sens = lbl.startsWith("sort") ? "restitution" : "prise";
-      return { url: String(d.url), sens };
-    });
+  const per = edlPeriode(aff);
+  if (!per) return [];   // pas d'affectation connue → on ne montre rien (fail-closed)
+  const { data } = await db.from("documents").select("label,url,meta").eq("vehicule_id", vehiculeId).eq("type", "etat-des-lieux");
+  return (data || []).filter((d: Record<string, unknown>) => {
+    if (!d || !d.url) return false;
+    const m = (d.meta && typeof d.meta === "object") ? (d.meta as Record<string, unknown>) : null;
+    const p = (m && m.periode && typeof m.periode === "object") ? (m.periode as Record<string, unknown>) : null;
+    if (!p) return false;   // non estampillé → exclu du portail
+    return String(p.conducteurKey || "") === per.conducteurKey && String(p.debut || "") === per.debut;
+  }).map((d: Record<string, unknown>) => {
+    const lbl = String(d.label || "").toLowerCase();
+    const sens = lbl.startsWith("sort") ? "restitution" : "prise";
+    return { url: String(d.url), sens };
+  });
 }
 
 // Liste des véhicules « à vendre » de LA MÊME société (rubrique « Véhicules à vendre » du portail QR).
@@ -640,9 +688,11 @@ Deno.serve(async (req) => {
           const veh = await vehInfo(db, qr.vehicule_id);
           // Nom du conducteur : champ `chauffeur` du véhicule, sinon l'affectation en cours (historique).
           const chauffeurNom = await chauffeurActuel(db, qr.vehicule_id, qr.societe || "PXP", veh ? String(veh.chauffeur || "") : "");
+          // Affectation EN COURS (pour n'afficher QUE les EDL de ce conducteur — isolation).
+          const affEnCours = await currentAffectation(db, qr.vehicule_id, qr.societe || "PXP");
           const [docs0, edl0, portal, conducteur] = await Promise.all([
             vehDocs(db, qr.vehicule_id, veh),
-            vehEdl(db, qr.vehicule_id),
+            vehEdl(db, qr.vehicule_id, affEnCours),
             portalConfig(db, qr.societe || "PXP", qr.plaque || ""),
             vehConducteur(db, chauffeurNom, qr.societe || "PXP"),
           ]);
@@ -852,9 +902,14 @@ Deno.serve(async (req) => {
         if (!photos.length) return json({ error: "Ajoute au moins une photo." }, 400);
         // Le sens vit dans `label` ('Entrée'/'Sortie') — même convention que la fiche véhicule.
         const label = sens === "restitution" ? "Sortie" : "Entrée";
+        // ⚠️ ISOLATION : on ESTAMPILLE l'EDL avec l'affectation EN COURS (conducteur + début), pour que
+        // SEUL ce conducteur le voie dans le portail (jamais le suivant). Source unique edlPeriode().
+        const affEdl = await currentAffectation(db, qr.vehicule_id, qr.societe || "PXP");
+        const perEdl = edlPeriode(affEdl);
         const rows = photos.map((u) => ({
           id: genId("D"), vehicule_id: qr.vehicule_id, type: "etat-des-lieux",
           label, url: u, societe: qr.societe || "PXP",
+          meta: perEdl ? { periode: perEdl } : {},
         }));
         const ins = await db.from("documents").insert(rows);
         if (ins.error) return json({ error: "Échec de l'envoi des photos. Réessaie." }, 500);
