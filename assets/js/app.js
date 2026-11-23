@@ -9115,7 +9115,7 @@ FP.docReview = {
 
     // ───────── IMAGE (inchangé : zoom / rotation / ajuster) ─────────
     if (d.isImg) {
-      const tools = '<span class="fpdr-tools"><button type="button" class="fpdr-tool" data-z="out" title="Dézoomer">−</button><span class="fpdr-zoom" id="' + zId + '">100 %</span><button type="button" class="fpdr-tool" data-z="in" title="Zoomer">+</button><button type="button" class="fpdr-tool" data-z="rot" title="Pivoter">⟳</button><button type="button" class="fpdr-tool" data-z="fit" title="Ajuster">⤢</button></span>';
+      const tools = '<span class="fpdr-tools"><button type="button" class="fpdr-tool" data-z="out" title="Dézoomer" aria-label="Dézoomer">−</button><span class="fpdr-zoom" id="' + zId + '">100 %</span><button type="button" class="fpdr-tool" data-z="in" title="Zoomer" aria-label="Zoomer">+</button><button type="button" class="fpdr-tool" data-z="rot" title="Pivoter" aria-label="Pivoter">⟳</button><button type="button" class="fpdr-tool" data-z="fit" title="Ajuster" aria-label="Ajuster">⤢</button></span>';
       const html = barL + tools + '</div><div class="fpdr-stage"><img id="' + imgId + '" class="fpdr-img" alt="' + alt + '" src="' + (url || '') + '"></div>';
       return {
         url: url, isImage: true, isPdf: false, html: html, imgId: imgId,
@@ -9146,7 +9146,7 @@ FP.docReview = {
 
     // ───────── PDF (pdf.js, paginé, fit-to-page) ─────────
     const cvId = pfx + '-cv', wrapId = pfx + '-wrap';
-    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
+    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '" aria-label="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
     const pdfBar = '<span class="fpdr-tools fpdr-pdfbar">'
       + tool('prev', '‹', 'Page précédente', ' disabled')
       + '<span class="fpdr-count" id="' + pfx + '-count">1 / 1</span>'
@@ -9298,7 +9298,7 @@ FP.docReview = {
     if (st.fullEl || !st.pdf) return;
     const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
     const cvId = o.pfx + '-fcv', wrapId = o.pfx + '-fwrap', cntId = o.pfx + '-fcount', zId = o.pfx + '-fz';
-    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
+    const tool = (act, txt, title, extra) => '<button type="button" class="fpdr-tool" data-pdf="' + act + '" title="' + esc(title) + '" aria-label="' + esc(title) + '"' + (extra || '') + '>' + txt + '</button>';
     const ov = document.createElement('div');
     ov.className = 'fpdr-full';
     ov.innerHTML = '<div class="fpdr-full-bar"><span class="fpdr-tools fpdr-pdfbar">'
