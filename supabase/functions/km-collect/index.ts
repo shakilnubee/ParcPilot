@@ -317,16 +317,16 @@ async function chauffeurActuel(db: ReturnType<typeof createClient>, vehiculeId: 
 // Sert à RATTACHER un état des lieux à la bonne affectation (isolation : un nouveau conducteur ne doit
 // PAS voir les EDL de l'ancien). Repli sur l'ancienne copie app_settings.affectations (transition).
 // Renvoie null s'il n'y a pas d'affectation nommée → dans ce cas le portail n'affiche AUCUN EDL (fail-closed).
-async function currentAffectation(db: ReturnType<typeof createClient>, vehiculeId: string | null, societe: string): Promise<{ conducteur: string; debut: string } | null> {
+async function currentAffectation(db: ReturnType<typeof createClient>, vehiculeId: string | null, societe: string): Promise<{ conducteur: string; debut: string; fin: string } | null> {
   if (!vehiculeId) return null;
   const soc = societe || "PXP";
-  const pickFrom = (rows: Record<string, unknown>[]): { conducteur: string; debut: string } | null => {
+  const pickFrom = (rows: Record<string, unknown>[]): { conducteur: string; debut: string; fin: string } | null => {
     const withNom = (rows || []).filter((a) => a && a.conducteur);
     if (!withNom.length) return null;
     const encours = withNom.filter((a) => !a.fin);
     const pick = (encours.length ? encours : withNom)
       .sort((a, b) => String(b.debut || "").localeCompare(String(a.debut || "")) || (Number(b.ordre || 0) - Number(a.ordre || 0)))[0];
-    return pick ? { conducteur: String(pick.conducteur || "").trim(), debut: String(pick.debut || "") } : null;
+    return pick ? { conducteur: String(pick.conducteur || "").trim(), debut: String(pick.debut || ""), fin: String(pick.fin || "") } : null;
   };
   try {
     const { data: rows } = await db.from("vehicle_assignments")
@@ -347,6 +347,41 @@ async function currentAffectation(db: ReturnType<typeof createClient>, vehiculeI
 function edlPeriode(aff: { conducteur: string; debut: string } | null) {
   if (!aff) return null;
   return { conducteurKey: _norm(aff.conducteur || ""), debut: String(aff.debut || "") };
+}
+
+// ── Rattachement d'un EDL à une période d'affectation : RÉPLIQUE EXACTE de FP.edlHisto (assets/js/app.js) ──
+// Le gestionnaire rattache les EDL ajoutés depuis la fiche par la DATE du libellé (+ le sens), sans
+// meta.periode. Pour que l'espace conducteur montre EXACTEMENT ce que la fiche affiche pour l'affectation
+// EN COURS, on réplique ici dateDe / sensDe / dansPeriode / appartientSens à l'identique (même règle de
+// borne partagée). ⚠️ Toute évolution de FP.edlHisto doit être répercutée ici (source parallèle assumée).
+function _edlSens(label: string): "restitution" | "remise" {
+  return /sort|resti/i.test(String(label || "")) ? "restitution" : "remise";
+}
+function _edlDate(label: string, createdAt: string | null): string {
+  const lab = String(label || "");
+  const iso = lab.match(/(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const fr = lab.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  if (fr) return fr[3] + "-" + fr[2] + "-" + fr[1];
+  const s = String(createdAt || "");
+  return s ? s.slice(0, 10) : "";
+}
+function _edlDansPeriode(date: string, deb: string, fin: string): boolean {
+  if (!date) return false;
+  if (deb && date < deb) return false;
+  if (fin && date > fin) return false;
+  return true;
+}
+// Règle de borne partagée (fin d'une période = début de la suivante), tranchée par le SENS — identique à
+// FP.edlHisto.appartientSens : une restitution datée au DÉBUT reste au conducteur précédent ; une remise
+// datée à la FIN part au suivant ; jamais d'exclusion sur une période d'un seul jour ou une borne vide.
+function _edlAppartientSens(date: string, sens: string, deb: string, fin: string): boolean {
+  const dd = String(date || "").slice(0, 10);
+  if (!_edlDansPeriode(dd, deb, fin)) return false;
+  const isResti = /resti|sort/i.test(String(sens || ""));
+  if (isResti && deb && dd === deb && dd !== fin) return false;
+  if (!isResti && fin && dd === fin && dd !== deb) return false;
+  return true;
 }
 
 // Langue d'un conducteur (par son nom + société) via la carte app_settings.condLangues. 'fr' par défaut.
@@ -402,20 +437,39 @@ async function vehDocs(db: ReturnType<typeof createClient>, vehiculeId: string |
 // Les EDL NON estampillés (anciens, rattachement incertain) sont EXCLUS du portail (fail-closed) — ils
 // restent visibles pour les gestionnaires via l'app (isolation société inchangée). `aff` = affectation
 // en cours ({conducteur, debut}) ; si null → aucun EDL affiché.
-async function vehEdl(db: ReturnType<typeof createClient>, vehiculeId: string | null, aff: { conducteur: string; debut: string } | null) {
+async function vehEdl(db: ReturnType<typeof createClient>, vehiculeId: string | null, aff: { conducteur: string; debut: string; fin: string } | null) {
   if (!vehiculeId) return [];
   const per = edlPeriode(aff);
   if (!per) return [];   // pas d'affectation connue → on ne montre rien (fail-closed)
-  const { data } = await db.from("documents").select("label,url,meta").eq("vehicule_id", vehiculeId).eq("type", "etat-des-lieux");
+  const deb = String((aff && aff.debut) || "").slice(0, 10);
+  const fin = String((aff && aff.fin) || "").slice(0, 10);
+  const { data } = await db.from("documents").select("label,url,meta,created_at").eq("vehicule_id", vehiculeId).eq("type", "etat-des-lieux");
   return (data || []).filter((d: Record<string, unknown>) => {
     if (!d || !d.url) return false;
+    // (1) Dépôt conducteur estampillé (meta.periode) → appartient si la clé correspond à l'affectation en cours.
     const m = (d.meta && typeof d.meta === "object") ? (d.meta as Record<string, unknown>) : null;
     const p = (m && m.periode && typeof m.periode === "object") ? (m.periode as Record<string, unknown>) : null;
-    if (!p) return false;   // non estampillé → exclu du portail
-    return String(p.conducteurKey || "") === per.conducteurKey && String(p.debut || "") === per.debut;
+    if (p) return String(p.conducteurKey || "") === per.conducteurKey && String(p.debut || "") === per.debut;
+    // (2) EDL ajouté par un gestionnaire (pas de meta.periode) → rattachement par DATE + SENS, à l'identique
+    //     de la fiche gestionnaire (FP.edlHisto.appartient). Un fichier sans date exploitable et sans
+    //     période en cours tombe hors période → exclu (fail-closed « rattachement incertain »).
+    const sens = _edlSens(String(d.label || ""));
+    const date = _edlDate(String(d.label || ""), d.created_at ? String(d.created_at) : null);
+    return _edlAppartientSens(date, sens, deb, fin);
   }).map((d: Record<string, unknown>) => {
-    const lbl = String(d.label || "").toLowerCase();
-    const sens = lbl.startsWith("sort") ? "restitution" : "prise";
+    const sens = _edlSens(String(d.label || "")) === "restitution" ? "restitution" : "prise";
+    return { url: String(d.url), sens };
+  });
+}
+
+// Toutes les photos « état des lieux » d'un véhicule (SANS filtre d'affectation) — pour la GALERIE PUBLIQUE
+// d'une annonce de vente (« Véhicules à vendre »), où les photos montrent l'état du véhicule à l'acheteur.
+// ⚠️ Ne JAMAIS utiliser pour l'espace conducteur (lui passe par vehEdl, isolé par affectation).
+async function vehEdlPhotosToutes(db: ReturnType<typeof createClient>, vehiculeId: string | null) {
+  if (!vehiculeId) return [] as { url: string; sens: string }[];
+  const { data } = await db.from("documents").select("label,url").eq("vehicule_id", vehiculeId).eq("type", "etat-des-lieux");
+  return (data || []).filter((d: Record<string, unknown>) => d && d.url).map((d: Record<string, unknown>) => {
+    const sens = _edlSens(String(d.label || "")) === "restitution" ? "restitution" : "prise";
     return { url: String(d.url), sens };
   });
 }
@@ -434,7 +488,7 @@ async function ventesListe(db: ReturnType<typeof createClient>, socRaw: string |
     // Toutes les photos (états des lieux, signées) → l'annonce s'affiche EN LIGNE côté portail (avec retour).
     let photos: string[] = [];
     try {
-      const edl = await vehEdl(db, v.id as string);
+      const edl = await vehEdlPhotosToutes(db, v.id as string);
       const imgs = (Array.isArray(edl) ? edl : []).filter((e) => /^data:image\//i.test(e.url) || /\.(jpe?g|png|gif|webp|heic|bmp|avif)(\?|$)/i.test(e.url));
       photos = await Promise.all(imgs.map((e) => signUrl(db, e.url)));
     } catch { /* pas de photo */ }
