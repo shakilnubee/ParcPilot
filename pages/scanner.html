@@ -33,9 +33,18 @@
   @media (prefers-reduced-motion: reduce){ .sc-ind::after { animation:none; left:0; width:100%; } }
   .sc-retry { font:inherit; font-weight:700; font-size:.76rem; color:var(--fp-accent); background:none; border:none; cursor:pointer; text-decoration:underline; padding:0; }
   /* Lot 2 — revue mono-fichier : document à gauche / formulaire à droite */
-  /* Colonne document resserrée (≈ proportions d'une page A4) : la page entière remplit la colonne sans grand
-     vide gris, et sans jamais forcer de défilement. Le formulaire (nombreux champs) prend le reste. */
-  .sc-rev { display:grid; grid-template-columns:minmax(320px,480px) 1fr; gap:14px; align-items:start; }
+  /* Document = ~55 % de la largeur (lecteur PDF NATIF du navigateur), formulaire ~45 %. */
+  .sc-rev { display:grid; grid-template-columns:1.22fr 1fr; gap:14px; align-items:start; }
+  /* Panneau document natif : en-tête (titre + actions) + lecteur PDF natif (iframe) sur toute la hauteur. */
+  .scnd { display:flex; flex-direction:column; height:100%; }
+  .scnd-bar { flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--fp-border); }
+  .scnd-title { font-weight:700; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .scnd-actions { margin-left:auto; display:flex; gap:6px; flex:0 0 auto; }
+  .scnd-actions .btn { font-size:12px; padding:5px 9px; white-space:nowrap; }
+  .scnd-frame { flex:1 1 auto; width:100%; border:0; background:#eef2f7; min-height:0; }
+  .scnd-imgwrap { flex:1 1 auto; overflow:auto; display:grid; place-items:center; background:#eef2f7; padding:10px; min-height:0; }
+  .scnd-img { max-width:100%; box-shadow:0 8px 22px rgba(15,30,61,.14); }
+  body.fp-dark .scnd-frame, body.fp-dark .scnd-imgwrap { background:#0b1220; }
   .panel-like { background:#fff; border:1px solid var(--fp-border); border-radius:1rem; overflow:hidden; }
   /* Aperçu (barre + scène + zoom) = composant partagé FP.docReview (.fpdr-* dans styles.css).
      La visionneuse REMPLIT la hauteur réellement disponible (plus de hauteur fixe 520px qui laissait un
@@ -58,8 +67,11 @@
     .sc-rev { grid-template-columns:1fr; }
     .sc-rev-tabs { display:flex; }
     .sc-rev-doc[hidden], .sc-rev-form[hidden] { display:none; }
-    /* Mobile : pas de sticky plein écran ; la scène occupe une grande part de l'écran (62vh). */
+    /* Mobile : pas de sticky plein écran ; le lecteur occupe une grande part de l'écran (72vh). Le bouton
+       « Ouvrir le PDF original » permet de voir le document en grand (plein écran navigateur) puis de revenir
+       au formulaire (saisies conservées : les onglets Document/Informations ne re-rendent pas le formulaire). */
     .sc-rev-doc { position:static; display:block; height:auto; min-height:0; overflow:visible; }
+    .sc-rev-doc .scnd { height:72vh; }
     .sc-rev-doc .fpdr-stage, .sc-rev-doc .fpdr-stage.pdf { flex:none; height:62vh; max-height:62vh; }
   }
   .steps { display:flex; gap:.5rem; margin:1rem 0; }
@@ -271,17 +283,35 @@
     var schema = FP2.schemaFor(model.type_document); if(!schema){ $('sc-result').innerHTML='<p class="text-sm text-red-600">Type non pris en charge en Phase 1.</p>'; return; }
     var qual = model.qualite_document||''; var qualBadge = qual==='insuffisante' ? '<span class="conf faible">qualité insuffisante</span>' : qual==='moyenne' ? '<span class="conf moyen">qualité moyenne</span>' : '<span class="conf eleve">qualité correcte</span>';
 
-    // ===== COLONNE GAUCHE : le document original — composant partagé FP.docReview (scanner · factures · sinistres) =====
+    // ===== COLONNE GAUCHE : le document ORIGINAL via le LECTEUR PDF NATIF du navigateur (iframe) =====
+    // On n'utilise plus la visionneuse canvas (FP.docReview, gardée pour Factures/Sinistres) : ici on affiche
+    // le fichier importé tel quel dans le lecteur intégré du navigateur (Chrome/Edge) → lisibilité maximale +
+    // commandes natives (Page entière / Ajuster à la largeur / pages). Le PDF vient du blob du fichier déjà
+    // dans le parcours (aucun ré-upload, dispo AVANT « Confirmer & enregistrer »). Bouton « Ouvrir le PDF
+    // original » (nouvel onglet) + « Télécharger » comme parcours de secours.
     var _docPane = null, docHtml='';
     try {
-      if (_file && window.FP && FP.docReview) {
+      if (_file) {
         if (_docPreviewUrl) { try { URL.revokeObjectURL(_docPreviewUrl); } catch(e){} }
-        _docPane = FP.docReview.build(_file, { label:'📄 Document', alt:'Document scanné' });
-        _docPreviewUrl = _docPane.url;   // conservé pour la révocation au re-rendu / annulation
-        docHtml = '<div class="sc-rev-doc panel-like" data-col="doc">' + _docPane.html + '</div>';
+        var _u = URL.createObjectURL(_file);
+        _docPreviewUrl = _u;   // conservé pour la révocation au re-rendu / annulation
+        var _nm = esc(_file.name || 'document');
+        var _isPdf = /pdf/i.test(_file.type || '') || /\.pdf$/i.test(_file.name || '');
+        var _bar = '<div class="scnd-bar"><span class="scnd-title" title="'+_nm+'">📄 '+_nm+'</span>'
+          + '<span class="scnd-actions">'
+          +   '<a class="btn btn-outline" href="'+_u+'" target="_blank" rel="noopener" title="Ouvrir le PDF original dans un nouvel onglet (le formulaire reste ouvert)">⤢ Ouvrir le PDF original</a>'
+          +   '<a class="btn btn-outline" href="'+_u+'" download="'+_nm+'" title="Télécharger le fichier original">⤓ Télécharger</a>'
+          + '</span></div>';
+        // #view=FitH : demande au lecteur natif d'ajuster à la LARGEUR au départ (lignes/montants lisibles).
+        // Les navigateurs peuvent imposer leur propre réglage ; les commandes natives permettent de basculer.
+        var _body = _isPdf
+          ? '<iframe class="scnd-frame" src="'+_u+'#view=FitH" title="'+_nm+'"></iframe>'
+          : '<div class="scnd-imgwrap"><img class="scnd-img" src="'+_u+'" alt="'+_nm+'"></div>';
+        docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="scnd">'+_bar+_body+'</div></div>';
+        _docPane = { url:_u };
       }
     } catch(e){}
-    if(!docHtml) docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="fpdr-stage"><p class="text-sm text-slate-400">Aperçu du document indisponible.</p></div></div>';
+    if(!docHtml) docHtml = '<div class="sc-rev-doc panel-like" data-col="doc"><div class="scnd"><p class="text-sm text-slate-400" style="padding:1rem">Aperçu du document indisponible.</p></div></div>';
 
     // ===== COLONNE DROITE : le formulaire assisté =====
     var form = '<div class="sc-rev-head"><span class="font-extrabold text-lg" style="color:var(--fp-primary)">'+esc(schema.label)+'</span><span class="flex items-center gap-2">'+qualBadge+(model.nouveau_scan_recommande?' <span class="conf faible">nouveau scan conseillé</span>':'')+'</span></div>';
@@ -338,7 +368,7 @@
     window.addEventListener('resize', window._scSizeHandler);
 
     // Viewer : zoom / rotation / ajuster (images ; le PDF garde les contrôles natifs du lecteur) — composant partagé
-    if (_docPane) _docPane.wire($('sc-result'));
+    if (_docPane && _docPane.wire) _docPane.wire($('sc-result'));
     // Onglets Document / Informations sur mobile (desktop = 2 colonnes)
     (function(){
       var docCol=$('sc-result').querySelector('.sc-rev-doc'), formCol=$('sc-result').querySelector('.sc-rev-form');
