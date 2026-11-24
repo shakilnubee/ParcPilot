@@ -36,8 +36,9 @@ Un même concept = **UN SEUL helper `FP.*`** (source unique), consommé par **to
 - Le tableau de bord, l'écran mural et Statistiques (CO₂ + conformité) comptent désormais le **« parc possédé »** via **`!FP.horsFlotte`** (exclut vendu / cédé / restitué / hors service / archivé), **comme** Budget et Contrats.
 - **Ne plus utiliser `!FP.estVendu`** pour un compteur de flotte (il n'exclut que « vendu »).
 
-### 5. (EN COURS) `FP.estAssure(v)` — source unique « véhicule assuré »
-- Objectif : **une seule** définition de « assuré », consommée par Statistiques **et** `FP.suivi`. Définition **LARGE** validée : assuré dès qu'il y a un indice — champ assurance renseigné, **ou** assureur rattaché (`FP.assureurOf`), **ou** prime (`assurancePrimes`), **ou** document d'assurance, **ou** marqué « ignoré » (`assuranceIgnore`). `[DOC — lot en cours]`
+### 5. `FP.estAssure(v, docs)` — source unique « véhicule assuré » `[VÉRIFIÉ assets/js/app.js]`
+- **Une seule** définition de « assuré », consommée par **Statistiques** (conformité) **et** `FP.suivi._hasAssur` (dashboard « Suivi flotte » + checklist « À compléter »). Définition **LARGE PAR VÉHICULE** : vrai si une **preuve propre au véhicule** existe — champ `assurance` rempli, **ou** prime (`assurancePrimes`), **ou** marqué « ignoré » (`assuranceIgnore`), **ou** **assureur rattaché à ce véhicule** (`assureurVeh[plaque]`), **ou** document type `assurance` (param `docs`).
+- ⚠️ **N'utilise PAS** `FP.assureurOf` / `FP.assuranceLabel` : ils retombent sur l'assureur **global** de la société → rendraient tout véhicule « assuré » dès qu'un assureur société existe. Un véhicule **sans preuve propre** reste « assurance manquante » même si la société a un assureur par défaut (KPI utile). ⚠️ Ne pas confondre avec le **coût des primes** (Budget) ni le **rapprochement du fichier d'assurance** (Contrats), qui sont des concepts distincts.
 
 ### 6. (Hors code) Deck « Parc Pilot – Guide des conducteurs »
 - Support de formation conducteurs (artefact de présentation, couleurs orange/noir Parc Pilot). N'affecte pas l'application.
@@ -54,6 +55,7 @@ Un même concept = **UN SEUL helper `FP.*`** (source unique), consommé par **to
 | TVS | `FP.tvsDetail`, `FP.tvsAnnuelleFlotte` |
 | Périmètre flotte | **`FP.horsFlotte`** (parc possédé) · `FP.estVendu` (vendu seul) |
 | Kilométrage | `FP.kmActuel` |
+| Véhicule assuré ? (oui/non) | `FP.estAssure(v, docs)` — jamais `FP.assureurOf`/`FP.assuranceLabel` pour « assuré ou non » |
 | Énergie / carburant | `FP.normCarburant`, `FP.CARBURANTS` |
 | Plaques | `FP.normImmat`, `FP.immatEq`, `FP.vehByImmat` |
 | Formatage montant | `FP.euro` |
