@@ -732,6 +732,13 @@
           <option>Utilitaire</option>
         </select>
 
+        <!-- Filtre ÉNERGIE (carburant) — SECTION INDÉPENDANTE de la catégorie, combinable avec elle,
+             le propriétaire, le statut et la recherche. Peuplé dynamiquement (FP.normCarburant) à partir
+             des énergies RÉELLEMENT présentes, dans l'ordre canonique, + « Non renseignée ». -->
+        <select id="filter-energie" class="text-sm border border-slate-200 rounded-lg px-3 py-2" title="Filtrer par énergie">
+          <option value="all">Toutes énergies</option>
+        </select>
+
         <!-- Multi-entités : filtres entité / loueur / mode de détention / pays. Chacun est MASQUÉ
              automatiquement s'il n'y a qu'une seule valeur (barre épurée pour les flottes simples). -->
         <select id="filter-entite" class="text-sm border border-slate-200 rounded-lg px-3 py-2" style="display:none" title="Filtrer par entité de rattachement"><option value="all">Toutes entités</option></select>
@@ -1246,6 +1253,7 @@
     search: '',
     statut: 'all',
     categorie: 'all',
+    energie: 'all',      // énergie/carburant (champ v.carburant, normalisé via FP.normCarburant)
     groupe: 'all',
     entite: 'all',       // multi-entités : entité de rattachement
     proprio: 'all',      // propriétaire juridique (champ v.proprietaire, jamais déduit du loueur)
@@ -3044,6 +3052,15 @@
       else if (state.statut === 'vendu') { if (!FP.estVendu(v)) return false; }
       else if (v.statut !== state.statut) return false;
       if (state.categorie !== 'all' && v.categorie !== state.categorie) return false;
+      // Énergie : comparée via FP.normCarburant (regroupe « EL »→Électrique, codes P.3…) pour rester juste
+      // quelle que soit la forme stockée. '__none__' = carburant non renseigné. On NE DÉDUIT PAS l'énergie
+      // du modèle : une fiche sans carburant n'apparaît que sous « Non renseignée ».
+      if (state.energie !== 'all') {
+        const _rc = (v.carburant || '').trim();
+        const _nc = _rc ? (((window.FP && FP.normCarburant) ? FP.normCarburant(_rc) : _rc) || _rc).trim() : '';
+        if (state.energie === '__none__') { if (_nc) return false; }
+        else if (_nc !== state.energie) return false;
+      }
       // Multi-entités
       if (state.entite !== 'all' && (v.entiteRattachement || '') !== state.entite) return false;
       if (state.detention !== 'all' && (v.modeDetention || '') !== state.detention) return false;
@@ -5567,6 +5584,33 @@
   document.addEventListener('fp:data-ready', populateCategories);
   $('filter-categorie').addEventListener('change', (e) => { state.categorie = e.target.value; renderTable(); });
 
+  // ⚠️ Filtre « Énergie » : peuplé à partir des énergies RÉELLEMENT présentes, normalisées via
+  // FP.normCarburant (« EL » compte comme « Électrique »), dans l'ordre canonique FP.CARBURANTS,
+  // + « Non renseignée » s'il existe des fiches sans carburant. Même robustesse que populateCategories.
+  // On ne sépare PAS hybride rechargeable / non rechargeable : la donnée (champ unique carburant) ne le
+  // permet pas — on n'invente rien (il faudrait un nouveau champ CO₂/indicateur, côté Supabase).
+  function populateEnergies() {
+    const sel = $('filter-energie'); if (!sel) return;
+    const cur = state.energie || 'all';
+    const norm = (raw) => { const r = (raw || '').trim(); if (!r) return ''; return (((window.FP && FP.normCarburant) ? FP.normCarburant(r) : r) || r).trim(); };
+    const present = new Map(); let hasVide = false;
+    (data.vehicules || []).forEach(v => { const nc = norm(v && v.carburant); if (nc) { present.set(nc.toLowerCase(), nc); } else { hasVide = true; } });
+    const ordre = (window.FP && FP.CARBURANTS) ? FP.CARBURANTS : [];
+    const vals = [];
+    ordre.forEach(c => { const k = String(c).toLowerCase(); if (present.has(k)) { vals.push(present.get(k)); present.delete(k); } });
+    [...present.values()].sort((a, b) => a.localeCompare(b, 'fr')).forEach(x => vals.push(x));
+    const esc = (x) => FP.esc ? FP.esc(x) : x;
+    let html = '<option value="all">Toutes énergies</option>'
+      + vals.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
+    if (hasVide) html += `<option value="__none__"${cur === '__none__' ? ' selected' : ''}>Non renseignée</option>`;
+    sel.innerHTML = html;
+    const valid = cur === 'all' || (cur === '__none__' && hasVide) || vals.includes(cur);
+    sel.value = valid ? cur : 'all'; state.energie = valid ? cur : 'all';
+  }
+  populateEnergies();
+  document.addEventListener('fp:data-ready', populateEnergies);
+  $('filter-energie').addEventListener('change', (e) => { state.energie = e.target.value; renderTable(); });
+
   // ===== Multi-entités : filtres entité / loueur / mode / pays (peuplés dynamiquement) =====
   // Chaque select est MASQUÉ s'il n'y a pas au moins 2 valeurs distinctes → barre épurée pour les
   // flottes mono-entité (comportement actuel inchangé pour PXP tant qu'aucune entité n'est saisie).
@@ -5617,12 +5661,13 @@
   $('filter-pays').addEventListener('change', (e) => { state.pays = e.target.value; renderTable(); });
   // Bouton « Réinitialiser » de la barre de filtres (recherche + statut + catégorie).
   function resetVehFilters() {
-    state.search = ''; state.statut = 'all'; state.categorie = 'all';
+    state.search = ''; state.statut = 'all'; state.categorie = 'all'; state.energie = 'all';
     state.groupe = 'all';                    // revient à l'onglet « Tous »
     state.entite = 'all'; state.proprio = 'all'; state.detention = 'all'; state.pays = 'all';
     state.sortKey = null; state.sortDir = 'asc'; // et annule le tri par colonne
     if ($('search')) $('search').value = '';
     if ($('filter-categorie')) $('filter-categorie').value = 'all';
+    if ($('filter-energie')) $('filter-energie').value = 'all';
     ['filter-entite', 'filter-proprio', 'filter-detention', 'filter-pays'].forEach(id => { const s = $(id); if (s) s.value = 'all'; });
     document.querySelectorAll('#filters-statut .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.value === 'all'));
     renderTabBar(); renderTable();
@@ -6276,6 +6321,7 @@
     if (state.groupe && state.groupe !== 'all') bits.push(FP.groupeLabel(state.groupe));
     if (state.statut && state.statut !== 'all') bits.push(state.statut === 'vendu' ? 'Vendus' : state.statut);
     if (state.categorie && state.categorie !== 'all') bits.push(state.categorie);
+    if (state.energie && state.energie !== 'all') bits.push(state.energie === '__none__' ? 'Énergie non renseignée' : state.energie);
     if (state.entite && state.entite !== 'all') bits.push(state.entite);
     if (state.detention && state.detention !== 'all') bits.push(state.detention);
     if (state.proprio && state.proprio !== 'all') bits.push(state.proprio === '__none__' ? 'Propriétaire non renseigné' : state.proprio);
@@ -6328,7 +6374,19 @@
     filters: [
       { k: 'societe', label: 'Société', type: 'select', opts: ['Toutes'].concat((function () { try { return (FP.getSocietes ? FP.getSocietes() : (FP.settings.get().societes || [])); } catch (e) { return []; } })()), apply: (v, val) => (v.societe || '') === val },
       { k: 'statut', label: 'Statut', type: 'select', opts: ['Tous', 'Actif', 'En entretien', 'À vendre', 'Vendu', 'Sinistre'], apply: (v, val) => (v.statut || '').toLowerCase() === val.toLowerCase() },
-      { k: 'carburant', label: 'Carburant', type: 'select', opts: ['Tous', 'Électrique', 'Hybride', 'Hybride rechargeable', 'Essence', 'Diesel', 'GPL'], apply: (v, val) => (v.carburant || '').toLowerCase() === val.toLowerCase() },
+      { k: 'carburant', label: 'Énergie', type: 'select',
+        // ⚠️ Opts alignées sur les énergies RÉELLEMENT présentes (normalisées via FP.normCarburant) : les
+        // anciens libellés (« Hybride », « Hybride rechargeable », « GPL ») ne correspondaient à AUCUNE
+        // valeur stockée (« Essence / Hybride »…) → filtre mort. On ne sépare pas PHEV/HEV (donnée absente).
+        opts: ['Toutes'].concat((function () { try {
+          const norm = (raw) => { const r = (raw || '').trim(); if (!r) return ''; return (((window.FP && FP.normCarburant) ? FP.normCarburant(r) : r) || r).trim(); };
+          const set = new Set(); let vide = false;
+          (data.vehicules || []).forEach(v => { const nc = norm(v.carburant); if (nc) set.add(nc); else vide = true; });
+          const ordre = (window.FP && FP.CARBURANTS) ? FP.CARBURANTS : [];
+          const arr = [...set].sort((a, b) => { const ia = ordre.indexOf(a), ib = ordre.indexOf(b); if (ia < 0 && ib < 0) return a.localeCompare(b, 'fr'); if (ia < 0) return 1; if (ib < 0) return -1; return ia - ib; });
+          if (vide) arr.push('Non renseignée'); return arr;
+        } catch (e) { return []; } })()),
+        apply: (v, val) => { const r = (v.carburant || '').trim(); const nc = r ? (((window.FP && FP.normCarburant) ? FP.normCarburant(r) : r) || r).trim() : ''; return val === 'Non renseignée' ? !nc : (nc.toLowerCase() === String(val).toLowerCase()); } },
     ],
     imports: [
       { label: 'Importer des cartes grises (lot)', icon: 'file-badge', run: () => { const b = document.getElementById('il-cg'); if (b) b.click(); } },
@@ -6363,6 +6421,7 @@
       if (state.groupe && state.groupe !== 'all') out.push({ label: 'Groupe', value: FP.groupeLabel(state.groupe) });
       if (state.statut && state.statut !== 'all') out.push({ label: 'Statut', value: state.statut === 'vendu' ? 'Vendus' : state.statut });
       if (state.categorie && state.categorie !== 'all') out.push({ label: 'Catégorie', value: state.categorie });
+      if (state.energie && state.energie !== 'all') out.push({ label: 'Énergie', value: state.energie === '__none__' ? 'Non renseignée' : state.energie });
       if (state.entite && state.entite !== 'all') out.push({ label: 'Entité', value: state.entite });
       if (state.detention && state.detention !== 'all') out.push({ label: 'Détention / loueur', value: state.detention });
       if (state.proprio && state.proprio !== 'all') out.push({ label: 'Propriétaire', value: state.proprio === '__none__' ? 'Non renseigné' : state.proprio });
