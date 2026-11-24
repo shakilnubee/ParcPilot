@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261123g">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261124a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261123g"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261124a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261123g">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261124a">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -379,7 +379,7 @@
         <div class="man-note">Nuance : un <b>hybride</b> compte comme « électrifié » dans le % mais garde son CO₂ dans le calcul d'émissions (seuls électrique/hydrogène sont mis à 0).</div>
 
         <div class="man-zone">Bloc « Conformité réglementaire »</div>
-        <div class="man-item">Un véhicule est <b>« en règle »</b> s'il remplit les DEUX critères : <b>CT à jour</b> (prochain CT non dépassé, ou document CT présent) ET <b>assurance renseignée</b> (champ assurance, ou prime, ou document assurance). Donut = % en règle (vert ≥ 90 %).</div>
+        <div class="man-item">Un véhicule est <b>« en règle »</b> s'il remplit les DEUX critères : <b>CT à jour</b> (prochain CT non dépassé, ou document CT présent) ET <b>assurance renseignée</b>. Un véhicule est considéré <b>assuré</b> dès qu'il a une <b>preuve propre</b> : champ assurance rempli, <b>ou</b> prime enregistrée, <b>ou</b> assureur rattaché à ce véhicule, <b>ou</b> attestation d'assurance au dossier, <b>ou</b> marqué « sans prime à ignorer ». C'est la <b>même règle partout</b> (Statistiques, tableau de bord « Suivi flotte », checklist « À compléter ») — un véhicule sans aucune de ces infos reste signalé « assurance manquante » même si la société a un assureur par défaut. Donut = % en règle (vert ≥ 90 %).</div>
         <div class="man-item">3 cartes cliquables = filtres : <b>Véhicules en règle</b> (X/Y), <b>CT à traiter</b> (dépassé/non renseigné), <b>Assurance manquante</b>. La ligne « À régulariser » liste les cas avec la raison ; chaque ligne a un bouton « ignorer » (ex. véhicule étranger).</div>
 
         <div class="man-zone">Le tableau « Coût total par véhicule (TCO) »</div>
@@ -1213,8 +1213,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261123g"></script>
-<script src="../assets/js/supabase-client.js?v=20261123g"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261124a"></script>
+<script src="../assets/js/supabase-client.js?v=20261124a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1230,10 +1230,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261123g"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261124a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261123g"></script>
+<script src="../assets/js/app.min.js?v=20261124a"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();
