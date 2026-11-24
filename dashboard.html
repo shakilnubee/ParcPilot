@@ -493,7 +493,7 @@
             <div class="kpi-ic warn"><i data-lucide="wrench"></i></div>
           </div>
         </a>
-        <a href="pages/sinistres.html" class="kpi" style="cursor:pointer" title="Voir les sinistres en attente de remboursement">
+        <a href="pages/sinistres.html?remb=attente" class="kpi" style="cursor:pointer" title="Voir les sinistres en attente de remboursement">
           <div class="flex justify-between items-start">
             <div>
               <div class="kpi-label">Sinistres à rembourser (€)</div>
@@ -821,12 +821,16 @@
       // tuile « Amendes à payer (€) » — plus de doublon). Nombre en gros, montant en sous-ligne.
       const elD = document.getElementById('kpi-amendes-delta'); if (elD) elD.textContent = (due > 0 ? (FP.euro(due) + ' restant à régler →') : 'à jour ✓');
       const g = (FP.settings && FP.settings.get) ? FP.settings.get() : {};
-      const st = g.sinistreStatut || {}, grp = g.sinistreGroupes || {}, doss = g.sinistreAssurance || {};
+      const st = g.sinistreStatut || {}, grp = g.sinistreGroupes || {}, doss = g.sinistreAssurance || {}, ign = g.sinistreEtapeIgnore || {};
       let rem = 0; const seenK = new Set();
       // Reste à rembourser = coût RÉEL du sinistre (FP.coutSinistre exclut les devis) − remboursements,
       // et statut via le helper canonique FP.sinistreStatutOf (résout clé de groupe PUIS id de facture) →
       // même chiffre que la page Sinistres (avant : montantTTC brut + statut par clé de groupe seule).
-      (D.factures || []).forEach(f => { if (f.type !== 'sinistre') return; const key = grp[f.id] || f.id; const stt = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : (st[key] || st[f.id]); if (stt !== 'attente') return; rem += (FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0)); if (!seenK.has(key)) { seenK.add(key); rem -= (Number((doss[key] || {}).rembourse) || 0); } });
+      // MÊME PÉRIMÈTRE que la page Sinistres « Remb. en attente » (rembEnAttente, sinistres.html) : on EXCLUT
+      // les dossiers dont l'étape Remboursements est « sans objet » (sinistreEtapeIgnore[key].reglements) —
+      // sinon un reste à charge DÉFINITIF (ex. GM-548-QA, 495,05 €) restait compté ici alors qu'il a déjà
+      // quitté la page. Même clé de groupe (grp[f.id]||f.id) que le statut et que la page.
+      (D.factures || []).forEach(f => { if (f.type !== 'sinistre') return; const key = grp[f.id] || f.id; const stt = FP.sinistreStatutOf ? FP.sinistreStatutOf(f) : (st[key] || st[f.id]); if (stt !== 'attente') return; if ((ign[key] || {}).reglements) return; rem += (FP.coutSinistre ? FP.coutSinistre(f) : (Number(f.montantTTC) || 0)); if (!seenK.has(key)) { seenK.add(key); rem -= (Number((doss[key] || {}).rembourse) || 0); } });
       const el2 = document.getElementById('kpi-sin-rembours'); if (el2) el2.textContent = FP.euro(Math.max(0, rem));
     } catch (e) {}
   }
