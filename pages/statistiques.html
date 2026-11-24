@@ -387,7 +387,7 @@
     const vs = (data.vehicules || []).filter(v => {
       const cat = (v.categorie || '').toLowerCase();
       if (/moto|utilit|engin|remorque/.test(cat)) return false;      // non concernés
-      if (FP.estVendu(v)) return false;                              // exclut les vendus (source unique)
+      if (FP.horsFlotte ? FP.horsFlotte(v) : FP.estVendu(v)) return false;   // exclut le parc sorti (vendu/cédé/restitué/HS) — MÊME règle que TVS/TCO/km de cette page
       return true;
     });
     const IG = (window.FP && FP.ignore) ? FP.ignore : { has: () => false, countPrefix: () => 0 };
@@ -460,7 +460,7 @@
     const vs = (data.vehicules || []).filter(v => {
       const cat = (v.categorie || '').toLowerCase();
       if (/moto|utilit|engin|remorque/.test(cat)) return false;
-      if (FP.estVendu(v)) return false;
+      if (FP.horsFlotte ? FP.horsFlotte(v) : FP.estVendu(v)) return false;   // exclut le parc sorti — MÊME règle que TVS/TCO/km de cette page
       return true;
     });
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };

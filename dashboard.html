@@ -679,7 +679,7 @@
   // === KPIs ===
   // Flotte = hors véhicules VENDUS (archivés) → même règle que la page Véhicules
   // (sinon le total « flotte » du dashboard dépasse celui de la page Véhicules).
-  const flotteActive = data.vehicules.filter(v => !FP.estVendu(v));
+  const flotteActive = data.vehicules.filter(v => !(FP.horsFlotte ? FP.horsFlotte(v) : FP.estVendu(v)));   // parc possédé : exclut vendu/cédé/restitué/HS/archivé — MÊME règle que Statistiques/Budget/Contrats
   document.getElementById('kpi-vehicules').textContent = flotteActive.length;
 
   // Nombre de conducteurs — conducteurs enregistrés (avec véhicule attribué)
@@ -1355,8 +1355,8 @@
   document.addEventListener('fp:data-ready', () => {
     window.__fpDashReady = true;   // données/réglages chargés → « Premiers pas » peut être évalué
     // ⚠️ MÊMES règles que le 1er rendu (sinon le live ré-affiche l'ancien comptage) :
-    // flotte = hors vendus ; amendes à payer = 2026 ; km/valeur sur la flotte active.
-    const fa = (data.vehicules || []).filter(v => !FP.estVendu(v));
+    // flotte = parc possédé (hors flotte : vendu/cédé/restitué/HS/archivé) ; amendes à payer = 2026 ; km/valeur sur la flotte active.
+    const fa = (data.vehicules || []).filter(v => !(FP.horsFlotte ? FP.horsFlotte(v) : FP.estVendu(v)));
     document.getElementById('kpi-vehicules').textContent = fa.length;
     const ap = (data.amendes || []).filter(a => FP.estAPayer(a)).length;
     document.getElementById('kpi-amendes').textContent = ap;
@@ -1383,7 +1383,7 @@
   // figés sur l'ancienne valeur jusqu'à un F5 (l'utilisateur croyait que ça n'avait pas marché).
   document.addEventListener('fp:veh-km', () => {
     try {
-      const fa = (data.vehicules || []).filter(v => !FP.estVendu(v));
+      const fa = (data.vehicules || []).filter(v => !(FP.horsFlotte ? FP.horsFlotte(v) : FP.estVendu(v)));
       const km = fa.reduce((s, v) => s + (FP.kmActuel ? FP.kmActuel(v) : (v.km || 0)), 0);
       const kEl = document.getElementById('kpi-km'); if (kEl) kEl.textContent = FP.num(km) + ' km';
       if (window.FP && FP.suivi) FP.suivi.ctx().then(ctx => { const c = FP.suivi.counts(fa, ctx); const el = document.getElementById('kpi-suivi'); if (el) { el.textContent = c.complets + ' / ' + c.total; el.style.color = (c.incomplets === 0 && c.total > 0) ? '#16a34a' : (c.incomplets > 0 ? 'var(--fp-warn)' : ''); } const d = document.getElementById('kpi-suivi-delta'); if (d) d.textContent = c.incomplets > 0 ? (c.incomplets + ' à compléter →') : 'flotte à jour ✓'; }).catch(() => {});
