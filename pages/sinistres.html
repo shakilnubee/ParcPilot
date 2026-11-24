@@ -740,6 +740,20 @@
   }
   applyVehFromUrl();
 
+  // Onglet de suivi via ?remb=<action|attente|regles|clotures|all> (ex. depuis la carte « Sinistres à
+  // rembourser » du tableau de bord → « Remb. en attente »). Appliqué UNE fois ; la puce active est
+  // synchronisée par renderTimeline (même source : state.remb → filterByTab → rembEnAttente).
+  let _rembUrlDone = false;
+  function applyRembFromUrl() {
+    if (_rembUrlDone) return;
+    try {
+      const r = new URLSearchParams(location.search).get('remb'); if (!r) return;
+      if (!['action', 'all', 'attente', 'regles', 'clotures'].includes(r)) return;
+      _rembUrlDone = true; state.remb = r; sinExpanded = false; renderTimeline();
+    } catch (e) {}
+  }
+  applyRembFromUrl();
+
   // ── Lot E — résolution dossier / conducteur / assureur d'un sinistre (niveau INCIDENT), pour les filtres.
   // Sources UNIQUES : sinistreGroupes + sinistreAssurance (dossier), conducteur figé sinon chauffeur du
   // véhicule, assureur = assureur rattaché au véhicule (FP.assureurLabelVeh). Aucune donnée inventée.
