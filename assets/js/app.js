@@ -7096,6 +7096,35 @@ FP.assureurOf = (v) => {
   } catch (e) { return null; }
 };
 FP.assureurLabelVeh = (v) => { const a = FP.assureurOf(v); return a ? (a.nom || a.police || '') : (FP.assuranceLabel ? FP.assuranceLabel() : ''); };
+// ⚠️ SOURCE UNIQUE — un véhicule est-il « assuré » ? Définition LARGE PAR VÉHICULE (validée 24/11/2026) :
+// vrai dès qu'une preuve PROPRE au véhicule existe — (1) champ « assurance » renseigné sur la fiche,
+// (2) prime enregistrée (settings.assurancePrimes[plaque]), (3) marqué « sans prime, à ignorer »
+// (settings.assuranceIgnore), (4) assureur RATTACHÉ SPÉCIFIQUEMENT à ce véhicule (settings.assureurVeh[plaque]),
+// (5) attestation d'assurance au dossier (document type 'assurance', via le paramètre `docs`).
+// ⚠️ On n'utilise PAS FP.assureurOf / FP.assuranceLabel ici : ils retombent sur l'assureur GLOBAL de la
+// société → tout véhicule deviendrait « assuré » dès qu'un assureur société existe (le KPI « assurance
+// manquante » ne servirait plus). `docs` (facultatif) = tableau de documents (toutes plaques) OU le
+// contexte FP.suivi.ctx() ({docs:{vehId:[...]}}). Consommé par Statistiques (conformité) et FP.suivi._hasAssur.
+FP.estAssure = (v, docs) => {
+  try {
+    if (!v) return false;
+    const champ = String(v.assurance == null ? '' : v.assurance).trim();
+    if (champ && champ !== '—') return true;                                 // (1) champ fiche
+    const s = (FP.settings && FP.settings.get) ? (FP.settings.get() || {}) : {};
+    const norm = (x) => FP.normImmat ? FP.normImmat(x) : String(x == null ? '' : x).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const pl = norm(v.immat);
+    const keyEq = (k) => norm(k) === pl;
+    if (Object.keys(s.assurancePrimes || {}).some(keyEq)) return true;                          // (2) prime
+    if ((Array.isArray(s.assuranceIgnore) ? s.assuranceIgnore : []).some(keyEq)) return true;   // (3) ignoré
+    const av = s.assureurVeh || {};                                                             // (4) assureur PROPRE au véhicule
+    if (Object.keys(av).some(k => keyEq(k) && av[k])) return true;
+    let arr = [];                                                                               // (5) document d'assurance
+    if (Array.isArray(docs)) arr = docs;
+    else if (docs && docs.docs && typeof docs.docs === 'object') arr = docs.docs[v.id] || [];
+    if (arr.some(d => d && d.type === 'assurance' && (d.vehiculeId === v.id || keyEq(d.vehiculeId)))) return true;
+  } catch (e) {}
+  return false;
+};
 // ⚠️ SOURCE UNIQUE — n° d'assistance 24/7 + notice PDF D'UN véhicule = ceux de SON assureur (rattachement
 // par plaque), avec REPLI sur la config portail globale de la société (settings.portail) pour rétro-compat.
 // Lues par le portail conducteur (edge km-collect, même logique) et la fiche véhicule → une seule vérité.
@@ -24846,14 +24875,14 @@ FP.suivi = {
     { k: 'cond', emo: '👤', label: 'Conducteur', auto: (v) => !!(v.chauffeur && String(v.chauffeur).trim() && String(v.chauffeur).trim() !== '—') },
     { k: 'tel', emo: '📞', label: 'Tél. conducteur', auto: (v) => { try { return !!(FP.conducteurContact && String(FP.conducteurContact(v.chauffeur).tel || '').trim()); } catch (e) { return false; } } },
     { k: 'email', emo: '📧', label: 'Email conducteur', auto: (v) => { try { return !!(FP.conducteurContact && String(FP.conducteurContact(v.chauffeur).email || '').trim()); } catch (e) { return false; } } },
-    { k: 'assur', emo: '🛡️', label: 'Assurance', auto: (v) => FP.suivi._hasAssur(v) },
+    { k: 'assur', emo: '🛡️', label: 'Assurance', auto: (v, c) => FP.suivi._hasAssur(v, c) },
     { k: 'leasing', emo: '📄', label: 'Contrat leasing', auto: (v) => FP.suivi._leasing(v) },
     { k: 'edlr', emo: '🔙', label: 'EDL restitution', auto: (v, c) => FP.suivi._edlRestit(v, c) }
   ],
   _edl(v, c, kind) { const ds = (c && c.docs && c.docs[v.id]) || []; return ds.some(d => d && d.type === 'etat-des-lieux' && d.url && !FP.suivi._isDrive(d.url) && (kind === 'photo' ? FP.suivi._imgRe.test(d.url) : !FP.suivi._imgRe.test(d.url))); },
   _num(v, key) { try { return String((FP.numCarteVehicule ? FP.numCarteVehicule(v, key) : ((FP.settings.get()[key]) || {})[v.id]) || '').trim(); } catch (e) { return ''; } },
   _hasCg(v, c) { try { if (v && v.cgUrl && !FP.suivi._isDrive(v.cgUrl)) return true; const ds = (c && c.docs && c.docs[v.id]) || []; return ds.some(d => d && d.type === 'carte-grise' && d.url && !FP.suivi._isDrive(d.url)); } catch (e) { return false; } },
-  _hasAssur(v) { try { if (v && v.assurance && String(v.assurance).trim()) return true; if (FP.assureurOf && FP.assureurOf(v)) return true; if (FP.assuranceLabel && FP.assuranceLabel()) return true; } catch (e) {} return false; },
+  _hasAssur(v, c) { try { return !!(FP.estAssure && FP.estAssure(v, c)); } catch (e) { return false; } },
   // Contrat leasing — AUTO : « non concerné » (na) si le véhicule n'est PAS en leasing/LLD (source
   // unique FP.estLeasing = propriétaire = loueur configuré OU contrat leasing connu) ; sinon vrai si un
   // PDF de contrat est au dossier (BPCE settings.leasingDocs[IMMAT] ou contrat Ayvens/Localease avec docs),
