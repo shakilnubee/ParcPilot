@@ -25,6 +25,7 @@
 | 08 | **08_CALCULS_REGLES_METIER.md** | TCO, carburant, coûts, fiscalité (TVS), km/échéances, agrégations, fonctions sources |
 | 09 | **09_SECURITE_PERMISSIONS.md** | Rôles, autorisations par module, accès public/QR, auth, RLS, isolation inter-sociétés |
 | 10 | **10_ETAT_REEL_ET_AMELIORATIONS.md** | Maturité par fonctionnalité + analyse des manques (faits vs recommandations) |
+| 11 | **11_NOUVEAUTES_POUR_PROMPTER.md** | Changements récents (filtre énergie, scanner PDF natif, cohérence KPI sinistres & périmètre flotte, `FP.estAssure`) + helpers canoniques + modèle de prompt |
 
 ## Comment lire cette documentation
 
