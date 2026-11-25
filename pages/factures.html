@@ -1760,6 +1760,16 @@
   $('facture-form').addEventListener('submit', saveFacture);
   $('fa-trigger').addEventListener('click', () => $('fa-file').click());
   $('fa-file').addEventListener('change', (e) => { const file = e.target.files && e.target.files[0]; _faFileName = file ? file.name : ''; _faFile = file || null; handleFacture(file); e.target.value = ''; });
+  // Pont réutilisable : importer une facture depuis un fichier fourni par PROGRAMME (ex. pièce jointe Gmail,
+  // Lot 3). Réutilise EXACTEMENT le flux d'import manuel — openFactureModal + lecture scanIA (handleFacture)
+  // + aperçu + contrôle HT+TVA=TTC + anti-doublon FP.dupe à l'enregistrement. L'utilisateur relit et valide
+  // avant d'enregistrer (jamais d'insertion aveugle).
+  window.FP_importFactureDepuisFichier = function (file, opts) {
+    if (!file) return;
+    try { openFactureModal(opts || {}); } catch (e) {}
+    _faFile = file; _faFileName = file.name || 'facture.pdf';
+    try { handleFacture(file); } catch (e) {}
+  };
   // Import en lot (plusieurs PDF d'un coup)
   if ($('btn-import-lot')) $('btn-import-lot').addEventListener('click', () => $('fa-lot-file').click());
   if ($('fa-lot-file')) $('fa-lot-file').addEventListener('change', (e) => { const fl = e.target.files; if (fl && fl.length) handleFactureLot(fl); e.target.value = ''; });
@@ -3139,7 +3149,9 @@
   .gbx-item .gbx-subj { font-size: .85rem; margin-top: 2px; word-break: break-word; }
   .gbx-item .gbx-meta { font-size: .72rem; color: var(--fp-muted, #64748B); margin-top: 3px; }
   .gbx-item .gbx-snip { font-size: .78rem; color: var(--fp-muted, #64748B); margin-top: 6px; line-height: 1.4; }
-  .gbx-pdfs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .gbx-pdfs { display: flex; flex-direction: column; gap: 6px; margin-top: 9px; }
+  .gbx-pdf { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .gbx-pdf-name { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 600; max-width: 100%; word-break: break-word; }
   .gbx-empty { text-align: center; color: var(--fp-muted, #64748B); font-size: .9rem; padding: 26px 10px; }
   .gbx-note { font-size: .74rem; color: var(--fp-muted, #64748B); margin-top: 14px; border-top: 1px dashed var(--fp-border, #E2E8F0); padding-top: 10px; }
 </style>
@@ -3191,7 +3203,10 @@
     var pdfs = '';
     if (m.pdfs && m.pdfs.length){
       pdfs = '<div class="gbx-pdfs">' + m.pdfs.map(function(p){
-        return '<button class="btn btn-outline text-xs gbx-prev" data-mid="' + esc(m.id) + '" data-aid="' + esc(p.attachmentId) + '" title="Aperçu du PDF (nouvel onglet)"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ' + esc(p.filename || 'Pièce jointe') + '</button>';
+        var mid = esc(m.id), aid = esc(p.attachmentId), fn = esc(p.filename || 'Pièce jointe');
+        return '<span class="gbx-pdf"><span class="gbx-pdf-name"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ' + fn + '</span>'
+          + '<button class="btn btn-outline text-xs gbx-prev" data-mid="' + mid + '" data-aid="' + aid + '" title="Aperçu du PDF (nouvel onglet)">Aperçu</button>'
+          + '<button class="btn btn-primary text-xs gbx-import" data-mid="' + mid + '" data-aid="' + aid + '" data-fn="' + fn + '" title="Lire la facture (IA) et l\'ajouter — tu valides avant l\'enregistrement">Importer</button></span>';
       }).join('') + '</div>';
     }
     return '<div class="gbx-item">'
@@ -3221,7 +3236,7 @@
     html += withPdf.length ? '<div class="gbx-list">' + withPdf.map(itemHtml).join('') + '</div>' : '<div class="gbx-empty" style="padding:12px">Aucun pour l\'instant.</div>';
     html += '<div class="gbx-sec-title">📌 Infos & échéances (sans pièce jointe) — ' + noPdf.length + '</div>';
     html += noPdf.length ? '<div class="gbx-list">' + noPdf.map(itemHtml).join('') + '</div>' : '<div class="gbx-empty" style="padding:12px">Aucun pour l\'instant.</div>';
-    html += '<div class="gbx-note">Lecture seule. L\'import automatique d\'une facture (scan + contrôle) arrivera à l\'étape suivante.' + (data.email ? ' · Boîte : ' + esc(data.email) : '') + '</div>';
+    html += '<div class="gbx-note">Clique « Importer » sur une facture PDF : l\'IA la lit (contrôle HT + TVA = TTC, anti-doublon) et tu <b>valides avant l\'enregistrement</b>. Les mails « Infos &amp; échéances » restent en lecture.' + (data.email ? ' · Boîte : ' + esc(data.email) : '') + '</div>';
     bodyEl.innerHTML = html; icons();
   }
 
@@ -3235,6 +3250,27 @@
   // Aperçu d'un PDF joint (nouvel onglet) — base64 → Blob → URL d'objet.
   function b64ToBlob(b64, type){ var bin = atob(b64); var len = bin.length; var bytes = new Uint8Array(len); for (var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes], { type: type || 'application/pdf' }); }
   bodyEl.addEventListener('click', function(e){
+    var imp = e.target.closest && e.target.closest('.gbx-import');
+    if (imp){
+      var mi = imp.dataset.mid, ai = imp.dataset.aid, fn = imp.dataset.fn || 'facture.pdf';
+      if (!mi || !ai) return;
+      if (typeof window.FP_importFactureDepuisFichier !== 'function'){
+        try { (FP.notifyError || FP.toast || function(m){ alert(m); })('Import indisponible sur cette page.'); } catch(e){}
+        return;
+      }
+      var oi = imp.innerHTML; imp.disabled = true; imp.innerHTML = 'Lecture…';
+      invoke('attachment', { messageId: mi, attachmentId: ai }).then(function(d){
+        if (!d || !d.dataB64) throw new Error('Pièce jointe vide.');
+        var file;
+        try { file = new File([b64ToBlob(d.dataB64, d.mimeType)], fn, { type: 'application/pdf' }); }
+        catch (e2) { var bl = b64ToBlob(d.dataB64, d.mimeType); bl.name = fn; file = bl; } // repli navigateurs sans File()
+        close();                                  // on ferme la boîte Gmail
+        window.FP_importFactureDepuisFichier(file); // → fenêtre de validation (scanIA + contrôle + anti-doublon)
+      }).catch(function(err){
+        try { (FP.notifyError || FP.toast || function(m){ alert(m); })('Import impossible : ' + ((err && err.message) || err)); } catch(e){}
+      }).then(function(){ imp.disabled = false; imp.innerHTML = oi; icons(); });
+      return;
+    }
     var b = e.target.closest && e.target.closest('.gbx-prev'); if (!b) return;
     var mid = b.dataset.mid, aid = b.dataset.aid; if (!mid || !aid) return;
     var old = b.innerHTML; b.disabled = true; b.innerHTML = 'Chargement…';
