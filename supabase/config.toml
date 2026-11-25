@@ -44,3 +44,10 @@ verify_jwt = false
 # KM_RELANCE_SECRET réutilisé) OU un JWT de CEO pour un test manuel. JWT plateforme désactivé.
 [functions.task-reminders]
 verify_jwt = false
+
+# gmail-actions : moteur d'automatisation (lecture Gmail → tri → file « À vérifier »). Appelée par
+# une tâche planifiée (pg_cron) sans JWT utilisateur. Même modèle que km-relance : protégée par
+# l'en-tête x-cron-secret (== GMAIL_ACTIONS_SECRET ou KM_RELANCE_SECRET) OU un JWT de CEO pour un
+# test manuel. DORMANTE : le mode 'run' ne fait rien tant que GMAIL_ACTIONS_ENABLED n'est pas posé.
+[functions.gmail-actions]
+verify_jwt = false
