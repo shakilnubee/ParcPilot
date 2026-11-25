@@ -3517,6 +3517,14 @@
     const tryOpen = () => { if ((data.amendes || []).some(a => a.id === id)) { openDrawer(id); return true; } return false; };
     if (!tryOpen()) document.addEventListener('fp:data-ready', tryOpen, { once: true });
   })();
+  // Ouverture directe par N° D'AVIS (?avis=…) — depuis la file « À vérifier » de l'automatisation Gmail.
+  (function openAmendeByAvis() {
+    const raw = new URLSearchParams(location.search).get('avis');
+    if (!raw) return;
+    const n = String(raw).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const tryOpen = () => { const a = (data.amendes || []).find(x => String(x.numeroAvis || '').toLowerCase().replace(/[^a-z0-9]/g, '') === n); if (a) { openDrawer(a.id); return true; } return false; };
+    if (!tryOpen()) document.addEventListener('fp:data-ready', tryOpen, { once: true });
+  })();
 
   // Init
   restoreFilters();   // #8 : recharge le dernier filtre/tri mémorisé…

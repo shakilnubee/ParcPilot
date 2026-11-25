@@ -58,7 +58,7 @@
       : '';
     var actions = traite ? '' :
       '<div class="gav-actions">'
-      + '<button class="btn btn-dark text-xs gav-confirm" data-id="' + esc(it.id) + '" title="Valider l’action proposée">✓ Confirmer</button>'
+      + '<button class="btn btn-dark text-xs gav-confirm" data-id="' + esc(it.id) + '" title="Valider et ouvrir la fiche pour finaliser (dépôt justificatif, MAJ du RDV, rattachement de pièce…)">✓ Confirmer</button>'
       + '<button class="btn btn-outline text-xs gav-correct" data-id="' + esc(it.id) + '" title="Corriger le rattachement / l’action">✎ Corriger</button>'
       + '<button class="btn btn-outline text-xs gav-ignore" data-id="' + esc(it.id) + '" title="Ignorer cette proposition">✕ Ignorer</button>'
       + '</div>';
@@ -153,16 +153,37 @@
       .then(function (r) { if (r.error) throw new Error(r.error.message || 'écriture refusée'); return true; });
   };
 
+  // Lien (pur) vers le parcours manuel pré-ciblé selon le domaine/référence de la proposition.
+  // Relatif à pages/ (l'écran vit dans notifications.html).
+  A.lienDossier = function (it) {
+    var ref = (it && it.dossier_ref) || {};
+    var veh = (ref.plaque && window.FP && FP.vehByImmat) ? FP.vehByImmat(ref.plaque) : null;
+    var vehLien = (veh && veh.id) ? 'vehicules.html?veh=' + encodeURIComponent(veh.id) : null;
+    switch (it && it.domaine) {
+      case 'amende': return ref.numeroAvis ? 'amendes.html?avis=' + encodeURIComponent(ref.numeroAvis) : 'amendes.html';
+      case 'maintenance': return vehLien || 'entretiens.html';
+      case 'sinistre': return vehLien || 'sinistres.html';
+      case 'relance': return vehLien || 'conducteurs.html';
+      default: return vehLien;
+    }
+  };
+
+  // Confirmer = enregistrer la validation PUIS ouvrir la fiche pré-ciblée pour FINALISER via le
+  // parcours manuel existant (dépôt justificatif + « payée », MAJ du RDV, rattachement de pièce…).
+  // On NE devine NI date NI montant : c'est l'humain qui finalise dans l'écran habituel.
+  A.confirmer = function (host, id) {
+    var it = (A._items || []).find(function (x) { return x.id === id; }); if (!it) return;
+    var lien = A.lienDossier(it);
+    A.majStatut(id, 'confirme').then(function () {
+      toast(lien ? 'Confirmé — ouverture de la fiche pour finaliser.' : 'Confirmé.');
+      A._after(host, id, 'confirme');
+      if (lien) { try { window.open(lien, '_blank'); } catch (e) { try { location.href = lien; } catch (_) {} } }
+    }).catch(function (e) { err('Impossible de confirmer : ' + (e.message || e)); });
+  };
+
   A.wire = function (host) {
     host.querySelectorAll('.gav-confirm').forEach(function (b) {
-      b.addEventListener('click', function () {
-        // Phase 3 : on enregistre la validation. L'EXÉCUTION de l'action sur le dossier
-        // (parcours manuel FP.*) est branchée en Phase 5.
-        b.disabled = true;
-        A.majStatut(b.dataset.id, 'confirme').then(function () {
-          toast('Proposition confirmée.'); A._after(host, b.dataset.id, 'confirme');
-        }).catch(function (e) { b.disabled = false; err('Impossible de confirmer : ' + (e.message || e)); });
-      });
+      b.addEventListener('click', function () { A.confirmer(host, b.dataset.id); });
     });
     host.querySelectorAll('.gav-ignore').forEach(function (b) {
       b.addEventListener('click', function () {
