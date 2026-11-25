@@ -63,6 +63,7 @@
 
   var qs = new URLSearchParams(location.search);
   var code = qs.get('code');
+  var state = qs.get('state') || '';   // "societe::uuid" — renvoyé tel quel par Google
   var gErr = qs.get('error');
   if (gErr) { return fail('Google a refusé l\'accès (' + gErr + ').'); }
   if (!code) { return fail('Aucun code d\'autorisation reçu.'); }
@@ -76,7 +77,7 @@
   fetch(SUPA + '/functions/v1/gmail-oauth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': ANON, 'Authorization': 'Bearer ' + access },
-    body: JSON.stringify({ action: 'callback', code: code })
+    body: JSON.stringify({ action: 'callback', code: code, state: state })
   })
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (res) {
