@@ -39,6 +39,14 @@
   .drawer.open { transform: translateX(0); }
   .drawer-backdrop { position: fixed; inset: 0; background: rgba(15,30,61,.4); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 55; }
   .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  /* Plaque d'immatriculation dans l'en-tête sombre du détail — même composant que les cartes Véhicules
+     (fond clair, caractères foncés, bandeau bleu « F » + étoiles). Version compacte, lisible sur mobile. */
+  #drawer .plate { display: inline-flex; align-items: stretch; max-width: 100%; font-family: 'Inter', system-ui, sans-serif; font-weight: 800; letter-spacing: 1px; color: #0b0b0b; background: #fff; border: 2px solid #0b0b0b; border-radius: 6px; overflow: hidden; line-height: 1; box-shadow: 0 3px 8px -5px rgba(0,0,0,.5); vertical-align: middle; }
+  #drawer .plate .eu { background: #1B48C4; color: #fff; font-size: .5rem; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 .4rem; flex: 0 0 auto; }
+  #drawer .plate .eu::before { content: "★★★"; font-size: .36rem; color: #FFD24D; letter-spacing: -1px; line-height: 1; }
+  #drawer .plate .num { padding: .32rem .6rem; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #drawer .am-noplate { display: inline-block; font-size: .78rem; font-style: italic; color: #8598B4; }
+  @media (max-width: 480px) { #drawer .plate .num { font-size: .95rem; padding: .3rem .5rem; } }
   .field-label { font-size: .78rem; font-weight: 600; color: var(--fp-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
   .field-input { width: 100%; padding: .6rem .8rem; border: 1px solid var(--fp-border); border-radius: .55rem; font-size: .9rem; background: white; }
   .field-input:focus { outline: none; border-color: var(--fp-accent); box-shadow: 0 0 0 3px rgba(249,115,22,.15); }
@@ -414,6 +422,8 @@
       <div class="text-xs font-bold uppercase tracking-wider" style="color: var(--fp-accent-2)" id="drawer-id">—</div>
       <h2 class="text-xl font-extrabold mt-1 text-white" id="drawer-title">—</h2>
       <p class="text-sm mt-0.5" style="color:#8598B4" id="drawer-subtitle">—</p>
+      <!-- Plaque du véhicule concerné par l'amende (véhicule à la date de l'infraction) -->
+      <div class="mt-2" id="drawer-plate-wrap"></div>
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
       <button aria-label="Amende précédente" class="p-2 bg-white/90 hover:bg-white rounded-lg shadow-sm" id="drawer-prev" title="Amende précédente"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
@@ -1604,6 +1614,21 @@
     $('drawer-id').textContent = a.id;
     $('drawer-title').textContent = a.motif || 'Amende';
     $('drawer-subtitle').textContent = `${(a.prenom ? (FP.prenomAffiche ? FP.prenomAffiche(a.prenom) : a.prenom) : '') || '—'} · ${FP.date(a.date)}`;
+    // Plaque du véhicule concerné (source unique FP.amendePlaque : immat enregistrée sur l'amende en
+    // priorité = véhicule à la date de l'infraction ; repli best-effort sinon). Affichage au format de la
+    // fiche quand le véhicule existe (FP.vehByImmat, tolérant tirets/casse), sinon la plaque telle quelle.
+    (function setDrawerPlate(){
+      const wrap = $('drawer-plate-wrap'); if (!wrap) return;
+      let plaque = ((window.FP && FP.amendePlaque) ? FP.amendePlaque(a) : (a.immatriculation || a.plaque || a.immat || '')) || '';
+      plaque = String(plaque).trim();
+      let display = plaque;
+      if (plaque && window.FP && FP.vehByImmat) {
+        try { const v = FP.vehByImmat(plaque); if (v && v.immat) display = v.immat; } catch (e) {}
+      }
+      wrap.innerHTML = display
+        ? `<span class="plate"><span class="eu">F</span><span class="num">${FP.esc ? FP.esc(display) : display}</span></span>`
+        : '<span class="am-noplate">Immatriculation non renseignée</span>';
+    })();
 
     $('drawer-body').innerHTML = `
       <div style="text-align:center; padding:.2rem 0 .5rem">
