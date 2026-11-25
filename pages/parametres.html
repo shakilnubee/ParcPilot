@@ -962,6 +962,20 @@
       </div>
     </div>
 
+    <!-- Boîte e-mail (Gmail) — onglet Compte (CEO/Admin). DORMANT tant que l'accès Google n'est pas configuré. -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="compte" id="gmail-card">
+      <div class="set-head" style="margin-bottom:.9rem">
+        <h2><i data-lucide="mail"></i> Boîte e-mail (Gmail)</h2>
+        <p>Connecte la boîte Gmail de ta société en <b>lecture seule</b>, pour récupérer plus tard les factures reçues par e-mail. Tu gardes la main : <b>rien n'est importé sans ta validation</b>.</p>
+      </div>
+      <div id="gmail-status" class="text-sm" style="color:#64748b">Vérification…</div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button id="gmail-connect" class="btn btn-primary text-sm" style="display:none"><i data-lucide="plug" class="w-4 h-4"></i> Connecter la boîte Gmail</button>
+        <button id="gmail-disconnect" class="btn btn-outline text-sm" style="display:none"><i data-lucide="unplug" class="w-4 h-4"></i> Déconnecter</button>
+      </div>
+      <p class="set-sub-d" id="gmail-hint" style="margin-top:.6rem"></p>
+    </div>
+
     <!-- Présentation & marketing (accès rapide) — onglet Compte -->
     <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="compte" id="marketing-card">
       <div class="set-head" style="margin-bottom:.9rem">
@@ -3398,6 +3412,62 @@
   function initCorbeille(){ try { if (window.FP && FP.trash && FP.trash.purgeExpired) FP.trash.purgeExpired().then(function(n){ renderCorbeille(); }); else renderCorbeille(); } catch (e) { renderCorbeille(); } }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCorbeille); else initCorbeille();
   window.addEventListener('fp:data-ready', renderCorbeille);
+})();
+</script>
+<script>
+/* Boîte e-mail (Gmail) — connexion OAuth LECTURE SEULE (CEO/Admin). Appelle la fonction serveur
+   gmail-oauth (DORMANTE tant que les secrets Google ne sont pas posés → bouton masqué). */
+(function gmailBox() {
+  var card = document.getElementById('gmail-card');
+  if (!card) return;
+  (function ready() {
+    if (!(window.FP && FP.supabase && FP.supabase.functions)) return setTimeout(ready, 250);
+    var canManage = !(FP.canManageSociete && !FP.canManageSociete());
+    if (!canManage) { card.style.display = 'none'; return; }   // gestionnaire : config société masquée
+    var $ = function (id) { return document.getElementById(id); };
+    var statusEl = $('gmail-status'), bConn = $('gmail-connect'), bDisc = $('gmail-disconnect'), hint = $('gmail-hint');
+    var esc = function (s) { return FP.esc ? FP.esc(s) : String(s == null ? '' : s); };
+    var soc = function () { try { return (FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch (e) { return 'PXP'; } };
+    function invoke(action) {
+      return FP.supabase.functions.invoke('gmail-oauth', { body: { action: action, societe: soc() } })
+        .then(function (r) { if (r.error) throw new Error((r.error && r.error.message) || 'Erreur serveur'); return r.data || {}; });
+    }
+    function refresh() {
+      statusEl.textContent = 'Vérification…'; bConn.style.display = 'none'; bDisc.style.display = 'none'; hint.textContent = '';
+      invoke('status').then(function (d) {
+        if (!d.configured) {
+          statusEl.innerHTML = '🔌 <b>Intégration non activée</b>';
+          hint.textContent = "L'accès Google n'est pas encore configuré (identifiant OAuth à créer et secrets à poser côté plateforme).";
+          return;
+        }
+        if (d.connected) {
+          statusEl.innerHTML = '✅ Boîte connectée : <b>' + esc(d.email || '') + '</b> (lecture seule)';
+          bDisc.style.display = '';
+          hint.textContent = 'Société : ' + soc() + '. Parc Pilot pourra récupérer les e-mails libellés et leurs pièces jointes (étape suivante).';
+        } else {
+          statusEl.innerHTML = '📭 Aucune boîte connectée';
+          bConn.style.display = '';
+          hint.textContent = "Un clic ouvre la fenêtre Google pour autoriser l'accès en lecture seule à la boîte de la société.";
+        }
+        if (window.lucide) { try { lucide.createIcons(); } catch (e) {} }
+      }).catch(function (e) { statusEl.textContent = '⚠️ ' + (e.message || 'Erreur'); });
+    }
+    bConn.addEventListener('click', function () {
+      bConn.disabled = true;
+      invoke('auth-url').then(function (d) {
+        if (d && d.url) { window.location.href = d.url; }
+        else { bConn.disabled = false; if (FP.toast) FP.toast((d && d.error) || "Impossible d'ouvrir la fenêtre Google."); }
+      }).catch(function (e) { bConn.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
+    });
+    bDisc.addEventListener('click', function () {
+      if (!confirm("Déconnecter la boîte Gmail de cette société ? Parc Pilot n'aura plus accès aux e-mails.")) return;
+      bDisc.disabled = true;
+      invoke('disconnect').then(function () { bDisc.disabled = false; if (FP.toast) FP.toast('Boîte déconnectée.'); refresh(); })
+        .catch(function (e) { bDisc.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
+    });
+    refresh();
+    window.addEventListener('focus', function () { if (card.offsetParent !== null) refresh(); });
+  })();
 })();
 </script>
 </body>

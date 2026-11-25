@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connexion Gmail — Parc Pilot</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background: #16181C; color: #F6F3F0;
+    padding: max(20px, env(safe-area-inset-top)) 20px; }
+  .card { width: 100%; max-width: 440px; background: #1F2229; border: 1px solid #2E323B; border-radius: 20px;
+    padding: 34px 32px; box-shadow: 0 30px 70px rgba(0,0,0,.4); text-align: center; }
+  .brand { font-weight: 800; letter-spacing: -.3px; color: #fff; font-size: 20px; margin-bottom: 4px; }
+  .brand b { color: #EC6A12; }
+  .ic { width: 64px; height: 64px; border-radius: 18px; margin: 18px auto 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 34px; background: rgba(236,106,18,.16); }
+  h1 { font-size: 22px; margin: 6px 0 8px; color: #fff; }
+  p { font-size: 15px; line-height: 1.5; color: #C7C2BC; margin: 8px 0; }
+  .mail { font-weight: 700; color: #F4934A; word-break: break-all; }
+  .btn { display: inline-block; margin-top: 20px; background: #EC6A12; color: #16181C; font-weight: 700;
+    text-decoration: none; padding: 13px 26px; border-radius: 12px; border: 0; font-size: 15px; cursor: pointer; }
+  .btn.ghost { background: transparent; color: #C7C2BC; border: 1px solid #3A3E47; }
+  .spin { width: 34px; height: 34px; border: 3px solid #3A3E47; border-top-color: #EC6A12; border-radius: 50%;
+    margin: 18px auto; animation: sp 1s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">Parc <b>Pilot</b></div>
+
+    <div id="loading">
+      <div class="spin"></div>
+      <h1>Connexion en cours…</h1>
+      <p>On enregistre l'accès à ta boîte Gmail. Un instant.</p>
+    </div>
+
+    <div id="ok" class="hide">
+      <div class="ic">✅</div>
+      <h1>Boîte connectée</h1>
+      <p><span class="mail" id="ok-mail"></span> est reliée à Parc Pilot (lecture seule).</p>
+      <a class="btn" href="pages/parametres.html">Retour aux paramètres</a>
+    </div>
+
+    <div id="err" class="hide">
+      <div class="ic">⚠️</div>
+      <h1>Connexion non aboutie</h1>
+      <p id="err-msg">Une erreur est survenue.</p>
+      <a class="btn ghost" href="pages/parametres.html">Retour aux paramètres</a>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var SUPA = 'https://tzjuptlzoywjeigmyfuj.supabase.co';
+  var ANON = 'sb_publishable_KC3TZ1zda-ja-0wkyjHUlg_aKohD6tq';
+  var $ = function (id) { return document.getElementById(id); };
+  function show(id) { ['loading','ok','err'].forEach(function (k) { $(k).classList.toggle('hide', k !== id); }); }
+  function fail(msg) { $('err-msg').textContent = msg || 'Une erreur est survenue.'; show('err'); }
+
+  var qs = new URLSearchParams(location.search);
+  var code = qs.get('code');
+  var gErr = qs.get('error');
+  if (gErr) { return fail('Google a refusé l\'accès (' + gErr + ').'); }
+  if (!code) { return fail('Aucun code d\'autorisation reçu.'); }
+
+  // Jeton de session Parc Pilot (l'utilisateur doit être connecté dans ce navigateur).
+  var tok = null;
+  try { tok = JSON.parse(localStorage.getItem('sb-tzjuptlzoywjeigmyfuj-auth-token')); } catch (e) {}
+  var access = tok && tok.access_token;
+  if (!access) { return fail('Session Parc Pilot introuvable — reconnecte-toi puis relance la connexion Gmail.'); }
+
+  fetch(SUPA + '/functions/v1/gmail-oauth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': ANON, 'Authorization': 'Bearer ' + access },
+    body: JSON.stringify({ action: 'callback', code: code })
+  })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) {
+      if (res.ok && res.j && res.j.ok) { $('ok-mail').textContent = res.j.email || 'Ta boîte'; show('ok'); }
+      else { fail((res.j && res.j.error) || 'Connexion refusée.'); }
+    })
+    .catch(function () { fail('Réseau indisponible — réessaie.'); });
+})();
+</script>
+</body>
+</html>
