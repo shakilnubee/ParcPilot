@@ -145,6 +145,7 @@
       <button type="button" id="tab-complet" class="notif-tab">📝 À compléter</button>
       <button type="button" id="tab-suivi" class="notif-tab">📋 Suivi flotte</button>
       <button type="button" id="tab-decisions" class="notif-tab">💡 Décisions</button>
+      <button type="button" id="tab-averifier" class="notif-tab" style="display:none">📨 À vérifier</button>
     </div>
 
     <div id="suivi-decisions" class="hidden"></div>
@@ -156,6 +157,7 @@
     <div id="suivi-complet" class="hidden"></div>
     <div id="suivi-flotte" class="hidden"></div>
     <div id="relances" class="hidden"></div>
+    <div id="suivi-averifier" class="hidden"></div>
 
     <div id="notif-masquees" class="mt-8"></div>
 
@@ -184,6 +186,7 @@
 </script>
   <script>window.FP_PDF=1;</script>
 <script src="../assets/js/app.min.js?v=20261124a"></script>
+<script src="../assets/js/gmail-a-verifier.js?v=20261124a"></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1680,7 +1683,9 @@
     }
   });
 
-  const tabD = document.getElementById('tab-decisions'), tabA = document.getElementById('tab-alertes'), tabE = document.getElementById('tab-echeances'), tabC = document.getElementById('tab-complet'), tabK = document.getElementById('tab-relevekm'), tabS = document.getElementById('tab-suivi'), tabR = document.getElementById('tab-relances');
+  const tabD = document.getElementById('tab-decisions'), tabA = document.getElementById('tab-alertes'), tabE = document.getElementById('tab-echeances'), tabC = document.getElementById('tab-complet'), tabK = document.getElementById('tab-relevekm'), tabS = document.getElementById('tab-suivi'), tabR = document.getElementById('tab-relances'), tabV = document.getElementById('tab-averifier');
+  // Onglet « À vérifier » visible pour les gestionnaires de la société (ni chauffeur, ni public).
+  try { var _r = (FP.role && FP.role()) || ''; if (tabV && (_r === 'ceo' || _r === 'admin' || _r === 'gestionnaire')) tabV.style.display = ''; } catch (e) {}
   function showTab(which) {
     document.getElementById('suivi-decisions').classList.toggle('hidden', which !== 'decisions');
     document.getElementById('suivi-relevekm').classList.toggle('hidden', which !== 'relevekm');
@@ -1691,13 +1696,15 @@
     document.getElementById('suivi-complet').classList.toggle('hidden', which !== 'complet');
     document.getElementById('suivi-flotte').classList.toggle('hidden', which !== 'suivi');
     document.getElementById('relances').classList.toggle('hidden', which !== 'relances');
-    [[tabD, 'decisions'], [tabA, 'alertes'], [tabK, 'relevekm'], [tabE, 'echeances'], [tabC, 'complet'], [tabS, 'suivi'], [tabR, 'relances']].forEach(([t, w]) => { if (!t) return; t.classList.toggle('active', w === which); });
+    document.getElementById('suivi-averifier').classList.toggle('hidden', which !== 'averifier');
+    [[tabD, 'decisions'], [tabA, 'alertes'], [tabK, 'relevekm'], [tabE, 'echeances'], [tabC, 'complet'], [tabS, 'suivi'], [tabR, 'relances'], [tabV, 'averifier']].forEach(([t, w]) => { if (!t) return; t.classList.toggle('active', w === which); });
     if (which === 'decisions') renderDecisions();
     if (which === 'echeances') renderEcheances();
     if (which === 'complet') renderComplet();
     if (which === 'relevekm') renderRelevekm();
     if (which === 'suivi') renderSuiviFlotte();
     if (which === 'relances') renderRelances();
+    if (which === 'averifier') { try { if (window.FP_AVERIFIER) FP_AVERIFIER.render(document.getElementById('suivi-averifier')); } catch (e) {} }
   }
   if (tabD) tabD.addEventListener('click', () => showTab('decisions'));
   if (tabA) tabA.addEventListener('click', () => showTab('alertes'));
@@ -1706,6 +1713,7 @@
   if (tabC) tabC.addEventListener('click', () => showTab('complet'));
   if (tabS) tabS.addEventListener('click', () => showTab('suivi'));
   if (tabR) tabR.addEventListener('click', () => showTab('relances'));
+  if (tabV) tabV.addEventListener('click', () => showTab('averifier'));
 
   // ===== Onglet « 📋 Suivi flotte » : matrice de suivi, branchée sur les données existantes =====
   // Colonnes : relevé km (km_requests), photos EDL / EDL signé (documents), double des clés (fiche
