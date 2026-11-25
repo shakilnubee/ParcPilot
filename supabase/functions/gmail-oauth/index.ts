@@ -71,9 +71,16 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const action = String((body as Record<string, unknown>).action || "status");
 
-  // Société cible : un Admin agit sur SA société ; un CEO précise la société (body.societe).
+  // Le paramètre `state` (généré à l'étape 'auth-url' sous la forme "societe::uuid") est
+  // renvoyé tel quel par Google puis retransmis par la page de callback : il permet de
+  // retrouver la société au RETOUR (le CEO n'a pas de société fixée dans son profil).
+  const stateRaw = String((body as Record<string, unknown>).state || "").trim();
+  const stateSociete = stateRaw.includes("::") ? stateRaw.split("::")[0].trim() : "";
+
+  // Société cible : un Admin agit TOUJOURS sur SA société (state ignoré → aucune escalade) ;
+  // un CEO précise la société (body.societe) ou la retrouve via le state au callback.
   const societe = isCEO
-    ? String((body as Record<string, unknown>).societe || me?.societe || "").trim()
+    ? String((body as Record<string, unknown>).societe || stateSociete || me?.societe || "").trim()
     : String(me?.societe || "").trim();
   if (!societe) return json({ error: "Société introuvable pour cette action." }, 400);
 
