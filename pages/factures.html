@@ -191,6 +191,7 @@
         </span>
         <button class="btn btn-outline text-sm" id="btn-import-lot" title="Déposer plusieurs PDF : l'IA lit chaque facture et la crée automatiquement" hidden><i data-lucide="files" class="w-4 h-4"></i> Importer un lot (PDF)</button>
         <input type="file" id="fa-lot-file" accept="application/pdf,image/*" multiple class="hidden" />
+        <button class="btn btn-outline text-sm" id="btn-gmail-box" title="Voir les nouveaux e-mails de la boîte Gmail connectée (factures + infos échéances)" hidden><i data-lucide="mail" class="w-4 h-4"></i> Boîte Gmail</button>
         <button class="btn btn-primary text-sm" id="btn-import-facture" data-quickadd><i data-lucide="file-up" class="w-4 h-4"></i> Importer une facture</button>
       </div>
     </div>
@@ -3114,6 +3115,139 @@
     window.renderFournisseurs = render;
     document.addEventListener('fp:data-ready', () => { if (!$('view-fourn').classList.contains('hidden')) render(); });
   })();
+</script>
+
+<!-- ============================================================================
+     BOÎTE GMAIL (Option B, Lot 2b) — lister + aperçu des nouveaux mails.
+     Lecture seule via la fonction serveur gmail-read (jeton côté serveur).
+     Deux listes : 📄 avec facture/avis PDF · 📌 infos & échéances (sans PJ).
+     AUCUN import ici (ça = Lot 3). Fermeture Échap par le garde GLOBAL (app.js).
+     ============================================================================ -->
+<style>
+  #gmail-box-modal { position: fixed; inset: 0; z-index: 70; display: none; align-items: flex-start; justify-content: center; background: rgba(15,30,61,.45); padding: 24px 16px; padding-bottom: max(24px, env(safe-area-inset-bottom)); overflow-y: auto; }
+  #gmail-box-modal.open { display: flex; }
+  #gmail-box-modal .gbx-card { width: 100%; max-width: 760px; margin: auto; background: #fff; border-radius: 16px; box-shadow: 0 30px 80px -20px rgba(15,30,61,.5); overflow: hidden; }
+  body.fp-dark #gmail-box-modal .gbx-card { background: #111827; color: #e5e7eb; }
+  #gmail-box-modal .gbx-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; background: linear-gradient(135deg, var(--fp-primary), var(--fp-primary-2)); color: #fff; }
+  #gmail-box-modal .gbx-body { padding: 16px 18px; max-height: 72vh; overflow-y: auto; }
+  .gbx-list { display: flex; flex-direction: column; gap: 10px; }
+  .gbx-sec-title { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--fp-muted, #64748B); margin: 16px 0 8px; }
+  .gbx-sec-title:first-child { margin-top: 0; }
+  .gbx-item { border: 1px solid var(--fp-border, #E2E8F0); border-radius: 12px; padding: 12px 14px; background: var(--fp-bg, #fff); }
+  body.fp-dark .gbx-item { background: #0b1220; border-color: #243044; }
+  .gbx-item .gbx-from { font-weight: 700; font-size: .9rem; word-break: break-word; }
+  .gbx-item .gbx-subj { font-size: .85rem; margin-top: 2px; word-break: break-word; }
+  .gbx-item .gbx-meta { font-size: .72rem; color: var(--fp-muted, #64748B); margin-top: 3px; }
+  .gbx-item .gbx-snip { font-size: .78rem; color: var(--fp-muted, #64748B); margin-top: 6px; line-height: 1.4; }
+  .gbx-pdfs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .gbx-empty { text-align: center; color: var(--fp-muted, #64748B); font-size: .9rem; padding: 26px 10px; }
+  .gbx-note { font-size: .74rem; color: var(--fp-muted, #64748B); margin-top: 14px; border-top: 1px dashed var(--fp-border, #E2E8F0); padding-top: 10px; }
+</style>
+<div id="gmail-box-modal" role="dialog" aria-modal="true" aria-label="Boîte Gmail">
+  <div class="gbx-card">
+    <div class="gbx-head">
+      <div style="display:flex; align-items:center; gap:8px; font-weight:800"><i data-lucide="mail" class="w-5 h-5"></i> Boîte Gmail — nouveaux mails</div>
+      <div style="display:flex; align-items:center; gap:6px">
+        <button id="gmail-box-refresh" class="btn btn-outline text-sm !px-2.5" style="background:rgba(255,255,255,.92)" title="Rafraîchir la boîte"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+        <button id="gmail-box-close" data-close aria-label="Fermer" class="btn btn-outline text-sm !px-2.5" style="background:rgba(255,255,255,.92)"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+    <div class="gbx-body" id="gmail-box-body"></div>
+  </div>
+</div>
+<script>
+/* Boîte Gmail (Lot 2b) — lister + aperçu. Réservé CEO/Admin (comme la connexion). */
+(function () {
+  function $(id){ return document.getElementById(id); }
+  var modal = $('gmail-box-modal'), bodyEl = $('gmail-box-body'), btn = $('btn-gmail-box');
+  if (!modal || !bodyEl || !btn) return;
+  function soc(){ try { return (window.FP && FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch(e){ return 'PXP'; } }
+  function esc(s){ return (window.FP && FP.esc) ? FP.esc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function icons(){ try { window.lucide && lucide.createIcons && lucide.createIcons(); } catch(e){} }
+
+  // Le bouton n'apparaît que pour CEO/Admin (gestion de la config société / connexion Gmail).
+  function gateButton(){ try { btn.hidden = !(window.FP && FP.canManageSociete && FP.canManageSociete()); } catch(e){ btn.hidden = false; } }
+  gateButton();
+  document.addEventListener('fp:data-ready', gateButton);
+
+  function invoke(action, extra){
+    var b = { action: action, societe: soc() };
+    if (extra) for (var k in extra) b[k] = extra[k];
+    return FP.supabase.functions.invoke('gmail-read', { body: b })
+      .then(function(r){ if (r.error) throw new Error((r.error && r.error.message) || 'Erreur serveur'); return r.data || {}; });
+  }
+
+  function fmtDate(d){ try { var dt = new Date(d); if (!isNaN(dt.getTime())) return dt.toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch(e){} return d || ''; }
+
+  function open(){ modal.classList.add('open'); icons(); load(); }
+  function close(){ modal.classList.remove('open'); }
+  btn.addEventListener('click', open);
+  $('gmail-box-close').addEventListener('click', close);
+  $('gmail-box-refresh').addEventListener('click', load);
+  // Clic sur le fond = fermer (le garde global gère aussi Échap et le clic dehors).
+  modal.addEventListener('click', function(e){ if (e.target === modal) close(); });
+
+  function itemHtml(m){
+    var pdfs = '';
+    if (m.pdfs && m.pdfs.length){
+      pdfs = '<div class="gbx-pdfs">' + m.pdfs.map(function(p){
+        return '<button class="btn btn-outline text-xs gbx-prev" data-mid="' + esc(m.id) + '" data-aid="' + esc(p.attachmentId) + '" title="Aperçu du PDF (nouvel onglet)"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ' + esc(p.filename || 'Pièce jointe') + '</button>';
+      }).join('') + '</div>';
+    }
+    return '<div class="gbx-item">'
+      + '<div class="gbx-from">' + esc(m.from || m.fromEmail || '—') + '</div>'
+      + '<div class="gbx-subj">' + esc(m.subject || '(sans objet)') + '</div>'
+      + '<div class="gbx-meta">' + esc(fmtDate(m.date)) + '</div>'
+      + (m.snippet ? '<div class="gbx-snip">' + esc(m.snippet) + '</div>' : '')
+      + pdfs
+      + '</div>';
+  }
+
+  function render(data){
+    if (!data || data.configured === false){
+      bodyEl.innerHTML = '<div class="gbx-empty">L\'intégration Gmail n\'est pas encore configurée.</div>'; icons(); return;
+    }
+    if (!data.connected){
+      bodyEl.innerHTML = '<div class="gbx-empty">Aucune boîte Gmail connectée pour cette société.<br><a class="text-sm" style="color:var(--fp-accent);font-weight:700" href="parametres.html#compte">Connecter une boîte dans Paramètres → Compte</a></div>'; icons(); return;
+    }
+    var msgs = Array.isArray(data.messages) ? data.messages : [];
+    var withPdf = msgs.filter(function(m){ return m.hasPdf; });
+    var noPdf = msgs.filter(function(m){ return !m.hasPdf; });
+    if (!msgs.length){
+      bodyEl.innerHTML = '<div class="gbx-empty">Aucun nouveau mail depuis l\'activation.' + (data.email ? '<br><span style="font-size:.78rem">Boîte : ' + esc(data.email) + '</span>' : '') + '</div>'; icons(); return;
+    }
+    var html = '';
+    html += '<div class="gbx-sec-title">📄 Avec facture / avis (PDF joint) — ' + withPdf.length + '</div>';
+    html += withPdf.length ? '<div class="gbx-list">' + withPdf.map(itemHtml).join('') + '</div>' : '<div class="gbx-empty" style="padding:12px">Aucun pour l\'instant.</div>';
+    html += '<div class="gbx-sec-title">📌 Infos & échéances (sans pièce jointe) — ' + noPdf.length + '</div>';
+    html += noPdf.length ? '<div class="gbx-list">' + noPdf.map(itemHtml).join('') + '</div>' : '<div class="gbx-empty" style="padding:12px">Aucun pour l\'instant.</div>';
+    html += '<div class="gbx-note">Lecture seule. L\'import automatique d\'une facture (scan + contrôle) arrivera à l\'étape suivante.' + (data.email ? ' · Boîte : ' + esc(data.email) : '') + '</div>';
+    bodyEl.innerHTML = html; icons();
+  }
+
+  function load(){
+    bodyEl.innerHTML = '<div class="gbx-empty"><i data-lucide="loader" class="w-5 h-5 animate-spin" style="display:inline-block"></i><br>Lecture de la boîte…</div>'; icons();
+    invoke('list').then(render).catch(function(e){
+      bodyEl.innerHTML = '<div class="gbx-empty">Impossible de lire la boîte.<br><span style="font-size:.78rem">' + esc((e && e.message) || e) + '</span></div>'; icons();
+    });
+  }
+
+  // Aperçu d'un PDF joint (nouvel onglet) — base64 → Blob → URL d'objet.
+  function b64ToBlob(b64, type){ var bin = atob(b64); var len = bin.length; var bytes = new Uint8Array(len); for (var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes], { type: type || 'application/pdf' }); }
+  bodyEl.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.gbx-prev'); if (!b) return;
+    var mid = b.dataset.mid, aid = b.dataset.aid; if (!mid || !aid) return;
+    var old = b.innerHTML; b.disabled = true; b.innerHTML = 'Chargement…';
+    invoke('attachment', { messageId: mid, attachmentId: aid }).then(function(d){
+      if (!d || !d.dataB64) throw new Error('Pièce jointe vide.');
+      var url = URL.createObjectURL(b64ToBlob(d.dataB64, d.mimeType));
+      window.open(url, '_blank');
+      setTimeout(function(){ try { URL.revokeObjectURL(url); } catch(e){} }, 60000);
+    }).catch(function(err){
+      try { (FP.notifyError || FP.toast || function(m){ alert(m); })('Aperçu impossible : ' + ((err && err.message) || err)); } catch(e){}
+    }).then(function(){ b.disabled = false; b.innerHTML = old; icons(); });
+  });
+})();
 </script>
 </body>
 </html>
