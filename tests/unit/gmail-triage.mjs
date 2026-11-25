@@ -1,11 +1,10 @@
-/* Test unitaire du moteur de tri Gmail (assets/js/gmail-triage.js).
+/* Test unitaire du moteur de tri Gmail (SOURCE UNIQUE supabase/functions/_shared/triage.mjs,
+ * utilisée aussi par la fonction serveur gmail-actions en Deno).
  * Couvre les 8 scénarios imposés : mail flotte non libellé, mail archivé libellé,
  * mail vu dans les deux sources, réponse dans un fil déjà traité, mail RH, reçu
  * valide, RDV reporté, dossier ambigu. Pur, sans réseau. Exécuter : node tests/unit/gmail-triage.mjs
  */
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const T = require('../../assets/js/gmail-triage.js');
+import { T } from '../../supabase/functions/_shared/triage.mjs';
 
 let ok = 0, ko = 0;
 function check(label, cond, got) {
@@ -97,6 +96,16 @@ r = T.classify({
   headers: { references: '<pp-sinistre-sin-gp333-01@parc-pilot.fr>' },
 }, ctx);
 check('bonus. ancre de fil PP → sinistre rattaché par fil', r.domaine === 'sinistre' && r.refs.sinistreKey === 'sin-gp333-01' && r.confidence === 'haute', r);
+
+// 9) buildProposal : ligne gmail_a_verifier déterministe et complète (pour la file « À vérifier »)
+const msg6 = { id: 'm6', fromEmail: 'noreply@antai.gouv.fr', subject: 'Paiement avis 2612 744 314 620', snippet: 'Reçu joint.', threadId: 't6', dateISO: '2026-11-25T09:00:00Z', hasPdf: true, pdfs: [{ filename: 'recu.pdf', attachmentId: 'A6' }] };
+const dec6 = T.classify(msg6, ctx);
+const prop = T.buildProposal(msg6, dec6, 'PXP');
+check('9. buildProposal : id déterministe + société + action + ref avis',
+  prop.id === 'AV-m6' && prop.societe === 'PXP' && prop.domaine === 'amende' && prop.action === 'amende_payee'
+  && prop.dossier_ref.numeroAvis === '2612744314620' && prop.statut === 'a_verifier' && Array.isArray(prop.pieces) && prop.pieces.length === 1,
+  prop);
+check('9b. buildProposal : pas d’ancres bruitées dans dossier_ref', prop.dossier_ref.ancres === undefined, prop.dossier_ref);
 
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);
