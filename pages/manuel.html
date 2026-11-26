@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126c">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126d">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261126c"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126d"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261126c">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126d">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -269,6 +269,7 @@
       <summary><i data-lucide="bell" class="w-5 h-5"></i> Suivi &amp; alertes <i data-lucide="chevron-down" class="w-5 h-5 chev"></i></summary>
       <div class="acc-body">
         <div class="man-item"><b>📨 À vérifier (mails)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Mis à jour</span> — un onglet <b>« 📨 À vérifier »</b> (réservé à l'<b>administrateur</b> ; aussi accessible depuis le menu latéral, sous « Suivi &amp; alertes ») rassemble les <b>propositions détectées automatiquement dans vos e-mails</b> (quand l'intégration Gmail est activée — voir Paramètres → Intégrations → Gmail) : <b>factures</b> reçues, confirmation/report de rendez-vous garage, justificatif de paiement d'une amende, réponse d'assureur à rattacher… L'écran est en <b>deux colonnes</b> : la <b>liste des mails à gauche</b>, le <b>détail à droite</b> (expéditeur, message, pièces jointes, <b>véhicule proposé</b> et ce qu'il reste à vérifier). Un clic sur une <b>pièce jointe PDF</b> l'ouvre <b>en grand dans Parc Pilot</b>, avec bouton <b>plein écran</b>. Le <b>bouton d'action annonce ce qu'il fait</b> : <b>« 🧾 Vérifier la facture »</b>, <b>« 📅 Valider le rendez-vous »</b>, <b>« ✓ Enregistrer le justificatif »</b>… Pour une <b>facture</b>, « Vérifier la facture » ouvre <b>le formulaire habituel du scan manuel</b> avec le <b>PDF d'origine déjà chargé</b> et le <b>véhicule proposé prérempli</b> : vous corrigez le véhicule, le type, le fournisseur, la date et les montants, puis <b>« Enregistrer la facture »</b> (parcours habituel : contrôle HT+TVA=TTC, anti-doublon, <b>PDF joint à la facture</b>). Le mail n'est marqué <b>« traité »</b> qu'<b>après enregistrement réussi</b> (facture + PDF) — sinon il <b>reste dans « À vérifier »</b> avec la raison, et un nouvel essai ne crée <b>pas de doublon</b>. Boutons <b>✎ Corriger</b> (changer le rattachement) et <b>✕ Ignorer</b>. ⚠️ <b>Rien n'est enregistré sans votre validation.</b></div>
+        <div class="man-item"><b>🔍 Lecture du PDF en plein écran · enregistrement protégé</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Mis à jour</span> — quand vous ouvrez le PDF d'une facture <b>en plein écran</b> pour mieux le lire, la touche <b>Échap</b> (ou la <b>croix</b> de la visionneuse) <b>referme uniquement le plein écran</b> et vous ramène à <b>« Importer une facture »</b> : la fenêtre, le PDF, le véhicule et <b>tous les champs que vous avez déjà remplis restent en place</b> (aucune nouvelle analyse n'est relancée). Pendant que Parc Pilot <b>lit automatiquement</b> le PDF, le bouton <b>« Enregistrer »</b> est <b>bloqué</b> (« Analyse en cours — patientez ») pour éviter d'enregistrer une facture encore incomplète ; il se débloque dès l'affichage de <b>« ✓ Analyse terminée »</b>. Enfin, une <b>plaque seule ne suffit plus</b> à proposer une facture existante : Parc Pilot rapproche sur le <b>n° de facture</b> ou le <b>fournisseur exact</b>, pas sur la plaque toute seule (fini les listes de factures sans rapport).</div>
         <div class="man-item"><b>🔎 Rechercher un mail · ↻ Reprendre · 🗑️ Retirer</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en haut de la liste, une <b>barre « Rechercher un mail… »</b> (toujours visible, même en faisant défiler) retrouve un mail par <b>objet, expéditeur, immatriculation, n° de facture / d'amende / de sinistre, ou nom de pièce jointe</b> — sans accents ni casse, et une <b>plaque</b> se trouve avec ou sans tirets (« GT818LC », « GT-818-LC », « GT 818 LC »). La recherche porte sur <b>tous les mails de la société</b> (avec le filtre <b>« Tous »</b>, même les anciens confirmés ou ignorés). Une <b>croix</b> efface la recherche. Sur un mail <b>déjà confirmé/ignoré</b>, le détail propose <b>« 🔄 Reprendre le traitement »</b> : pour une facture, Parc Pilot <b>cherche d'abord si la facture existe déjà</b> (même ajoutée à la main) — si oui, il vous la montre avec un <b>lien</b> et propose de <b>joindre le PDF d'origine</b> s'il manque ; si non, il <b>rouvre le formulaire de scan</b> avec le PDF d'origine. Un onglet de filtre <b>« À reprendre »</b> liste les anciennes factures confirmées <b>avant le correctif</b> dont l'enregistrement n'a pas pu être vérifié. Enfin, <b>« 🗑️ Retirer de Parc Pilot »</b> masque un mail de cette liste (réversible via le filtre <b>« Retirés » → ↩ Restaurer</b>) : le mail Gmail et les factures déjà enregistrées restent intacts, et la synchronisation ne recrée pas l'entrée retirée.</div>
         <div class="man-item"><b>🎯 Tri plus fiable des e-mails</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Mis à jour</span> — Parc Pilot ne retient un e-mail de la boîte « Principale » que s'il a un <b>vrai lien avec la flotte</b> : une <b>plaque reconnue</b>, un <b>n° de dossier</b>, un <b>fil déjà suivi</b>, ou <b>plusieurs indices automobiles cohérents</b> (objet, message <b>et nom des pièces jointes</b> sont lus). Un simple mot générique (« maintenance », « contrôle », « intervention », « facture ») <b>ne suffit jamais seul</b> : les mails de <b>bâtiment</b>, de <b>commission de sécurité</b> ou d'<b>informatique</b>, et les newsletters, sont désormais <b>écartés</b>. Un vrai mail de garage, de facture, d'amende ou d'assurance remonte même si l'objet est vague ; quand le véhicule reste incertain, il passe en <b>« À vérifier »</b> avec la raison. Le <b>libellé choisi</b> par la société (ex. « 09. Voiture » pour PXP) force toujours la revue, même pour un mail archivé.</div>
         <p>Tout ce qui demande votre attention. Onglets : <b>🔔 Alertes</b> (ouvert par défaut), <b>🔄 Renouvellements</b>, <b>📝 À compléter</b>, puis <b>💡 Décisions</b>. Un véhicule sorti de la flotte (vendu, cédé, hors service…) ne génère <b>aucune</b> alerte. <i>(Les anomalies de consommation — conso pendant un congé, après un départ, carte carburant inhabituelle — sont désormais <b>toutes centralisées dans l'onglet Contrôle</b>, source unique.)</i></p>
@@ -1219,8 +1220,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261126c"></script>
-<script src="../assets/js/supabase-client.js?v=20261126c"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126d"></script>
+<script src="../assets/js/supabase-client.js?v=20261126d"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1236,10 +1237,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261126c"></script>
+<script src="../assets/js/app.min.js?v=20261126d"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

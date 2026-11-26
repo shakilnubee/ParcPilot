@@ -9225,7 +9225,7 @@ FP.docReview = {
         st.destroyed = true;
         st.ctrls.forEach(c => { try { c.cancel(); } catch (e) {} });
         try { if (st.fullEl) st.fullEl.remove(); } catch (e) {}
-        if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey); } catch (e) {} }
+        if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey, true); } catch (e) {} }
         try { if (st.pdf) st.pdf.destroy(); } catch (e) {}
         try { if (url) URL.revokeObjectURL(url); } catch (e) {}
       }
@@ -9376,7 +9376,7 @@ FP.docReview = {
       + '<div class="fpdr-stage pdf fpdr-full-stage" id="' + wrapId + '" tabindex="0"><canvas id="' + cvId + '" class="fpdr-canvas"></canvas></div>';
     document.body.appendChild(ov);
     st.fullEl = ov;
-    const close = () => { try { if (c) c.cancel(); } catch (e) {} try { ov.remove(); } catch (e) {} st.fullEl = null; if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey); } catch (e) {} st.fullKey = null; } };
+    const close = () => { try { if (c) c.cancel(); } catch (e) {} try { ov.remove(); } catch (e) {} st.fullEl = null; if (st.fullKey) { try { document.removeEventListener('keydown', st.fullKey, true); } catch (e) {} st.fullKey = null; } };
     ov.querySelector('.fpdr-full-x').addEventListener('click', close);
     const self = this;
     const c = self._pdfView(st.pdf, {
@@ -9386,8 +9386,13 @@ FP.docReview = {
       initMode: 'width', // plein écran : « ajuster à la largeur » par défaut → texte lisible (A4 pas écrasée en hauteur)
     });
     st.ctrls.push(c);
-    st.fullKey = function (e) { if (e.key === 'Escape') close(); };
-    document.addEventListener('keydown', st.fullKey);
+    // ⚠️ ÉCHAP (et le ✕) en plein écran = fermer UNIQUEMENT la visionneuse et revenir à la modale « Importer
+    //   une facture » INTACTE (PDF, véhicule, champs préremplis, modifications conservés). On capte ÉCHAP en
+    //   phase CAPTURE + stopImmediatePropagation → le garde ÉCHAP global (qui, sinon, fermerait #facture-modal
+    //   car c'est un [id$="-modal"] visible dessous) et les autres handlers ne voient JAMAIS cette touche. Un seul
+    //   close() : aucune fermeture de la modale parente, aucune nouvelle analyse, aucune navigation.
+    st.fullKey = function (e) { if (e.key === 'Escape' || e.keyCode === 27) { e.preventDefault(); e.stopImmediatePropagation(); close(); } };
+    document.addEventListener('keydown', st.fullKey, true);
     try { ov.querySelector('#' + wrapId).focus(); } catch (e) {}
   }
 };

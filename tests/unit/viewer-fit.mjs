@@ -9,4 +9,5 @@ t('anti-boucle (seuil 2px) + uniquement en mode ajusté (zoom===1)', ()=>{ asser
 t('suréchantillonnage conservé (netteté >=2x)', ()=>{ assert.match(app,/const over = Math\.max\(2, Math\.min\(3,/); });
 t('défaut inline = PAGE ENTIÈRE ; plein écran = LARGEUR (texte lisible)', ()=>{ assert.match(app,/mode: \(o\.initMode === 'width' \? 'width' : 'page'\)/); assert.match(app,/initMode: 'width'/); });
 t('plancher de netteté : backing à un minimum absolu (~2.5x DPI) même affiché petit', ()=>{ assert.match(app,/let renderScale = Math\.max\(scale \* over, 2\.5 \* dpr\)/); });
+t('ÉCHAP plein écran = capture + stopImmediatePropagation (ne ferme PAS la modale parente)', ()=>{ assert.match(app,/st\.fullKey = function \(e\) \{ if \(e\.key === 'Escape'[\s\S]*?stopImmediatePropagation\(\); close\(\); \} \};/); assert.match(app,/document\.addEventListener\('keydown', st\.fullKey, true\)/); });
 console.log(`\n${ko?'❌':'✅'} viewer-fit : ${ok} ok, ${ko} ko\n`); process.exit(ko?1:0);
