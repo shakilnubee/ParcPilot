@@ -6,12 +6,15 @@
  *  ce qu'il reste à vérifier). Le PDF s'ouvre EN GRAND dans Parc Pilot (lecteur
  *  natif du navigateur, comme le scanner) avec bouton plein écran.
  *
- *  Le bouton d'action ANNONCE l'action : « Vérifier la facture », « Valider le
- *  rendez-vous », « Enregistrer le justificatif »… Pour une FACTURE, il ouvre le
- *  formulaire du SCAN MANUEL (factures.html) avec le PDF d'origine déjà chargé et
- *  les infos préremplies — l'enregistrement passe par le parcours métier existant
- *  (contrôle HT+TVA=TTC, anti-doublon FP.dupe, PDF joint à la facture), et le mail
- *  n'est marqué « traité » qu'après succès (sinon il reste à vérifier, avec la raison).
+ *  FACTURE : le bouton ouvre le FORMULAIRE de scan manuel (factures.html) avec le PDF
+ *  d'origine déjà chargé et préremplis — l'enregistrement passe par le parcours métier
+ *  existant (contrôle HT+TVA=TTC, anti-doublon FP.dupe, PDF joint), et le mail n'est
+ *  marqué « traité » (applique) qu'APRÈS succès (sinon il reste à vérifier, avec la raison).
+ *  AUTRES DOMAINES (amende, RDV, sinistre…) : pas encore d'enregistrement automatique.
+ *  Le bouton OUVRE le dossier dans Parc Pilot pour une saisie MANUELLE et marque le mail
+ *  « ouvert » (à finaliser) — JAMAIS « traité » tant que rien n'est écrit. L'utilisateur
+ *  retire le mail quand il a terminé. (Un libellé ne doit jamais promettre une écriture
+ *  qui n'a pas lieu.)
  *
  *  Réservé CEO/Admin (mêmes droits que l'accès serveur aux mails/PDF, gmail-read).
  *  Aucune suppression : un item change de statut (traçabilité). Lecture/MAJ via
@@ -31,9 +34,9 @@
   // Libellé DÉTAILLÉ de l'action (ligne « Action : … » du détail).
   var ACTION_LABEL = {
     facture_saisir: 'Saisir la facture (formulaire de scan)',
-    amende_payee: 'Marquer l’amende payée + justificatif',
-    rdv_update: 'Mettre à jour le rendez-vous',
-    sinistre_piece: 'Rattacher la pièce au dossier sinistre',
+    amende_payee: 'Ouvrir le dossier amende (saisie manuelle)',
+    rdv_update: 'Ouvrir le rendez-vous (saisie manuelle)',
+    sinistre_piece: 'Ouvrir le dossier sinistre (saisie manuelle)',
     a_verifier: 'À qualifier manuellement'
   };
   A.DOMAINE_LABEL = DOMAINE_LABEL; A.ACTION_LABEL = ACTION_LABEL;
@@ -42,10 +45,10 @@
   A.actionBtnLabel = function (it) {
     switch (it && it.action) {
       case 'facture_saisir': return '🧾 Vérifier la facture';
-      case 'amende_payee': return '✓ Enregistrer le justificatif';
-      case 'rdv_update': return '📅 Valider le rendez-vous';
-      case 'sinistre_piece': return '📎 Enregistrer la pièce';
-      default: return '✓ Confirmer et ouvrir le dossier';
+      case 'amende_payee': return '↗ Ouvrir le dossier amende';
+      case 'rdv_update': return '↗ Ouvrir le rendez-vous';
+      case 'sinistre_piece': return '↗ Ouvrir le dossier sinistre';
+      default: return '↗ Ouvrir le dossier';
     }
   };
 
@@ -98,6 +101,7 @@
     var dom = DOMAINE_LABEL[it.domaine] || DOMAINE_LABEL.inconnu;
     var act = ACTION_LABEL[it.action] || esc(it.action || '—');
     var traite = it.statut && it.statut !== 'a_verifier';
+    var ouvert = it.statut === 'ouvert';   // dossier ouvert pour saisie manuelle (non facture) : JAMAIS « traité »
     var veh = A.vehLabel(it);
     var retire = it.statut === 'retire';
     var cls = A.classerPieces(it);
@@ -123,6 +127,15 @@
       actions = '<div class="gav-d-done" style="color:#64748b">🗑️ Retiré de Parc Pilot</div>'
         + '<div class="gav-muted" style="font-size:.78rem;margin-top:4px">Le mail d’origine dans Gmail et les factures déjà enregistrées restent accessibles. La synchronisation ne recréera pas cette entrée.</div>'
         + '<div class="gav-d-actions"><button type="button" class="btn btn-outline gav-restaurer">↩ Restaurer dans la liste</button></div>';
+    } else if (ouvert) {
+      // Dossier ouvert pour saisie MANUELLE (amende / RDV / sinistre…). Rien n'a été enregistré : on le dit.
+      actions = '<div class="gav-d-done" style="color:#B45309">↗ Ouvert — à finaliser dans le dossier</div>'
+        + '<div class="gav-d-motif">Ce type de mail n’est pas encore enregistré automatiquement dans Parc Pilot. Ouvre le dossier, fais la saisie à la main, puis retire ce mail quand c’est fait.</div>'
+        + '<div class="gav-d-actions">'
+        + '<button type="button" class="btn btn-dark gav-go" data-id="' + esc(it.id) + '">' + esc(A.actionBtnLabel(it)) + '</button>'
+        + '<button type="button" class="btn btn-outline gav-correct" data-id="' + esc(it.id) + '">✎ Corriger le rattachement</button>'
+        + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer de Parc Pilot</button>'
+        + '</div>';
     } else if (traite) {
       actions = (A._estAReprendre(it)
           ? '<div class="gav-d-done" style="color:#B45309">⚠️ À reprendre — facture non enregistrée</div><div class="gav-d-motif">Facture confirmée avant le correctif du parcours — l’enregistrement n’a pas pu être vérifié. Clique « Reprendre le traitement ».</div>'
@@ -222,7 +235,7 @@
       '.gav-rep-card .btn{font-size:.8rem;margin-top:7px}',
       '.gav-rep-ok{color:#166534;font-weight:700}.gav-rep-warn{color:#B45309;font-weight:700}',
       '.gav-statut{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:9999px;padding:1px 8px;background:#F1F5F9;color:#475569}',
-      '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}.gav-areprendre{background:#FEF3C7;color:#92400E}',
+      '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}.gav-areprendre{background:#FEF3C7;color:#92400E}.gav-ouvert{background:#FEF3C7;color:#92400E}',
       '.gav-empty{text-align:center;color:var(--fp-muted,#64748B);font-size:.9rem;padding:26px 10px}',
       /* Le PDF s'ouvre via le LECTEUR COMMUN Parc Pilot (FP.docReview.openOverlay) → styles .fpdr-* (styles.css). */
       '@media(max-width:760px){',
@@ -365,7 +378,7 @@
       + '<span style="font-weight:800;color:var(--fp-primary)">📨 À vérifier (mails)</span>'
       + '<span class="gav-statut" style="background:#FEE2E2;color:#B91C1C">' + nA + ' en attente</span>'
       + '<select id="gav-filter" class="text-sm border border-slate-200 rounded-lg px-2 py-1" style="margin-left:auto">'
-      + ['a_verifier|À vérifier', 'a_reprendre|À reprendre', 'tous|Tous', 'confirme|Confirmés', 'applique|Enregistrés', 'corrige|Corrigés', 'ignore|Ignorés', 'retire|Retirés']
+      + ['a_verifier|À vérifier', 'a_reprendre|À reprendre', 'ouvert|Ouverts (à finaliser)', 'tous|Tous', 'confirme|Confirmés', 'applique|Enregistrés', 'corrige|Corrigés', 'ignore|Ignorés', 'retire|Retirés']
           .map(function (o) { var p = o.split('|'); return '<option value="' + p[0] + '"' + (p[0] === A._state ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('')
       + '</select></div>';
     var sel = items.filter(function (x) { return x.id === A._selId; })[0] || null;
@@ -498,14 +511,17 @@
     catch (e) { err('Navigation impossible.'); }
   };
 
-  // Confirmer (domaines NON facture) = enregistrer la validation + ouvrir la fiche pré-ciblée à finaliser.
+  // Domaines NON facture : AUCUN enregistrement automatique pour l'instant (honnêteté). Le bouton OUVRE le
+  // dossier pour une saisie MANUELLE et marque le mail « ouvert » (à finaliser) — JAMAIS « traité » tant que
+  // rien n'est écrit. L'utilisateur finalise dans le dossier puis retire le mail.
   A.confirmer = function (host, it) {
     var lien = A.lienDossier(it);
-    A.majStatut(it.id, 'confirme').then(function () {
-      toast(lien ? 'Confirmé — ouverture de la fiche pour finaliser.' : 'Confirmé.');
-      A._after(host, it.id, 'confirme');
-      if (lien) { try { window.open(lien, '_blank'); } catch (e) { try { location.href = lien; } catch (_) {} } }
-    }).catch(function (e) { err('Impossible de confirmer : ' + (e.message || e)); });
+    // Ouvrir le dossier d'abord (dans le geste utilisateur, évite le blocage de pop-up) — ça ne valide rien.
+    if (lien) { try { window.open(lien, '_blank'); } catch (e) { try { location.href = lien; } catch (_) {} } }
+    A.majStatut(it.id, 'ouvert').then(function () {
+      toast('Dossier ouvert — à finaliser à la main. Rien n’a été enregistré automatiquement.');
+      A._after(host, it.id, 'ouvert');
+    }).catch(function (e) { err('Dossier ouvert, mais le marquage « ouvert » a échoué : ' + (e.message || e)); });
   };
 
   // ---- RETIRER / RESTAURER (masquer une entrée de la liste PP, réversible ; Gmail et factures intacts) ----

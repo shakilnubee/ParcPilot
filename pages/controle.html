@@ -577,6 +577,7 @@
       const g = agg[k] || (agg[k] = { nom: r.nom, n: 0, carburant: 0, boutique: 0, lavage: 0, peage: 0, autre: 0, litres: 0, ht: 0, tva: 0, hasHt: false, hasTva: false, ttc: 0 });
       const m = Number(t.montantTtc) || 0; g.n++; g.ttc += m; g.litres += (Number(t.litres) || 0);
       if (t.montantHt != null) { g.ht += Number(t.montantHt); g.hasHt = true; }
+      else if (t.montantTva == null || Number(t.montantTva) === 0) { g.ht += m; g.hasHt = true; } // autoliquidation / TVA 0 (ex. DKV France) → HT = TTC, jamais de TVA inventée
       if (t.montantTva != null) { g.tva += Number(t.montantTva); g.hasTva = true; }
       g[cat5(t.categorie)] += m;
     });
@@ -657,7 +658,15 @@
         + '</tbody></table></div>')
       : '<div class="card p-6 text-center text-slate-400 text-sm">Aucune facture sur la période. Importe un relevé (PDF) ou une facture manuelle.</div>';
     const h3 = (t) => '<h3 class="text-lg font-extrabold mt-5 mb-2" style="color:var(--fp-primary)">' + t + '</h3>';
-    body.innerHTML = h3('Consommation par conducteur / véhicule') + consoTable
+    // Indicateur de PÉRIMÈTRE : combien de factures ont leur détail par transaction (total_conso_tx), et quel
+    // montant facturé reste SANS détail → le tableau « par conducteur » ne couvre que les relevés détaillés.
+    const _numFac = (f) => String(f.numeroFacture || f.numero_facture || '');
+    const facsAvecDetail = facs.filter(f => { const num = _numFac(f); return num && tx.some(t => String(t.facnum || '') === num); });
+    const sansDetailTtc = facs.filter(f => { const num = _numFac(f); return !(num && tx.some(t => String(t.facnum || '') === num)); }).reduce((s, f) => s + _ttcFac(f), 0);
+    const perimBanner = (facs.length && facsAvecDetail.length < facs.length)
+      ? '<div class="text-xs" style="margin:-2px 0 10px;padding:8px 12px;border-radius:9px;background:var(--fp-surface,#f1f5f9);border:1px solid var(--fp-border,#e2e8f0);color:var(--fp-muted,#64748b)">ℹ️ Détail disponible pour <b>' + facsAvecDetail.length + '</b> facture' + (facsAvecDetail.length > 1 ? 's' : '') + ' sur <b>' + facs.length + '</b>' + (sansDetailTtc > 0.005 ? ' · <b>' + euro(sansDetailTtc) + '</b> facturé sans détail par transaction' : '') + '. Le tableau par conducteur ne couvre que les relevés détaillés.</div>'
+      : '';
+    body.innerHTML = h3('Consommation par conducteur / véhicule') + perimBanner + consoTable
       + (analysisHTML ? (h3('Analyse de la consommation') + analysisHTML) : '')
       + h3('Factures') + facTable;
     if (window.lucide) lucide.createIcons();
