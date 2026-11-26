@@ -224,16 +224,7 @@
       '.gav-statut{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:9999px;padding:1px 8px;background:#F1F5F9;color:#475569}',
       '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}.gav-areprendre{background:#FEF3C7;color:#92400E}',
       '.gav-empty{text-align:center;color:var(--fp-muted,#64748B);font-size:.9rem;padding:26px 10px}',
-      /* Lecteur PDF plein écran (natif, comme le scanner) */
-      '.gav-pdf{position:fixed;inset:0;z-index:90;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;padding:18px;padding-bottom:max(18px,env(safe-area-inset-bottom))}',
-      '.gav-pdf-card{width:100%;max-width:980px;height:90vh;background:#fff;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px -20px rgba(2,6,23,.6)}',
-      'body.fp-dark .gav-pdf-card{background:#0b1220}',
-      '.gav-pdf-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,var(--fp-primary,#2563EB),var(--fp-primary-2,#1e40af));color:#fff}',
-      '.gav-pdf-head .t{font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}',
-      '.gav-pdf-head button{background:rgba(255,255,255,.92);border:none;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:.8rem;font-weight:700}',
-      '.gav-pdf-stage{flex:1;min-height:0;background:#334155;position:relative}',
-      '.gav-pdf-stage iframe{width:100%;height:100%;border:0;background:#fff}',
-      '.gav-pdf-stage .gav-pdf-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem}',
+      /* Le PDF s'ouvre via le LECTEUR COMMUN Parc Pilot (FP.docReview.openOverlay) → styles .fpdr-* (styles.css). */
       '@media(max-width:760px){',
       '  .gav-md{grid-template-columns:1fr}',
       '  .gav-md.show-detail .gav-list{display:none}',
@@ -436,32 +427,24 @@
 
   A.societeDe = function (it) { return (it && it.societe) || (window.FP && FP.societe) || null; };
 
-  // --- Ouverture du PDF EN GRAND (lecteur natif du navigateur, + plein écran) ---
+  // --- Ouverture du PDF EN GRAND via le LECTEUR COMMUN Parc Pilot (FP.docReview.openOverlay) ---
+  // Rendu canvas (pdf.js), UNE seule barre PP (pages/zoom/⛶ plein écran/↗ original), clair+sombre, plein
+  // écran Échap non destructif. Fini l'iframe native + la double barre. Les octets viennent du serveur
+  // (gmail-read, jeton côté serveur) : on ouvre l'overlay « en chargement » puis on l'alimente (setFile).
   A.openPdf = function (it, idx) {
     var pieces = Array.isArray(it.pieces) ? it.pieces : [];
     var p = pieces[idx]; if (!p || !it.message_id || !p.attachmentId) { err('Pièce jointe indisponible.'); return; }
-    var ov = document.createElement('div'); ov.className = 'gav-pdf'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
-    ov.innerHTML = '<div class="gav-pdf-card">'
-      + '<div class="gav-pdf-head"><span class="t">' + esc(p.filename || 'Document') + '</span>'
-      + '<button type="button" class="gav-pdf-fs">⛶ Plein écran</button>'
-      + '<button type="button" class="gav-pdf-x" aria-label="Fermer">✕</button></div>'
-      + '<div class="gav-pdf-stage"><div class="gav-pdf-load">Chargement du PDF…</div></div></div>';
-    document.body.appendChild(ov);
-    var stage = ov.querySelector('.gav-pdf-stage');
-    var close = function () { try { if (ov._url) URL.revokeObjectURL(ov._url); } catch (e) {} try { ov.remove(); } catch (e) {} };
-    ov.querySelector('.gav-pdf-x').addEventListener('click', close);
-    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
-    ov.querySelector('.gav-pdf-fs').addEventListener('click', function () { try { (ov.querySelector('.gav-pdf-card')).requestFullscreen(); } catch (e) {} });
+    if (!(window.FP && FP.docReview && FP.docReview.openOverlay)) { err('Lecteur de document indisponible.'); return; }
+    var fn = p.filename || 'document.pdf';
+    var ov = FP.docReview.openOverlay(null, { label: '📄 ' + fn, title: fn, filename: fn, showName: false, loadingLabel: 'Chargement du PDF…' });
     FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: it.message_id, attachmentId: p.attachmentId, societe: A.societeDe(it) } })
       .then(function (r) {
         var d = r && r.data; if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || (r && r.error && r.error.message) || 'PDF indisponible');
         var bin = atob(d.dataB64); var bytes = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        var blob = new Blob([bytes], { type: d.mimeType || 'application/pdf' });
-        var url = URL.createObjectURL(blob); ov._url = url;
-        stage.innerHTML = '<iframe src="' + url + '#view=FitH" title="' + esc(p.filename || 'PDF') + '"></iframe>';
+        ov.setFile(new File([bytes], fn, { type: d.mimeType || 'application/pdf' }));
       })
-      .catch(function (e) { stage.innerHTML = '<div class="gav-pdf-load">Impossible d’ouvrir le PDF : ' + esc(e.message || e) + '</div>'; });
+      .catch(function (e) { ov.setError('Impossible d’ouvrir le PDF : ' + (e.message || e)); });
   };
 
   // MAJ du statut d'un item (durable, erreur visible).

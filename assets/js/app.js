@@ -9232,6 +9232,59 @@ FP.docReview = {
     };
   },
 
+  // ─── LECTEUR COMMUN EN OVERLAY (source unique) — aux couleurs Parc Pilot ───────────────────────────
+  // Ouvre un PDF/image EN APERÇU DANS PP, dans un cadre plein écran aux couleurs PP, en réutilisant
+  // `build` (rendu canvas pdf.js → AUCUNE barre native, UNE seule barre PP ; plein écran via le bouton ⛶
+  // avec Échap qui ne ferme QUE le plein écran). Remplace les anciens aperçus en <iframe> (double barre).
+  // Usage : soit `openOverlay(file, opts)` pour un File/Blob déjà en main, soit `openOverlay(null, opts)`
+  // puis `setFile(file)` quand les octets arrivent (ex. pièce jointe Gmail récupérée côté serveur).
+  // Fermeture : ✕, clic hors cadre, ou Échap (sauf si un plein écran est ouvert → c'est lui qui se ferme).
+  // Retourne { close, setFile, setError }.
+  openOverlay: function (src, opts) {
+    opts = opts || {};
+    const self = this;
+    const esc = FP.esc || ((s) => (s == null ? '' : String(s)));
+    const ov = document.createElement('div');
+    ov.className = 'fpdr-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML = '<div class="fpdr-ov-card">'
+      + '<button type="button" class="fpdr-ov-x" aria-label="Fermer" title="Fermer (Échap)">✕</button>'
+      + '<div class="fpdr-ov-body"><div class="fpdr-ov-load">' + esc(opts.loadingLabel || 'Chargement du document…') + '</div></div></div>';
+    document.body.appendChild(ov);
+    const body = ov.querySelector('.fpdr-ov-body');
+    let pane = null, okey = null;
+    const close = function () {
+      try { if (pane && pane.destroy) pane.destroy(); } catch (e) {}
+      try { document.removeEventListener('keydown', okey, true); } catch (e) {}
+      try { ov.remove(); } catch (e) {}
+    };
+    // Échap EN CAPTURE : ferme l'overlay — MAIS si un plein écran docReview est ouvert au-dessus (.fpdr-full),
+    // c'est LUI qui gère Échap (son propre handler capture + stopImmediatePropagation) → on ne fait rien ici.
+    okey = function (e) {
+      if (e.key !== 'Escape' && e.keyCode !== 27) return;
+      if (document.querySelector('.fpdr-full')) return;
+      e.preventDefault(); e.stopImmediatePropagation(); close();
+    };
+    document.addEventListener('keydown', okey, true);
+    ov.querySelector('.fpdr-ov-x').addEventListener('click', close);
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    const mount = function (file) {
+      try {
+        pane = self.build(file, { label: opts.label || '📄 Document', alt: opts.title || 'Document', showName: opts.showName === true });
+        body.innerHTML = pane.html; pane.wire(body);
+      } catch (e) { body.innerHTML = '<div class="fpdr-ov-load">Impossible d’ouvrir le document.</div>'; }
+    };
+    const setFile = function (file) { if (file) mount(file); };
+    const setError = function (msg) { body.innerHTML = '<div class="fpdr-ov-load">' + esc(msg || 'Impossible d’ouvrir le document.') + '</div>'; };
+    if (typeof src === 'string' && src) {
+      fetch(src).then(function (r) { return r.blob(); })
+        .then(function (b) { mount(new File([b], opts.filename || 'document.pdf', { type: b.type || 'application/pdf' })); })
+        .catch(function () { setError('Impossible de charger le document.'); });
+    } else if (src) {
+      mount((src instanceof File) ? src : new File([src], opts.filename || 'document.pdf', { type: src.type || 'application/pdf' }));
+    }
+    return { close: close, setFile: setFile, setError: setError };
+  },
+
   // Contrôleur d'UNE instance de rendu PDF (inline OU plein écran). Rend la page courante sur un <canvas>
   // via pdf.js, en « ajuster à la page » (défaut) / « ajuster à la largeur » / zoom manuel. Gère flèches,
   // compteur, clavier, et les actions télécharger/imprimer/nouvel onglet/plein écran. Renvoie { cancel, render }.

@@ -74,6 +74,7 @@ multi-sociétés** est-elle respectée ? (9) les **automatisations** existantes 
 | **Sélecteur véhicule/conducteur** | `FP.searchSelect` (recherche clavier) + `FP.conducteurPicker` |
 | **Barre de filtres** | bouton `FP.filterResetButton` + période mois **et** Du/Au quand daté |
 | **Galerie photos** | `FP.galerie3d` / lightbox existante |
+| **Aperçu d'un PDF/document DANS PP** | **`FP.docReview`** (moteur unique, rendu **canvas pdf.js** = AUCUNE barre native) : `FP.docReview.build(file,opts)` pour un aperçu **inline** (scanner, formulaire facture, sinistres) ; **`FP.docReview.openOverlay(file\|url\|null, opts)`** pour l'ouvrir **en grand** (overlay PP, 1 seule barre, plein écran ⛶ dont **Échap ne ferme QUE le plein écran**). Jamais d'`<iframe>` native (double barre) pour un aperçu intégré. L'ouverture en **nouvel onglet** (`FP.openPdf`/`openScan`, geste molette/Ctrl) reste séparée et volontaire. |
 | **Documents d'une fiche** | `FP.docsFolder` |
 | **Échappement HTML (XSS)** | `FP.esc` sur toute donnée saisie/scannée/Supabase |
 | **Clavier** | Entrée = valide (helper global `FP.enterValide(container, {button\|onValid})` — à **appliquer** sur chaque fenêtre/formulaire ; délégué, ignore textarea sauf Ctrl/⌘, select/combobox et `data-no-enter`) · Échap ferme · Tab · focus visible |
