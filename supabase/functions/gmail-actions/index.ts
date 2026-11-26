@@ -142,7 +142,8 @@ Deno.serve(async (req) => {
     const onlySoc = String((body as Record<string, unknown>).societe || "").trim();
     const maxMsg = Math.min(Math.max(Number((body as Record<string, unknown>).max || 40) || 40, 1), 60);
 
-    let q = admin.from("gmail_connexions").select("societe,refresh_token,email,created_at");
+    // select('*') → tolère l'absence des colonnes de config (watch_label_*, suivi_actif…) avant migration.
+    let q = admin.from("gmail_connexions").select("*");
     if (onlySoc) q = q.eq("societe", onlySoc);
     const { data: conns } = await q;
     const parSociete: Array<Record<string, unknown>> = [];
@@ -150,10 +151,15 @@ Deno.serve(async (req) => {
     for (const c of (conns || [])) {
       const soc = String(c.societe);
       const res = { societe: soc, lus: 0, proposes: 0, ignores: 0, deja: 0, erreurs: 0 };
+      // Suivi EN PAUSE pour cette société (suivi_actif === false) → on ne lit rien. NULL (boîte connectée
+      // avant la config) = surveillée par défaut, comme aujourd'hui.
+      if (c.suivi_actif === false) { (res as Record<string, unknown>).pause = true; parSociete.push(res); continue; }
       try {
         const access = await accessTokenFrom(String(c.refresh_token), CLIENT_ID, CLIENT_SECRET);
         const since = Math.floor(new Date(c.created_at || Date.now()).getTime() / 1000);
-        const query = `after:${since} {in:inbox label:"Parc Pilot"}`;
+        // Sources = « Principale » + libellé surveillé propre à la société (même archivé), Promotions /
+        // Réseaux sociaux TOUJOURS exclus — requête SOURCE UNIQUE partagée avec le « Tester la config ».
+        const query = T.gmailQuery({ sinceUnix: since, labelName: c.watch_label_name || "" });
         const lr = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxMsg}&q=${encodeURIComponent(query)}`, { headers: { Authorization: `Bearer ${access}` } });
         const ld = await lr.json().catch(() => null) as Record<string, unknown> | null;
         const ids: string[] = (ld && Array.isArray(ld.messages)) ? (ld.messages as Array<{ id: string }>).map((m) => m.id) : [];
@@ -168,6 +174,7 @@ Deno.serve(async (req) => {
           vehicules: (vehs || []).map((v: Record<string, unknown>) => ({ immat: v.immat })),
           amendes: (ams || []).map((a: Record<string, unknown>) => ({ numeroAvis: a.numero_avis })),
           sinistres: [] as unknown[],
+          watchLabelId: c.watch_label_id || null, // libellé surveillé → « force » (jamais écarté, même archivé)
         };
 
         for (const id of uniq) {
@@ -193,9 +200,14 @@ Deno.serve(async (req) => {
           await admin.from("gmail_a_verifier").upsert(prop, { onConflict: "id", ignoreDuplicates: true });
           res.proposes++;
         }
+        // Synchro réussie → horodatage + effacement d'une éventuelle erreur (tolère l'absence de colonne).
+        try { await admin.from("gmail_connexions").update({ derniere_sync: new Date().toISOString(), sync_erreur: null }).eq("societe", soc); } catch (_) { /* avant migration */ }
       } catch (e) {
         res.erreurs++;
-        (res as Record<string, unknown>).message = String((e as Error).message || e);
+        const msg = String((e as Error).message || e);
+        (res as Record<string, unknown>).message = msg;
+        // Erreur (souvent jeton révoqué) → mémorisée pour afficher « boîte à reconnecter » côté client.
+        try { await admin.from("gmail_connexions").update({ sync_erreur: msg }).eq("societe", soc); } catch (_) { /* avant migration */ }
       }
       parSociete.push(res);
     }

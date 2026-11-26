@@ -25,6 +25,7 @@
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { T } from "../_shared/triage.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -162,6 +163,62 @@ Deno.serve(async (req) => {
     // Gmail renvoie en base64url → on repasse en base64 standard pour un Blob côté client.
     const b64 = String(d.data).replace(/-/g, "+").replace(/_/g, "/");
     return json({ ok: true, mimeType: "application/pdf", dataB64: b64 });
+  }
+
+  // ---- labels : liste des libellés de la boîte (pour le sélecteur « libellé surveillé ») ----
+  //  Ne renvoie que les libellés UTILISATEUR (on écarte les libellés système CATEGORY_*, INBOX…).
+  if (action === "labels") {
+    const r = await gfetch("https://gmail.googleapis.com/gmail/v1/users/me/labels");
+    const d = await r.json().catch(() => null) as Record<string, unknown> | null;
+    if (!r.ok || !d) return json({ ok: false, configured: true, connected: true, error: "Lecture des libellés refusée." }, 502);
+    const raw = Array.isArray(d.labels) ? d.labels as Array<Record<string, unknown>> : [];
+    const labels = raw
+      .filter((l) => String(l.type || "user") === "user")
+      .map((l) => ({ id: String(l.id || ""), name: String(l.name || "") }))
+      .filter((l) => l.id && l.name)
+      .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    return json({ ok: true, configured: true, connected: true, email: conx.email || null, labels });
+  }
+
+  // ---- test : APERÇU des mails qui correspondraient au réglage (source + raison). N'ÉCRIT RIEN,
+  //      ne crée aucune facture, ne joint aucun document, ne touche aucun dossier (lecture seule). ----
+  if (action === "test") {
+    const labelName = String((body as Record<string, unknown>).labelName || "").trim();
+    const labelId = String((body as Record<string, unknown>).labelId || "").trim();
+    const max = Math.min(Math.max(Number((body as Record<string, unknown>).max || 8) || 8, 1), 15);
+    // Fenêtre récente (60 j) indépendante de la date de connexion → montre « quelques mails récents ».
+    const sinceUnix = Math.floor((Date.now() - 60 * 864e5) / 1000);
+    const q = T.gmailQuery({ sinceUnix, labelName });
+    const lr = await gfetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${max}&q=${encodeURIComponent(q)}`);
+    const ld = await lr.json().catch(() => null) as Record<string, unknown> | null;
+    if (!lr.ok || !ld) return json({ ok: false, configured: true, connected: true, error: "Recherche Gmail refusée (le libellé existe-t-il encore ?)." }, 502);
+    const ids: string[] = Array.isArray(ld.messages) ? (ld.messages as Array<{ id: string }>).map((m) => m.id) : [];
+    // Contexte flotte (plaques + n° d'avis) pour une raison pertinente — scopé à la société de l'appelant.
+    const [{ data: vehs }, { data: ams }] = await Promise.all([
+      admin.from("vehicules").select("immat").eq("societe", societe),
+      admin.from("amendes").select("numero_avis").eq("societe", societe),
+    ]);
+    const ctx = {
+      vehicules: (vehs || []).map((v: Record<string, unknown>) => ({ immat: v.immat })),
+      amendes: (ams || []).map((a: Record<string, unknown>) => ({ numeroAvis: a.numero_avis })),
+      sinistres: [] as unknown[], watchLabelId: labelId || null,
+    };
+    const apercu: Array<Record<string, unknown>> = [];
+    for (const id of ids) {
+      const mr = await gfetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=full`);
+      if (!mr.ok) continue;
+      const mj = await mr.json().catch(() => null);
+      if (!mj) continue;
+      const p = parseGmailMessage(mj);
+      const labels = Array.isArray(mj.labelIds) ? mj.labelIds : [];
+      const dec = T.classify({ ...p, labels }, ctx);
+      apercu.push({
+        id: p.id, from: p.fromEmail || p.from, subject: p.subject || "(sans objet)", date: p.date,
+        source: T.sourceDe(labels, labelId), retenu: dec.action !== "ignore",
+        domaine: dec.domaine, raison: dec.motif || "", hasPdf: p.hasPdf,
+      });
+    }
+    return json({ ok: true, configured: true, connected: true, email: conx.email || null, query: q, count: apercu.length, apercu });
   }
 
   // ---- list : nouveaux messages depuis 'since' (défaut = date de connexion) ----

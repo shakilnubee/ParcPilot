@@ -27,6 +27,7 @@ T.RE_AMENDE = /(contravention|amende|avis de contravention|\bantai\b|stationneme
 T.RE_MAINT = /(rendez-?vous|\brdv\b|r[eé]vision|vidange|entretien|garage|carrosserie|pneus?|contr[oô]le technique|r[eé]paration|atelier|m[eé]canic)/i;
 T.RE_SINISTRE = /(sinistre|expertise|\bexpert\b|indemnisation|indemnit[eé]|franchise|prise en charge|\bconstat\b|accident|assurance|assureur)/i;
 T.RE_PAIEMENT = /(paiement|pay[eé]e?\b|r[eè]glement|r[eé]gl[eé]|re[çc]u\b|justificatif|quittance|acquitt|ticket de paiement|preuve de paiement)/i;
+T.RE_FACTURE = /(facture|facturation|\bavoir\b|note de d[eé]bit|\binvoice\b)/i;
 T.RE_RDV_CONFIRME = /(confirm|bien not[eé]|c'est not[eé]|enregistr[eé]|valid[eé]|nous vous attendons|rendez-?vous (?:fix|pris))/i;
 T.RE_RDV_REPORTE = /(report|d[eé]cal|repouss|nouvelle date|changement de date|d[eé]placer le rendez)/i;
 T.RE_RDV_ANNULE = /(annul|supprim(?:er|[eé]) le rendez)/i;
@@ -113,10 +114,21 @@ T.classify = (msg, ctx) => {
     return o;
   };
 
-  const force = !!(msg.viaLibelle || (msg.labels && msg.labels.some((l) => /parc[\s_-]?pilot/i.test(String(l)))));
+  // Exclusion PRIORITAIRE des onglets Gmail « Promotions » et « Réseaux sociaux » : même si le mail
+  // porte le libellé surveillé, il est écarté (règle valable AUSSI au test « Tester la configuration »).
+  const cats = (msg.labels || []).map((l) => String(l).toUpperCase());
+  if (cats.indexOf('CATEGORY_PROMOTIONS') !== -1 || cats.indexOf('CATEGORY_SOCIAL') !== -1) {
+    return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false, motif: 'Onglet Promotions / Réseaux sociaux — exclu' });
+  }
+  // « force » = mail signalé par le LIBELLÉ surveillé (nom propre à CHAQUE société). On le détecte par
+  // l'ID de libellé fourni par le serveur (ctx.watchLabelId, dans msg.labels) OU le drapeau msg.viaLibelle.
+  // (Repli historique sur un libellé nommé « Parc Pilot » conservé pour compatibilité.)
+  const wId = ctx.watchLabelId ? String(ctx.watchLabelId).toUpperCase() : '';
+  const force = !!(msg.viaLibelle || (wId && cats.indexOf(wId) !== -1) ||
+    (msg.labels && msg.labels.some((l) => /parc[\s_-]?pilot/i.test(String(l)))));
   const refFlotteForte = ancres.length || numeroAvis || plaques.length;
   if (!force && !refFlotteForte && T.RE_HORSFLOTTE.test(texte) &&
-      !T.RE_AMENDE.test(texte) && !T.RE_MAINT.test(texte) && !T.RE_SINISTRE.test(texte)) {
+      !T.RE_AMENDE.test(texte) && !T.RE_MAINT.test(texte) && !T.RE_SINISTRE.test(texte) && !T.RE_FACTURE.test(texte)) {
     return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false, motif: 'RH / hors flotte' });
   }
 
@@ -145,6 +157,18 @@ T.classify = (msg, ctx) => {
     return out({ domaine: 'amende', action: 'a_verifier', confidence: 'faible', besoinIA: true, bloque: true, motif: 'Amende sans n° d’avis reconnu' });
   }
 
+  // FACTURE : le mot « facture » (souvent + un PDF joint) → on oriente vers le FORMULAIRE de scan
+  // manuel (lecture IA du PDF + contrôle HT+TVA=TTC + anti-doublon FP.dupe à l'enregistrement).
+  // Une plaque reconnue PROPOSE le véhicule ; sinon il reste à choisir dans le formulaire. L'IA ne
+  // tourne PAS ici (triage = règles pures) : elle lira le PDF au moment de la saisie.
+  if (T.RE_FACTURE.test(texte) && (hasPdf || plaques.length)) {
+    const p1 = plaques.length === 1;
+    return out({ domaine: 'facture', action: 'facture_saisir', refs: { plaque: plaques[0] || null },
+      confidence: p1 ? 'moyenne' : 'faible', besoinIA: false, bloque: true,
+      motif: plaques.length > 1 ? 'Facture — plusieurs véhicules cités, à préciser'
+        : (p1 ? 'Facture reçue — véhicule proposé, à vérifier au formulaire' : 'Facture reçue — véhicule à préciser au formulaire') });
+  }
+
   if (T.RE_SINISTRE.test(texte)) {
     const sinDoss = (ctx.sinistres || []).filter((s) => plaques.indexOf(T.normImmat(s.plaque)) !== -1);
     const indemn2 = T.RE_INDEMN.test(texte);
@@ -160,9 +184,34 @@ T.classify = (msg, ctx) => {
 
   if (plaques.length || force) {
     return out({ domaine: 'inconnu', action: 'a_verifier', confidence: 'faible', besoinIA: true, bloque: true,
-      motif: force ? 'Mail signalé par le libellé « Parc Pilot » — nature à préciser' : 'Mail lié à un véhicule — nature à préciser' });
+      motif: force ? 'Mail signalé par le libellé surveillé — nature à préciser' : 'Mail lié à un véhicule — nature à préciser' });
   }
   return out({ domaine: 'inconnu', action: 'ignore', confidence: 'faible', besoinIA: false, motif: 'Non lié à la flotte' });
+};
+
+// Requête de recherche Gmail (SOURCE UNIQUE, utilisée par le cron `run` ET le « Tester la config ») :
+// onglet « Principale » (category:primary) + libellé surveillé (label:"…", capté MÊME archivé),
+// en EXCLUANT TOUJOURS Promotions et Réseaux sociaux (règle prioritaire, vaut aussi pour le test).
+//   opts = { sinceUnix?, labelName? }
+T.gmailQuery = (opts) => {
+  opts = opts || {};
+  const parts = ['-category:promotions', '-category:social'];
+  if (opts.sinceUnix) parts.push('after:' + opts.sinceUnix);
+  const name = opts.labelName ? String(opts.labelName).replace(/"/g, '') : '';
+  // {a b} = OU dans Gmail : « dans Principale » OU « porte le libellé » (ce dernier capte l'archivé).
+  parts.push(name ? '{category:primary label:"' + name + '"}' : 'category:primary');
+  return parts.join(' ');
+};
+
+// Source d'un message (pour l'affichage du test) à partir de ses labelIds Gmail + l'ID du libellé surveillé.
+T.sourceDe = (labels, watchLabelId) => {
+  const L = (labels || []).map((x) => String(x));
+  const primaire = L.indexOf('CATEGORY_PERSONAL') !== -1 || (L.indexOf('INBOX') !== -1 && !L.some((x) => /^CATEGORY_/.test(x)));
+  const parLibelle = !!(watchLabelId && L.indexOf(String(watchLabelId)) !== -1);
+  const src = [];
+  if (primaire) src.push('Principale');
+  if (parLibelle) src.push('Libellé');
+  return src.join(' + ') || 'Boîte';
 };
 
 // simuler(msgs, ctx, ledger) — enchaîne idempotence + classify (banc de test / mode simulation).
