@@ -64,5 +64,35 @@ t('numFacture extrait F-2026-627', /2026[-_ ]?627/.test(A.numFacture('Facture-..
 t('« à reprendre » = facture confirmée avec PDF', A._estAReprendre(mg4) === true);
 t('pas « à reprendre » si enregistrée (applique)', A._estAReprendre(Object.assign({}, mg4, { statut: 'applique' })) === false);
 
+// --- classification des pièces jointes (facture à importer vs relevé à écarter) ---
+t('rôle E-SUMMARY → relevé', A.roleDePiece('4302800060_2026-11-23_E-SUMMARY_26-656273356-000.pdf') === 'releve');
+t('rôle E-INVOICE → facture', A.roleDePiece('4302800060_2026-11-23_FR_E-INVOICE_26-656273356-001.pdf') === 'facture');
+t('rôle inconnu → autre', A.roleDePiece('document-xyz.pdf') === 'autre');
+const dkv = { id: 'AV-dkv', message_id: 'mdkv', pieces: [
+  { filename: '4302800060_2026-11-23_E-SUMMARY_26-656273356-000.pdf', attachmentId: 'S0' },
+  { filename: '4302800060_2026-11-23_FR_E-INVOICE_26-656273356-001.pdf', attachmentId: 'I1' },
+] };
+A._pieceSel = {};
+let cdkv = A.classerPieces(dkv);
+t('DKV : la FACTURE sélectionnée = E-INVOICE (idx 1), pas le relevé (idx 0)', cdkv.factureIdx === 1, cdkv.factureIdx);
+t('DKV : pas de choix requis (une seule facture claire)', cdkv.choixRequis === false);
+t('DKV : pieceFactureIdx = 1', A.pieceFactureIdx(dkv) === 1);
+// choix manuel l'emporte (ex. l'utilisateur force le relevé)
+A._pieceSel['AV-dkv'] = 0;
+t('choix manuel prioritaire → idx 0', A.pieceFactureIdx(dkv) === 0);
+A._pieceSel = {};
+// deux factures plausibles → choix requis (factureIdx null)
+const deux = { id: 'AV-2', pieces: [ { filename: 'FR_E-INVOICE_A.pdf', attachmentId: 'a' }, { filename: 'FR_E-INVOICE_B.pdf', attachmentId: 'b' } ] };
+let c2 = A.classerPieces(deux);
+t('2 factures plausibles → choix requis (factureIdx null)', c2.factureIdx === null && c2.choixRequis === true);
+// un seul PDF non classé → c'est lui
+const un = { id: 'AV-1', pieces: [ { filename: 'scan-document.pdf', attachmentId: 'x' } ] };
+t('un seul PDF (non classé) → sélectionné', A.pieceFactureIdx(un) === 0);
+// aucun PDF
+t('aucun PDF → aucun=true, factureIdx null', (function(){ const c = A.classerPieces({ id:'AV-0', pieces: [] }); return c.aucun === true && c.factureIdx === null; })());
+// le détail affiche les rôles + la sélection
+const detDkv = A.detailHtml(dkv);
+t('détail DKV : « Facture · sélectionnée pour l’import » + « Relevé · exclu »', /Facture · sélectionnée pour l’import/.test(detDkv) && /Relevé · exclu de l’import/.test(detDkv));
+
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);
