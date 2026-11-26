@@ -99,12 +99,25 @@
     var act = ACTION_LABEL[it.action] || esc(it.action || '—');
     var traite = it.statut && it.statut !== 'a_verifier';
     var veh = A.vehLabel(it);
-    var piecesHtml = pieces.length
-      ? '<div class="gav-d-pieces">' + pieces.map(function (p, i) {
-          return '<button type="button" class="gav-piece" data-piece="' + i + '" title="Ouvrir le PDF en grand dans Parc Pilot">📎 ' + esc(p.filename || ('pièce ' + (i + 1))) + '</button>';
-        }).join('') + '</div>'
-      : '<div class="gav-d-nopj">Aucune pièce jointe PDF.</div>';
     var retire = it.statut === 'retire';
+    var cls = A.classerPieces(it);
+    var piecesHtml = pieces.length
+      ? '<div class="gav-pc-list">' + cls.pieces.map(function (p) {
+          var isSel = (p.idx === cls.factureIdx);
+          return '<div class="gav-pc gav-pc-' + p.role + (isSel ? ' sel' : '') + '">'
+            + '<div class="gav-pc-info">'
+            +   '<div class="gav-pc-role">' + esc(A.roleLabel(p.role, isSel)) + '</div>'
+            +   '<div class="gav-pc-name">' + esc(p.filename) + '</div>'
+            + '</div>'
+            + '<div class="gav-pc-act">'
+            +   (p.attachmentId ? '<button type="button" class="gav-pc-open" data-piece="' + p.idx + '">👁 Ouvrir</button>' : '')
+            +   (p.attachmentId && !isSel && !traite && !retire ? '<button type="button" class="gav-pc-pick" data-pick="' + p.idx + '">Importer celle-ci</button>' : '')
+            + '</div>'
+          + '</div>';
+        }).join('')
+        + (cls.choixRequis && !traite && !retire ? '<div class="gav-pc-choix">⚠️ Plusieurs documents possibles — choisis la <b>facture</b> à importer (« Importer celle-ci »). Le relevé reste consultable dans le mail, il ne crée pas de facture.</div>' : '')
+        + '</div>'
+      : '<div class="gav-d-nopj">Aucune pièce jointe PDF.</div>';
     var actions;
     if (retire) {
       actions = '<div class="gav-d-done" style="color:#64748b">🗑️ Retiré de Parc Pilot</div>'
@@ -183,6 +196,24 @@
       '.gav-piece{font-size:.78rem;background:var(--fp-bg,#F1F5F9);border:1px solid var(--fp-border,#E2E8F0);border-radius:8px;padding:4px 10px;cursor:pointer}',
       '.gav-piece:hover{border-color:var(--fp-primary,#2563EB)}',
       '.gav-d-nopj{font-size:.8rem;color:var(--fp-muted,#64748B);margin-top:4px}',
+      /* Pièces jointes : rôle (facture/relevé) + sélection d'import */
+      '.gav-pc-list{display:flex;flex-direction:column;gap:7px;margin-top:5px}',
+      '.gav-pc{display:flex;align-items:center;gap:10px;border:1px solid var(--fp-border,#E2E8F0);border-radius:10px;padding:8px 10px;background:var(--fp-bg,#F8FAFC)}',
+      'body.fp-dark .gav-pc{background:#0b1220;border-color:#243044}',
+      '.gav-pc.sel{border-color:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.15);background:#F0FDF4}',
+      'body.fp-dark .gav-pc.sel{background:#052e16;border-color:#16a34a}',
+      '.gav-pc-info{min-width:0;flex:1}',
+      '.gav-pc-role{font-size:.74rem;font-weight:800}',
+      '.gav-pc-facture .gav-pc-role{color:#166534}.gav-pc-releve .gav-pc-role{color:#92400E}.gav-pc-autre .gav-pc-role{color:#475569}',
+      'body.fp-dark .gav-pc-facture .gav-pc-role{color:#4ade80}body.fp-dark .gav-pc-releve .gav-pc-role{color:#fcd34d}',
+      '.gav-pc-name{font-size:.74rem;color:var(--fp-muted,#64748B);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.gav-pc-act{display:flex;gap:6px;flex:0 0 auto}',
+      '.gav-pc-open,.gav-pc-pick{border:1px solid var(--fp-border,#E2E8F0);background:#fff;border-radius:8px;padding:4px 9px;cursor:pointer;font-size:.76rem;font-weight:600;color:inherit}',
+      '.gav-pc-pick{background:var(--fp-primary,#2563EB);color:#fff;border-color:var(--fp-primary,#2563EB)}',
+      'body.fp-dark .gav-pc-open{background:#0b1220;border-color:#243044}',
+      '.gav-pc-open:hover{border-color:var(--fp-primary,#2563EB)}',
+      '.gav-pc-choix{font-size:.78rem;color:#92400E;background:#FEF3C7;border-radius:8px;padding:7px 10px;margin-top:4px}',
+      'body.fp-dark .gav-pc-choix{background:#78350F;color:#FDE68A}',
       '.gav-d-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}',
       '.gav-d-actions .btn{font-size:.82rem}',
       '.gav-d-done{margin-top:14px;font-weight:700;color:#166534}',
@@ -239,6 +270,44 @@
     }
     return false;
   };
+
+  // ─── CLASSIFICATION DES PIÈCES JOINTES (facture à importer vs relevé à écarter) ─────────────────
+  // Un mail peut contenir PLUSIEURS PDF (ex. DKV : « …E-SUMMARY… » = relevé, « …E-INVOICE… » = facture).
+  // On NE DOIT PAS importer la première pièce venue (c'était le bug : on prenait pieces[0] = le relevé).
+  // Rôle déduit du NOM (multi-fournisseurs : DKV / TotalEnergies / Ulys-Vinci, FR/EN/DE/IT/NL). Le choix
+  // manuel (`A._pieceSel`) l'emporte. L'ordre et la référence commune dans les noms ne suffisent pas.
+  A._pieceSel = {}; // { itemId: idx } — pièce « facture » choisie à la main pour l'import
+  A.roleDePiece = function (filename) {
+    var f = A._norm(filename);
+    // Relevé / récapitulatif / détail de consommation (à NE PAS importer comme facture). Testé en premier :
+    // « e-invoice summary » doit rester un relevé si « summary » est présent sans « invoice » propre.
+    if (/e[-_ ]?summary|\bsummary\b|releve|recapitulatif|statement|auszug|overzicht|zusammenfassung|detail\b|detaille|consommation/.test(f)) return 'releve';
+    if (/e[-_ ]?invoice|\binvoice\b|facture|rechnung|fattura|factuur|\bfact\b/.test(f)) return 'facture';
+    return 'autre';
+  };
+  A.roleLabel = function (role, sel) {
+    if (role === 'facture') return sel ? '🧾 Facture · sélectionnée pour l’import' : '🧾 Facture';
+    if (role === 'releve') return '📄 Relevé · exclu de l’import';
+    return sel ? '📎 Document · sélectionné pour l’import' : '📎 Document';
+  };
+  // Classe toutes les pièces et désigne l'index de la FACTURE à importer (ou null si un choix est requis).
+  A.classerPieces = function (it) {
+    var raw = Array.isArray(it.pieces) ? it.pieces : [];
+    var pieces = raw.map(function (p, i) {
+      return { idx: i, filename: (p && p.filename) || ('pièce ' + (i + 1)), attachmentId: p && p.attachmentId, role: A.roleDePiece(p && p.filename) };
+    });
+    var pdfs = pieces.filter(function (p) { return p.attachmentId; });
+    var factures = pdfs.filter(function (p) { return p.role === 'facture'; });
+    var sel = A._pieceSel[it.id];
+    var factureIdx;
+    if (sel != null && pieces[sel] && pieces[sel].attachmentId) factureIdx = sel;        // choix manuel prioritaire
+    else if (factures.length === 1) factureIdx = factures[0].idx;                        // une seule facture claire
+    else if (factures.length === 0 && pdfs.length === 1) factureIdx = pdfs[0].idx;       // pas de « facture » mais 1 seul PDF → c'est lui
+    else factureIdx = null;                                                              // 0 facture + plusieurs PDF, OU plusieurs factures → choix requis
+    return { pieces: pieces, pdfs: pdfs, factures: factures, factureIdx: factureIdx,
+             choixRequis: (factureIdx == null && pdfs.length > 0), aucun: pdfs.length === 0 };
+  };
+  A.pieceFactureIdx = function (it) { return A.classerPieces(it).factureIdx; };
 
   // Pastille « en attente » sur l'onglet « 📨 À vérifier ».
   A.badgeHtml = function (n) {
@@ -346,8 +415,11 @@
     var back = host.querySelector('.gav-d-back');
     if (back) back.addEventListener('click', function () { A._showDetail = false; A.paint(host); });
     var sel = (A._items || []).filter(function (x) { return x.id === A._selId; })[0] || null;
-    host.querySelectorAll('.gav-piece').forEach(function (b) {
+    host.querySelectorAll('.gav-pc-open').forEach(function (b) {
       b.addEventListener('click', function () { if (sel) A.openPdf(sel, Number(b.dataset.piece) || 0); });
+    });
+    host.querySelectorAll('.gav-pc-pick').forEach(function (b) {
+      b.addEventListener('click', function () { if (!sel) return; A._pieceSel[sel.id] = Number(b.dataset.pick) || 0; A.paint(host); });
     });
     var go = host.querySelector('.gav-go'); if (go) go.addEventListener('click', function () { if (sel) A.action(host, sel); });
     var co = host.querySelector('.gav-correct'); if (co) co.addEventListener('click', function () { if (sel) A.openCorrect(host, sel.id); });
@@ -426,8 +498,11 @@
   // le mail « traité » seulement après succès. Anti-doublon FP.dupe à l'enregistrement.
   A.verifierFacture = function (host, it) {
     var pieces = Array.isArray(it.pieces) ? it.pieces : [];
-    var pj = pieces.filter(function (p) { return p && p.attachmentId; })[0];
-    if (!pj || !it.message_id) { err('Aucun PDF joint à cette facture — impossible d’ouvrir le formulaire.'); return; }
+    var cls = A.classerPieces(it);
+    if (cls.aucun) { err('Aucun PDF joint à cette facture — impossible d’ouvrir le formulaire.'); return; }
+    if (cls.factureIdx == null) { err('Plusieurs documents sont joints : choisis d’abord la facture à importer (bouton « Importer celle-ci » sous la pièce).'); return; }
+    var pj = pieces[cls.factureIdx];
+    if (!pj || !pj.attachmentId || !it.message_id) { err('Pièce jointe indisponible.'); return; }
     var ref = it.dossier_ref || {};
     var payload = {
       avId: it.id, societe: A.societeDe(it), messageId: it.message_id,
@@ -473,8 +548,9 @@
 
   // Récupère le PDF d'origine (1re pièce) via gmail-read (jeton serveur) → octets + nom + type.
   A._fetchPdfBlob = function (it) {
-    var pj = (it.pieces || []).filter(function (p) { return p && p.attachmentId; })[0];
-    if (!pj || !it.message_id) return Promise.reject(new Error('Pièce jointe indisponible'));
+    var idx = A.pieceFactureIdx(it);
+    var pj = (idx != null) ? (it.pieces || [])[idx] : null;
+    if (!pj || !pj.attachmentId || !it.message_id) return Promise.reject(new Error('Pièce jointe indisponible'));
     return FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: it.message_id, attachmentId: pj.attachmentId, societe: A.societeDe(it) } })
       .then(function (r) {
         var d = r && r.data; if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || (r && r.error && r.error.message) || 'PDF indisponible');
@@ -492,7 +568,8 @@
     if (soc) q = q.eq('societe', soc);
     return q.then(function (r) {
       if (r.error || !r.data) return [];
-      var pieces = it.pieces || []; var fn = (pieces[0] && pieces[0].filename) || '';
+      var pieces = it.pieces || []; var _fidx = A.pieceFactureIdx(it);
+      var fn = ((_fidx != null && pieces[_fidx]) ? pieces[_fidx].filename : (pieces[0] && pieces[0].filename)) || '';
       var num = A.numFacture(fn) || A.numFacture(it.objet);
       var plaque = (it.dossier_ref && it.dossier_ref.plaque) || '';
       var N = function (s) { return A._norm(s).replace(/[^a-z0-9]/g, ''); };
