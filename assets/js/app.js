@@ -10763,10 +10763,36 @@ FP.installNavHref = function () {
   const abs = (h) => { try { return new URL(h, location.href).href; } catch (e) { return h; } };
   const openTab = (h) => { if (h) { try { window.open(abs(h), '_blank', 'noopener'); } catch (e) {} } };
   const openDoc = (u) => { if (!u) return; try { if (FP.openScan) FP.openScan(u); else window.open(abs(u), '_blank', 'noopener'); } catch (e) {} };
+  // ⚠️ CLIC GAUCHE SIMPLE sur un document → APERÇU IN-APP via le LECTEUR COMMUN (FP.docReview.openOverlay) :
+  // même lecteur PP partout (À vérifier, fiche véhicule, Factures…), 1 seule barre, clair/sombre, plein écran
+  // Échap. Molette / Ctrl / Cmd / Maj → NOUVEL ONGLET (inchangé). Un lien Drive/externe (hors bucket « scans »,
+  // non récupérable en CORS) ou l'indisponibilité du lecteur → repli NOUVEL ONGLET (jamais d'écran vide).
+  const openDocInApp = (u) => {
+    if (!u) return;
+    if (!(FP.docReview && FP.docReview.openOverlay) || !/\/scans\//.test(u) || !FP.signedScanUrl) { openDoc(u); return; }
+    const ov = FP.docReview.openOverlay(null, { label: '📄 Document', loadingLabel: 'Chargement du document…' });
+    const fallback = () => { try { ov.close(); } catch (e) {} openDoc(u); };
+    FP.signedScanUrl(u, 600).then((su) => {
+      fetch(su || u).then((r) => { if (!r || !r.ok) throw new Error('http'); return r.blob(); })
+        .then((b) => { const ext = /pdf/i.test(b.type) ? '.pdf' : (/(png|jpe?g|webp|gif)/i.exec(b.type || '') ? '.' + RegExp.$1.replace('jpeg', 'jpg') : '.pdf'); ov.setFile(new File([b], 'document' + ext, { type: b.type || 'application/pdf' })); })
+        .catch(fallback);
+    }).catch(fallback);
+  };
   // Molette : empêcher l'autoscroll (rond gris) sur une carte navigable OU un document, puis ouvrir au relâchement.
   document.addEventListener('mousedown', (e) => { if (e.button === 1 && (docUrl(e.target) || (!inInteractive(e.target) && cardHref(e.target)))) e.preventDefault(); }, true);
   document.addEventListener('auxclick', (e) => { if (e.button !== 1) return; const d = docUrl(e.target); if (d) { e.preventDefault(); e.stopPropagation(); openDoc(d); return; } if (inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
-  document.addEventListener('click', (e) => { if (e.button !== 0 || !(e.ctrlKey || e.metaKey || e.shiftKey)) return; const d = docUrl(e.target); if (d) { e.preventDefault(); e.stopPropagation(); openDoc(d); return; } if (inInteractive(e.target)) return; const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); } }, true);
+  document.addEventListener('click', (e) => {
+    if (e.button !== 0) return;
+    const d = docUrl(e.target);
+    if (d) { // document : clic gauche = aperçu in-app ; clic modifié = nouvel onglet
+      e.preventDefault(); e.stopPropagation();
+      if (e.ctrlKey || e.metaKey || e.shiftKey) openDoc(d); else openDocInApp(d);
+      return;
+    }
+    if (!(e.ctrlKey || e.metaKey || e.shiftKey)) return; // carte navigable : seul le clic modifié ouvre un onglet ici
+    if (inInteractive(e.target)) return;
+    const h = cardHref(e.target); if (h) { e.preventDefault(); e.stopPropagation(); openTab(h); }
+  }, true);
 };
 try { FP.installNavHref(); } catch (e) {}
 FP.applyNavSubmenus = () => {
