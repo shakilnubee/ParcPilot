@@ -10328,6 +10328,46 @@ FP.pneus = {
   },
   POSITIONS: { av: 'Avant', ar: 'Arrière', '4': '4 roues' },
   posLabel(p) { return this.POSITIONS[p] || ''; },
+  // ─── DÉTECTION 3PMSF (marquage neige/hiver OFFICIEL) depuis le texte d'une facture de pneus ───
+  // ⚠️ RÈGLE STRICTE (consigne : LIRE, jamais deviner) : seul un marquage EXPLICITE confirme « Oui »
+  //   (symbole « 3 pics + flocon » = 3PMSF, « 3PMSF », « homologation/certification neige », « flocon
+  //   montagne », « pictogramme alpin »). La mention « M+S » (mud&snow / boue et neige) seule NE SUFFIT
+  //   PAS → on renvoie `null` (« Non renseigné »), jamais inventé. `false` seulement si mention explicite
+  //   « non homologué neige ». Renvoie true | false | null.
+  RE_3PMSF: /3\s*-?\s*p\s*-?\s*m\s*-?\s*s\s*-?\s*f|three\s*-?\s*peak|3\s*peaks?|homolog\w*\s+neige|certifi\w*\s+neige|pictogramme\s+alpin|3\s*sommets|montagne.{0,14}flocon|flocon.{0,14}montagne|peak\s+mountain|snowflake/i,
+  detect3pmsf(text) {
+    const t = (text == null ? '' : String(text));
+    if (!t.trim()) return null;
+    const norm = t.normalize ? t.normalize('NFD').replace(/[̀-ͯ]/g, '') : t;
+    if (/non\s+homolog\w*\s+neige|pas\s+(?:de\s+)?3\s*-?\s*p\s*-?\s*m\s*-?\s*s\s*-?\s*f/i.test(norm)) return false;
+    if (this.RE_3PMSF.test(norm)) return true;
+    return null; // y compris « M+S » seul : jamais suffisant pour confirmer
+  },
+  // Marque de pneu reconnue dans un texte (liste des grandes marques) → libellé propre, ou '' (jamais inventé).
+  MARQUES_PNEU: ['HANKOOK', 'MICHELIN', 'CONTINENTAL', 'BRIDGESTONE', 'GOODYEAR', 'PIRELLI', 'DUNLOP', 'BFGOODRICH', 'BF GOODRICH', 'NOKIAN', 'FIRESTONE', 'KUMHO', 'YOKOHAMA', 'TOYO', 'FALKEN', 'VREDESTEIN', 'NEXEN', 'UNIROYAL', 'COOPER', 'MAXXIS', 'RIKEN', 'KLEBER', 'BARUM', 'SAVA', 'MATADOR', 'SEMPERIT', 'GT RADIAL', 'LAUFENN', 'FULDA', 'GENERAL TIRE', 'APOLLO', 'CEAT', 'HANKOOK'],
+  detectMarque(text) {
+    const t = (text == null ? '' : String(text)).toUpperCase();
+    for (let i = 0; i < this.MARQUES_PNEU.length; i++) {
+      const m = this.MARQUES_PNEU[i];
+      if (t.indexOf(m) !== -1) return m.charAt(0) + m.slice(1).toLowerCase();
+    }
+    return '';
+  },
+  // Lecture d'une FACTURE pour en déduire un remplacement de pneus (SOURCE UNIQUE, réutilisée par le scan
+  // manuel ET l'import Gmail — tous deux passent par le formulaire facture). Ne décide RIEN tout seul : le
+  // formulaire montre le résultat (visible + modifiable) avant validation. `estPneu` : facture typée « pneus »
+  // OU libellé « pneu/pneumatique/reifen/tyre/banden ». `dims` : toutes les dimensions reconnues (si plusieurs
+  // → `plusieurs` = true, on demande à l'utilisateur de rattacher la bonne position). `m3pmsf` via detect3pmsf.
+  detecterDepuisFacture(f) {
+    if (!f) return { estPneu: false };
+    const txt = [f.description, f.fournisseur].filter(Boolean).join(' ');
+    const typ = String(f.type || '').toLowerCase().trim();
+    const estPneu = typ === 'pneus' || /\bpneu|pneumatique|pneumatici|reifen|\btyre|\btire\b|\bbanden\b|gomme\b/i.test(txt);
+    if (!estPneu) return { estPneu: false };
+    const dims = ((txt.toUpperCase().match(/\d{2,3}\s*\/\s*\d{2}\s*[RZ]\s*F?\s*\d{1,2}(?:\.\d)?/g) || []).map(d => this.normDim(d)));
+    const uniq = dims.filter((d, i) => d && dims.indexOf(d) === i);
+    return { estPneu: true, dim: uniq[0] || '', dims: uniq, plusieurs: uniq.length > 1, m3pmsf: this.detect3pmsf(txt), marque: this.detectMarque(txt) };
+  },
   // Enregistre un REMPLACEMENT de pneus (app_settings). POSITION-AWARE : « av » met à jour SEULEMENT
   // l'avant, « ar » SEULEMENT l'arrière, « 4 » les deux — l'essieu NON remplacé est CONSERVÉ tel quel
   // (consigne : ne pas supposer que les 4 pneus ont changé). On mémorise un résumé `dernier`
