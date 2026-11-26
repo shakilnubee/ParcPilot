@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261126h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261126h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126i">
 <style>
   .guide-hero { background: radial-gradient(120% 130% at 92% -45%, rgba(249,115,22,.10), transparent 55%), linear-gradient(180deg, #FFFFFF 0%, #F3F6FB 100%); color: var(--fp-text); border: 1px solid var(--fp-border); border-radius: 1.1rem; padding: 2rem; position: relative; overflow: hidden; box-shadow: var(--fp-shadow); }
   .guide-hero h1 { color: var(--fp-primary); }
@@ -767,6 +767,7 @@
 
         <div class="man-item"><b>Rapprochement des conducteurs à l'import</b> — quand un relevé (Total ou Ulys) contient un conducteur qui ne correspond à <b>aucune fiche</b>, un encadré orange apparaît sous le détail conso avec, pour chacun : <b>« Lier à un conducteur existant »</b> (recherche au clavier), <b>« Créer la fiche »</b> ou <b>« Ignorer »</b>. Le lien est <b>permanent</b> (le n° de carte/badge est écrit sur la fiche) → toute sa conso passée <b>et</b> future se rattache alors automatiquement. Le bouton <b>« Ignorer »</b> sert aux lignes qui ne sont pas des conducteurs (ex. « Frais de gestion TotalEnergies ») : elles ne vous seront <b>plus jamais reproposées</b>, et ce choix est <b>mémorisé sur tous vos appareils</b>. Les conducteurs déjà connus (par n° de carte/badge ou par nom) sont reliés <b>tout seuls</b> ; rien n'est créé sans votre accord.</div>
 
+        <div class="man-item"><b>⛽ Factures de relevé (DKV / Total / Ulys) reçues par Gmail → transactions automatiques</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — quand tu enregistres une <b>facture de relevé</b> (DKV, TotalEnergies, Ulys…) depuis « À vérifier » (Gmail) comme pour un scan manuel, Parc Pilot <b>analyse le PDF</b> avec le <b>même moteur que l'import manuel</b> et rattache <b>le détail par transaction</b> à la facture (bouton <b>« Transactions »</b> dans <b>Contrôle → Cartes & badges</b>) : Date, Carte, Conducteur, Produit, TTC. Le <b>conducteur est retrouvé par n° de carte</b> ; si une carte n'est pas reconnue, la ligne est <b>conservée avec « À identifier »</b>. La <b>facture globale reste au niveau société</b>. ⚠️ Le détail n'est <b>pas une 2ᵉ dépense</b> (la facture = la dépense, comptée une seule fois). <b>Relancer sans doublon</b> : si une facture de relevé a été enregistrée <b>sans</b> détail (ancien import), il suffit de la <b>ré-importer</b> (même PDF) → ses transactions se <b>complètent</b>, sans jamais dupliquer la facture ni les lignes. Si le PDF ne contient pas le détail lisible, Parc Pilot te le <b>signale</b> et tu peux réessayer.</div>
         <div class="man-item"><b>🔗 Badges Ulys en direct (API)</b> <span style="font-size:.7rem;font-weight:700;color:#fff;background:var(--fp-accent);border-radius:9999px;padding:1px 8px">Nouveau</span> — en tête de <b>Contrôle → Ulys</b>, un panneau <b>« Badges Ulys (API) »</b> avec un bouton <b>« Synchroniser »</b> récupère <b>automatiquement</b> la liste de tes badges de télépéage directement chez Ulys (n° de badge, statut Actif/Inactif, immatriculation, affectation). Parc Pilot les <b>rapproche tout seul</b> de tes véhicules (par la plaque) et de tes conducteurs (par le véhicule ou le nom d'affectation), et te signale les <b>anomalies</b> (badge inactif encore attribué, plaque hors flotte…). Le bouton <b>« Relier »</b> (ou <b>« Relier à… »</b> pour choisir/créer un conducteur quand le badge n'est pas reconnu) enregistre le n° de badge sur la fiche du conducteur → sa consommation péage se rattache ensuite <b>toute seule</b> (même pour un <b>véhicule vendu</b> : le dernier conducteur est retrouvé via l'<b>historique d'affectation</b>). Un <b>même conducteur peut porter plusieurs badges</b> (ex. « Dépôt PXP » avec plusieurs véhicules) : « Relier » <b>ajoute</b> sans écraser. <b>Aucune saisie manuelle de n° de badge.</b> Le bouton <b>« Importer les factures »</b> (ou simplement <b>« Synchroniser »</b>) récupère les factures Ulys (dates + HT/TVA/TTC) directement dans l'onglet (anti-doublon), <b>et — nouveau — le DÉTAIL de consommation par conducteur</b> des factures <b>récentes</b> (trajet par trajet, rattaché <b>par n° de badge</b>), <b>automatiquement</b>, sans rien déposer. <span class="text-xs text-slate-500">(L'API Ulys ne fournit le détail que sur les <b>3 derniers mois</b> et <b>ne fournit pas le PDF</b> de la facture : pour attacher le PDF visible via « Voir », dépose-le une fois via « Importer un relevé Ulys ».)</span> Tu peux aussi toujours importer un relevé toi-même : le bouton <b>« Importer un relevé Ulys »</b> accepte le <b>fichier CSV</b> exporté depuis ton espace Ulys (en plus du PDF) — même consommation par conducteur, avec aperçu à confirmer. Le panneau se <b>replie</b> (les mêmes infos sont dans « Cartes & badges »). <span class="text-xs text-slate-500">(Connexion configurée une seule fois côté serveur — clé jamais exposée.)</span></div>
 
         <div class="man-zone">Sous-onglet « Factures »</div>
@@ -1223,8 +1224,8 @@
   </main>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261126h"></script>
-<script src="../assets/js/supabase-client.js?v=20261126h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126i"></script>
+<script src="../assets/js/supabase-client.js?v=20261126i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -1240,10 +1241,10 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
-<script src="../assets/js/app.min.js?v=20261126h"></script>
+<script src="../assets/js/app.min.js?v=20261126i"></script>
   <script>window.FP_PDF=1;</script>
 <script>
   if(window.lucide) lucide.createIcons();

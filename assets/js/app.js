@@ -4448,6 +4448,7 @@ FP.presta.lireReleve = async function (file, p) {
         out.facture = r.facture || null;
         out.tx = (r.tx || []).map(normTx).filter(t => t.montantTtc != null);
         out.source = 'auto';
+        out.prestaId = det.id;   // id du parseur (ex. 'dkv') → le caller résout le prestataire (numKey) pour le rapprochement carte→conducteur
       }
     } catch (e) {}
   }
@@ -4481,6 +4482,52 @@ FP.presta.lireReleve = async function (file, p) {
   }
   out.incomplet = !!(out.facture && !out.tx.length);
   return out;
+};
+
+// ===== ÉCRITURE DES TRANSACTIONS d'un relevé prestataire → total_conso_tx (SOURCE UNIQUE) =============
+// Même résultat que l'import manuel (controle.html / commitPrestaImport) : 1 ligne = 1 transaction,
+// rattachée à la facture par `facnum` (= n° de facture), conducteur résolu PAR N° DE CARTE (prestataire
+// natif ou perso → numKey), sinon le nom lu sur le relevé, sinon « À identifier ». Idempotent : l'id est
+// déterministe sur (facnum, index) → un ré-import (manuel OU Gmail) UPSERT les mêmes lignes, jamais de
+// doublon. La FACTURE (la dépense) est gérée à part par l'appelant — ici on n'écrit QUE le détail (pas de
+// 2ᵉ facture ni de 2ᵉ dépense). Retourne { ok, ko, n }. `opts` : { fournisseur, prestaId, type }.
+FP.presta.ecrireTx = async function (facnum, tx, opts) {
+  opts = opts || {};
+  const num = String(facnum == null ? '' : facnum).trim();
+  if (!num || !Array.isArray(tx) || !tx.length) return { ok: 0, ko: 0, n: 0 };
+  const facType = opts.type === 'peage' ? 'peage' : 'carburant';
+  // Prestataire pour le rapprochement carte→conducteur (numKey) : par id de parseur, sinon par nom de fournisseur.
+  let p = null;
+  try {
+    if (opts.prestaId && FP.prestataireById) p = FP.prestataireById(opts.prestaId);
+    if (!p && opts.fournisseur && FP.prestataires) {
+      const nn = String(opts.fournisseur).toLowerCase();
+      p = (FP.prestataires() || []).find(x => x && (nn.indexOf(String(x.nom || '').toLowerCase()) !== -1 || nn.indexOf(String(x.id || '').toLowerCase()) !== -1));
+    }
+  } catch (e) {}
+  const facIdClean = num.replace(/[^0-9A-Za-z]/g, '') || num;
+  let okTx = 0, koTx = 0, i = 0;
+  for (const t of tx) {
+    let nm = (t.conducteur || '').trim();
+    try { if (p && p.numKey && FP._condParNumero) { const c = FP._condParNumero(p.numKey, t.carte); if (c) nm = (FP.conducteurNomUnifie ? FP.conducteurNomUnifie(c.key) : (c.name || nm)) || nm; } } catch (e) {}
+    if (!nm) nm = 'À identifier';   // carte non reconnue : on CONSERVE la ligne (consigne) avec « À identifier »
+    const tr = {
+      id: 'PTX-' + facIdClean + '-' + (i++), facnum: num, carte: t.carte || '', conducteur: nm, plaque: null,
+      dateTx: t.dateTx || null, mois: String(t.dateTx || '').slice(0, 7),
+      produit: t.produit || (facType === 'peage' ? 'Péage' : 'Carburant'),
+      categorie: t.categorie || facType, montantTtc: (t.montantTtc != null ? t.montantTtc : 0)
+    };
+    if (t.litres != null && isFinite(Number(t.litres))) tr.litres = Number(t.litres);
+    if (t.montantHt != null && isFinite(Number(t.montantHt))) tr.montantHt = Number(t.montantHt);
+    if (t.montantTva != null && isFinite(Number(t.montantTva))) tr.montantTva = Number(t.montantTva);
+    try {
+      if (FP.persist && FP.persist.upsert) { FP.persist.upsert('total_conso_tx', tr); okTx++; }
+      else if (FP.db && FP.db.upsert) { const r = await FP.db.upsert('total_conso_tx', tr); if (r && r.error) koTx++; else okTx++; }
+      else koTx++;
+    } catch (e) { koTx++; }
+  }
+  try { if (FP.refreshDataCache) FP.refreshDataCache(); } catch (e) {}
+  return { ok: okTx, ko: koTx, n: tx.length };
 };
 
 // ===== LECTEUR DKV (carte carburant) — même standard que Total/Ulys : couche texte reconstruite par

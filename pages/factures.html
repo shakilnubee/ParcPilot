@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126h">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126i">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261126h"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126i"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261126h">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126i">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -620,8 +620,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261126h"></script>
-<script src="../assets/js/supabase-client.js?v=20261126h"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126i"></script>
+<script src="../assets/js/supabase-client.js?v=20261126i"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -637,13 +637,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126h"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126i"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261126h"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261126h"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261126h" defer></script>
+<script src="../assets/js/app.min.js?v=20261126i"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261126i"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261126i" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1635,6 +1635,30 @@
     const done = $('fabulk-done'); if (done) done.addEventListener('click', () => { if (totalFiles.length || ulysFiles.length) routeStatements(); else modal.classList.remove('open'); });
     if (ok && FP.toast) FP.toast(ok + ' facture(s) importée(s) ✓');
   }
+  // 🛢️ RELEVÉ PRESTATAIRE (DKV / Total / Ulys…) — extrait les TRANSACTIONS du PDF (même parseur que l'import
+  //    manuel : FP.presta.lireReleve) et les rattache à la facture (total_conso_tx, facnum = n°) → MÊME
+  //    résultat que l'import manuel (bouton « Transactions » dans Contrôle → Cartes & badges). N'écrit QUE le
+  //    détail (jamais de 2ᵉ facture / 2ᵉ dépense). Carte non reconnue → ligne gardée « À identifier ».
+  //    IDEMPOTENT (ids déterministes sur n°+ligne) → relancer sur une facture DÉJÀ enregistrée complète ses
+  //    transactions sans doublon. GARDE : ne déclenche QUE si un parseur prestataire DÉTECTE le document.
+  async function _factureExtrairePrestaTx(num, four, file) {
+    try {
+      if (!file || !num || !(window.FP && FP.presta && FP.presta.lireReleve && FP.presta.ecrireTx)) return;
+      const txt = await FP.presta.pdfToText(file).catch(() => '');
+      if (!txt || !FP.presta.detectParser(txt)) return;   // pas un relevé prestataire → rien à faire
+      const parsed = await FP.presta.lireReleve(file);
+      if (!parsed || !Array.isArray(parsed.tx) || !parsed.tx.length) {
+        if (FP.notifyError) FP.notifyError('Relevé ' + escapeHtml(String(num)) + ' : le détail des transactions n\'a pas pu être lu dans ce PDF. Réessaie, ou importe le relevé depuis Contrôle → Cartes & badges.');
+        return;
+      }
+      const fourN = (parsed.facture && parsed.facture.fournisseur) || four || '';
+      const typ = /ulys|vinci|p[eé]age|eurotoll|sanef/i.test(fourN + ' ' + (parsed.prestaId || '')) ? 'peage' : 'carburant';
+      const res = await FP.presta.ecrireTx(num, parsed.tx, { fournisseur: fourN, prestaId: parsed.prestaId, type: typ });
+      try { renderTable(); } catch (e) {}
+      if (FP.toast) FP.toast('✓ ' + res.ok + ' transaction(s) rattachée(s) à la facture ' + num + (res.ko ? ' · ⚠️ ' + res.ko + ' non enregistrée(s)' : '') + ' — détail dans Contrôle → Cartes & badges.');
+    } catch (e) { console.warn('[facture presta tx]', e); }
+  }
+
   async function saveFacture(ev){
     ev.preventDefault();
     // ⚠️ Pas d'enregistrement PENDANT l'analyse (champs encore incomplets / en cours de lecture).
@@ -1689,7 +1713,9 @@
       fileName,
     };
     // Anti-doublon : ne pas ajouter deux fois la même facture (n° + montant, ou fournisseur+TTC+date).
-    if (FP.dupe && !(await FP.dupe.confirmAdd('factures', newF, data.factures))) return;
+    // ⚠️ Même si la facture existe déjà, on RELANCE l'extraction des transactions (idempotente) → une facture
+    //    de relevé importée sans détail (ex. DKV via Gmail) voit ses transactions complétées sans doublon.
+    if (FP.dupe && !(await FP.dupe.confirmAdd('factures', newF, data.factures))) { try { _factureExtrairePrestaTx(newF.numeroFacture, newF.fournisseur || '', _faFile); } catch (e) {} return; }
     if (FP.history && FP.history.commit) FP.history.commit();
     data.factures.push(newF);
     if (newF.type !== 'leasing') factures.push(newF); // `factures` = vue de cette page (hors leasing)
@@ -1722,6 +1748,9 @@
         }
       }
     } catch (e) { console.warn('[facture pneus]', e); }
+    // 🛢️ Relevé prestataire (DKV / Total / Ulys…) → extrait les transactions et les rattache à la facture
+    //    (même traitement que l'import manuel). Tâche de fond après la fermeture ; idempotent.
+    _factureExtrairePrestaTx(newF.numeroFacture, newF.fournisseur || '', _faFile);
     closeFactureModal();
     renderKPIs(); renderTable(); renderCharts();
     // ⚠️ Ne pas laisser croire que le justificatif est joint si son upload a échoué : on prévient
