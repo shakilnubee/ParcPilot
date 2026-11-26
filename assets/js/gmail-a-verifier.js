@@ -80,7 +80,7 @@
     var nPj = (Array.isArray(it.pieces) ? it.pieces.length : 0);
     return '<button type="button" class="gav-item' + (it.id === selId ? ' sel' : '') + '" data-id="' + esc(it.id) + '">'
       + '<div class="gav-item-top"><span class="gav-dom">' + dom + '</span>'
-      + (traite ? '<span class="gav-statut gav-' + esc(it.statut) + '">' + esc(it.statut) + '</span>' : '')
+      + (traite ? (A._estAReprendre(it) ? '<span class="gav-statut gav-areprendre">à reprendre</span>' : '<span class="gav-statut gav-' + esc(it.statut) + '">' + esc(it.statut) + '</span>') : '')
       + '<span class="gav-date">' + esc(A.fmtDate(it.recu_le || it.cree_le)) + '</span></div>'
       + '<div class="gav-obj">' + esc(it.objet || '(sans objet)') + '</div>'
       + '<div class="gav-item-sub">' + esc(it.from_email || '—') + '</div>'
@@ -111,8 +111,9 @@
         + '<div class="gav-muted" style="font-size:.78rem;margin-top:4px">Le mail d’origine dans Gmail et les factures déjà enregistrées restent accessibles. La synchronisation ne recréera pas cette entrée.</div>'
         + '<div class="gav-d-actions"><button type="button" class="btn btn-outline gav-restaurer">↩ Restaurer dans la liste</button></div>';
     } else if (traite) {
-      actions = '<div class="gav-d-done">✓ Déjà traité (' + esc(it.statut) + ')</div>'
-        + (A._estAReprendre(it) ? '<div class="gav-d-motif">⚠️ Facture confirmée avant le correctif du parcours — enregistrement non vérifié. Clique « Reprendre le traitement ».</div>' : '')
+      actions = (A._estAReprendre(it)
+          ? '<div class="gav-d-done" style="color:#B45309">⚠️ À reprendre — facture non enregistrée</div><div class="gav-d-motif">Facture confirmée avant le correctif du parcours — l’enregistrement n’a pas pu être vérifié. Clique « Reprendre le traitement ».</div>'
+          : '<div class="gav-d-done">✓ Déjà traité (' + esc(it.statut) + ')</div>')
         + '<div class="gav-d-actions">'
         + '<button type="button" class="btn btn-dark gav-reprendre">🔄 Reprendre le traitement</button>'
         + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer de Parc Pilot</button>'
@@ -127,7 +128,7 @@
     }
     return '<button type="button" class="gav-d-back">← Liste</button>'
       + '<div class="gav-d-head"><span class="gav-dom">' + dom + '</span>'
-      + (traite ? '<span class="gav-statut gav-' + esc(it.statut) + '">' + esc(it.statut) + '</span>' : '')
+      + (traite ? (A._estAReprendre(it) ? '<span class="gav-statut gav-areprendre">à reprendre</span>' : '<span class="gav-statut gav-' + esc(it.statut) + '">' + esc(it.statut) + '</span>') : '')
       + '<span class="gav-date">' + esc(A.fmtDate(it.recu_le || it.cree_le)) + '</span></div>'
       + '<div class="gav-d-obj">' + esc(it.objet || '(sans objet)') + '</div>'
       + '<div class="gav-d-from"><b>De :</b> ' + esc(it.from_email || '—') + '</div>'
@@ -190,7 +191,7 @@
       '.gav-rep-card .btn{font-size:.8rem;margin-top:7px}',
       '.gav-rep-ok{color:#166534;font-weight:700}.gav-rep-warn{color:#B45309;font-weight:700}',
       '.gav-statut{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:9999px;padding:1px 8px;background:#F1F5F9;color:#475569}',
-      '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}',
+      '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}.gav-areprendre{background:#FEF3C7;color:#92400E}',
       '.gav-empty{text-align:center;color:var(--fp-muted,#64748B);font-size:.9rem;padding:26px 10px}',
       /* Lecteur PDF plein écran (natif, comme le scanner) */
       '.gav-pdf{position:fixed;inset:0;z-index:90;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;padding:18px;padding-bottom:max(18px,env(safe-area-inset-bottom))}',
@@ -501,8 +502,17 @@
         return byNum || byFile;
       });
       if (byStrong.length) return byStrong;
-      // Repli : par plaque (le mail peut ne pas porter le n°). Peut renvoyer plusieurs → choix laissé à l'utilisateur.
-      if (plaque) return r.data.filter(function (f) { return f.vehicule_immat && (window.FP && FP.immatEq ? FP.immatEq(f.vehicule_immat, plaque) : N(f.vehicule_immat) === N(plaque)); });
+      // Repli par plaque : UNIQUEMENT corroboré par le FOURNISSEUR (son nom apparaît dans l'expéditeur ou
+      // l'objet du mail) → une plaque seule ne propose JAMAIS 11 factures. Sinon rien (→ on ouvrira le formulaire).
+      if (plaque) {
+        var hay = N((it.from_email || '') + ' ' + (it.objet || ''));
+        var parPlaque = r.data.filter(function (f) { return f.vehicule_immat && (window.FP && FP.immatEq ? FP.immatEq(f.vehicule_immat, plaque) : N(f.vehicule_immat) === N(plaque)); });
+        var corrobore = parPlaque.filter(function (f) {
+          var mots = A._norm(f.fournisseur || '').split(/\s+/).filter(function (w) { return w.length >= 4; });
+          return mots.length && mots.some(function (w) { return hay.indexOf(N(w)) !== -1; });
+        });
+        return corrobore.slice(0, 6); // corroboré par le fournisseur ; vide si rien ne colle → formulaire direct
+      }
       return [];
     }).catch(function () { return []; });
   };
