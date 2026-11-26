@@ -48,5 +48,21 @@ t('lien maintenance sans plaque → entretiens', A.lienDossier({ domaine: 'maint
 t('refSummary avis+plaque', A.refSummary({ numeroAvis: '123', plaque: 'HL724CD' }) === 'avis 123 · plaque HL724CD');
 t('refSummary vide → à préciser', /à préciser/.test(A.refSummary({})));
 
+// --- recherche (objet / expéditeur / immat normalisée / n° facture / pièce), insensible casse+accents ---
+const mg4 = { id: 'AV-x', objet: 'FACTURE MG 4 / GT-818-LC /', from_email: 'carworldconsultingfrance@gmail.com', statut: 'confirme', dossier_ref: { plaque: 'GT818LC' }, pieces: [{ filename: 'Facture-TJMAX-CAR WORLD CONSULTING FRANCE-F-2026-627.pdf', attachmentId: 'A' }] };
+t('recherche vide → tout passe', A._match(mg4, ''));
+t('recherche plaque « GT818LC »', A._match(mg4, 'GT818LC'));
+t('recherche plaque « GT-818-LC » (tirets)', A._match(mg4, 'GT-818-LC'));
+t('recherche plaque « gt 818 lc » (espaces+minuscules)', A._match(mg4, 'gt 818 lc'));
+t('recherche n° facture « F-2026-627 »', A._match(mg4, 'F-2026-627'));
+t('recherche expéditeur « Car World »', A._match(mg4, 'car world'));
+t('recherche nom de pièce « 627 »', A._match(mg4, '627'));
+t('recherche sans correspondance → false', A._match(mg4, 'peugeot zzz') === false);
+
+// --- reprise : n° de facture + état « à reprendre » ---
+t('numFacture extrait F-2026-627', /2026[-_ ]?627/.test(A.numFacture('Facture-...-F-2026-627.pdf')));
+t('« à reprendre » = facture confirmée avec PDF', A._estAReprendre(mg4) === true);
+t('pas « à reprendre » si enregistrée (applique)', A._estAReprendre(Object.assign({}, mg4, { statut: 'applique' })) === false);
+
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);
