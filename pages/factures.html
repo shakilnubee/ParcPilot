@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126c">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261126a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126c"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261126a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126c">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -607,8 +607,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261126a"></script>
-<script src="../assets/js/supabase-client.js?v=20261126a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126c"></script>
+<script src="../assets/js/supabase-client.js?v=20261126c"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -624,13 +624,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126c"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261126a"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261126a"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261126a" defer></script>
+<script src="../assets/js/app.min.js?v=20261126c"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261126c"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261126c" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1203,13 +1203,26 @@
       document.head.appendChild(s);
     });
   }
+  let _faSpin = false; // le bandeau d'état montre-t-il un chargement (spinner) en cours ?
   function faStatus(msg, type){
     const el = $('fa-status'); el.classList.remove('hidden');
     const colors = { working:'background:#F1F5F9;color:#475569;', ok:'background:#ECFDF5;color:#047857;', error:'background:#FEF2F2;color:#B91C1C;' };
     el.setAttribute('style', colors[type] || colors.working);
     el.innerHTML = msg;
+    _faSpin = (type === 'working');
   }
   const faWorking = (txt) => faStatus(`<span class="inline-flex items-center gap-2"><span class="fa-spin"></span> ${txt}</span>`, 'working');
+  // Statut d'ÉCHEC avec bouton « Réessayer » (relance l'analyse du même fichier).
+  function faStatusRetry(file){
+    faStatus("Impossible de lire le document. Vérifiez votre connexion, ou saisissez les montants à la main.", 'error');
+    try {
+      const el = $('fa-status');
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-outline text-xs'; b.style.marginTop = '6px'; b.textContent = '↻ Réessayer';
+      b.addEventListener('click', () => { if (file) handleFacture(file); });
+      el.appendChild(document.createElement('br')); el.appendChild(b);
+    } catch (e) {}
+  }
 
   async function loadPdf(file){
     await loadScript(PDFJS_CDN);
@@ -1380,6 +1393,8 @@
   }
 
   let _faReading = false;
+  let _faScanSeq = 0;      // n° de l'analyse courante (anti-« chargement figé » + anti-écriture d'une analyse obsolète)
+  let _faClosed = false;   // la modale facture est-elle fermée ? (invalide toute analyse en vol)
   // ===== Lot 3 — aperçu du document à gauche des champs (apparaît quand un fichier est joint) =====
   // Aperçu du document à gauche des champs — composant partagé FP.docReview (scanner · factures · sinistres).
   var _faPane = null;
@@ -1400,9 +1415,15 @@
   }
 
   async function handleFacture(file){
-    if (!file || _faReading) return; // ⚠️ garde anti double-lecture (dropzone + input + ouverture) : sinon
-    _faReading = true;               //    deux lectures se chevauchent et l'une écrase le résultat de l'autre.
+    if (!file) return;
+    // ⚠️ SÉQUENCE : chaque analyse a un n°. Une analyse DEVENUE OBSOLÈTE (nouveau document choisi, ou modale
+    //    fermée) n'a plus le droit d'écrire un champ, un statut ou de relancer le spinner → plus de « chargement
+    //    figé » ni de champs remplis par une ancienne lecture. (Remplace l'ancien verrou _faReading booléen.)
+    const seq = ++_faScanSeq;
+    const alive = () => seq === _faScanSeq && !_faClosed;
+    _faReading = true;
     try { showFacturePreview(file); } catch(e){}  // document à gauche des champs
+    let iaOk = false;
     try {
       // KM depuis les CHAMPS DU FORMULAIRE (PDF remplissable) — beaucoup de factures d'achat sont des PDF à
       // champs : le km (compteur à l'achat) y est saisi mais ABSENT de la couche texte/OCR → l'IA « voit »
@@ -1420,40 +1441,41 @@
       } catch (e) {}
       const _applyFormKm = () => { try { if (_formKm && $('fa-km') && !String($('fa-km').value || '').trim()) $('fa-km').value = String(_formKm); } catch (e) {} };
       // 0) Lecture IA (Haiku via le relais sécurisé) — la meilleure ; sinon on retombe sur le lecteur local.
-      let iaOk = false;
+      let iaFull = false;
       try {
         faWorking('Lecture IA du document…');
         const ia = await FP.scanIA(file, 'facture');
+        if (!alive()) return;  // document changé / modale fermée pendant l'appel → on abandonne (pas d'écriture)
         if (ia && Object.keys(ia).length) { applyFactureFields(ia, true); iaOk = true; } // applique même partiel (fournisseur, plaque…)
         _applyFormKm();   // complète le km depuis le champ de formulaire si l'IA ne l'a pas lu
-        if (ia && (ia.montantTTC != null || ia.montantHT != null || ia.numeroFacture)) return; // montants lus → terminé
+        iaFull = !!(ia && (ia.montantTTC != null || ia.montantHT != null || ia.numeroFacture)); // montants lus → terminé
       } catch (_) { /* on complète avec le lecteur local */ }
-      // 1) Lecteur local (texte PDF / OCR) — gratuit, fonctionne hors-ligne
-      try {
+      // 1) Lecteur local (texte PDF / OCR) — gratuit, hors-ligne — UNIQUEMENT si l'IA n'a pas tout lu.
+      if (!iaFull) try {
         let parsed = {};
         const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
         if (isPdf){
           faWorking('Lecture du PDF…');
-          const pdf = await loadPdf(file);
-          const native = await pdfText(pdf);
+          const pdf = await loadPdf(file); if (!alive()) return;
+          const native = await pdfText(pdf); if (!alive()) return;
           if ((native || '').replace(/\s/g, '').length > 40) parsed = parseFacture(native);
-          else { faWorking('PDF scanné — analyse de l\'image…'); await loadScript(TESSERACT_CDN); const canvas = await pdfPageToCanvas(pdf); const w = await Tesseract.createWorker('fra'); const { data } = await w.recognize(canvas); await w.terminate(); parsed = parseFacture(data.text); }
+          else { faWorking('PDF scanné — analyse de l\'image…'); await loadScript(TESSERACT_CDN); const canvas = await pdfPageToCanvas(pdf); const w = await Tesseract.createWorker('fra'); const { data } = await w.recognize(canvas); await w.terminate(); if (!alive()) return; parsed = parseFacture(data.text); }
         } else {
           faWorking('Lecture de la facture… (quelques secondes au 1er usage)');
           await loadScript(TESSERACT_CDN);
-          const w = await Tesseract.createWorker('fra'); const { data } = await w.recognize(file); await w.terminate();
+          const w = await Tesseract.createWorker('fra'); const { data } = await w.recognize(file); await w.terminate(); if (!alive()) return;
           parsed = parseFacture(data.text);
         }
+        if (!alive()) return;
         applyFactureFields(parsed, false);
         _applyFormKm();   // km du champ de formulaire si ni l'IA ni le texte/OCR ne l'ont trouvé
-      } catch (err) {
-        console.error(err);
-        // ⚠️ N'affiche PAS l'erreur si des champs ont DÉJÀ été remplis (l'IA a réussi, ou lecture partielle) :
-        // sinon un « Impossible de lire » rouge s'affichait à tort alors que la facture était bien reconnue.
-        const anyFilled = iaOk || ['fa-ttc','fa-ht','fa-tva','fa-num','fa-fournisseur','fa-desc'].some(id => { const el = $(id); return el && String(el.value || '').trim(); });
-        if (!anyFilled) faStatus("Impossible de lire le document. Vérifiez votre connexion internet, ou saisissez les montants manuellement.", 'error');
-      }
-    } finally { _faReading = false; }
+      } catch (err) { console.error(err); }
+    } finally { if (seq === _faScanSeq) _faReading = false; }
+    // ── STATUT TERMINAL (cette analyse est-elle toujours la courante ?) : plus JAMAIS de spinner figé. ──
+    if (!alive()) return;
+    const anyFilled = iaOk || ['fa-ttc','fa-ht','fa-tva','fa-num','fa-fournisseur','fa-desc'].some(id => { const el = $(id); return el && String(el.value || '').trim(); });
+    if (anyFilled) { if (_faSpin) faStatus('<b>✓ Analyse terminée.</b> Vérifiez les champs puis « Enregistrer ».', 'ok'); } // succès : retire le chargement (sauf si applyFactureFields a déjà posé son message détaillé)
+    else faStatusRetry(file); // échec : retire le chargement + bouton « Réessayer »
   }
 
   function nextFactId(){
@@ -1479,12 +1501,14 @@
     if (opts && opts.type) $('fa-type').value = opts.type;
     _faGmailAv = (opts && opts._gmailAv) || null;
     _faFileName = ''; _faFile = null;
+    _faClosed = false; _faScanSeq++;   // nouvelle session : invalide toute analyse résiduelle
     try{ clearFacturePreview(); }catch(e){}   // repart sans aperçu (il apparaît quand on joint un fichier)
-    const st = $('fa-status'); st.classList.add('hidden'); st.innerHTML = '';
+    const st = $('fa-status'); st.classList.add('hidden'); st.innerHTML = ''; _faSpin = false;
     $('facture-modal').classList.add('open');
     lucide.createIcons();
   }
-  function closeFactureModal(){ $('facture-modal').classList.remove('open'); try{ clearFacturePreview(); }catch(e){} }
+  // Fermeture : invalide toute analyse en vol (elle ne pourra plus écrire de champ, de statut ni relancer le spinner).
+  function closeFactureModal(){ _faClosed = true; _faScanSeq++; _faReading = false; $('facture-modal').classList.remove('open'); try{ clearFacturePreview(); }catch(e){} }
 
   // ---- Import en LOT de factures PDF : l'IA lit chaque document et crée la facture ----
   // (anti-doublon FP.dupe, contrôle HT+TVA=TTC signalé, type deviné par l'IA, PDF stocké en ligne).

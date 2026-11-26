@@ -9185,7 +9185,7 @@ FP.docReview = {
       + tool('fitwidth', '↔', 'Ajuster à la largeur')
       + tool('out', '−', 'Dézoomer') + '<span class="fpdr-zoom" id="' + zId + '">—</span>' + tool('in', '+', 'Zoomer')
       + '<span class="fpdr-sep"></span>'
-      + tool('full', '⛶', 'Plein écran') + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Ouvrir dans un nouvel onglet')
+      + tool('full', '⛶', 'Plein écran') + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Ouvrir le PDF original')
       + '</span>';
     const html = barL + pdfBar + '</div>'
       + '<div class="fpdr-stage pdf" id="' + wrapId + '" tabindex="0" aria-label="' + alt + '">'
@@ -9240,7 +9240,7 @@ FP.docReview = {
     // Défaut = PAGE ENTIÈRE (aucun défilement : haut, bas et côtés visibles d'emblée). La colonne du
     // document est dimensionnée (CSS) proche des proportions d'une page → la page remplit la largeur sans
     // grand vide. Netteté garantie par le plancher de DPI du rendu. Bouton « ↔ » = ajuster à la largeur.
-    const S = { num: 1, pages: pdf.numPages || 1, mode: 'page', zoom: 1, task: null, dead: false };
+    const S = { num: 1, pages: pdf.numPages || 1, mode: (o.initMode === 'width' ? 'width' : 'page'), zoom: 1, task: null, dead: false };
     const ctx = o.canvas.getContext('2d');
     const btns = {};
     if (o.bar) Array.prototype.forEach.call(o.bar.querySelectorAll('[data-pdf]'), b => { btns[b.getAttribute('data-pdf')] = b; });
@@ -9371,7 +9371,7 @@ FP.docReview = {
       + tool('prev', '‹', 'Page précédente') + '<span class="fpdr-count" id="' + cntId + '">1 / 1</span>' + tool('next', '›', 'Page suivante')
       + '<span class="fpdr-sep"></span>' + tool('fitpage', '⤢', 'Ajuster à la page') + tool('fitwidth', '↔', 'Ajuster à la largeur')
       + tool('out', '−', 'Dézoomer') + '<span class="fpdr-zoom" id="' + zId + '">—</span>' + tool('in', '+', 'Zoomer')
-      + '<span class="fpdr-sep"></span>' + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Nouvel onglet')
+      + '<span class="fpdr-sep"></span>' + tool('dl', '⤓', 'Télécharger') + tool('print', '⎙', 'Imprimer') + tool('tab', '↗', 'Ouvrir le PDF original')
       + '</span><button type="button" class="fpdr-full-x" title="Fermer (Échap)" aria-label="Fermer">✕</button></div>'
       + '<div class="fpdr-stage pdf fpdr-full-stage" id="' + wrapId + '" tabindex="0"><canvas id="' + cvId + '" class="fpdr-canvas"></canvas></div>';
     document.body.appendChild(ov);
@@ -9383,6 +9383,7 @@ FP.docReview = {
       wrap: ov.querySelector('#' + wrapId), canvas: ov.querySelector('#' + cvId),
       bar: ov.querySelector('.fpdr-pdfbar'), countEl: ov.querySelector('#' + cntId), zoomEl: ov.querySelector('#' + zId),
       file: o.file, url: o.url, fileName: (o.file && o.file.name) || 'document.pdf', keyboard: 'document', onEscape: close,
+      initMode: 'width', // plein écran : « ajuster à la largeur » par défaut → texte lisible (A4 pas écrasée en hauteur)
     });
     st.ctrls.push(c);
     st.fullKey = function (e) { if (e.key === 'Escape') close(); };
