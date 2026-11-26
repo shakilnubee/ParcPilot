@@ -116,9 +116,13 @@ r = T.classify({
 check('10. facture + plaque → domaine facture, facture_saisir, véhicule proposé, besoinIA=false',
   r.domaine === 'facture' && r.action === 'facture_saisir' && r.refs.plaque === 'HL724CD' && r.besoinIA === false && r.bloque === true, r);
 
-// 10b) FACTURE sans plaque mais avec PDF → facture, véhicule à préciser
-r = T.classify({ id: 'm11b', from: 'compta@x.fr', subject: 'Votre facture', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'f.pdf', attachmentId: 'B' }] }, ctx);
-check('10b. facture sans plaque → facture, à préciser', r.domaine === 'facture' && r.action === 'facture_saisir' && !r.refs.plaque, r);
+// 10b) FACTURE dont le PDF est NOMMÉ comme une facture (sans plaque) → retenu facture (à préciser)
+r = T.classify({ id: 'm11b', from: 'compta@x.fr', subject: 'Votre facture', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'Facture-2026-044.pdf', attachmentId: 'B' }] }, ctx);
+check('10b. facture (PDF nommé « Facture… ») sans plaque → facture, à préciser', r.domaine === 'facture' && r.action === 'facture_saisir' && !r.refs.plaque, r);
+
+// 10c) « facture » dans le corps mais PDF au nom générique (f.pdf), zéro contexte flotte → écarté (durcissement)
+r = T.classify({ id: 'm11c', from: 'compta@x.fr', subject: 'Votre document', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'f.pdf', attachmentId: 'B' }] }, ctx);
+check('10c. « facture » seule + PDF générique + rien d’auto → ignore', r.action === 'ignore', r);
 
 // 11) Libellé surveillé identifié par son ID Gmail (ctx.watchLabelId, propre à la société) → force
 r = T.classify({
@@ -138,6 +142,45 @@ check('12. Promotions + libellé surveillé → exclu (priorité)', r.domaine ==
 // 12b) Réseaux sociaux → exclu
 r = T.classify({ id: 'm13b', from: 'x@linkedin.com', subject: 'Votre profil', snippet: '...', labels: ['CATEGORY_SOCIAL'] }, ctx);
 check('12b. Réseaux sociaux → exclu', r.domaine === 'horsflotte' && r.action === 'ignore', r);
+
+// 13) Commission de sécurité (bâtiment) avec « intervention » → ÉCARTÉ (pas de lien flotte)
+r = T.classify({ id: 'm14', from: 'secretariat@mairie.fr', subject: 'Commission de sécurité - intervention prévue',
+  snippet: 'Bonjour, une intervention de la commission de sécurité est prévue dans vos locaux.' }, ctx);
+check('13. commission de sécurité → horsflotte/ignore', r.domaine === 'horsflotte' && r.action === 'ignore', r);
+
+// 13b) Newsletter électroménager (« réparation / garantie ») → ÉCARTÉ (mot générique seul)
+r = T.classify({ id: 'm15', from: 'news@electrodepot.fr', subject: '[Comme d’hab Friday] c’est lancé !',
+  snippet: 'Profitez de notre service réparation et garantie sur tout le magasin.' }, ctx);
+check('13b. newsletter « réparation » seule → ignore (pas d’indice flotte)', r.action === 'ignore', r);
+
+// 13c) Mail informatique (« logiciel / maintenance ») → ÉCARTÉ
+r = T.classify({ id: 'm16', from: 'support@editeur.fr', subject: 'Maintenance logicielle planifiée',
+  snippet: 'La maintenance de votre logiciel et de votre serveur informatique aura lieu ce soir.' }, ctx);
+check('13c. maintenance informatique → ignore', r.domaine === 'horsflotte' && r.action === 'ignore', r);
+
+// 14) VRAI garage, objet vague, SANS plaque mais contexte véhicule → RETENU (à vérifier)
+r = T.classify({ id: 'm17', from: 'contact@garage-dupont.fr', subject: 'Votre rendez-vous',
+  snippet: 'Bonjour, nous confirmons le rendez-vous pour la révision de votre véhicule au garage.' }, ctx);
+check('14. garage + véhicule (sans plaque) → retenu (maintenance, pas ignore)', r.domaine === 'maintenance' && r.action !== 'ignore', r);
+
+// 14b) VRAIE amende ANTAI, objet vague, sans n° reconnu → RETENU
+r = T.classify({ id: 'm18', from: 'noreply@antai.gouv.fr', subject: 'Votre avis',
+  snippet: 'Vous avez reçu un avis de contravention pour excès de vitesse.' }, ctx);
+check('14b. amende ANTAI (terme spécifique) → retenu', r.domaine === 'amende' && r.action !== 'ignore', r);
+
+// 14c) Mail court « Voici votre facture » + PDF facture nommé avec plaque INCONNUE → retenu facture
+r = T.classify({ id: 'm19', from: 'compta@fourn.fr', subject: 'Votre document', snippet: 'Voici votre facture.',
+  hasPdf: true, pdfs: [{ filename: 'Facture-ZZ-999-ZZ-F-2026-001.pdf', attachmentId: 'P' }] }, ctx);
+check('14c. mail court + PDF facture (plaque format dans le nom) → retenu facture', r.domaine === 'facture' && r.action !== 'ignore', r);
+
+// 14d) Expéditeur connu (knownSenders) + 1 mot générique → retenu
+r = T.classify({ id: 'm20', from: 'Garage Martin <contact@garage-martin.fr>', subject: 'Facture', snippet: 'Votre facture est disponible.' },
+  { ...ctx, knownSenders: ['garage-martin.fr'] });
+check('14d. expéditeur connu + « facture » → retenu', r.action !== 'ignore', r);
+
+// 14e) Mot « facture » SEUL, expéditeur inconnu, aucun contexte → ignoré
+r = T.classify({ id: 'm21', from: 'hello@mpg.football', subject: 'Il grandit si vite', snippet: 'Votre facture de la semaine.' }, ctx);
+check('14e. « facture » seule, inconnu, zéro contexte auto → ignore', r.action === 'ignore', r);
 
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);

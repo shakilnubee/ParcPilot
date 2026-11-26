@@ -104,13 +104,27 @@
           return '<button type="button" class="gav-piece" data-piece="' + i + '" title="Ouvrir le PDF en grand dans Parc Pilot">📎 ' + esc(p.filename || ('pièce ' + (i + 1))) + '</button>';
         }).join('') + '</div>'
       : '<div class="gav-d-nopj">Aucune pièce jointe PDF.</div>';
-    var actions = traite
-      ? '<div class="gav-d-done">✓ Déjà traité (' + esc(it.statut) + ')</div>'
-      : '<div class="gav-d-actions">'
+    var retire = it.statut === 'retire';
+    var actions;
+    if (retire) {
+      actions = '<div class="gav-d-done" style="color:#64748b">🗑️ Retiré de Parc Pilot</div>'
+        + '<div class="gav-muted" style="font-size:.78rem;margin-top:4px">Le mail d’origine dans Gmail et les factures déjà enregistrées restent accessibles. La synchronisation ne recréera pas cette entrée.</div>'
+        + '<div class="gav-d-actions"><button type="button" class="btn btn-outline gav-restaurer">↩ Restaurer dans la liste</button></div>';
+    } else if (traite) {
+      actions = '<div class="gav-d-done">✓ Déjà traité (' + esc(it.statut) + ')</div>'
+        + (A._estAReprendre(it) ? '<div class="gav-d-motif">⚠️ Facture confirmée avant le correctif du parcours — enregistrement non vérifié. Clique « Reprendre le traitement ».</div>' : '')
+        + '<div class="gav-d-actions">'
+        + '<button type="button" class="btn btn-dark gav-reprendre">🔄 Reprendre le traitement</button>'
+        + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer de Parc Pilot</button>'
+        + '</div><div class="gav-reprise" id="gav-reprise" hidden></div>';
+    } else {
+      actions = '<div class="gav-d-actions">'
         + '<button type="button" class="btn btn-dark gav-go" data-id="' + esc(it.id) + '">' + esc(A.actionBtnLabel(it)) + '</button>'
         + '<button type="button" class="btn btn-outline gav-correct" data-id="' + esc(it.id) + '">✎ Corriger le rattachement</button>'
         + '<button type="button" class="btn btn-outline gav-ignore" data-id="' + esc(it.id) + '">✕ Ignorer</button>'
+        + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer</button>'
         + '</div>';
+    }
     return '<button type="button" class="gav-d-back">← Liste</button>'
       + '<div class="gav-d-head"><span class="gav-dom">' + dom + '</span>'
       + (traite ? '<span class="gav-statut gav-' + esc(it.statut) + '">' + esc(it.statut) + '</span>' : '')
@@ -134,7 +148,13 @@
       '.gav-wrap{display:flex;flex-direction:column;gap:12px}',
       '.gav-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}',
       '.gav-md{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;align-items:start}',
-      '.gav-list{display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow:auto;padding-right:2px}',
+      '.gav-listwrap{max-height:72vh;overflow:auto;padding-right:2px}',
+      '.gav-search{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:6px;background:var(--fp-card,#fff);padding:2px 0 8px}',
+      'body.fp-dark .gav-search{background:#0b1220}',
+      '.gav-search input{flex:1;min-width:0;border:1px solid var(--fp-border,#E2E8F0);border-radius:10px;padding:7px 10px;font-size:.84rem;background:#fff;color:inherit}',
+      'body.fp-dark .gav-search input{background:#0b1220;border-color:#243044}',
+      '.gav-search button{border:1px solid var(--fp-border,#E2E8F0);background:var(--fp-bg,#F1F5F9);border-radius:10px;width:32px;height:32px;cursor:pointer;font-size:.9rem;flex:0 0 auto}',
+      '.gav-list{display:flex;flex-direction:column;gap:8px}',
       '.gav-item{text-align:left;border:1px solid var(--fp-border,#E2E8F0);border-radius:12px;padding:10px 12px;background:#fff;cursor:pointer;width:100%;display:block}',
       '.gav-item:hover{border-color:var(--fp-primary,#2563EB)}',
       '.gav-item.sel{border-color:var(--fp-primary,#2563EB);box-shadow:0 0 0 2px rgba(37,99,235,.15)}',
@@ -165,6 +185,10 @@
       '.gav-d-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}',
       '.gav-d-actions .btn{font-size:.82rem}',
       '.gav-d-done{margin-top:14px;font-weight:700;color:#166534}',
+      '.gav-reprise{margin-top:12px;border-top:1px dashed var(--fp-border,#E2E8F0);padding-top:10px}',
+      '.gav-rep-card{border:1px solid var(--fp-border,#E2E8F0);border-radius:10px;padding:9px 11px;margin-top:7px;font-size:.82rem}',
+      '.gav-rep-card .btn{font-size:.8rem;margin-top:7px}',
+      '.gav-rep-ok{color:#166534;font-weight:700}.gav-rep-warn{color:#B45309;font-weight:700}',
       '.gav-statut{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:9999px;padding:1px 8px;background:#F1F5F9;color:#475569}',
       '.gav-confirme{background:#DCFCE7;color:#166534}.gav-applique{background:#DBEAFE;color:#1E3A8A}.gav-ignore{background:#F1F5F9;color:#64748B}.gav-corrige{background:#FEF3C7;color:#78350F}',
       '.gav-empty{text-align:center;color:var(--fp-muted,#64748B);font-size:.9rem;padding:26px 10px}',
@@ -192,6 +216,28 @@
   A._state = 'a_verifier'; // filtre courant
   A._loaded = false;       // la file a-t-elle été chargée au moins une fois ?
   A._selId = null;         // item sélectionné (détail)
+  A._q = '';               // recherche texte (objet, expéditeur, immat, n° facture/avis/sinistre, pièce)
+
+  // Normalisation recherche : minuscules, sans accents. (Plaque : on retire aussi tirets/espaces.)
+  A._norm = function (s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
+  A._normPlaque = function (s) { return A._norm(s).replace(/[^a-z0-9]/g, ''); };
+  // Un item correspond-il à la recherche ? (objet, expéditeur, immat normalisée, n° avis/sinistre/dossier, pièces)
+  A._match = function (it, q) {
+    if (!q) return true;
+    var nq = A._norm(q).trim(); if (!nq) return true;
+    var ref = it.dossier_ref || {};
+    var hay = [it.objet, it.from_email, it.extrait, it.domaine, ref.numeroAvis, ref.sinistreKey, ref.dossierId]
+      .concat((it.pieces || []).map(function (p) { return p && p.filename; }))
+      .map(A._norm).join('  ');
+    if (hay.indexOf(nq) !== -1) return true;
+    // Plaque : comparer sans tirets ni espaces (« GT818LC » = « GT-818-LC » = « GT 818 LC »).
+    var pq = A._normPlaque(q);
+    if (pq.length >= 4) {
+      var plaques = [ref.plaque, it.objet].concat((it.pieces || []).map(function (p) { return p && p.filename; }));
+      if (plaques.some(function (x) { return A._normPlaque(x).indexOf(pq) !== -1; })) return true;
+    }
+    return false;
+  };
 
   // Pastille « en attente » sur l'onglet « 📨 À vérifier ».
   A.badgeHtml = function (n) {
@@ -213,7 +259,7 @@
     if (!(window.FP && FP.supabase)) { host.innerHTML = '<div class="gav-empty">Connexion indisponible.</div>'; return; }
     host.innerHTML = '<div class="gav-empty"><i data-lucide="loader" class="w-5 h-5 animate-spin" style="display:inline-block"></i><br>Chargement…</div>';
     try { window.lucide && lucide.createIcons && lucide.createIcons(); } catch (e) {}
-    FP.supabase.from('gmail_a_verifier').select('*').order('cree_le', { ascending: false }).limit(300)
+    FP.supabase.from('gmail_a_verifier').select('*').order('cree_le', { ascending: false }).limit(1000)
       .then(function (r) {
         if (r.error) {
           var msg = /relation|does not exist|not exist|schema cache/i.test(String(r.error.message || ''))
@@ -227,9 +273,24 @@
       });
   };
 
+  // Un item « à reprendre » = ancienne proposition de FACTURE confirmée AVANT le correctif du parcours
+  // (statut 'confirme' avec une pièce PDF) → son enregistrement ne peut pas être vérifié automatiquement.
+  A._estAReprendre = function (it) {
+    return it && it.statut === 'confirme' && Array.isArray(it.pieces) && it.pieces.some(function (p) { return p && p.attachmentId; });
+  };
   A._filtered = function () {
+    var st = A._state;
     return (A._items || []).filter(function (it) {
-      return A._state === 'tous' ? true : (A._state === 'a_verifier' ? (!it.statut || it.statut === 'a_verifier') : it.statut === A._state);
+      var s = it.statut || 'a_verifier';
+      // Les mails « retirés de PP » sont masqués partout, sauf dans la vue « Retirés ».
+      if (s === 'retire') return st === 'retire';
+      var okStatut;
+      if (st === 'retire') okStatut = false;
+      else if (st === 'tous') okStatut = true;
+      else if (st === 'a_verifier') okStatut = (s === 'a_verifier');
+      else if (st === 'a_reprendre') okStatut = A._estAReprendre(it);
+      else okStatut = (s === st);
+      return okStatut && A._match(it, A._q);
     });
   };
 
@@ -243,25 +304,41 @@
       + '<span style="font-weight:800;color:var(--fp-primary)">📨 À vérifier (mails)</span>'
       + '<span class="gav-statut" style="background:#FEE2E2;color:#B91C1C">' + nA + ' en attente</span>'
       + '<select id="gav-filter" class="text-sm border border-slate-200 rounded-lg px-2 py-1" style="margin-left:auto">'
-      + ['a_verifier|À vérifier', 'tous|Tous', 'confirme|Confirmés', 'applique|Enregistrés', 'corrige|Corrigés', 'ignore|Ignorés']
+      + ['a_verifier|À vérifier', 'a_reprendre|À reprendre', 'tous|Tous', 'confirme|Confirmés', 'applique|Enregistrés', 'corrige|Corrigés', 'ignore|Ignorés', 'retire|Retirés']
           .map(function (o) { var p = o.split('|'); return '<option value="' + p[0] + '"' + (p[0] === A._state ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('')
       + '</select></div>';
     var sel = items.filter(function (x) { return x.id === A._selId; })[0] || null;
-    var list = items.length
-      ? items.map(function (it) { return A.listItemHtml(it, A._selId); }).join('')
+    var emptyMsg = A._q
+      ? '<div class="gav-empty">Aucun mail trouvé pour « ' + esc(A._q) + ' ».</div>'
       : '<div class="gav-empty">Rien ' + (A._state === 'a_verifier' ? 'à vérifier' : 'dans cette vue') + ' pour le moment.<br><span style="font-size:.78rem">Les mails de flotte détectés apparaîtront ici.</span></div>';
+    var list = items.length ? items.map(function (it) { return A.listItemHtml(it, A._selId); }).join('') : emptyMsg;
+    var searchBar = '<div class="gav-search">'
+      + '<input id="gav-q" type="search" placeholder="Rechercher un mail…" value="' + esc(A._q) + '" autocomplete="off" spellcheck="false">'
+      + (A._q ? '<button type="button" id="gav-q-clear" title="Effacer la recherche" aria-label="Effacer">✕</button>' : '')
+      + '</div>';
+    var leftCol = '<div class="gav-listwrap">' + searchBar + '<div class="gav-list">' + list + '</div></div>';
     var md = '<div class="gav-md' + (A._showDetail ? ' show-detail' : '') + '">'
-      + '<div class="gav-list">' + list + '</div>'
+      + leftCol
       + '<div class="gav-detail">' + A.detailHtml(sel) + '</div></div>';
     host.innerHTML = '<div class="card p-5"><div class="gav-wrap">' + bar + md + '</div></div>';
     try { window.lucide && lucide.createIcons && lucide.createIcons(); } catch (e) {}
     A.wire(host);
+    // Garde le focus dans la recherche pendant la frappe (le re-rendu recrée l'input).
+    if (A._focusSearch) { try { var qi = document.getElementById('gav-q'); if (qi) { qi.focus(); var v = qi.value; qi.value = ''; qi.value = v; } } catch (e) {} A._focusSearch = false; }
     try { A.updateTabBadge(); } catch (e) {}
   };
 
   A.wire = function (host) {
     var f = document.getElementById('gav-filter');
     if (f) f.addEventListener('change', function () { A._state = f.value; A._selId = null; A._showDetail = false; A.paint(host); });
+    // Recherche : filtre à la frappe (débouncé), garde le focus, croix pour effacer.
+    var qi = document.getElementById('gav-q');
+    if (qi) qi.addEventListener('input', function () {
+      A._q = qi.value || ''; A._focusSearch = true;
+      clearTimeout(A._qT); A._qT = setTimeout(function () { A.paint(host); }, 150);
+    });
+    var qc = document.getElementById('gav-q-clear');
+    if (qc) qc.addEventListener('click', function () { A._q = ''; A._focusSearch = true; A.paint(host); });
     host.querySelectorAll('.gav-item').forEach(function (b) {
       b.addEventListener('click', function () { A._selId = b.dataset.id; A._showDetail = true; A.paint(host); });
     });
@@ -278,6 +355,10 @@
       A.majStatut(sel.id, 'ignore').then(function () { toast('Proposition ignorée.'); A._after(host, sel.id, 'ignore'); })
         .catch(function (e) { ig.disabled = false; err('Impossible d’ignorer : ' + (e.message || e)); });
     });
+    // Reprendre / Retirer / Restaurer (items déjà traités)
+    var rp = host.querySelector('.gav-reprendre'); if (rp) rp.addEventListener('click', function () { if (sel) A.reprendre(host, sel); });
+    var rt = host.querySelector('.gav-retirer'); if (rt) rt.addEventListener('click', function () { if (sel) A.retirer(host, sel); });
+    var rs = host.querySelector('.gav-restaurer'); if (rs) rs.addEventListener('click', function () { if (sel) A.restaurer(host, sel); });
   };
 
   A.societeDe = function (it) { return (it && it.societe) || (window.FP && FP.societe) || null; };
@@ -366,6 +447,139 @@
       A._after(host, it.id, 'confirme');
       if (lien) { try { window.open(lien, '_blank'); } catch (e) { try { location.href = lien; } catch (_) {} } }
     }).catch(function (e) { err('Impossible de confirmer : ' + (e.message || e)); });
+  };
+
+  // ---- RETIRER / RESTAURER (masquer une entrée de la liste PP, réversible ; Gmail et factures intacts) ----
+  A.retirer = function (host, it) {
+    if (!confirm('Retirer ce mail de la liste Parc Pilot ? (Le mail Gmail et les factures déjà enregistrées restent accessibles ; la synchro ne le recréera pas.)')) return;
+    var pl = Object.assign({}, it.payload || {}, { statutAvant: it.statut || 'a_verifier' });
+    A.majStatut(it.id, 'retire', { payload: pl }).then(function () {
+      it.payload = pl; toast('Mail retiré de Parc Pilot.'); A._after(host, it.id, 'retire');
+    }).catch(function (e) { err('Impossible de retirer : ' + (e.message || e)); });
+  };
+  A.restaurer = function (host, it) {
+    var prev = (it.payload && it.payload.statutAvant) || 'a_verifier';
+    A.majStatut(it.id, prev).then(function () { toast('Mail restauré.'); A._after(host, it.id, prev); })
+      .catch(function (e) { err('Impossible de restaurer : ' + (e.message || e)); });
+  };
+
+  // Extrait un n° de facture plausible d'un texte (ex. « F-2026-627 », « 2026-627 »).
+  A.numFacture = function (s) {
+    var t = String(s || '');
+    var m = t.match(/\b([A-Za-z]{0,3}[-_ ]?20\d{2}[-_ ]?\d{1,6})\b/) || t.match(/\b(F[-_ ]?\d{3,})\b/i);
+    return m ? m[1] : '';
+  };
+
+  // Récupère le PDF d'origine (1re pièce) via gmail-read (jeton serveur) → octets + nom + type.
+  A._fetchPdfBlob = function (it) {
+    var pj = (it.pieces || []).filter(function (p) { return p && p.attachmentId; })[0];
+    if (!pj || !it.message_id) return Promise.reject(new Error('Pièce jointe indisponible'));
+    return FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: it.message_id, attachmentId: pj.attachmentId, societe: A.societeDe(it) } })
+      .then(function (r) {
+        var d = r && r.data; if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || (r && r.error && r.error.message) || 'PDF indisponible');
+        var bin = atob(d.dataB64); var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return { bytes: bytes, filename: pj.filename || 'facture.pdf', mime: d.mimeType || 'application/pdf' };
+      });
+  };
+
+  // Cherche, dans la société du mail, une facture correspondante (n° de facture, nom de PDF, ou plaque).
+  A.facturesMatch = function (it) {
+    if (!(window.FP && FP.supabase)) return Promise.resolve([]);
+    var soc = A.societeDe(it);
+    var q = FP.supabase.from('factures').select('id,numero_facture,fournisseur,montant_ttc,vehicule_immat,file_id,file_name,date');
+    if (soc) q = q.eq('societe', soc);
+    return q.then(function (r) {
+      if (r.error || !r.data) return [];
+      var pieces = it.pieces || []; var fn = (pieces[0] && pieces[0].filename) || '';
+      var num = A.numFacture(fn) || A.numFacture(it.objet);
+      var plaque = (it.dossier_ref && it.dossier_ref.plaque) || '';
+      var N = function (s) { return A._norm(s).replace(/[^a-z0-9]/g, ''); };
+      var byStrong = r.data.filter(function (f) {
+        var byNum = num && f.numero_facture && N(f.numero_facture).indexOf(N(num)) !== -1 && N(num).length >= 4;
+        var byFile = f.file_name && fn && N(f.file_name) === N(fn);
+        return byNum || byFile;
+      });
+      if (byStrong.length) return byStrong;
+      // Repli : par plaque (le mail peut ne pas porter le n°). Peut renvoyer plusieurs → choix laissé à l'utilisateur.
+      if (plaque) return r.data.filter(function (f) { return f.vehicule_immat && (window.FP && FP.immatEq ? FP.immatEq(f.vehicule_immat, plaque) : N(f.vehicule_immat) === N(plaque)); });
+      return [];
+    }).catch(function () { return []; });
+  };
+
+  // ---- REPRENDRE LE TRAITEMENT d'un mail déjà confirmé/ignoré ----
+  A.reprendre = function (host, it) {
+    var box = document.getElementById('gav-reprise'); if (!box) return;
+    box.hidden = false;
+    var pdf = (it.pieces || []).some(function (p) { return p && p.attachmentId; });
+    if (!pdf) {
+      // Pas de PDF : simple remise « à vérifier » pour re-qualifier.
+      box.innerHTML = '<div class="gav-rep-card">Aucune pièce PDF à reprendre. <button type="button" class="btn btn-outline gav-rep-requeue">↩ Remettre dans « À vérifier »</button></div>';
+      var b0 = box.querySelector('.gav-rep-requeue'); if (b0) b0.addEventListener('click', function () { A.majStatut(it.id, 'a_verifier').then(function () { toast('Remis dans « À vérifier ».'); A._after(host, it.id, 'a_verifier'); }).catch(function (e) { err(e.message || e); }); });
+      return;
+    }
+    box.innerHTML = '<div class="gav-rep-card">Recherche d’une facture correspondante…</div>';
+    A.facturesMatch(it).then(function (matches) { A.renderReprise(host, it, matches); });
+  };
+
+  A.renderReprise = function (host, it, matches) {
+    var box = document.getElementById('gav-reprise'); if (!box) return;
+    var euro = function (x) { return (window.FP && FP.euro) ? FP.euro(x) : (x == null ? '—' : x); };
+    var html = '';
+    if (matches && matches.length) {
+      html += '<div style="font-weight:700;font-size:.82rem;margin-bottom:4px">' + matches.length + ' facture(s) déjà enregistrée(s) qui pourrai(en)t correspondre :</div>';
+      matches.slice(0, 6).forEach(function (f, i) {
+        var aPdf = !!f.file_id;
+        html += '<div class="gav-rep-card" data-fi="' + i + '">'
+          + '<div><b>' + esc(f.numero_facture || '(sans n°)') + '</b> · ' + esc(f.fournisseur || '—') + ' · ' + esc(euro(f.montant_ttc)) + (f.vehicule_immat ? ' · ' + esc((window.FP && FP.immatFmt) ? FP.immatFmt(f.vehicule_immat) : f.vehicule_immat) : '') + '</div>'
+          + '<div style="font-size:.76rem;margin-top:2px">PDF joint : ' + (aPdf ? '<span class="gav-rep-ok">oui</span>' : '<span class="gav-rep-warn">non</span>') + (f.file_id ? ' · <a href="factures.html?facture=' + encodeURIComponent(f.file_id) + '" target="_blank" rel="noopener">Voir la facture ↗</a>' : '') + '</div>'
+          + (aPdf
+              ? '<button type="button" class="btn btn-outline gav-rep-done" data-fi="' + i + '">✓ C’est bien celle-ci — marquer le mail traité</button>'
+              : '<button type="button" class="btn btn-dark gav-rep-attach" data-fi="' + i + '">📎 Joindre le PDF d’origine à cette facture</button>')
+          + '</div>';
+      });
+    } else {
+      html += '<div class="gav-rep-card">Aucune facture correspondante trouvée dans cette société.</div>';
+    }
+    html += '<button type="button" class="btn btn-outline gav-rep-form" style="margin-top:9px">🧾 Aucune / rouvrir le formulaire de scan avec le PDF</button>';
+    box.innerHTML = html;
+    box.querySelectorAll('.gav-rep-done').forEach(function (b) { b.addEventListener('click', function () { A.markApplique(host, it, matches[+b.dataset.fi]); }); });
+    box.querySelectorAll('.gav-rep-attach').forEach(function (b) { b.addEventListener('click', function () { A.attachToFacture(host, it, matches[+b.dataset.fi], b); }); });
+    var bf = box.querySelector('.gav-rep-form'); if (bf) bf.addEventListener('click', function () {
+      A.majStatut(it.id, 'a_verifier').then(function () { it.statut = 'a_verifier'; A.verifierFacture(host, it); }).catch(function () { A.verifierFacture(host, it); });
+    });
+  };
+
+  A.markApplique = function (host, it, f) {
+    A.majStatut(it.id, 'applique').then(function () {
+      toast('Mail marqué traité.' + (f && f.file_id ? '' : ''));
+      A._after(host, it.id, 'applique');
+    }).catch(function (e) { err('Impossible : ' + (e.message || e)); });
+  };
+
+  // Joindre le PDF d'origine à une facture EXISTANTE (sans doublon) puis marquer le mail traité.
+  A.attachToFacture = function (host, it, f, btn) {
+    if (!f || !(window.FP && FP.uploadScan && FP.persist && FP.persist.update)) { err('Enregistrement en ligne indisponible.'); return; }
+    if (btn) btn.disabled = true;
+    var busy = (FP.busy ? FP.busy('Récupération du PDF…') : null);
+    A._fetchPdfBlob(it).then(function (d) {
+      if (busy && busy.update) busy.update('Enregistrement du document…');
+      var file = new File([d.bytes], d.filename, { type: d.mime });
+      return FP.uploadScan(file, 'factures').then(function (url) {
+        if (!url) throw new Error('dépôt du PDF échoué');
+        return FP.persist.update('factures', f.id, { fileId: url, fileName: d.filename });
+      });
+    }).then(function () {
+      return A.majStatut(it.id, 'applique');
+    }).then(function () {
+      if (busy && busy.done) busy.done('✓ PDF joint à la facture.');
+      toast('PDF joint à la facture et mail marqué traité.');
+      A._after(host, it.id, 'applique');
+    }).catch(function (e) {
+      if (busy && busy.fail) busy.fail('Échec : ' + (e.message || e));
+      if (btn) btn.disabled = false;
+      err('Échec du rattachement : ' + (e.message || e) + ' — le mail reste à reprendre.');
+    });
   };
 
   // Mise à jour locale après action (évite un rechargement complet).
