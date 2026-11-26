@@ -38,6 +38,13 @@
   .rem{background:var(--warn-bg);border:1px solid #FED7AA;border-radius:12px;padding:14px 16px;margin-top:4px}
   .rem h3{margin:0 0 7px;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--warn)}
   .rem ul{margin:0;padding-left:18px}.rem li{font-size:.86rem;color:#7c2d12;margin:4px 0}
+  .lead{font-size:.88rem;color:var(--ink-soft);margin:0 0 8px}
+  .ig{border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin:9px 0;background:#fcfdff}
+  .ig-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.94rem;margin-bottom:5px}
+  .ig-h .st{margin-left:auto;font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:999px}
+  .st.ok{background:#DCFCE7;color:#166534}.st.soon{background:#FEF3C7;color:#92400E}.st.opt{background:#E0E7FF;color:#3730A3}
+  .triad{display:flex;align-items:center;gap:6px;font-size:.77rem;color:var(--muted);margin-top:7px;flex-wrap:wrap}
+  .triad .box{flex:0 0 14px;height:14px;margin:0 3px 0 0;cursor:default}
   .foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid var(--line);padding:14px 30px;color:var(--muted);font-size:.78rem}
   .print{position:fixed;right:18px;bottom:18px;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:11px 17px;font-family:var(--font);font-weight:800;font-size:.88rem;cursor:pointer;box-shadow:0 12px 30px -8px rgba(249,115,22,.6)}
   .print:hover{background:#ea6a10}
@@ -46,7 +53,7 @@
     .sheet{border:none;border-radius:0;box-shadow:none}
     .print{display:none}
     .head,.num,.rem,.path,.tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .card,.sec,.rem,.tip{break-inside:avoid}
+    .card,.sec,.rem,.tip,.ig{break-inside:avoid}
     @page{margin:11mm}
   }
 </style>
@@ -105,6 +112,60 @@
           <li><span class="box"></span><span class="it-txt">Vérifier <b>valeurs d'achat</b> / <b>forfaits leasing</b> (utiles au TCO et à l'avantage en nature).</span></li>
           <li><span class="box"></span><span class="it-txt">Coller le <b>QR de chaque véhicule</b> dans la voiture (relevé km + états des lieux par le conducteur).</span></li>
         </ul>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="num">6</span><h2>Intégrations &amp; réglages client</h2><span class="tag">selon besoin</span></div>
+        <p class="lead">Pour chaque sujet : ce que <b>je demande au client</b>, ce que <b>le client fait dans PP</b>, ce que <b>je vérifie côté JIS</b>. Coche l'état : <b>☐ configuré · ☐ à tester · ☐ non retenu</b>. <span class="st opt" style="font-size:.63rem">⚙️ selon besoin</span> = à activer seulement si le client en a l'usage. Aucun mot de passe ni clé API à demander au client.</p>
+
+        <div class="ig">
+          <div class="ig-h">👥 Référents &amp; périmètre <span class="st opt">cadrage</span></div>
+          <ul class="items">
+            <li><span class="box"></span><span class="it-txt"><b>Je demande :</b> le <b>référent flotte</b>, l'<b>administrateur PP</b> (qui gère au quotidien) et le <b>contact informatique</b> si besoin.</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Client dans PP :</b> son administrateur est créé à l'étape 2 (Paramètres → Société → Nouveau client).</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Je vérifie (JIS) :</b> les <b>sociétés et sites</b> concernés sont confirmés quand il y en a plusieurs (une société = ses propres données).</span></li>
+          </ul>
+          <div class="triad"><span class="box"></span> configuré <span class="box"></span> à tester <span class="box"></span> non retenu</div>
+        </div>
+
+        <div class="ig">
+          <div class="ig-h">📧 Gmail (mails de flotte → « À vérifier ») <span class="st ok">✅ dispo dans PP</span></div>
+          <ul class="items">
+            <li><span class="box"></span><span class="it-txt"><b>Je demande :</b> l'<b>adresse de la boîte</b> à connecter, <b>qui est autorisé</b> à la connecter, le <b>libellé facultatif</b> à surveiller, et <b>quelques exemples de mails de flotte</b> pour tester. <span class="hint">« 09. Voiture » = exemple <b>PXP</b> uniquement ; chaque client a son propre nom de libellé.</span></span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Client dans PP :</b> <span class="path">Paramètres → Intégrations → Gmail</span> — connecte sa boîte (lecture seule, via Google), choisit le libellé, <b>Teste</b>, puis <b>Active le suivi</b>.</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Je vérifie (JIS) :</b> les mails utiles de <b>« Principale »</b> <b>et</b> les mails <b>archivés portant le libellé</b> remontent <b>une seule fois</b> ; <b>Promotions</b> et <b>Réseaux sociaux</b> restent <b>exclus même avec le libellé</b>. <span class="hint">Ne pas confondre la boîte <b>lue</b> par PP avec l'<b>adresse d'envoi</b> des amendes (expéditeur + copies), déjà demandée à l'étape 1.</span></span></li>
+          </ul>
+          <div class="triad"><span class="box"></span> configuré <span class="box"></span> à tester <span class="box"></span> non retenu</div>
+        </div>
+
+        <div class="ig">
+          <div class="ig-h">🗂️ Drive · 📅 Agenda · 📊 Sheets · 🗺️ Maps <span class="st soon">⏳ selon disponibilité</span></div>
+          <ul class="items">
+            <li><span class="box"></span><span class="it-txt"><b>Je demande (par service utile) :</b> l'<b>usage prévu</b>, le <b>contact qui autorise l'accès</b> et le <b>périmètre</b>. <b>Drive</b> : le dossier + lecture ou dépôt. <b>Agenda</b> : le calendrier, les rendez-vous et rappels concernés. <b>Sheets</b> : le fichier, les onglets, import ponctuel ou synchro. <b>Maps</b> : l'usage (ex. recherche de garages, calcul de trajets).</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Client dans PP :</b> rien à configurer lui-même pour l'instant (hors Gmail). <b>Maps</b> : la recherche/auto-complétion d'adresse est <b>déjà active</b> (aucune action client). Aucun mot de passe ni clé API à fournir.</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Je vérifie (JIS) :</b> la <b>disponibilité</b> de chaque intégration, les <b>autorisations</b> et les <b>coûts éventuels</b> avant activation. <span class="hint">État dans PP aujourd'hui : <b>Maps</b> = adresses (disponible, derrière le compteur anti-dépassement) ; <b>recherche de garages / calcul de trajets</b>, <b>Drive</b>, <b>Agenda</b> et <b>Sheets (synchro live)</b> ne sont <b>pas encore</b> des intégrations self-service — à noter comme « à venir / non retenu ». L'import de flotte par <b>collage d'un tableau Excel</b> (Véhicules → Importer) existe déjà.</span></span></li>
+          </ul>
+          <div class="triad"><span class="box"></span> configuré <span class="box"></span> à tester <span class="box"></span> non retenu</div>
+        </div>
+
+        <div class="ig">
+          <div class="ig-h">🔔 Règles de gestion &amp; alertes <span class="st opt">⚙️ selon besoin</span></div>
+          <ul class="items">
+            <li><span class="box"></span><span class="it-txt"><b>Je demande :</b> <b>qui reçoit les rappels</b> et <b>qui valide</b> pour la <b>maintenance</b>, les <b>amendes</b> et l'<b>assurance</b> ; les <b>délais</b>, les <b>seuils de validation des devis</b> et les <b>contacts utiles</b> non déjà dans la fiche ; les <b>règles de remise/restitution</b> propres au client si elles diffèrent du parcours standard.</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Client dans PP :</b> les destinataires et échéances se règlent dans les écrans existants (Paramètres, fiches conducteurs pour les e-mails, Contrats/Assurance pour les échéances).</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Je vérifie (JIS) :</b> les rappels partent aux bonnes personnes ; ce qui n'a <b>pas encore de réglage dédié</b> dans PP est <b>noté ici</b> (consigne écrite) plutôt que supposé.</span></li>
+          </ul>
+          <div class="triad"><span class="box"></span> configuré <span class="box"></span> à tester <span class="box"></span> non retenu</div>
+        </div>
+
+        <div class="ig">
+          <div class="ig-h">🚀 Mise en service <span class="st opt">test réel</span></div>
+          <ul class="items">
+            <li><span class="box"></span><span class="it-txt"><b>Tester avec le référent</b> (selon les fonctions activées) : un <b>rendez-vous de maintenance</b>, un <b>justificatif d'amende</b>, une <b>réponse d'assurance</b>.</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Facture reçue par Gmail — parcours complet :</b> ouvrir le <b>PDF</b> depuis <span class="path">Suivi &amp; alertes → À vérifier</span>, utiliser le <b>formulaire de scan existant</b>, <b>enregistrer la facture</b>, puis <b>retrouver le PDF d'origine</b> rattaché à la facture (bon véhicule).</span></li>
+            <li><span class="box"></span><span class="it-txt"><b>Je note :</b> les <b>personnes à former</b> et la <b>date de démarrage</b>.</span></li>
+          </ul>
+          <div class="triad"><span class="box"></span> configuré <span class="box"></span> à tester <span class="box"></span> non retenu</div>
+        </div>
       </div>
       <div class="rem">
         <h3>À ne pas oublier</h3>
