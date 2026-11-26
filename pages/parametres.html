@@ -962,17 +962,37 @@
       </div>
     </div>
 
-    <!-- Boîte e-mail (Gmail) — onglet Compte (CEO/Admin). DORMANT tant que l'accès Google n'est pas configuré. -->
-    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="compte" id="gmail-card">
+    <!-- Intégration Gmail (CEO/Admin) — Paramètres → Intégrations. DORMANT tant que l'accès Google n'est pas configuré. -->
+    <div class="card p-6 mb-6 settings-section hidden-sec" data-sec="google" id="gmail-card">
       <div class="set-head" style="margin-bottom:.9rem">
-        <h2><i data-lucide="mail"></i> Boîte e-mail (Gmail)</h2>
-        <p>Connecte la boîte Gmail de ta société en <b>lecture seule</b>, pour récupérer plus tard les factures reçues par e-mail. Tu gardes la main : <b>rien n'est importé sans ta validation</b>.</p>
+        <h2><i data-lucide="mail"></i> Intégration Gmail</h2>
+        <p>Connecte la boîte Gmail de ta société en <b>lecture seule</b>, choisis le libellé à surveiller, <b>teste</b>, puis <b>active le suivi</b>. Les factures et infos de flotte arriveront dans « Suivi &amp; alertes → À vérifier ». Tu gardes la main : <b>rien n'est enregistré sans ta validation</b>, et <b>aucune clé n'est à saisir</b>.</p>
       </div>
       <div id="gmail-status" class="text-sm" style="color:#64748b">Vérification…</div>
       <div class="flex flex-wrap gap-2 mt-3">
-        <button id="gmail-connect" class="btn btn-primary text-sm" style="display:none"><i data-lucide="plug" class="w-4 h-4"></i> Connecter la boîte Gmail</button>
+        <button id="gmail-connect" class="btn btn-primary text-sm" style="display:none"><i data-lucide="plug" class="w-4 h-4"></i> Connecter Gmail</button>
         <button id="gmail-disconnect" class="btn btn-outline text-sm" style="display:none"><i data-lucide="unplug" class="w-4 h-4"></i> Déconnecter</button>
       </div>
+
+      <!-- Réglage (visible une fois la boîte connectée) -->
+      <div id="gmail-config" class="mt-4" style="display:none">
+        <div class="field-label">Libellé Gmail à surveiller <span style="font-weight:400;color:#64748b">(en plus de « Principale »)</span></div>
+        <div class="flex flex-wrap gap-2 items-center mt-1">
+          <select id="gmail-label" class="field-input text-sm" style="max-width:340px"></select>
+          <button id="gmail-label-refresh" class="btn btn-outline text-sm !px-2.5" title="Actualiser les libellés depuis Gmail"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+          <button id="gmail-label-save" class="btn btn-outline text-sm">Enregistrer le libellé</button>
+        </div>
+        <p class="set-sub-d" style="margin-top:.4rem">« Principale » est toujours surveillée. <b>Promotions</b> et <b>Réseaux sociaux</b> sont toujours exclus (même avec le libellé). Les mails <b>archivés</b> portant le libellé sont pris en compte.</p>
+
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="gmail-test" class="btn btn-outline text-sm"><i data-lucide="search" class="w-4 h-4"></i> Tester la configuration</button>
+          <button id="gmail-activate" class="btn btn-primary text-sm" style="display:none"><i data-lucide="play" class="w-4 h-4"></i> Activer le suivi</button>
+          <button id="gmail-pause" class="btn btn-outline text-sm" style="display:none"><i data-lucide="pause" class="w-4 h-4"></i> Mettre en pause</button>
+        </div>
+        <div id="gmail-sync" class="set-sub-d" style="margin-top:.5rem"></div>
+        <div id="gmail-test-res" class="mt-3" style="display:none"></div>
+      </div>
+
       <p class="set-sub-d" id="gmail-hint" style="margin-top:.6rem"></p>
     </div>
 
@@ -3415,8 +3435,9 @@
 })();
 </script>
 <script>
-/* Boîte e-mail (Gmail) — connexion OAuth LECTURE SEULE (CEO/Admin). Appelle la fonction serveur
-   gmail-oauth (DORMANTE tant que les secrets Google ne sont pas posés → bouton masqué). */
+/* Intégration Gmail (CEO/Admin) — connexion OAuth LECTURE SEULE + config self-service : libellé
+   surveillé, test à blanc, activation/pause. Jetons et clés restent CÔTÉ SERVEUR (gmail-oauth /
+   gmail-read). Cloisonnement par société (gmail-read refuse une autre société). DORMANT si secrets absents. */
 (function gmailBox() {
   var card = document.getElementById('gmail-card');
   if (!card) return;
@@ -3426,24 +3447,73 @@
     if (!canManage) { card.style.display = 'none'; return; }   // gestionnaire : config société masquée
     var $ = function (id) { return document.getElementById(id); };
     var statusEl = $('gmail-status'), bConn = $('gmail-connect'), bDisc = $('gmail-disconnect'), hint = $('gmail-hint');
+    var cfg = $('gmail-config'), selLabel = $('gmail-label'), bLblRefresh = $('gmail-label-refresh'), bLblSave = $('gmail-label-save');
+    var bTest = $('gmail-test'), bAct = $('gmail-activate'), bPause = $('gmail-pause'), syncEl = $('gmail-sync'), testRes = $('gmail-test-res');
     var esc = function (s) { return FP.esc ? FP.esc(s) : String(s == null ? '' : s); };
     var soc = function () { try { return (FP.activeSociete && FP.activeSociete()) || 'PXP'; } catch (e) { return 'PXP'; } };
-    function invoke(action) {
-      return FP.supabase.functions.invoke('gmail-oauth', { body: { action: action, societe: soc() } })
+    var _labels = null;          // cache des libellés chargés
+    var _savedLabelId = null;    // libellé actuellement enregistré (serveur)
+
+    function invoke(action, extra) {
+      var b = Object.assign({ action: action, societe: soc() }, extra || {});
+      return FP.supabase.functions.invoke('gmail-oauth', { body: b })
         .then(function (r) { if (r.error) throw new Error((r.error && r.error.message) || 'Erreur serveur'); return r.data || {}; });
     }
+    function invokeRead(body) {
+      return FP.supabase.functions.invoke('gmail-read', { body: Object.assign({ societe: soc() }, body || {}) })
+        .then(function (r) { if (r.error) throw new Error((r.error && r.error.message) || 'Erreur serveur'); return r.data || {}; });
+    }
+    function fmtDate(d) { try { var dt = new Date(d); if (!isNaN(dt.getTime())) return dt.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) {} return ''; }
+
+    // Remplit le menu des libellés + pré-sélectionne l'enregistré (ou « 09. Voiture » si présent et aucun réglé).
+    function fillLabels() {
+      var cur = _savedLabelId;
+      var opts = ['<option value="">— Aucun (Principale seulement) —</option>'];
+      (_labels || []).forEach(function (l) { opts.push('<option value="' + esc(l.id) + '" data-name="' + esc(l.name) + '">' + esc(l.name) + '</option>'); });
+      selLabel.innerHTML = opts.join('');
+      if (cur) selLabel.value = cur;
+      else {
+        // Reprise de « 09. Voiture » (propre à la boîte de l'utilisateur) si le libellé existe et rien n'est réglé.
+        var v = (_labels || []).filter(function (l) { return /^0*9\.?\s*voiture$/i.test((l.name || '').trim()); })[0];
+        if (v) selLabel.value = v.id;
+      }
+    }
+    function loadLabels(force) {
+      if (_labels && !force) { fillLabels(); return Promise.resolve(); }
+      bLblRefresh.disabled = true;
+      return invokeRead({ action: 'labels' }).then(function (d) {
+        _labels = (d && d.labels) || []; fillLabels();
+      }).catch(function (e) { if (FP.toast) FP.toast('Libellés indisponibles : ' + (e.message || e)); })
+        .then(function () { bLblRefresh.disabled = false; });
+    }
+
+    function paintActif(actif) {
+      bAct.style.display = actif ? 'none' : '';
+      bPause.style.display = actif ? '' : 'none';
+    }
+    function paintSync(d) {
+      if (d.syncErreur) { syncEl.innerHTML = '⚠️ <b>Boîte à reconnecter</b> — ' + esc(d.syncErreur) + '. Clique « Connecter Gmail » pour réautoriser.'; syncEl.style.color = '#b45309'; return; }
+      syncEl.style.color = '';
+      syncEl.innerHTML = (d.suiviActif ? '🟢 Suivi actif. ' : '⏸️ Suivi en pause. ')
+        + (d.derniereSync ? 'Dernière synchro réussie : ' + esc(fmtDate(d.derniereSync)) + '.' : 'Aucune synchro pour l’instant.');
+    }
+
     function refresh() {
       statusEl.textContent = 'Vérification…'; bConn.style.display = 'none'; bDisc.style.display = 'none'; hint.textContent = '';
+      cfg.style.display = 'none'; testRes.style.display = 'none';
       invoke('status').then(function (d) {
         if (!d.configured) {
           statusEl.innerHTML = '🔌 <b>Intégration non activée</b>';
-          hint.textContent = "L'accès Google n'est pas encore configuré (identifiant OAuth à créer et secrets à poser côté plateforme).";
+          hint.textContent = "L'accès Google n'est pas encore configuré côté plateforme (identifiant OAuth + secrets).";
           return;
         }
         if (d.connected) {
           statusEl.innerHTML = '✅ Boîte connectée : <b>' + esc(d.email || '') + '</b> (lecture seule)';
-          bDisc.style.display = '';
-          hint.textContent = 'Société : ' + soc() + '. Parc Pilot pourra récupérer les e-mails libellés et leurs pièces jointes (étape suivante).';
+          bDisc.style.display = ''; cfg.style.display = '';
+          _savedLabelId = d.watchLabelId || null;
+          paintActif(!!d.suiviActif); paintSync(d);
+          hint.textContent = 'Société : ' + soc() + '.';
+          loadLabels(false);
         } else {
           statusEl.innerHTML = '📭 Aucune boîte connectée';
           bConn.style.display = '';
@@ -3452,6 +3522,7 @@
         if (window.lucide) { try { lucide.createIcons(); } catch (e) {} }
       }).catch(function (e) { statusEl.textContent = '⚠️ ' + (e.message || 'Erreur'); });
     }
+
     bConn.addEventListener('click', function () {
       bConn.disabled = true;
       invoke('auth-url').then(function (d) {
@@ -3462,9 +3533,58 @@
     bDisc.addEventListener('click', function () {
       if (!confirm("Déconnecter la boîte Gmail de cette société ? Parc Pilot n'aura plus accès aux e-mails.")) return;
       bDisc.disabled = true;
-      invoke('disconnect').then(function () { bDisc.disabled = false; if (FP.toast) FP.toast('Boîte déconnectée.'); refresh(); })
+      invoke('disconnect').then(function () { bDisc.disabled = false; _labels = null; _savedLabelId = null; if (FP.toast) FP.toast('Boîte déconnectée.'); refresh(); })
         .catch(function (e) { bDisc.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
     });
+    bLblRefresh.addEventListener('click', function () { loadLabels(true).then(function () { if (FP.toast) FP.toast('Libellés actualisés.'); }); });
+    bLblSave.addEventListener('click', function () {
+      var opt = selLabel.options[selLabel.selectedIndex];
+      var id = selLabel.value || '';
+      var name = id ? (opt ? (opt.getAttribute('data-name') || opt.textContent) : '') : '';
+      bLblSave.disabled = true;
+      invoke('set-label', { labelId: id, labelName: name }).then(function () {
+        _savedLabelId = id || null; bLblSave.disabled = false;
+        if (FP.toast) FP.toast(id ? ('Libellé surveillé : ' + name) : 'Libellé retiré (Principale seulement).');
+      }).catch(function (e) { bLblSave.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
+    });
+
+    bTest.addEventListener('click', function () {
+      var opt = selLabel.options[selLabel.selectedIndex];
+      var id = selLabel.value || '';
+      var name = id ? (opt ? (opt.getAttribute('data-name') || opt.textContent) : '') : '';
+      bTest.disabled = true; testRes.style.display = ''; testRes.innerHTML = '<div class="text-sm" style="color:#64748b">Recherche des mails récents correspondants… (aucune facture créée, aucun document joint)</div>';
+      invokeRead({ action: 'test', labelName: name, labelId: id, max: 8 }).then(function (d) {
+        var ap = (d && d.apercu) || [];
+        if (!ap.length) { testRes.innerHTML = '<div class="text-sm" style="color:#64748b">Aucun mail récent ne correspond à ce réglage (sur 60 jours). Promotions et Réseaux sociaux sont exclus.</div>'; bTest.disabled = false; return; }
+        var rows = ap.map(function (m) {
+          var badge = m.retenu
+            ? '<span style="background:#DCFCE7;color:#166534;border-radius:9999px;padding:1px 8px;font-size:.68rem;font-weight:800">RETENU</span>'
+            : '<span style="background:#F1F5F9;color:#64748b;border-radius:9999px;padding:1px 8px;font-size:.68rem;font-weight:800">ignoré</span>';
+          return '<div style="border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px">'
+            + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + badge
+            + '<span style="font-size:.7rem;color:#64748b">source : ' + esc(m.source || '—') + (m.hasPdf ? ' · 📎 PDF' : '') + '</span>'
+            + '<span style="margin-left:auto;font-size:.68rem;color:#94a3b8">' + esc(m.date || '') + '</span></div>'
+            + '<div style="font-weight:700;font-size:.82rem;margin-top:3px">' + esc(m.subject || '(sans objet)') + '</div>'
+            + '<div style="font-size:.74rem;color:#64748b">' + esc(m.from || '') + '</div>'
+            + '<div style="font-size:.74rem;margin-top:2px">Raison : ' + esc(m.raison || '') + '</div></div>';
+        }).join('');
+        testRes.innerHTML = '<div class="text-sm" style="font-weight:700;margin-bottom:6px">Aperçu — ' + ap.length + ' mail(s) récent(s) · le test n’écrit rien</div>'
+          + '<div style="display:flex;flex-direction:column;gap:7px">' + rows + '</div>';
+        bTest.disabled = false;
+      }).catch(function (e) { testRes.innerHTML = '<div class="text-sm" style="color:#b45309">Test impossible : ' + esc(e.message || e) + '</div>'; bTest.disabled = false; });
+    });
+
+    bAct.addEventListener('click', function () {
+      bAct.disabled = true;
+      invoke('activate').then(function () { bAct.disabled = false; paintActif(true); if (FP.toast) FP.toast('Suivi activé.'); refresh(); })
+        .catch(function (e) { bAct.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
+    });
+    bPause.addEventListener('click', function () {
+      bPause.disabled = true;
+      invoke('pause').then(function () { bPause.disabled = false; paintActif(false); if (FP.toast) FP.toast('Suivi mis en pause.'); refresh(); })
+        .catch(function (e) { bPause.disabled = false; if (FP.notifyError) FP.notifyError(e); else alert(e.message || 'Erreur'); });
+    });
+
     refresh();
     window.addEventListener('focus', function () { if (card.offsetParent !== null) refresh(); });
   })();

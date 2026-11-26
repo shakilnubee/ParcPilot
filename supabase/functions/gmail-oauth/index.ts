@@ -84,17 +84,48 @@ Deno.serve(async (req) => {
     : String(me?.societe || "").trim();
   if (!societe) return json({ error: "Société introuvable pour cette action." }, 400);
 
-  // ---- status : état de configuration + de connexion (aucun appel Google) ----
+  // ---- status : état de configuration + de connexion + CONFIG par société (aucun appel Google) ----
+  //  select('*') → tolère l'absence des colonnes de config (avant migration) sans erreur.
   if (action === "status") {
     let connected = false, email: string | null = null;
+    let cfg: Record<string, unknown> = { watchLabelId: null, watchLabelName: null, suiviActif: false, derniereSync: null, syncErreur: null };
     if (configured) {
-      const { data } = await admin.from("gmail_connexions").select("email").eq("societe", societe).maybeSingle();
-      if (data) { connected = true; email = data.email || null; }
+      const { data } = await admin.from("gmail_connexions").select("*").eq("societe", societe).maybeSingle();
+      if (data) {
+        connected = true; email = data.email || null;
+        cfg = {
+          watchLabelId: data.watch_label_id || null,
+          watchLabelName: data.watch_label_name || null,
+          // null (boîte connectée avant la config) = surveillée par défaut → « actif » ; false = en pause.
+          suiviActif: data.suivi_actif !== false,
+          derniereSync: data.derniere_sync || null,
+          syncErreur: data.sync_erreur || null,
+        };
+      }
     }
-    return json({ ok: true, configured, connected, email, societe });
+    return json({ ok: true, configured, connected, email, societe, ...cfg });
   }
 
   if (!configured) return json({ ok: true, configured: false, error: "Intégration Gmail non configurée (secrets absents)." });
+
+  // ---- set-label : enregistre le libellé surveillé (id + nom) pour la boîte de CETTE société ----
+  if (action === "set-label") {
+    const labelId = String((body as Record<string, unknown>).labelId || "").trim();
+    const labelName = String((body as Record<string, unknown>).labelName || "").trim();
+    const { error } = await admin.from("gmail_connexions")
+      .update({ watch_label_id: labelId || null, watch_label_name: labelName || null, sync_erreur: null })
+      .eq("societe", societe);
+    if (error) return json({ error: "Enregistrement du libellé impossible : " + error.message }, 500);
+    return json({ ok: true, watchLabelId: labelId || null, watchLabelName: labelName || null });
+  }
+
+  // ---- activate / pause : démarre ou suspend le suivi des nouveaux mails pour CETTE société ----
+  if (action === "activate" || action === "pause") {
+    const actif = action === "activate";
+    const { error } = await admin.from("gmail_connexions").update({ suivi_actif: actif }).eq("societe", societe);
+    if (error) return json({ error: "Mise à jour impossible : " + error.message }, 500);
+    return json({ ok: true, suiviActif: actif });
+  }
 
   // ---- auth-url : construit l'URL de consentement Google ----
   if (action === "auth-url") {
@@ -148,10 +179,16 @@ Deno.serve(async (req) => {
       return json({ ok: true, email });
     }
     // 4) upsert (1 ligne par société) via service_role (contourne la RLS).
+    //    On NE touche PAS suivi_actif ici (prompt=consent renvoie un refresh à CHAQUE reconnexion →
+    //    l'écraser suspendrait une boîte déjà active). Pour une NOUVELLE connexion seulement, on pose
+    //    suivi_actif=false ensuite (l'admin teste puis clique « Activer »).
+    const { data: dejaLa } = await admin.from("gmail_connexions").select("societe").eq("societe", societe).maybeSingle();
     const { error } = await admin.from("gmail_connexions").upsert({
       societe, email, refresh_token: refresh, scope, connected_by: caller.id, updated_at: new Date().toISOString(),
     }, { onConflict: "societe" });
     if (error) return json({ error: "Enregistrement impossible : " + error.message }, 500);
+    // Nouvelle boîte → suivi en pause jusqu'à activation explicite (tolère l'absence de colonne avant migration).
+    if (!dejaLa) { try { await admin.from("gmail_connexions").update({ suivi_actif: false }).eq("societe", societe); } catch (_) { /* colonne absente (avant migration) */ } }
     return json({ ok: true, email });
   }
 
