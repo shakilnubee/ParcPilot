@@ -22,13 +22,21 @@ const A = require('../../assets/js/gmail-a-verifier.js');
 let ok = 0, ko = 0;
 const t = (l, c, g) => { if (c) { ok++; console.log('✅', l); } else { ko++; console.log('❌', l, g !== undefined ? JSON.stringify(g) : ''); } };
 
-// --- cartes ---
-const amende = { id: 'AV-m6', from_email: 'noreply@antai.gouv.fr', objet: 'Paiement avis 2612744314620', recu_le: '2026-11-25T09:12:00Z', extrait: 'Paiement enregistré.', domaine: 'amende', action: 'amende_payee', statut: 'a_verifier', dossier_ref: { numeroAvis: '2612744314620' }, pieces: [{ filename: 'recu.pdf', attachmentId: 'A6' }] };
-const h = A.cardHtml(amende);
-t('carte: domaine + action + avis + pièce + 3 boutons', /🅿️ Amende/.test(h) && /Marquer l’amende payée/.test(h) && /avis 2612744314620/.test(h) && /recu\.pdf/.test(h) && /gav-confirm/.test(h) && /gav-correct/.test(h) && /gav-ignore/.test(h));
-const traite = Object.assign({}, amende, { statut: 'ignore' });
-t('carte traitée: pas de boutons + badge', !/gav-confirm/.test(A.cardHtml(traite)) && /gav-statut/.test(A.cardHtml(traite)));
-t('XSS échappé', /&lt;img/.test(A.cardHtml({ id: 'x', from_email: '<img src=x onerror=alert(1)>', domaine: 'inconnu', action: 'a_verifier', statut: 'a_verifier', dossier_ref: {} })));
+// --- item de liste + détail ---
+const amende = { id: 'AV-m6', message_id: 'm6', from_email: 'noreply@antai.gouv.fr', objet: 'Paiement avis 2612744314620', recu_le: '2026-11-25T09:12:00Z', extrait: 'Paiement enregistré.', domaine: 'amende', action: 'amende_payee', statut: 'a_verifier', dossier_ref: { numeroAvis: '2612744314620' }, pieces: [{ filename: 'recu.pdf', attachmentId: 'A6' }] };
+const li = A.listItemHtml(amende, 'AV-m6');
+t('item: domaine + objet + sélection + pièces', /🅿️ Amende/.test(li) && /Paiement avis/.test(li) && /gav-item sel/.test(li) && /1 pièce/.test(li));
+const det = A.detailHtml(amende);
+t('détail: expéditeur + action + avis + pièce ouvrable + 3 actions', /antai\.gouv\.fr/.test(det) && /Marquer l’amende payée/.test(det) && /avis 2612744314620/.test(det) && /data-piece="0"/.test(det) && /gav-go/.test(det) && /gav-correct/.test(det) && /gav-ignore/.test(det));
+const traite = Object.assign({}, amende, { statut: 'applique' });
+t('détail traité: pas de bouton action + mention « traité »', !/gav-go/.test(A.detailHtml(traite)) && /Déjà traité/.test(A.detailHtml(traite)));
+t('XSS échappé (item + détail)', /&lt;img/.test(A.listItemHtml({ id: 'x', from_email: '<img src=x onerror=alert(1)>', domaine: 'inconnu', action: 'a_verifier', statut: 'a_verifier', dossier_ref: {} })) && /&lt;img/.test(A.detailHtml({ id: 'x', from_email: '<img src=x onerror=alert(1)>', domaine: 'inconnu', action: 'a_verifier', statut: 'a_verifier', dossier_ref: {}, pieces: [] })));
+
+// --- libellé du bouton d'action (il ANNONCE l'action) ---
+t('bouton facture → « Vérifier la facture »', /Vérifier la facture/.test(A.actionBtnLabel({ action: 'facture_saisir' })));
+t('bouton rdv → « Valider le rendez-vous »', /Valider le rendez-vous/.test(A.actionBtnLabel({ action: 'rdv_update' })));
+t('bouton amende → « Enregistrer le justificatif »', /Enregistrer le justificatif/.test(A.actionBtnLabel({ action: 'amende_payee' })));
+t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.test(A.detailHtml({ id: 'f1', domaine: 'facture', action: 'facture_saisir', statut: 'a_verifier', dossier_ref: { plaque: 'HL724CD' }, pieces: [{ filename: 'f.pdf', attachmentId: 'Z' }] })));
 
 // --- liens de finalisation (Phase 5) ---
 t('lien amende → fiche par n° d’avis', A.lienDossier({ domaine: 'amende', dossier_ref: { numeroAvis: '2612744314620' } }) === 'amendes.html?avis=2612744314620');

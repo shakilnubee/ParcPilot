@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261124a">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126a">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261124a"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126a"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261124a">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126a">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -607,8 +607,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261124a"></script>
-<script src="../assets/js/supabase-client.js?v=20261124a"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126a"></script>
+<script src="../assets/js/supabase-client.js?v=20261126a"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -624,13 +624,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261124a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126a"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261124a"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261124a"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261124a" defer></script>
+<script src="../assets/js/app.min.js?v=20261126a"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261126a"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261126a" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1464,6 +1464,7 @@
   }
   let _faFileName = '';
   let _faFile = null; // le fichier importé, conservé pour le stocker en ligne à l'enregistrement
+  let _faGmailAv = null; // { avId, societe } quand le formulaire est ouvert depuis un mail Gmail « À vérifier »
   function openFactureModal(opts){
     ['fa-fournisseur','fa-num','fa-ht','fa-tva','fa-ttc','fa-immat','fa-km','fa-desc'].forEach(id => $(id).value = '');
     $('fa-date').value = new Date().toISOString().slice(0,10);
@@ -1472,6 +1473,11 @@
     // Import depuis un onglet dédié (ex. Ulys) : on pré-remplit le fournisseur. Le helper `set`
     // ne remplit que les champs VIDES → l'OCR ne l'écrasera pas, et la facture atterrit dans le bon onglet.
     if (opts && opts.fournisseur) $('fa-fournisseur').value = opts.fournisseur;
+    // Préremplissage depuis « À vérifier » (Gmail) : véhicule proposé + type éventuel. L'IA (handleFacture)
+    // complétera les montants/fournisseur/date en lisant le PDF ; l'utilisateur corrige avant d'enregistrer.
+    if (opts && opts.immat) $('fa-immat').value = (FP.immatFmt ? FP.immatFmt(opts.immat) : String(opts.immat).toUpperCase());
+    if (opts && opts.type) $('fa-type').value = opts.type;
+    _faGmailAv = (opts && opts._gmailAv) || null;
     _faFileName = ''; _faFile = null;
     try{ clearFacturePreview(); }catch(e){}   // repart sans aperçu (il apparaît quand on joint un fichier)
     const st = $('fa-status'); st.classList.add('hidden'); st.innerHTML = '';
@@ -1635,6 +1641,46 @@
       note.textContent = '✓ Fiche véhicule mise à jour : ' + majVeh;
       document.body.appendChild(note); setTimeout(() => note.remove(), 4500);
     }
+    // ===== Origine « À vérifier » (Gmail) : on marque le mail TRAITÉ seulement si la facture ET son
+    // PDF sont bien enregistrés (les DEUX). Sinon le mail reste dans « À vérifier » avec la raison.
+    // Un nouvel essai ne crée pas de doublon (FP.dupe a déjà filtré ci-dessus). =====
+    if (_faGmailAv && _faGmailAv.avId) {
+      const av = _faGmailAv; _faGmailAv = null;
+      try { sessionStorage.removeItem('fp_gmailfac'); } catch (e) {}
+      if (fileUploadFailed) {
+        gmailFactureNote('⚠️ Facture enregistrée, mais le PDF n’a pas pu être joint — le mail reste dans « À vérifier » (réessaie quand la connexion sera meilleure).', '#B45309', null);
+      } else {
+        try {
+          if (FP.supabase) {
+            const up = await FP.supabase.from('gmail_a_verifier')
+              .update({ statut: 'applique', traite_le: new Date().toISOString() }).eq('id', av.avId);
+            if (up && up.error) throw new Error(up.error.message || 'MAJ refusée');
+          }
+          gmailFactureNote('✓ Facture enregistrée, PDF joint et mail marqué traité.', '#047857', newF.fileId);
+        } catch (e) {
+          // La facture est bien enregistrée ; seul le marquage du mail a échoué → on le signale (pas d'échec muet).
+          console.warn('[gmail av applique]', e);
+          gmailFactureNote('✓ Facture enregistrée. ⚠️ Le mail n’a pas pu être marqué « traité » : ' + (e.message || e), '#B45309', newF.fileId);
+        }
+      }
+    }
+  }
+
+  // Bandeau de confirmation (origine Gmail) avec lien vers la facture enregistrée (ouvre son drawer).
+  function gmailFactureNote(msg, color, fileId) {
+    try {
+      const n = document.createElement('div');
+      n.setAttribute('style', 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:' + color + ';color:#fff;padding:11px 16px;border-radius:14px;font-size:13px;z-index:95;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;align-items:center;gap:12px;max-width:92vw');
+      n.innerHTML = '<span>' + (FP.esc ? FP.esc(msg) : msg) + '</span>';
+      if (fileId) {
+        const a = document.createElement('button');
+        a.textContent = 'Voir la facture';
+        a.setAttribute('style', 'background:#fff;color:#0f172a;border:none;border-radius:9999px;padding:4px 12px;font-weight:700;cursor:pointer;white-space:nowrap');
+        a.addEventListener('click', () => { try { if (typeof openDrawer === 'function') openDrawer(fileId); } catch (e) {} try { n.remove(); } catch (e) {} });
+        n.appendChild(a);
+      }
+      document.body.appendChild(n); setTimeout(() => { try { n.remove(); } catch (e) {} }, 9000);
+    } catch (e) {}
   }
 
   // Met à jour la fiche du véhicule à partir d'une facture. ⚠️ SOURCE UNIQUE : délègue entièrement
@@ -2047,6 +2093,42 @@
     if (!fid) return;
     const tryOpen = () => { if (factures.some(f => f.fileId === fid)) { openDrawer(fid); return true; } return false; };
     if (!tryOpen()) document.addEventListener('fp:data-ready', tryOpen, { once: true });
+  })();
+
+  // Ouverture du FORMULAIRE de scan facture depuis « À vérifier » (Gmail) : ?gmailfac=<avId>.
+  // On récupère le PDF D'ORIGINE via gmail-read (jeton côté serveur), on le charge dans le MÊME
+  // formulaire que le scan manuel (FP_importFactureDepuisFichier → lecture IA + contrôle HT+TVA=TTC
+  // + anti-doublon FP.dupe), avec le véhicule proposé prérempli. L'utilisateur corrige puis enregistre ;
+  // l'enregistrement (parcours métier existant) marque alors le mail « traité ».
+  (function openFactureFromGmail() {
+    const avId = new URLSearchParams(location.search).get('gmailfac');
+    if (!avId) return;
+    let info = null; try { info = JSON.parse(sessionStorage.getItem('fp_gmailfac') || 'null'); } catch (e) {}
+    const cleanUrl = () => { try { const u = new URL(location.href); u.searchParams.delete('gmailfac'); history.replaceState(null, '', u.pathname + (u.search || '')); } catch (e) {} };
+    if (!info || info.avId !== avId || !info.messageId || !info.attachmentId) {
+      cleanUrl();
+      try { alert('Le mail à vérifier n’est plus disponible — rouvre-le depuis « À vérifier ».'); } catch (e) {}
+      return;
+    }
+    const run = async () => {
+      if (!(window.FP && FP.supabase && typeof window.FP_importFactureDepuisFichier === 'function')) return;
+      try {
+        const r = await FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: info.messageId, attachmentId: info.attachmentId, societe: info.societe } });
+        const d = r && r.data;
+        if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || (r && r.error && r.error.message) || 'PDF indisponible');
+        const bin = atob(d.dataB64); const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const file = new File([bytes], info.filename || 'facture.pdf', { type: d.mimeType || 'application/pdf' });
+        const pre = info.prefill || {};
+        window.FP_importFactureDepuisFichier(file, { immat: pre.immat || '', _gmailAv: { avId: info.avId, societe: info.societe } });
+      } catch (e) {
+        try { alert('Impossible de charger le PDF de la facture : ' + (e.message || e)); } catch (_) {}
+      }
+      cleanUrl();
+    };
+    // On attend que les données flotte soient prêtes (autocomplete véhicule, km connu) avant d'ouvrir.
+    if (window.FP && FP.supabase && data && Array.isArray(data.vehicules) && data.vehicules.length) run();
+    else document.addEventListener('fp:data-ready', run, { once: true });
   })();
 
   // ===== Onglet DOCUMENTS (archives & suivi) =====
