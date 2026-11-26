@@ -10632,6 +10632,10 @@ FP.NAV_SUBMENUS = {
     { label: 'À compléter', tab: 'complet' },
     { label: 'Suivi flotte', tab: 'suivi' },
     { label: 'Décisions', tab: 'decisions' },
+    // « À vérifier » (automatisation Gmail) : réservé aux ADMINISTRATEURS (CEO/Admin) de la société —
+    // mêmes droits que l'onglet de la page ET que l'accès serveur aux mails/PDF (gmail-read). Le prédicat
+    // `when` est réévalué par applyNavSubmenus, notamment sur fp:data-ready quand le rôle est confirmé.
+    { label: 'À vérifier', tab: 'averifier', when: function () { try { var r = (window.FP && FP.role) ? FP.role() : ''; return r === 'ceo' || r === 'admin'; } catch (e) { return false; } } },
   ],
 };
 // ============================================================================
@@ -10722,6 +10726,9 @@ FP.applyNavSubmenus = () => {
             if (perso.length) { subs = subs.slice(); const iCtrl = subs.findIndex(s => s.tab === 'controle'); subs.splice(iCtrl < 0 ? subs.length : iCtrl, 0, ...perso); }
           } catch (e) {}
         }
+        // Filtre de visibilité par item (droits) : `when()` falsy → item masqué. Même règle que les
+        // onglets de la page (ré-appliqué sur fp:data-ready quand le rôle est confirmé).
+        subs = subs.filter(s => { if (!s || typeof s.when !== 'function') return true; try { return !!s.when(); } catch (e) { return false; } });
         const box = document.createElement('div'); box.className = 'fp-subnav'; box.dataset.for = navKey;
         // Base du lien = href RÉEL de la page cible dans CETTE sidebar (gère le préfixe « pages/ » sur les
         // pages racine et son absence sous /pages/). Cross-lien : si `page` diffère, on prend le href du

@@ -107,5 +107,37 @@ check('9. buildProposal : id déterministe + société + action + ref avis',
   prop);
 check('9b. buildProposal : pas d’ancres bruitées dans dossier_ref', prop.dossier_ref.ancres === undefined, prop.dossier_ref);
 
+// 10) FACTURE : « facture » + plaque reconnue → domaine facture, oriente vers le formulaire, PAS d'IA au tri
+r = T.classify({
+  id: 'm11', from: 'CAR WORLD CONSULTING <compta@carworld.fr>',
+  subject: 'FACTURE MG 4 / HL-724-CD', snippet: 'Bonjour, voici votre facture. Cordialement.',
+  hasPdf: true, pdfs: [{ filename: 'Facture-F-2026-627.pdf', attachmentId: 'A11' }],
+}, ctx);
+check('10. facture + plaque → domaine facture, facture_saisir, véhicule proposé, besoinIA=false',
+  r.domaine === 'facture' && r.action === 'facture_saisir' && r.refs.plaque === 'HL724CD' && r.besoinIA === false && r.bloque === true, r);
+
+// 10b) FACTURE sans plaque mais avec PDF → facture, véhicule à préciser
+r = T.classify({ id: 'm11b', from: 'compta@x.fr', subject: 'Votre facture', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'f.pdf', attachmentId: 'B' }] }, ctx);
+check('10b. facture sans plaque → facture, à préciser', r.domaine === 'facture' && r.action === 'facture_saisir' && !r.refs.plaque, r);
+
+// 11) Libellé surveillé identifié par son ID Gmail (ctx.watchLabelId, propre à la société) → force
+r = T.classify({
+  id: 'm12', from: 'inconnu@x.fr', subject: 'Document', snippet: 'Pièce jointe.',
+  labels: ['Label_42', 'INBOX'],
+}, { ...ctx, watchLabelId: 'Label_42' });
+check('11. libellé surveillé par ID → forcé (jamais ignoré)', r.action === 'a_verifier' && r.domaine !== 'horsflotte', r);
+
+// 12) Exclusion PRIORITAIRE : mail en Promotions MÊME avec le libellé surveillé → ignoré
+r = T.classify({
+  id: 'm13', from: 'promo@shop.fr', subject: 'Facture -70% Black Friday HL-724-CD',
+  snippet: 'Votre facture promotionnelle, profitez-en !',
+  labels: ['Label_42', 'CATEGORY_PROMOTIONS'], hasPdf: true, pdfs: [{ filename: 'promo.pdf', attachmentId: 'C' }],
+}, { ...ctx, watchLabelId: 'Label_42' });
+check('12. Promotions + libellé surveillé → exclu (priorité)', r.domaine === 'horsflotte' && r.action === 'ignore', r);
+
+// 12b) Réseaux sociaux → exclu
+r = T.classify({ id: 'm13b', from: 'x@linkedin.com', subject: 'Votre profil', snippet: '...', labels: ['CATEGORY_SOCIAL'] }, ctx);
+check('12b. Réseaux sociaux → exclu', r.domaine === 'horsflotte' && r.action === 'ignore', r);
+
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);
