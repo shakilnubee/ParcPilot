@@ -18,11 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap"></noscript>
-<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126d">
+<link rel="stylesheet" href="../assets/css/tailwind.css?v=20261126e">
 <script>window.lucide={createIcons:function(){}};/* stub anti-erreur le temps que Lucide (defer, local) se charge */</script>
-  <script defer src="../assets/js/lucide.min.js?v=20261126d"></script>
+  <script defer src="../assets/js/lucide.min.js?v=20261126e"></script>
   <script>addEventListener('DOMContentLoaded',function(){window.lucide&&window.lucide.createIcons&&lucide.createIcons();});</script>
-<link rel="stylesheet" href="../assets/css/styles.css?v=20261126d">
+<link rel="stylesheet" href="../assets/css/styles.css?v=20261126e">
 <style>
   /* .filter-chip : style centralisé (modèle Style C) dans assets/css/styles.css */
   .type-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .55rem; border-radius: 9999px; font-size: .72rem; font-weight: 600; background: #F1F5F9; color: var(--fp-text); }
@@ -598,6 +598,19 @@
       </div>
       <div><div class="field-label">Description</div><input class="field-input" id="fa-desc" placeholder="ex. Révision, pneus…" /></div>
 
+      <!-- 🛞 Bloc Pneumatiques : apparaît quand la facture est une facture de pneus. Prérempli depuis la
+           lecture (dimension + 3PMSF), VISIBLE et MODIFIABLE avant d'enregistrer. À la validation, le
+           remplacement + marquage 3PMSF sont écrits via la source unique FP.pneus.enregistrerRemplacement. -->
+      <div id="fa-pneus" class="hidden" style="border:1px solid var(--fp-border);border-radius:10px;padding:10px 12px;background:#F8FAFC">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:8px">🛞 Pneumatiques détectés <span style="font-weight:500;color:#64748b;font-size:11.5px">— vérifie avant d'enregistrer</span></div>
+        <div id="fa-pn-note" class="hidden" style="font-size:11.5px;color:#b45309;margin-bottom:8px;font-weight:600"></div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><div class="field-label">Position</div><select class="field-input" id="fa-pn-pos"><option value="4">4 roues</option><option value="av">Avant</option><option value="ar">Arrière</option></select></div>
+          <div><div class="field-label">Dimension</div><input class="field-input" id="fa-pn-dim" placeholder="205/60 R16" autocomplete="off" /></div>
+          <div><div class="field-label">Marquage 3PMSF (hiver)</div><select class="field-input" id="fa-pn-m3"><option value="">Non renseigné</option><option value="oui">Oui</option><option value="non">Non</option></select></div>
+        </div>
+      </div>
+
       <div class="flex gap-2 pt-2">
         <button type="button" class="btn btn-outline flex-1 justify-center" id="facture-cancel">Annuler</button>
         <button type="submit" class="btn btn-dark flex-1 justify-center"><i data-lucide="check" class="w-4 h-4"></i> Enregistrer</button>
@@ -607,8 +620,8 @@
   </div>
 </div>
 
-<script src="../assets/js/vendor/supabase.js?v=20261126d"></script>
-<script src="../assets/js/supabase-client.js?v=20261126d"></script>
+<script src="../assets/js/vendor/supabase.js?v=20261126e"></script>
+<script src="../assets/js/supabase-client.js?v=20261126e"></script>
 <script>/* ⚡ PERF : data.js (~301 Ko) n'est chargé QU'EN DÉMARRAGE À FROID. Dès qu'un cache
    localStorage par société est COMPLET (2e visite+), on peuple FP_DATA depuis lui et on NE CHARGE PAS
    data.js → plus de parse inutile à chaque navigation. Cache incomplet/absent (1re visite, quota,
@@ -624,13 +637,13 @@
       return; // data.js NON chargé
     }
   } catch (e) {}
-  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126d"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
+  document.write('<scr' + 'ipt src="../assets/js/data.js?v=20261126e"><\/scr' + 'ipt>'); // cold start : filet data.js (ordre/synchro préservés)
 })();
 </script>
   <script>window.FP_PDF=1;</script>
-<script src="../assets/js/app.min.js?v=20261126d"></script>
-<script src="../assets/js/fleet-views.min.js?v=20261126d"></script>
-<script src="../assets/js/vendor/chart.umd.min.js?v=20261126d" defer></script>
+<script src="../assets/js/app.min.js?v=20261126e"></script>
+<script src="../assets/js/fleet-views.min.js?v=20261126e"></script>
+<script src="../assets/js/vendor/chart.umd.min.js?v=20261126e" defer></script>
 <script>
   lucide.createIcons();
   const data = window.FP_DATA;
@@ -1390,6 +1403,31 @@
       const rec = { date: $('fa-date').value, fournisseur: $('fa-fournisseur').value, montantTTC: num($('fa-ttc').value) };
       if (window.FP && FP.importAlert) FP.importAlert('facture', rec, { prefix: 'Facture', where: 'la fiche facture' });
     } catch (e) {}
+    try { updatePneusBlock(parsed); } catch (e) {}
+  }
+
+  // 🛞 Bloc Pneumatiques — détecte (source unique FP.pneus.detecterDepuisFacture) à partir de la description +
+  // du fournisseur + du type, et préremplit dimension + 3PMSF (visible/modifiable). Rien n'est écrit ici.
+  let _faPneuDetect = null;
+  function updatePneusBlock(parsed){
+    const box = $('fa-pneus'); if (!box) return;
+    if (!(window.FP && FP.pneus && FP.pneus.detecterDepuisFacture)) { box.classList.add('hidden'); return; }
+    const f = {
+      description: (parsed && parsed.description) || $('fa-desc').value || '',
+      fournisseur: (parsed && parsed.fournisseur) || $('fa-fournisseur').value || '',
+      type: $('fa-type').value || (parsed && parsed.factureType) || ''
+    };
+    const d = FP.pneus.detecterDepuisFacture(f);
+    _faPneuDetect = d;
+    if (!d.estPneu) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    if ($('fa-pn-dim') && !String($('fa-pn-dim').value || '').trim() && d.dim) $('fa-pn-dim').value = d.dim;
+    if ($('fa-pn-m3') && !$('fa-pn-m3').value) $('fa-pn-m3').value = d.m3pmsf === true ? 'oui' : d.m3pmsf === false ? 'non' : '';
+    const note = $('fa-pn-note');
+    if (note){
+      if (d.plusieurs){ note.textContent = '⚠️ Plusieurs dimensions détectées (' + d.dims.join(', ') + ') — choisis la position et vérifie la dimension.'; note.classList.remove('hidden'); }
+      else note.classList.add('hidden');
+    }
   }
 
   let _faReading = false;
@@ -1504,6 +1542,9 @@
     _faClosed = false; _faScanSeq++;   // nouvelle session : invalide toute analyse résiduelle
     try{ clearFacturePreview(); }catch(e){}   // repart sans aperçu (il apparaît quand on joint un fichier)
     const st = $('fa-status'); st.classList.add('hidden'); st.innerHTML = ''; _faSpin = false;
+    // Bloc Pneumatiques : masqué + remis à zéro à chaque ouverture (il réapparaît si la lecture détecte des pneus).
+    _faPneuDetect = null;
+    try { $('fa-pneus').classList.add('hidden'); $('fa-pn-note').classList.add('hidden'); $('fa-pn-dim').value = ''; $('fa-pn-m3').value = ''; $('fa-pn-pos').value = '4'; } catch(e){}
     $('facture-modal').classList.add('open');
     lucide.createIcons();
   }
@@ -1656,6 +1697,31 @@
     // Entretien / réparation liée à un véhicule → met à jour sa fiche : dernière révision (date)
     // + km. « Prochaine révision » se recalcule alors toute seule dans la fiche véhicule.
     const majVeh = syncRevisionVehicule(newF);
+    // 🛞 Remplacement de pneus : si le bloc Pneumatiques est affiché, on écrit l'état structuré + le 3PMSF
+    //    via la SOURCE UNIQUE (FP.pneus.enregistrerRemplacement) — dimension/position/marquage tels que
+    //    l'utilisateur les a VUS et éventuellement corrigés. Raise-only : on NE modifie PAS un remplacement
+    //    PLUS RÉCENT (si la fiche a déjà un remplacement postérieur à la date de cette facture). Idempotent :
+    //    ré-enregistrer la MÊME facture (même date) complète le marquage sans créer de doublon.
+    try {
+      const pneuBox = $('fa-pneus');
+      if (pneuBox && !pneuBox.classList.contains('hidden') && newF.vehiculeImmat && window.FP && FP.pneus && FP.pneus.enregistrerRemplacement) {
+        const v = (data.vehicules || []).find(x => FP.immatEq ? FP.immatEq(x.immat, newF.vehiculeImmat) : (FP.normImmat(x.immat) === FP.normImmat(newF.vehiculeImmat)));
+        if (v) {
+          const m3 = $('fa-pn-m3').value; const m3v = m3 === 'oui' ? true : m3 === 'non' ? false : null;
+          const cur = FP.pneus.get(v);
+          const dernier = (cur && cur.dernier && cur.dernier.date) ? cur.dernier.date : null;
+          // ne pas écraser un remplacement enregistré À UNE DATE PLUS RÉCENTE que cette facture
+          if (!dernier || !newF.date || String(newF.date) >= String(dernier)) {
+            FP.pneus.enregistrerRemplacement(v.id, v, {
+              date: newF.date || null, km: newF.km, position: $('fa-pn-pos').value || '4',
+              dim: $('fa-pn-dim').value, m3pmsf: m3v,
+              marque: (_faPneuDetect && _faPneuDetect.marque) || ''
+            });
+            try { v.dateChangementPneus = newF.date || v.dateChangementPneus; const comb = FP.pneus.toCombined(FP.pneus.get(v)); if (comb) v.dimensionPneus = comb; if (FP.persist) FP.persist.update('vehicules', v.id, { dateChangementPneus: v.dateChangementPneus, dimensionPneus: v.dimensionPneus }); } catch(e){}
+          }
+        }
+      }
+    } catch (e) { console.warn('[facture pneus]', e); }
     closeFactureModal();
     renderKPIs(); renderTable(); renderCharts();
     // ⚠️ Ne pas laisser croire que le justificatif est joint si son upload a échoué : on prévient
@@ -1830,6 +1896,10 @@
   $('facture-cancel').addEventListener('click', closeFactureModal);
   $('facture-modal').addEventListener('click', (e) => { if (e.target.id === 'facture-modal') closeFactureModal(); });
   $('facture-form').addEventListener('submit', saveFacture);
+  // Le bloc Pneumatiques se réévalue si l'utilisateur modifie le type ou la description à la main
+  // (ex. il tape « pneus » dans la description → le bloc apparaît ; il retire → il disparaît).
+  try { $('fa-type').addEventListener('change', () => { try { updatePneusBlock(); } catch(e){} }); } catch(e){}
+  try { $('fa-desc').addEventListener('input', () => { try { updatePneusBlock(); } catch(e){} }); } catch(e){}
   $('fa-trigger').addEventListener('click', () => $('fa-file').click());
   $('fa-file').addEventListener('change', (e) => { const file = e.target.files && e.target.files[0]; _faFileName = file ? file.name : ''; _faFile = file || null; handleFacture(file); e.target.value = ''; });
   // Pont réutilisable : importer une facture depuis un fichier fourni par PROGRAMME (ex. pièce jointe Gmail,
