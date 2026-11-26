@@ -165,15 +165,20 @@ Deno.serve(async (req) => {
         const ids: string[] = (ld && Array.isArray(ld.messages)) ? (ld.messages as Array<{ id: string }>).map((m) => m.id) : [];
         const uniq = ids.filter((x, i) => ids.indexOf(x) === i);
 
-        // Contexte société (vehicules + amendes) — sinistres : enrichissement ultérieur.
-        const [{ data: vehs }, { data: ams }] = await Promise.all([
+        // Contexte société (vehicules + amendes + expéditeurs connus) — sinistres : enrichissement ultérieur.
+        const [{ data: vehs }, { data: ams }, { data: conds }] = await Promise.all([
           admin.from("vehicules").select("immat").eq("societe", soc),
           admin.from("amendes").select("numero_avis").eq("societe", soc),
+          admin.from("conducteurs").select("email").eq("societe", soc),
         ]);
+        const knownSenders = (conds || [])
+          .map((c2: Record<string, unknown>) => String(c2.email || "").toLowerCase().trim())
+          .filter((e: string) => e.indexOf("@") > 0);
         const ctx = {
           vehicules: (vehs || []).map((v: Record<string, unknown>) => ({ immat: v.immat })),
           amendes: (ams || []).map((a: Record<string, unknown>) => ({ numeroAvis: a.numero_avis })),
           sinistres: [] as unknown[],
+          knownSenders,                          // e-mails connus de la société → indice « expéditeur connu »
           watchLabelId: c.watch_label_id || null, // libellé surveillé → « force » (jamais écarté, même archivé)
         };
 

@@ -28,6 +28,18 @@ T.RE_MAINT = /(rendez-?vous|\brdv\b|r[eé]vision|vidange|entretien|garage|carros
 T.RE_SINISTRE = /(sinistre|expertise|\bexpert\b|indemnisation|indemnit[eé]|franchise|prise en charge|\bconstat\b|accident|assurance|assureur)/i;
 T.RE_PAIEMENT = /(paiement|pay[eé]e?\b|r[eè]glement|r[eé]gl[eé]|re[çc]u\b|justificatif|quittance|acquitt|ticket de paiement|preuve de paiement)/i;
 T.RE_FACTURE = /(facture|facturation|\bavoir\b|note de d[eé]bit|\binvoice\b)/i;
+// Mails CLAIREMENT hors flotte (bâtiment, commission de sécurité, informatique) : écartés si aucun
+// indice fiable ne les rattache à la flotte. Ces termes priment sur un mot générique (« intervention »…).
+T.RE_BATIMENT_IT = /(commission de s[eé]curit[eé]|[eé]tablissement recevant du public|\bb[aâ]timent\b|\bimmeuble\b|\blocaux\b|\bbureaux\b|incendie|extincteur|\bSSI\b|ascenseur|climatisation|plomberie|informatique|serveur informatique|\blogiciel\b|licence logiciel|helpdesk|imprimante|t[eé]l[eé]phonie|standard t[eé]l[eé]phonique)/i;
+// Termes SPÉCIFIQUES à l'automobile : un seul suffit comme indice fiable (contrairement aux mots génériques).
+T.RE_FLOTTE_SPEC = /(contravention|\bantai\b|forfait post-stationnement|\bfps\b|exc[eè]s de vitesse|carte grise|certificat d'immatriculation|immatricul|carte verte|\bconstat\b|t[eé]l[eé]p[eé]age|\bulys\b|crit'?\s?air|num[eé]ro de police|\bleasing\b|\blld\b|\bloa\b|contr[oô]le technique|proc[eè]s-verbal|pneumatique|\bpneus?\b|carrosserie|pare-brise|bris de glace|\bvidange\b|\bVIN\b)/i;
+// Contexte automobile (plus large que les mots génériques « facture/maintenance ») : compte comme un
+// indice additionnel → un vrai mail de garage pour « votre véhicule » (sans plaque) reste retenu.
+T.RE_AUTO_CONTEXT = /(v[eé]hicule|voiture|automobile|\bauto\b|\bflotte\b|conducteur|chauffeur|motorisation|berline|utilitaire|\bSUV\b|concession|\bgarage\b)/i;
+// Plaque au FORMAT SIV (AA-123-BB), même si le véhicule n'est pas (encore) reconnu dans la flotte.
+T.RE_IMMAT_FORMAT = /\b[A-Z]{2}[-\s]?\d{3}[-\s]?[A-Z]{2}\b/;
+// Mots GÉNÉRIQUES (jamais suffisants seuls) : regroupés pour le comptage d'indices.
+T.MOTS_GENERIQUES = [T.RE_FACTURE, T.RE_MAINT, T.RE_SINISTRE, T.RE_AMENDE];
 T.RE_RDV_CONFIRME = /(confirm|bien not[eé]|c'est not[eé]|enregistr[eé]|valid[eé]|nous vous attendons|rendez-?vous (?:fix|pris))/i;
 T.RE_RDV_REPORTE = /(report|d[eé]cal|repouss|nouvelle date|changement de date|d[eé]placer le rendez)/i;
 T.RE_RDV_ANNULE = /(annul|supprim(?:er|[eé]) le rendez)/i;
@@ -72,6 +84,19 @@ T.avisTrouve = (texte, amendes) => {
   return found;
 };
 
+// Expéditeur connu de la société ? (liste d'e-mails ou de domaines fournie par le serveur :
+// e-mails des conducteurs, fournisseurs/garages/assureurs déjà enregistrés). Compare l'adresse et le domaine.
+T.senderConnu = (fromEmail, known) => {
+  const e = String(fromEmail || '').toLowerCase().trim();
+  if (!e || !known || !known.length) return false;
+  const dom = e.indexOf('@') >= 0 ? e.slice(e.indexOf('@') + 1) : '';
+  return known.some((k) => {
+    const kk = String(k || '').toLowerCase().trim();
+    if (!kk) return false;
+    return kk === e || (kk.indexOf('@') < 0 && dom && (dom === kk || dom.endsWith('.' + kk)));
+  });
+};
+
 T.classifyMaintenance = (out, texte, plaques, ctx, pieces, extra) => {
   extra = extra || {};
   let statut = null;
@@ -96,9 +121,13 @@ T.classifyMaintenance = (out, texte, plaques, ctx, pieces, extra) => {
 T.classify = (msg, ctx) => {
   msg = msg || {}; ctx = ctx || {};
   const sujet = String(msg.subject || '');
-  const texte = [sujet, msg.snippet || '', msg.bodyText || '', msg.from || ''].join('  ');
+  // On inclut le NOM DES PIÈCES JOINTES dans le texte analysé : un mail court (« Voici votre facture »)
+  // peut ne porter l'indice (plaque, « facture », n° de facture) que dans le nom du PDF.
+  const noms = (msg.pdfs || []).map((p) => String(p.filename || '')).join('  ');
+  const texte = [sujet, msg.snippet || '', msg.bodyText || '', msg.from || '', noms].join('  ');
   const hasPdf = !!(msg.hasPdf || (msg.pdfs && msg.pdfs.length));
   const pieces = (msg.pdfs || []).map((p) => ({ filename: p.filename, attachmentId: p.attachmentId }));
+  const facturePdf = hasPdf && (msg.pdfs || []).some((p) => T.RE_FACTURE.test(String(p.filename || '')));
   const ancres = T.ancresDuFil(msg.headers);
   const plaques = T.plaquesTrouvees(texte, ctx.vehicules);
   const numeroAvis = T.avisTrouve(texte, ctx.amendes);
@@ -130,6 +159,39 @@ T.classify = (msg, ctx) => {
   if (!force && !refFlotteForte && T.RE_HORSFLOTTE.test(texte) &&
       !T.RE_AMENDE.test(texte) && !T.RE_MAINT.test(texte) && !T.RE_SINISTRE.test(texte) && !T.RE_FACTURE.test(texte)) {
     return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false, motif: 'RH / hors flotte' });
+  }
+
+  // ====================================================================================
+  //  GARDE « LIEN FLOTTE FIABLE » (avant toute classification par mot-clé, avant toute IA)
+  // ------------------------------------------------------------------------------------
+  //  Un mail de « Principale » n'est RETENU que s'il a un indice FIABLE de lien avec la flotte
+  //  (plaque reconnue, n° d'avis connu, fil PP, OU libellé de revue manuelle), OU PLUSIEURS indices
+  //  automobiles COHÉRENTS. Un simple mot générique (« maintenance », « contrôle », « intervention »,
+  //  « facture ») ne suffit JAMAIS seul → cela écarte les mails de bâtiment / commission de sécurité /
+  //  informatique et les newsletters « réparation/garantie » qui remontaient à tort en maintenance.
+  //  Le libellé surveillé (force) reste un signal de revue manuelle et saute cette garde.
+  if (!force && !refFlotteForte) {
+    // 1) Exclusion dure : bâtiment / commission de sécurité / informatique (sans aucun indice flotte).
+    if (T.RE_BATIMENT_IT.test(texte)) {
+      return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false,
+        motif: 'Bâtiment / commission de sécurité / informatique — hors flotte' });
+    }
+    // 2) Score d'indices automobiles. Termes SPÉCIFIQUES ou plaque = indice fort (2) ; PDF de facture
+    //    joint = indice fort (2, « ne pas rater un mail court avec une facture PDF ») ; expéditeur connu
+    //    de la société = fort (2) ; chaque famille de mot GÉNÉRIQUE = faible (1). Seuil de rétention : 2.
+    let score = 0;
+    if (T.RE_FLOTTE_SPEC.test(texte)) score += 2;
+    if (T.RE_IMMAT_FORMAT.test(texte)) score += 2;
+    if (facturePdf) score += 2;
+    if (ctx.knownSenders && msg.fromEmail && T.senderConnu(msg.fromEmail, ctx.knownSenders)) score += 2;
+    if (T.RE_AUTO_CONTEXT.test(texte)) score += 1;
+    T.MOTS_GENERIQUES.forEach((re) => { if (re.test(texte)) score += 1; });
+    if (score < 2) {
+      return out({ domaine: 'inconnu', action: 'ignore', confidence: 'faible', besoinIA: false,
+        motif: 'Pas d’indice flotte fiable (mot générique seul) — écarté' });
+    }
+    // Retenu : indice automobile présent mais véhicule/dossier non identifié → « À vérifier » + raison
+    // (les branches ci-dessous proposent le meilleur domaine, toujours bloqué/à vérifier sans plaque).
   }
 
   if (ancres.length) {

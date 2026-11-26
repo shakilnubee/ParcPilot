@@ -194,14 +194,18 @@ Deno.serve(async (req) => {
     if (!lr.ok || !ld) return json({ ok: false, configured: true, connected: true, error: "Recherche Gmail refusée (le libellé existe-t-il encore ?)." }, 502);
     const ids: string[] = Array.isArray(ld.messages) ? (ld.messages as Array<{ id: string }>).map((m) => m.id) : [];
     // Contexte flotte (plaques + n° d'avis) pour une raison pertinente — scopé à la société de l'appelant.
-    const [{ data: vehs }, { data: ams }] = await Promise.all([
+    const [{ data: vehs }, { data: ams }, { data: conds }] = await Promise.all([
       admin.from("vehicules").select("immat").eq("societe", societe),
       admin.from("amendes").select("numero_avis").eq("societe", societe),
+      admin.from("conducteurs").select("email").eq("societe", societe),
     ]);
+    const knownSenders = (conds || [])
+      .map((c2: Record<string, unknown>) => String(c2.email || "").toLowerCase().trim())
+      .filter((e: string) => e.indexOf("@") > 0);
     const ctx = {
       vehicules: (vehs || []).map((v: Record<string, unknown>) => ({ immat: v.immat })),
       amendes: (ams || []).map((a: Record<string, unknown>) => ({ numeroAvis: a.numero_avis })),
-      sinistres: [] as unknown[], watchLabelId: labelId || null,
+      sinistres: [] as unknown[], knownSenders, watchLabelId: labelId || null,
     };
     const apercu: Array<Record<string, unknown>> = [];
     for (const id of ids) {
