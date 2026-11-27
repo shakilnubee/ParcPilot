@@ -116,9 +116,9 @@ r = T.classify({
 check('10. facture + plaque → domaine facture, facture_saisir, véhicule proposé, besoinIA=false',
   r.domaine === 'facture' && r.action === 'facture_saisir' && r.refs.plaque === 'HL724CD' && r.besoinIA === false && r.bloque === true, r);
 
-// 10b) FACTURE dont le PDF est NOMMÉ comme une facture (sans plaque) → retenu facture (à préciser)
+// 10b) DURCI : un PDF nommé « Facture » SANS aucun indice flotte ne suffit PLUS → écarté.
 r = T.classify({ id: 'm11b', from: 'compta@x.fr', subject: 'Votre facture', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'Facture-2026-044.pdf', attachmentId: 'B' }] }, ctx);
-check('10b. facture (PDF nommé « Facture… ») sans plaque → facture, à préciser', r.domaine === 'facture' && r.action === 'facture_saisir' && !r.refs.plaque, r);
+check('10b. facture (PDF « Facture… ») sans AUCUN indice flotte → ignore (durci)', r.action === 'ignore', r);
 
 // 10c) « facture » dans le corps mais PDF au nom générique (f.pdf), zéro contexte flotte → écarté (durcissement)
 r = T.classify({ id: 'm11c', from: 'compta@x.fr', subject: 'Votre document', snippet: 'Facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'f.pdf', attachmentId: 'B' }] }, ctx);
@@ -181,6 +181,45 @@ check('14d. expéditeur connu + « facture » → retenu', r.action !== 'ignore'
 // 14e) Mot « facture » SEUL, expéditeur inconnu, aucun contexte → ignoré
 r = T.classify({ id: 'm21', from: 'hello@mpg.football', subject: 'Il grandit si vite', snippet: 'Votre facture de la semaine.' }, ctx);
 check('14e. « facture » seule, inconnu, zéro contexte auto → ignore', r.action === 'ignore', r);
+
+// ========================================================================================
+//  DURCISSEMENT FILTRE FACTURES — les factures hors flotte n'arrivent plus dans « À vérifier »
+//  (« facture » + PDF + nom de société ne suffisent pas). Carburant/péage sans plaque = retenu.
+// ========================================================================================
+// F1) Babilou (crèche) — facture + PDF « FACTURE » + société TJMAX, AUCUN lien flotte → ignore
+r = T.classify({ id: 'f-babilou', from: 'facturation@babilou.com', subject: 'Fwd: BABILOU - TJMAX - FACTURE N°EVA-2125022',
+  snippet: 'Veuillez trouver votre facture en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'BABILOU-FACTURE-EVA-2125022.pdf', attachmentId: 'B1' }] }, ctx);
+check('F1. Babilou (crèche, facture+PDF, aucun lien flotte) → ignore', r.action === 'ignore', r);
+
+// F2) SCI (loyer immobilier) → ignore
+r = T.classify({ id: 'f-sci', from: 'frederic.beun@projectxparis.fr', subject: 'Fwd: reference I17/AF249 : SCi FIVE STARS 5888 / CO TJ MAX',
+  snippet: 'Facture de loyer trimestriel SCI.', hasPdf: true, pdfs: [{ filename: 'Facture-SCI-FIVE-STARS.pdf', attachmentId: 'S1' }] }, ctx);
+check('F2. SCI (loyer immobilier) → ignore', r.action === 'ignore', r);
+
+// F3) Restaurant (Westfield) → ignore
+r = T.classify({ id: 'f-resto', from: 'compta@zhao.fr', subject: 'Facture n°2026/1000001233 - SAS ZHAO PARLY - WESTFIELD PARLY 2',
+  snippet: 'Votre facture restaurant du mois.', hasPdf: true, pdfs: [{ filename: 'facture-zhao-parly.pdf', attachmentId: 'R1' }] }, ctx);
+check('F3. Restaurant (Westfield) → ignore', r.action === 'ignore', r);
+
+// F4) DKV SANS plaque — fournisseur carburant reconnu par son CONTENU → retenu facture (société)
+r = T.classify({ id: 'f-dkv', from: 'admin@projectxparis.fr', subject: 'Fwd: Facture électronique 23.11.2026, Votre numéro client DKV4302800060',
+  snippet: 'Facture DKV EURO SERVICE — cartes carburant de la flotte.', hasPdf: true, pdfs: [{ filename: 'DKV_FR_E-INVOICE_26-656273356-001.pdf', attachmentId: 'D1' }] }, ctx);
+check('F4. DKV (carburant, sans plaque) → retenu facture (société)', r.domaine === 'facture' && r.action !== 'ignore', r);
+
+// F5) TotalEnergies CARBURANT → retenu
+r = T.classify({ id: 'f-total-carb', from: 'facture@totalenergies.fr', subject: 'Facture TotalEnergies — carte carburant',
+  snippet: 'Votre relevé de carte carburant du mois (station-service).', hasPdf: true, pdfs: [{ filename: 'TotalEnergies-carburant.pdf', attachmentId: 'T1' }] }, ctx);
+check('F5. TotalEnergies CARBURANT → retenu facture', r.domaine === 'facture' && r.action !== 'ignore', r);
+
+// F6) TotalEnergies ÉLECTRICITÉ pour une boutique → écarté (même fournisseur, mais hors carburant/péage)
+r = T.classify({ id: 'f-total-elec', from: 'facture@totalenergies.fr', subject: 'Facture TotalEnergies — électricité boutique',
+  snippet: "Votre facture d'électricité (kWh) pour votre magasin.", hasPdf: true, pdfs: [{ filename: 'TotalEnergies-electricite-boutique.pdf', attachmentId: 'T2' }] }, ctx);
+check('F6. TotalEnergies ÉLECTRICITÉ (boutique) → ignore (hors flotte)', r.action === 'ignore', r);
+
+// F7) Garage avec contexte auto (plaque seulement dans le PDF) → retenu facture, véhicule à préciser
+r = T.classify({ id: 'f-garage', from: 'compta@garage-x.fr', subject: 'Facture réparation garage',
+  snippet: 'Facture de réparation effectuée au garage, détails en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'facture-reparation.pdf', attachmentId: 'G1' }] }, ctx);
+check('F7. Garage (contexte auto ; plaque dans le PDF) → retenu (à préciser)', r.action !== 'ignore', r);
 
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);

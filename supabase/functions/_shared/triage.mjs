@@ -36,6 +36,13 @@ T.RE_FLOTTE_SPEC = /(contravention|\bantai\b|forfait post-stationnement|\bfps\b|
 // Contexte automobile (plus large que les mots génériques « facture/maintenance ») : compte comme un
 // indice additionnel → un vrai mail de garage pour « votre véhicule » (sans plaque) reste retenu.
 T.RE_AUTO_CONTEXT = /(v[eé]hicule|voiture|automobile|\bauto\b|\bflotte\b|conducteur|chauffeur|motorisation|berline|utilitaire|\bSUV\b|concession|\bgarage\b)/i;
+// Fournisseur/produit CARBURANT · PÉAGE · RECHARGE (flotte sans plaque : DKV, carte carburant, télépéage,
+// borne de recharge…). Indice flotte FORT. Le NOM du fournisseur seul ne suffit pas — on exige un terme de
+// carburant/péage/recharge (ex. « TotalEnergies » n'est PAS ici ; « carte carburant »/« DKV »/« Ulys » oui).
+T.RE_CARB_PEAGE = /(\bdkv|euro\s*service|carte[s]? carburant|carte[s]? gr\b|\bgr[\s-]?card\b|\bas\s?24\b|t[eé]l[eé]p[eé]age|\bulys\b|eurotoll|\bsanef\b|badge[s]? (?:de )?p[eé]age|borne[s]? de recharge|recharge [eé]lectrique|\birve\b|point[s]? de charge|station[- ]service|\bcarburant\b|\bgazole\b|\bgnr\b|sans[- ]plomb|\bsp\s?9[58]\b)/i;
+// Électricité / gaz / boutique (NON flotte) : une facture d'énergie de local/magasin (ex. TotalEnergies
+// électricité d'une boutique) est écartée SAUF si un indice carburant/péage/recharge est présent.
+T.RE_ELEC_BOUTIQUE = /([eé]lectricit[eé]|\bkwh\b|\bmwh\b|m[eé]gawatt|gaz naturel|abonnement [eé]lectricit|\bboutique\b|\bmagasin\b|point de vente|[eé]clairage|compteur (?:linky|[eé]lectrique)|tarif bleu|heures creuses)/i;
 // Plaque au FORMAT SIV (AA-123-BB), même si le véhicule n'est pas (encore) reconnu dans la flotte.
 T.RE_IMMAT_FORMAT = /\b[A-Z]{2}[-\s]?\d{3}[-\s]?[A-Z]{2}\b/;
 // Mots GÉNÉRIQUES (jamais suffisants seuls) : regroupés pour le comptage d'indices.
@@ -127,7 +134,6 @@ T.classify = (msg, ctx) => {
   const texte = [sujet, msg.snippet || '', msg.bodyText || '', msg.from || '', noms].join('  ');
   const hasPdf = !!(msg.hasPdf || (msg.pdfs && msg.pdfs.length));
   const pieces = (msg.pdfs || []).map((p) => ({ filename: p.filename, attachmentId: p.attachmentId }));
-  const facturePdf = hasPdf && (msg.pdfs || []).some((p) => T.RE_FACTURE.test(String(p.filename || '')));
   const ancres = T.ancresDuFil(msg.headers);
   const plaques = T.plaquesTrouvees(texte, ctx.vehicules);
   const numeroAvis = T.avisTrouve(texte, ctx.amendes);
@@ -176,13 +182,20 @@ T.classify = (msg, ctx) => {
       return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false,
         motif: 'Bâtiment / commission de sécurité / informatique — hors flotte' });
     }
-    // 2) Score d'indices automobiles. Termes SPÉCIFIQUES ou plaque = indice fort (2) ; PDF de facture
-    //    joint = indice fort (2, « ne pas rater un mail court avec une facture PDF ») ; expéditeur connu
-    //    de la société = fort (2) ; chaque famille de mot GÉNÉRIQUE = faible (1). Seuil de rétention : 2.
+    // 1bis) Exclusion dure : facture d'ÉLECTRICITÉ / gaz / boutique (local, magasin) SANS indice
+    //       carburant/péage/recharge → hors flotte (ex. TotalEnergies électricité d'une boutique).
+    if (T.RE_ELEC_BOUTIQUE.test(texte) && !T.RE_CARB_PEAGE.test(texte) && !T.RE_FLOTTE_SPEC.test(texte)) {
+      return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false,
+        motif: 'Facture électricité / gaz / boutique (hors carburant-péage) — hors flotte' });
+    }
+    // 2) Score d'indices automobiles. Indice FORT (2) : terme SPÉCIFIQUE auto, plaque au format SIV,
+    //    fournisseur/produit CARBURANT·PÉAGE·RECHARGE, expéditeur connu de la société. Faible (1) : contexte
+    //    auto, chaque famille de mot GÉNÉRIQUE. ⚠️ Un PDF nommé « Facture » ne compte PLUS (il retenait à tort
+    //    Babilou / SCI / restaurant : « facture » + PDF + nom de société ne suffisent pas). Seuil : 2.
     let score = 0;
     if (T.RE_FLOTTE_SPEC.test(texte)) score += 2;
     if (T.RE_IMMAT_FORMAT.test(texte)) score += 2;
-    if (facturePdf) score += 2;
+    if (T.RE_CARB_PEAGE.test(texte)) score += 2;
     if (ctx.knownSenders && msg.fromEmail && T.senderConnu(msg.fromEmail, ctx.knownSenders)) score += 2;
     if (T.RE_AUTO_CONTEXT.test(texte)) score += 1;
     T.MOTS_GENERIQUES.forEach((re) => { if (re.test(texte)) score += 1; });
