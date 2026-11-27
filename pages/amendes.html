@@ -3544,6 +3544,74 @@
 
   // Rafraîchit quand les données Supabase arrivent (ajouts/suppressions d'autres appareils)
   document.addEventListener('fp:data-ready', () => { fillAnneeFilter(); rebuildMotifFilter(); renderKPIs(); renderTable(); renderCharts(); });
+
+  // ===== Dépôt AUTOMATIQUE d'un justificatif de paiement depuis « À vérifier » (Gmail) : ?gmailjustif=<avId> =====
+  // On récupère le PDF via gmail-read, on ouvre la bonne amende (par n° d'avis si connu, sinon on fait CHOISIR
+  // l'amende réglée — montant lu du justificatif pour proposer les candidates), puis on lance le MÊME parcours
+  // que le dépôt manuel (attachJustif → « payée », confirmation du montant si écart). Le mail n'est marqué
+  // « traité » qu'APRÈS que l'amende passe réellement « payée » (annuler/échec = reste à vérifier).
+  (function openJustifFromGmail() {
+    const avId = new URLSearchParams(location.search).get('gmailjustif');
+    if (!avId) return;
+    let info = null; try { info = JSON.parse(sessionStorage.getItem('fp_gmailjustif') || 'null'); } catch (e) {}
+    const cleanUrl = () => { try { const u = new URL(location.href); u.searchParams.delete('gmailjustif'); history.replaceState(null, '', u.pathname + (u.search || '')); } catch (e) {} };
+    if (!info || info.avId !== avId || !info.messageId || !info.attachmentId) { cleanUrl(); try { alert('Le mail à vérifier n’est plus disponible — rouvre-le depuis « À vérifier ».'); } catch (e) {} return; }
+    try { sessionStorage.removeItem('fp_gmailjustif'); } catch (e) {}
+    const markApplique = () => {
+      try { if (window.FP && FP.supabase) FP.supabase.from('gmail_a_verifier').update({ statut: 'applique', traite_le: new Date().toISOString() }).eq('id', info.avId).then(function () {}, function () {}); } catch (e) {}
+    };
+    const normA = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Dépose le justificatif sur une amende précise (ouvre le tiroir → parcours manuel attachJustif).
+    const applyTo = async (a, file) => {
+      openDrawer(a.id);
+      justifIntent = 'pay';
+      await attachJustif(file);
+      const now = String((data.amendes.find(x => x.id === a.id) || {}).statut || '');
+      if (/pay[eé]e?/i.test(now)) markApplique();   // marqué « traité » SEULEMENT si l'amende est bien passée payée
+    };
+    const run = async () => {
+      let file = null;
+      try {
+        const r = await FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: info.messageId, attachmentId: info.attachmentId, societe: info.societe } });
+        const d = r && r.data; if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || 'PDF indisponible');
+        const bin = atob(d.dataB64); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        file = new File([bytes], info.filename || 'justificatif.pdf', { type: d.mimeType || 'application/pdf' });
+      } catch (e) { try { alert('Impossible de charger le justificatif : ' + (e.message || e)); } catch (_) {} cleanUrl(); return; }
+      cleanUrl();
+      // Amende cible par n° d'avis (si connu) — sinon on fait choisir.
+      let target = null;
+      if (info.numeroAvis) { const n = normA(info.numeroAvis); target = (data.amendes || []).find(x => normA(x.numeroAvis) === n) || null; }
+      if (target) { await applyTo(target, file); return; }
+      let montantPaye = null;
+      try { if (typeof extractJustifInfo === 'function') { const inf = await extractJustifInfo(file); montantPaye = inf && inf.montantPaye; } } catch (e) {}
+      justifPicker(file, montantPaye);
+    };
+    // Fenêtre PP : amendes « à payer » (au bon montant d'abord). Échap/clic fond = ferme (rien n'est enregistré).
+    function justifPicker(file, montantPaye) {
+      const aPayer = (data.amendes || []).filter(a => (FP.estAPayer ? FP.estAPayer(a) : !FP.estPayee(a)));
+      const near = (a) => montantPaye != null && Math.abs((montantDu(a) || 0) - montantPaye) < 1;
+      aPayer.sort((a, b) => (near(b) ? 1 : 0) - (near(a) ? 1 : 0) || String(b.date || '').localeCompare(String(a.date || '')));
+      const ov = document.createElement('div');
+      ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.45)';
+      const rows = aPayer.slice(0, 40).map((a, i) =>
+        '<button type="button" data-i="' + i + '" class="jp-row" style="display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:1px solid var(--fp-border,#e2e8f0);border-radius:10px;padding:8px 10px;background:' + (near(a) ? '#F0FDF4' : 'var(--fp-surface,#fff)') + ';cursor:pointer;color:inherit">'
+        + '<span style="min-width:0"><b>' + FP.esc(a.prenom || '—') + '</b> · ' + FP.esc(a.numeroAvis || '(sans n°)') + '<br><span style="font-size:.75rem;color:var(--fp-muted,#64748b)">' + (a.date ? FP.date(a.date) : '') + (a.motif ? ' · ' + FP.esc(a.motif) : '') + '</span></span>'
+        + '<span style="font-weight:800;white-space:nowrap">' + (montantDu(a) ? FP.euroPrecis(montantDu(a)) : '—') + (near(a) ? ' ✓' : '') + '</span></button>').join('');
+      ov.innerHTML = '<div style="background:var(--fp-surface,#fff);color:var(--fp-text,#0f172a);border-radius:16px;max-width:460px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(15,23,42,.3);padding:18px">'
+        + '<div style="font-weight:800;font-size:1.05rem;margin-bottom:4px">Ce justificatif règle quelle amende ?</div>'
+        + '<div style="font-size:.82rem;color:var(--fp-muted,#64748b);margin-bottom:10px">' + (montantPaye != null ? ('Montant lu : <b>' + FP.euroPrecis(montantPaye) + '</b> — les amendes au même montant sont en vert.') : 'Choisis l’amende réglée par ce justificatif.') + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:7px">' + (rows || '<div style="color:var(--fp-muted,#64748b);font-size:.85rem">Aucune amende « à payer ».</div>') + '</div>'
+        + '<div style="display:flex;justify-content:flex-end;margin-top:14px"><button type="button" class="jp-cancel btn btn-outline text-sm">Annuler</button></div></div>';
+      document.body.appendChild(ov);
+      const close = () => { try { ov.remove(); } catch (e) {} };
+      ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+      ov.querySelector('.jp-cancel').addEventListener('click', close);
+      ov.querySelectorAll('.jp-row').forEach(b => b.addEventListener('click', () => { const a = aPayer[+b.dataset.i]; close(); if (a) applyTo(a, file); }));
+    }
+    if (window.FP && FP.supabase && data && Array.isArray(data.amendes)) run();
+    else document.addEventListener('fp:data-ready', run, { once: true });
+  })();
 </script>
 </body>
 </html>
