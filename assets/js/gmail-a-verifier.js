@@ -35,7 +35,7 @@
   var ACTION_LABEL = {
     facture_saisir: 'Saisir la facture (formulaire de scan)',
     amende_payee: 'Ouvrir le dossier amende (saisie manuelle)',
-    rdv_update: 'Ouvrir le rendez-vous (saisie manuelle)',
+    rdv_update: 'Enregistrer le RDV de la révision',
     sinistre_piece: 'Ouvrir le dossier sinistre (saisie manuelle)',
     a_verifier: 'À qualifier manuellement'
   };
@@ -46,7 +46,7 @@
     switch (it && it.action) {
       case 'facture_saisir': return '🧾 Vérifier la facture';
       case 'amende_payee': return '↗ Ouvrir le dossier amende';
-      case 'rdv_update': return '↗ Ouvrir le rendez-vous';
+      case 'rdv_update': return '🗓️ Enregistrer le RDV';
       case 'sinistre_piece': return '↗ Ouvrir le dossier sinistre';
       default: return '↗ Ouvrir le dossier';
     }
@@ -482,10 +482,60 @@
     }
   };
 
-  // Bouton d'action principal : facture → formulaire de scan ; autres → fiche à finaliser.
+  // Bouton d'action principal : facture → formulaire de scan ; maintenance (plaque connue) → formulaire
+  // « Enregistrer le RDV » de la révision ; autres → ouverture honnête du dossier.
   A.action = function (host, it) {
     if (it.domaine === 'facture') return A.verifierFacture(host, it);
+    if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A.verifierRdv(host, it);
     return A.confirmer(host, it);
+  };
+
+  // --- Extraction PURE date / heure / garage depuis le texte d'une réponse de RDV (testable). ---
+  // Ex. « Rendez-vous pris pour le Lundi 7/12 au garage Hyundai Lomme ». Date au futur proche par défaut.
+  A._moisFr = { janv: 1, fevr: 2, 'févr': 2, mars: 3, avr: 4, mai: 5, juin: 6, juil: 7, aout: 8, 'août': 8, sept: 9, oct: 10, nov: 11, dec: 12, 'déc': 12 };
+  A._mkISO = function (d, m, y) {
+    d = +d; m = +m; if (!(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) return '';
+    if (y) { y = +y; if (y < 100) y += 2000; }
+    else {
+      var now = new Date(); y = now.getFullYear();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var cand = new Date(y, m - 1, d);
+      if (cand < new Date(today.getTime() - 7 * 864e5)) y++;   // date déjà bien passée → année suivante
+    }
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  };
+  A.parseRdvFromText = function (text) {
+    var t = ' ' + String(text == null ? '' : text).replace(/\s+/g, ' ') + ' ';
+    var date = '', heure = '', garage = '';
+    // 1) jj/mm(/aaaa) ou jj.mm
+    var m = t.match(/\b(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?\b/);
+    if (m) date = A._mkISO(m[1], m[2], m[3]);
+    // 2) « 7 décembre » (nom de mois) — prioritaire si trouvé
+    var m2 = t.match(/\b(\d{1,2})\s+(janv|f[ée]vr|mars|avr|mai|juin|juil|ao[ûu]t|sept|oct|nov|d[ée]c)[a-zéû.]*\s*(\d{4})?/i);
+    if (m2) { var key = A._norm(m2[2]).slice(0, 4).replace('fevr', 'fevr'); var mo = A._moisFr[A._norm(m2[2]).slice(0, 4)] || A._moisFr[A._norm(m2[2])]; if (mo) { var iso = A._mkISO(m2[1], mo, m2[3]); if (iso) date = iso; } }
+    // 3) heure « 8h30 », « 14 h », « 9:00 » (laissée vide si absente)
+    var mh = t.match(/\b(\d{1,2})\s*[h:]\s*(\d{2})\b/i) || t.match(/\b(\d{1,2})\s*h\b/i);
+    if (mh) heure = String(mh[1]).padStart(2, '0') + ':' + String(mh[2] || '00').padStart(2, '0');
+    // 4) garage : mots après « garage » (jusqu'à une ponctuation / mot de politesse)
+    var mg = t.match(/garage\s+([^.,;\n]{2,50}?)(?:[.,;\n]|\s+(?:le|pour|cdt|cordialement|merci|bonjour|bien|à|a )|$)/i);
+    if (mg) garage = mg[1].replace(/\s+/g, ' ').trim();
+    return { date: date, heure: heure, garage: garage };
+  };
+
+  // MAINTENANCE : ouvre le formulaire « Enregistrer le RDV » de la révision du véhicule (parcours manuel
+  // existant), prérempli avec la date/garage détectés. Le mail n'est marqué « traité » qu'après enregistrement.
+  A.verifierRdv = function (host, it) {
+    var ref = it.dossier_ref || {};
+    if (!ref.plaque) { err('Aucun véhicule identifié pour ce rendez-vous.'); return; }
+    var det = A.parseRdvFromText(it.extrait || it.objet || '');
+    var payload = {
+      avId: it.id, societe: A.societeDe(it), plaque: ref.plaque,
+      statutRdv: ref.statutRdv || '', date: det.date || '', heure: det.heure || '', garage: det.garage || ''
+    };
+    try { sessionStorage.setItem('fp_gmailrdv', JSON.stringify(payload)); }
+    catch (e) { err('Stockage local indisponible — réessaie.'); return; }
+    try { location.href = 'entretiens.html?gmailrdv=' + encodeURIComponent(it.id); }
+    catch (e) { err('Navigation impossible.'); }
   };
 
   // FACTURE : ouvre le FORMULAIRE de scan manuel (factures.html) avec le PDF d'origine déjà chargé.

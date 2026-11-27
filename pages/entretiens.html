@@ -978,7 +978,8 @@
   // « 🗓️ Enregistrer le RDV » : vraie fenêtre (date + heure + garage + commentaire). La date pose le statut
   //    « RDV confirmé » (FP.revSuivi.setRdv) ET déclenche le rappel automatique la veille (FP.rdvGarage.set).
   //    Bouton « Annuler le RDV » = on retire le RDV (retour au suivi « prévenu »).
-  function enregistrerRdvRevision(vehId) {
+  function enregistrerRdvRevision(vehId, prefill) {
+    prefill = prefill || {};   // {date, heure, garage, note, onDone} — onDone(kind) appelé APRÈS un enregistrement/annulation réussi (ex. marquer un mail Gmail « traité »). Ouvrir/fermer sans enregistrer ne l'appelle pas.
     const v = (data.vehicules || []).find(x => String(x.id) === String(vehId)); if (!v) return;
     const cur = (FP.revSuivi ? FP.revSuivi.get(v) : null) || {};
     const rdvCur = (FP.rdvGarage ? FP.rdvGarage.get(v.id) : null) || {};
@@ -986,16 +987,17 @@
     const annuler = () => {
       try { if (FP.revSuivi) FP.revSuivi.clearRdv(v); if (FP.rdvGarage) FP.rdvGarage.set(v.id, ''); if (FP.toast) FP.toast('RDV annulé'); } catch (e) {}
       renderRevList();
+      if (typeof prefill.onDone === 'function') { try { prefill.onDone('annule'); } catch (e) {} }
     };
     // Conducteur + contact : on propose de le prévenir de la date (coché d'office s'il a un e-mail/tél).
     const ch = (v.chauffeur && v.chauffeur !== '—') ? String(v.chauffeur).trim() : '';
     const cc = (ch && FP.conducteurContact) ? (FP.conducteurContact(ch) || {}) : {};
     const hasContact = !!(cc.email || cc.tel);
     const fields = [
-      { key: 'date', label: 'Date du rendez-vous', type: 'date', value: (cur.rdvDate || (rdvCur.date ? String(rdvCur.date).slice(0, 10) : '')), required: true },
-      { key: 'heure', label: 'Heure (optionnel)', type: 'time', value: (cur.rdvHeure || '') },
-      { key: 'garage', label: 'Garage (optionnel)', type: 'text', value: (cur.rdvGarage || ''), placeholder: 'Nom du garage' },
-      { key: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', value: (cur.rdvNote || ''), placeholder: 'ex. dépose 8h, récup 17h' }
+      { key: 'date', label: 'Date du rendez-vous', type: 'date', value: (prefill.date || cur.rdvDate || (rdvCur.date ? String(rdvCur.date).slice(0, 10) : '')), required: true },
+      { key: 'heure', label: 'Heure (optionnel)', type: 'time', value: (prefill.heure || cur.rdvHeure || '') },
+      { key: 'garage', label: 'Garage (optionnel)', type: 'text', value: (prefill.garage || cur.rdvGarage || ''), placeholder: 'Nom du garage' },
+      { key: 'commentaire', label: 'Commentaire (optionnel)', type: 'textarea', value: (prefill.note || cur.rdvNote || ''), placeholder: 'ex. dépose 8h, récup 17h' }
     ];
     // La case n'apparaît que si un conducteur est affecté (sinon personne à prévenir).
     if (ch) fields.push({ key: 'prevenir', label: '✉️ Prévenir le conducteur de la date', hint: 'Ouvre SMS / WhatsApp / e-mail avec « rendez-vous prévu le … »' + (hasContact ? '' : ' (aucun e-mail/tél connu pour ' + ch + ')'), type: 'checkbox', value: hasContact });
@@ -1018,6 +1020,7 @@
         // Après l'enregistrement : si demandé, on ouvre le composer (3 canaux) avec l'annonce DE LA DATE.
         //   setTimeout = laisse la fenêtre « Enregistrer le RDV » se fermer d'abord (pas de conflit de verrou).
         if (vals.prevenir === true) { setTimeout(() => { try { prevenirRevisionRdv(v, { date: d, heure: vals.heure, garage: vals.garage, note: vals.commentaire }); } catch (e) {} }, 60); }
+        if (typeof prefill.onDone === 'function') { try { prefill.onDone('rdv'); } catch (e) {} }
         return true;
       }
     });
@@ -1401,6 +1404,37 @@
     rebuildVehFilter(); rebuildAnneeFilter();
     renderKPIs(); renderCTList(); renderRevList(); renderPodium(); renderCoutParVeh(); renderTable(); renderCharts();
   });
+
+  // ===== Enregistrement d'un RDV de révision depuis « À vérifier » (Gmail) : ?gmailrdv=<avId> =====
+  // La réponse du conducteur (« RDV pris le 7/12 au garage … ») ouvre DIRECTEMENT le formulaire
+  // « Enregistrer le RDV » de la révision du véhicule (MÊME parcours manuel), prérempli avec la date/garage
+  // détectés. Le mail n'est marqué « traité » (applique) qu'APRÈS un enregistrement/annulation réussi ;
+  // ouvrir puis fermer sans valider le laisse « à vérifier ». Un RDV pris ne déclenche jamais « Révision faite ».
+  (function openRdvFromGmail() {
+    const avId = new URLSearchParams(location.search).get('gmailrdv');
+    if (!avId) return;
+    let info = null; try { info = JSON.parse(sessionStorage.getItem('fp_gmailrdv') || 'null'); } catch (e) {}
+    const cleanUrl = () => { try { const u = new URL(location.href); u.searchParams.delete('gmailrdv'); history.replaceState(null, '', u.pathname + (u.search || '')); } catch (e) {} };
+    if (!info || info.avId !== avId || !info.plaque) { cleanUrl(); return; }
+    try { sessionStorage.removeItem('fp_gmailrdv'); } catch (e) {}
+    const markApplique = () => {
+      try { if (window.FP && FP.supabase) FP.supabase.from('gmail_a_verifier').update({ statut: 'applique', traite_le: new Date().toISOString() }).eq('id', info.avId).then(function () {}, function () {}); } catch (e) {}
+      if (FP.toast) FP.toast('✓ RDV enregistré — mail marqué traité.');
+    };
+    const norm = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const run = () => {
+      const v = (window.FP && FP.vehByImmat) ? FP.vehByImmat(info.plaque)
+        : (data.vehicules || []).find(x => x && norm(x.immat) === norm(info.plaque));
+      cleanUrl();
+      if (!v) { try { alert('Véhicule ' + info.plaque + ' introuvable dans cette société — impossible d’ouvrir le RDV.'); } catch (e) {} return; }
+      // Ouvre le formulaire « Enregistrer le RDV » prérempli (parcours manuel). Annulation : l'utilisateur
+      // clique « Annuler le RDV ». Dans les deux cas, le mail n'est marqué traité qu'après l'action (onDone).
+      try { enregistrerRdvRevision(v.id, { date: info.date || '', heure: info.heure || '', garage: info.garage || '', onDone: markApplique }); }
+      catch (e) { try { alert('Impossible d’ouvrir le formulaire de RDV.'); } catch (_) {} }
+    };
+    if (window.FP && data && Array.isArray(data.vehicules) && data.vehicules.length) run();
+    else document.addEventListener('fp:data-ready', run, { once: true });
+  })();
 </script>
 </body>
 </html>
