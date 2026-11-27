@@ -27,7 +27,7 @@ const amende = { id: 'AV-m6', message_id: 'm6', from_email: 'noreply@antai.gouv.
 const li = A.listItemHtml(amende, 'AV-m6');
 t('item: domaine + objet + sélection + pièces', /🅿️ Amende/.test(li) && /Paiement avis/.test(li) && /gav-item sel/.test(li) && /1 pièce/.test(li));
 const det = A.detailHtml(amende);
-t('détail: expéditeur + action + avis + pièce ouvrable + 3 actions', /antai\.gouv\.fr/.test(det) && /Ouvrir le dossier amende/.test(det) && /avis 2612744314620/.test(det) && /data-piece="0"/.test(det) && /gav-go/.test(det) && /gav-correct/.test(det) && /gav-ignore/.test(det));
+t('détail: expéditeur + action + avis + pièce ouvrable + 3 actions', /antai\.gouv\.fr/.test(det) && /Déposer le justificatif/.test(det) && /avis 2612744314620/.test(det) && /data-piece="0"/.test(det) && /gav-go/.test(det) && /gav-correct/.test(det) && /gav-ignore/.test(det));
 const traite = Object.assign({}, amende, { statut: 'applique' });
 t('détail traité: pas de bouton action + mention « traité »', !/gav-go/.test(A.detailHtml(traite)) && /Déjà traité/.test(A.detailHtml(traite)));
 t('XSS échappé (item + détail)', /&lt;img/.test(A.listItemHtml({ id: 'x', from_email: '<img src=x onerror=alert(1)>', domaine: 'inconnu', action: 'a_verifier', statut: 'a_verifier', dossier_ref: {} })) && /&lt;img/.test(A.detailHtml({ id: 'x', from_email: '<img src=x onerror=alert(1)>', domaine: 'inconnu', action: 'a_verifier', statut: 'a_verifier', dossier_ref: {}, pieces: [] })));
@@ -36,7 +36,7 @@ t('XSS échappé (item + détail)', /&lt;img/.test(A.listItemHtml({ id: 'x', fro
 // Seule la FACTURE écrit en base ; les autres domaines OUVRENT le dossier (saisie manuelle), aucun « Enregistrer/Valider » menteur.
 t('bouton facture → « Vérifier la facture »', /Vérifier la facture/.test(A.actionBtnLabel({ action: 'facture_saisir' })));
 t('bouton rdv → « Enregistrer le RDV » (ouvre le formulaire de la révision)', /Enregistrer le RDV/.test(A.actionBtnLabel({ action: 'rdv_update' })));
-t('bouton amende → « Ouvrir le dossier amende » (pas « Enregistrer »)', /Ouvrir le dossier amende/.test(A.actionBtnLabel({ action: 'amende_payee' })) && !/Enregistrer/.test(A.actionBtnLabel({ action: 'amende_payee' })));
+t('bouton amende → « Déposer le justificatif » (dépose le justif → payée)', /Déposer le justificatif/.test(A.actionBtnLabel({ action: 'amende_payee' })));
 t('bouton sinistre → « Ouvrir le dossier sinistre » (pas « Enregistrer la pièce »)', /Ouvrir le dossier sinistre/.test(A.actionBtnLabel({ action: 'sinistre_piece' })) && !/Enregistrer/.test(A.actionBtnLabel({ action: 'sinistre_piece' })));
 t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.test(A.detailHtml({ id: 'f1', domaine: 'facture', action: 'facture_saisir', statut: 'a_verifier', dossier_ref: { plaque: 'HL724CD' }, pieces: [{ filename: 'f.pdf', attachmentId: 'Z' }] })));
 // Statut « ouvert » (non facture, finalisation manuelle) : dit « à finaliser », JAMAIS « traité », et garde un bouton d'ouverture.

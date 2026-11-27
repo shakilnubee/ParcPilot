@@ -34,7 +34,7 @@
   // Libellé DÉTAILLÉ de l'action (ligne « Action : … » du détail).
   var ACTION_LABEL = {
     facture_saisir: 'Saisir la facture (formulaire de scan)',
-    amende_payee: 'Ouvrir le dossier amende (saisie manuelle)',
+    amende_payee: 'Déposer le justificatif → amende payée',
     rdv_update: 'Enregistrer le RDV de la révision',
     sinistre_piece: 'Ouvrir le dossier sinistre (saisie manuelle)',
     a_verifier: 'À qualifier manuellement'
@@ -45,7 +45,7 @@
   A.actionBtnLabel = function (it) {
     switch (it && it.action) {
       case 'facture_saisir': return '🧾 Vérifier la facture';
-      case 'amende_payee': return '↗ Ouvrir le dossier amende';
+      case 'amende_payee': return '🧾 Déposer le justificatif';
       case 'rdv_update': return '🗓️ Enregistrer le RDV';
       case 'sinistre_piece': return '↗ Ouvrir le dossier sinistre';
       default: return '↗ Ouvrir le dossier';
@@ -521,7 +521,26 @@
   A.action = function (host, it) {
     if (it.domaine === 'facture') return A.verifierFacture(host, it);
     if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A.verifierRdv(host, it);
+    if (it.domaine === 'amende' && it.action === 'amende_payee') return A.verifierAmendeJustif(host, it);
     return A.confirmer(host, it);
+  };
+
+  // AMENDE (justificatif de paiement) : ouvre amendes.html avec le PDF du justificatif + l'amende cible
+  // (par n° d'avis si connu, sinon on fait CHOISIR l'amende réglée) → parcours MANUEL existant
+  // (attachJustif → statut « payée », confirmation du montant si écart). Le mail n'est marqué « traité »
+  // qu'APRÈS que l'amende passe réellement « payée ».
+  A.verifierAmendeJustif = function (host, it) {
+    var cls = A.classerPieces(it);
+    if (cls.aucun) { err('Aucun justificatif PDF joint à ce mail.'); return; }
+    if (cls.factureIdx == null) { err('Plusieurs documents sont joints : choisis d’abord le justificatif (« Importer celle-ci »).'); return; }
+    var pj = (it.pieces || [])[cls.factureIdx];
+    if (!pj || !pj.attachmentId || !it.message_id) { err('Pièce jointe indisponible.'); return; }
+    var ref = it.dossier_ref || {};
+    var payload = { avId: it.id, societe: A.societeDe(it), messageId: it.message_id, attachmentId: pj.attachmentId, filename: pj.filename || 'justificatif.pdf', numeroAvis: ref.numeroAvis || '' };
+    try { sessionStorage.setItem('fp_gmailjustif', JSON.stringify(payload)); }
+    catch (e) { err('Stockage local indisponible — réessaie.'); return; }
+    try { location.href = 'amendes.html?gmailjustif=' + encodeURIComponent(it.id); }
+    catch (e) { err('Navigation impossible.'); }
   };
 
   // --- Extraction PURE date / heure / garage depuis le texte d'une réponse de RDV (testable). ---
