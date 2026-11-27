@@ -149,6 +149,7 @@
     { k:'conducteurs', label:'Conducteurs' },
     { k:'amendes',     label:'Amendes' },
     { k:'factures',    label:'Factures' },
+    { k:'verif',       label:'Suivi & alertes' },
     { k:'stats',       label:'Statistiques' }
   ];
 
@@ -229,6 +230,57 @@
           return '<div class="row"><div class="strong">'+f[0]+'</div><div class="strong" style="color:var(--accent)">'+f[1]+'</div></div>';
         }).join('')),
       say:"Toutes vos factures sont centralisées et lues automatiquement : le montant, la TVA et le fournisseur sont détectés au scan, et rattachés au bon véhicule."
+    },
+    { // Gmail — facture dans « À vérifier » (parcours vérifié)
+      nav:'verif',
+      html:screen('verif',
+        '<div class="c-title">Suivi &amp; alertes — À vérifier</div><div class="c-sub">Vos e-mails de flotte, prêts à valider</div>'+
+        '<div class="row" style="align-items:flex-start;gap:12px">'+
+          '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(145deg,var(--accent-2),var(--accent));color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none">✉️</div>'+
+          '<div style="flex:1;min-width:0"><div class="strong">Facture — Garage Démo</div><div class="muted">Pièce jointe : facture-2026-048.pdf · <span class="plate" style="font-size:11px">AA-123-BC</span></div></div>'+
+          chip('à vérifier','#FEF3C7','#92400E')+
+        '</div>'+
+        '<div style="background:#fff;border:1px solid #EAEFF5;border-radius:12px;padding:13px;margin-top:9px">'+
+          '<div class="k-l" style="color:#94A3B8">Informations proposées — à contrôler</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;margin-top:9px;font-size:12.5px">'+
+            '<div><span class="muted">Fournisseur</span> · <span class="strong">Garage Démo</span></div>'+
+            '<div><span class="muted">N° facture</span> · <span class="strong">2026-048</span></div>'+
+            '<div><span class="muted">HT</span> · <span class="strong">350,00 €</span></div>'+
+            '<div><span class="muted">TVA</span> · <span class="strong">70,00 €</span></div>'+
+            '<div><span class="muted">TTC</span> · <span class="strong" style="color:var(--accent)">420,00 €</span></div>'+
+            '<div><span class="muted">Véhicule</span> · <span class="strong">AA-123-BC</span></div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">'+
+            '<span style="background:linear-gradient(145deg,var(--accent-2),var(--accent));color:#fff;font-weight:800;font-size:12.5px;padding:8px 14px;border-radius:10px">✓ Valider l\'import</span>'+
+            '<span class="muted">PDF d\'origine conservé dans le dossier</span>'+
+          '</div>'+
+        '</div>'),
+      say:"Vos e-mails de flotte arrivent dans « À vérifier ». Pour une facture, le PDF d'origine s'ouvre déjà chargé : Parc Pilot propose le fournisseur, les montants et le véhicule. Vous contrôlez, vous validez, et la facture est enregistrée dans le bon dossier, avec son PDF d'origine."
+    },
+    { // Gmail — réponse de révision → formulaire RDV prérempli (parcours vérifié)
+      nav:'verif',
+      html:screen('verif',
+        '<div class="c-title">Une réponse Gmail, au bon rendez-vous</div><div class="c-sub">La réponse du conducteur rattachée à la demande d\'origine</div>'+
+        '<div class="row" style="align-items:flex-start;gap:12px">'+
+          '<div style="width:34px;height:34px;border-radius:9px;background:#0B1220;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none">↩️</div>'+
+          '<div style="flex:1;min-width:0"><div class="strong">Re : Révision à planifier — AA-123-BC</div><div class="muted">« … d\'accord pour le 14 mars à 9h30 au Garage Démo. »</div></div>'+
+          chip('rendez-vous','#DBEAFE','#1E40AF')+
+        '</div>'+
+        '<div style="background:#fff;border:1px solid #EAEFF5;border-radius:12px;padding:13px;margin-top:9px">'+
+          '<div class="k-l" style="color:#94A3B8">Formulaire de rendez-vous — prérempli</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;margin-top:9px;font-size:12.5px">'+
+            '<div><span class="muted">Véhicule</span> · <span class="strong">AA-123-BC</span></div>'+
+            '<div><span class="muted">Objet</span> · <span class="strong">Révision</span></div>'+
+            '<div><span class="muted">Date</span> · <span class="strong">14/03/2026</span></div>'+
+            '<div><span class="muted">Heure</span> · <span class="strong">09:30</span></div>'+
+            '<div style="grid-column:1 / -1"><span class="muted">Garage</span> · <span class="strong">Garage Démo</span></div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">'+
+            '<span style="background:linear-gradient(145deg,var(--accent-2),var(--accent));color:#fff;font-weight:800;font-size:12.5px;padding:8px 14px;border-radius:10px">✓ Confirmer le rendez-vous</span>'+
+            '<span class="muted">Le gestionnaire contrôle puis confirme</span>'+
+          '</div>'+
+        '</div>'),
+      say:"Et quand un conducteur répond à une relance de révision, Parc Pilot rattache la réponse à la demande d'origine et préremplit la date, l'heure et le garage dans le formulaire de rendez-vous. Le gestionnaire contrôle les champs et confirme."
     },
     { // 6 — statistiques
       nav:'stats',
