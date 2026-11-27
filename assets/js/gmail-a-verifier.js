@@ -36,7 +36,7 @@
     facture_saisir: 'Saisir la facture (formulaire de scan)',
     amende_payee: 'Déposer le justificatif → amende payée',
     rdv_update: 'Enregistrer le RDV de la révision',
-    sinistre_piece: 'Ouvrir le dossier sinistre (saisie manuelle)',
+    sinistre_piece: 'Rattacher la pièce au dossier sinistre',
     a_verifier: 'À qualifier manuellement'
   };
   A.DOMAINE_LABEL = DOMAINE_LABEL; A.ACTION_LABEL = ACTION_LABEL;
@@ -48,7 +48,7 @@
       case 'facture_saisir': return '🧾 Vérifier la facture';
       case 'amende_payee': return '🧾 Déposer le justificatif';
       case 'rdv_update': return '🗓️ Enregistrer le RDV';
-      case 'sinistre_piece': return '↗ Ouvrir le dossier sinistre';
+      case 'sinistre_piece': return '📎 Rattacher la pièce au sinistre';
       default: return '↗ Ouvrir le dossier';
     }
   };
@@ -523,7 +523,24 @@
     if (it.domaine === 'facture') return A.verifierFacture(host, it);
     if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A._estCT(it) ? A.verifierCT(host, it) : A.verifierRdv(host, it);
     if (it.domaine === 'amende' && it.action === 'amende_payee') return A.verifierAmendeJustif(host, it);
+    if (it.domaine === 'sinistre') return A.verifierSinistre(host, it);
     return A.confirmer(host, it);
+  };
+
+  // SINISTRE : ouvre sinistres.html avec la pièce (courrier/PEC/expertise) → rattachement au dossier
+  // (par clé/plaque, choix si plusieurs) via le parcours MANUEL ingestCourrier (upload + fenêtre de
+  // VALIDATION des infos lues). AUCUN versement n'est créé. Sans pièce → ouverture honnête du dossier.
+  A.verifierSinistre = function (host, it) {
+    var ref = it.dossier_ref || {};
+    var cls = A.classerPieces(it);
+    if (cls.aucun || cls.factureIdx == null) return A.confirmer(host, it);
+    var pj = (it.pieces || [])[cls.factureIdx];
+    if (!pj || !pj.attachmentId || !it.message_id) return A.confirmer(host, it);
+    var payload = { avId: it.id, societe: A.societeDe(it), plaque: ref.plaque || '', sinistreKey: ref.sinistreKey || '', messageId: it.message_id, attachmentId: pj.attachmentId, filename: pj.filename || 'courrier-assureur.pdf' };
+    try { sessionStorage.setItem('fp_gmailsin', JSON.stringify(payload)); }
+    catch (e) { err('Stockage local indisponible — réessaie.'); return; }
+    try { location.href = 'sinistres.html?gmailsin=' + encodeURIComponent(it.id); }
+    catch (e) { err('Navigation impossible.'); }
   };
 
   // Un mail de maintenance qui parle de CONTRÔLE TECHNIQUE (PV / certificat) → parcours CT, pas RDV.
