@@ -221,5 +221,44 @@ r = T.classify({ id: 'f-garage', from: 'compta@garage-x.fr', subject: 'Facture r
   snippet: 'Facture de réparation effectuée au garage, détails en pièce jointe.', hasPdf: true, pdfs: [{ filename: 'facture-reparation.pdf', attachmentId: 'G1' }] }, ctx);
 check('F7. Garage (contexte auto ; plaque dans le PDF) → retenu (à préciser)', r.action !== 'ignore', r);
 
+// ========================================================================================
+//  FAUX POSITIF « factures orange » (27/11/2026) — un expéditeur INTERNE connu NE SUFFIT PAS
+//  Cause réelle (prod) : les ~50 conducteurs PXP partagent le domaine @projectxparis.fr → tout
+//  expéditeur interne est « connu » ; « facture » + PDF + expéditeur connu passait la garde.
+// ========================================================================================
+const ctxInterne = { ...ctx, knownSenders: ['projectxparis.fr', 'garage-dupont.fr'] };
+
+// O1) Le cas EXACT : interne (conducteur) + « facture » + PDF, AUCUN contexte auto → ignore
+r = T.classify({ id: 'o-orange', from: 'Frederic BEUN <frederic.beun@projectxparis.fr>', fromEmail: 'frederic.beun@projectxparis.fr',
+  subject: 'factures orange', snippet: 'il manque beaucoup de factures orange', bodyText: 'il manque beaucoup de factures orange -- Frederic BEUN Directeur Administratif',
+  hasPdf: true, pdfs: [{ filename: 'orange.pdf', attachmentId: 'O1' }] }, ctxInterne);
+check('O1. « factures orange » (interne connu, sans contexte auto) → ignore', r.action === 'ignore' && r.domaine !== 'facture', r);
+
+// O2) GÉNÉRAL (pas juste « Orange ») : interne + « facture » + PDF, autre sujet hors flotte → ignore
+r = T.classify({ id: 'o-tel', from: 'compta@projectxparis.fr', fromEmail: 'compta@projectxparis.fr',
+  subject: 'factures téléphonie', snippet: 'Les factures de téléphonie du trimestre.', hasPdf: true, pdfs: [{ filename: 'telephonie.pdf', attachmentId: 'O2' }] }, ctxInterne);
+check('O2. interne + « facture » + PDF (hors flotte, cas général) → ignore', r.action === 'ignore', r);
+
+// O3) Même mail SOUS le libellé « 09. Voiture » (force) : ne devient PAS une facture à saisir (PDF présélectionné)
+r = T.classify({ id: 'o-orange-lbl', from: 'frederic.beun@projectxparis.fr', fromEmail: 'frederic.beun@projectxparis.fr',
+  subject: 'factures orange', snippet: 'il manque beaucoup de factures orange', hasPdf: true, pdfs: [{ filename: 'orange.pdf', attachmentId: 'O3' }],
+  labels: ['Label_09', 'INBOX'] }, { ...ctxInterne, watchLabelId: 'Label_09' });
+check('O3. « factures orange » SOUS le libellé → pas de facture_saisir (nature à préciser)', r.domaine !== 'facture' && r.action !== 'facture_saisir', r);
+
+// O4) RÉGRESSION — vraie facture de garage CONNU + contexte véhicule (plaque seulement dans le PDF) → retenu facture
+r = T.classify({ id: 'o-garage', from: 'Garage Dupont <compta@garage-dupont.fr>', fromEmail: 'compta@garage-dupont.fr',
+  subject: 'Facture', snippet: 'Facture de réparation de votre véhicule effectuée au garage.', hasPdf: true, pdfs: [{ filename: 'facture.pdf', attachmentId: 'O4' }] }, ctxInterne);
+check('O4. garage connu + contexte véhicule (plaque dans le PDF) → retenu facture', r.domaine === 'facture' && r.action !== 'ignore', r);
+
+// O5) RÉGRESSION — DKV sans plaque → retenu facture (société), « véhicule à préciser »
+r = T.classify({ id: 'o-dkv', from: 'admin@projectxparis.fr', fromEmail: 'admin@projectxparis.fr',
+  subject: 'Facture DKV — cartes carburant', snippet: 'Relevé DKV des cartes carburant de la flotte.', hasPdf: true, pdfs: [{ filename: 'DKV.pdf', attachmentId: 'O5' }] }, ctxInterne);
+check('O5. DKV (carburant) sans plaque → retenu facture', r.domaine === 'facture' && r.action !== 'ignore', r);
+
+// O6) RÉGRESSION — réponse à une relance de révision (fil PP entretien) → retenu maintenance
+r = T.classify({ id: 'o-rev', from: 'jean@projectxparis.fr', fromEmail: 'jean@projectxparis.fr', subject: 'Re: Révision à planifier',
+  snippet: "D'accord pour le 14 mars à 9h30 au garage.", headers: { references: '<pp-entretien-HL724CD@parc-pilot.fr>' } }, ctxInterne);
+check('O6. réponse à une relance de révision (fil PP) → retenu maintenance', r.domaine === 'maintenance' && r.action !== 'ignore', r);
+
 console.log(`\n${ok}/${ok + ko} OK`);
 process.exit(ko ? 1 : 0);

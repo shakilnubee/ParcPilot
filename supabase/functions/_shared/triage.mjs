@@ -161,50 +161,58 @@ T.classify = (msg, ctx) => {
   const wId = ctx.watchLabelId ? String(ctx.watchLabelId).toUpperCase() : '';
   const force = !!(msg.viaLibelle || (wId && cats.indexOf(wId) !== -1) ||
     (msg.labels && msg.labels.some((l) => /parc[\s_-]?pilot/i.test(String(l)))));
+  // ---- Signaux de LIEN FLOTTE (source unique de la décision « retenir / écarter ») ----
+  const RE_FACT = T.RE_FACTURE.test(texte);
+  const autoCtx = T.RE_AUTO_CONTEXT.test(texte);
+  const fleetSpec = T.RE_FLOTTE_SPEC.test(texte) || T.RE_IMMAT_FORMAT.test(texte) || T.RE_CARB_PEAGE.test(texte);
+  const actionTheme = T.RE_MAINT.test(texte) || T.RE_SINISTRE.test(texte) || T.RE_AMENDE.test(texte);
+  const senderKnown = !!(ctx.knownSenders && msg.fromEmail && T.senderConnu(msg.fromEmail, ctx.knownSenders));
   const refFlotteForte = ancres.length || numeroAvis || plaques.length;
-  if (!force && !refFlotteForte && T.RE_HORSFLOTTE.test(texte) &&
-      !T.RE_AMENDE.test(texte) && !T.RE_MAINT.test(texte) && !T.RE_SINISTRE.test(texte) && !T.RE_FACTURE.test(texte)) {
+  const lienFlotteFort = !!(refFlotteForte || fleetSpec);
+  // ⚠️ RÈGLE GÉNÉRALE (faux positif « factures orange », 27/11/2026) : « facture » + PDF + expéditeur
+  //  INTERNE ne suffisent PAS. Le domaine interne (ex. @projectxparis.fr) est partagé par ~50 conducteurs
+  //  → un « expéditeur connu » ne compte QUE corroboré par du contexte auto / un terme flotte, jamais seul.
+  //  Un lien flotte est établi par : une référence FORTE (fil PP, n° d'avis, plaque reconnue, plaque format
+  //  SIV, terme spécifique auto, carburant/péage) ; OU du contexte auto corroboré par un thème métier
+  //  (facture/maintenance/sinistre/amende) ; OU un expéditeur connu corroboré de la même façon.
+  const lienFlotte = lienFlotteFort
+    || (autoCtx && (RE_FACT || actionTheme))
+    || (senderKnown && (autoCtx || fleetSpec || actionTheme));
+
+  // RH / newsletter / promo clairement hors flotte → écarté MÊME avec le libellé (tant qu'aucun lien fort).
+  if (!lienFlotteFort && T.RE_HORSFLOTTE.test(texte) &&
+      !T.RE_AMENDE.test(texte) && !T.RE_MAINT.test(texte) && !T.RE_SINISTRE.test(texte) && !RE_FACT) {
     return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false, motif: 'RH / hors flotte' });
   }
 
   // ====================================================================================
   //  GARDE « LIEN FLOTTE FIABLE » (avant toute classification par mot-clé, avant toute IA)
   // ------------------------------------------------------------------------------------
-  //  Un mail de « Principale » n'est RETENU que s'il a un indice FIABLE de lien avec la flotte
-  //  (plaque reconnue, n° d'avis connu, fil PP, OU libellé de revue manuelle), OU PLUSIEURS indices
-  //  automobiles COHÉRENTS. Un simple mot générique (« maintenance », « contrôle », « intervention »,
-  //  « facture ») ne suffit JAMAIS seul → cela écarte les mails de bâtiment / commission de sécurité /
-  //  informatique et les newsletters « réparation/garantie » qui remontaient à tort en maintenance.
-  //  Le libellé surveillé (force) reste un signal de revue manuelle et saute cette garde.
-  if (!force && !refFlotteForte) {
-    // 1) Exclusion dure : bâtiment / commission de sécurité / informatique (sans aucun indice flotte).
+  //  Un mail n'est RETENU (ni entrée créée, ni PDF présélectionné) que si un LIEN FLOTTE fiable est
+  //  établi (voir `lienFlotte`). Un simple mot générique (« facture », « maintenance »…), un PDF, un nom
+  //  de société OU un expéditeur interne ne suffisent JAMAIS → écarte Babilou / SCI / restaurant /
+  //  « factures orange » et les mails bâtiment / commission de sécurité / informatique. Le libellé
+  //  surveillé (force) SOUMET le mail au tri mais ne crée PAS d'entrée actionnable sans lien flotte
+  //  (il retombe en « nature à préciser », cf. bas de fonction) ; un mail CLAIREMENT hors flotte reste
+  //  écarté même sous le libellé (exclusions dures ci-dessous).
+  if (!lienFlotteFort) {
+    // Bâtiment / commission de sécurité / informatique → écarté, même sous le libellé.
     if (T.RE_BATIMENT_IT.test(texte)) {
       return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false,
         motif: 'Bâtiment / commission de sécurité / informatique — hors flotte' });
     }
-    // 1bis) Exclusion dure : facture d'ÉLECTRICITÉ / gaz / boutique (local, magasin) SANS indice
-    //       carburant/péage/recharge → hors flotte (ex. TotalEnergies électricité d'une boutique).
+    // Facture d'ÉLECTRICITÉ / gaz / boutique (local, magasin) sans carburant/péage → écarté, même libellé.
     if (T.RE_ELEC_BOUTIQUE.test(texte) && !T.RE_CARB_PEAGE.test(texte) && !T.RE_FLOTTE_SPEC.test(texte)) {
       return out({ domaine: 'horsflotte', action: 'ignore', confidence: 'haute', besoinIA: false,
         motif: 'Facture électricité / gaz / boutique (hors carburant-péage) — hors flotte' });
     }
-    // 2) Score d'indices automobiles. Indice FORT (2) : terme SPÉCIFIQUE auto, plaque au format SIV,
-    //    fournisseur/produit CARBURANT·PÉAGE·RECHARGE, expéditeur connu de la société. Faible (1) : contexte
-    //    auto, chaque famille de mot GÉNÉRIQUE. ⚠️ Un PDF nommé « Facture » ne compte PLUS (il retenait à tort
-    //    Babilou / SCI / restaurant : « facture » + PDF + nom de société ne suffisent pas). Seuil : 2.
-    let score = 0;
-    if (T.RE_FLOTTE_SPEC.test(texte)) score += 2;
-    if (T.RE_IMMAT_FORMAT.test(texte)) score += 2;
-    if (T.RE_CARB_PEAGE.test(texte)) score += 2;
-    if (ctx.knownSenders && msg.fromEmail && T.senderConnu(msg.fromEmail, ctx.knownSenders)) score += 2;
-    if (T.RE_AUTO_CONTEXT.test(texte)) score += 1;
-    T.MOTS_GENERIQUES.forEach((re) => { if (re.test(texte)) score += 1; });
-    if (score < 2) {
+    // Pas de lien flotte établi ET pas de libellé de revue → écarté (règle GÉNÉRALE, pas une liste de mots).
+    if (!force && !lienFlotte) {
       return out({ domaine: 'inconnu', action: 'ignore', confidence: 'faible', besoinIA: false,
-        motif: 'Pas d’indice flotte fiable (mot générique seul) — écarté' });
+        motif: 'Pas de lien flotte fiable (mot générique / expéditeur interne seul) — écarté' });
     }
-    // Retenu : indice automobile présent mais véhicule/dossier non identifié → « À vérifier » + raison
-    // (les branches ci-dessous proposent le meilleur domaine, toujours bloqué/à vérifier sans plaque).
+    // Ici : soit un lien flotte (faible) est établi, soit le libellé de revue force la soumission → on
+    //  poursuit vers les branches, TOUJOURS « à vérifier » (jamais d'action auto sans lien fort).
   }
 
   if (ancres.length) {
@@ -236,7 +244,7 @@ T.classify = (msg, ctx) => {
   // manuel (lecture IA du PDF + contrôle HT+TVA=TTC + anti-doublon FP.dupe à l'enregistrement).
   // Une plaque reconnue PROPOSE le véhicule ; sinon il reste à choisir dans le formulaire. L'IA ne
   // tourne PAS ici (triage = règles pures) : elle lira le PDF au moment de la saisie.
-  if (T.RE_FACTURE.test(texte) && (hasPdf || plaques.length)) {
+  if (RE_FACT && lienFlotte && (hasPdf || plaques.length)) {
     const p1 = plaques.length === 1;
     return out({ domaine: 'facture', action: 'facture_saisir', refs: { plaque: plaques[0] || null },
       confidence: p1 ? 'moyenne' : 'faible', besoinIA: false, bloque: true,
