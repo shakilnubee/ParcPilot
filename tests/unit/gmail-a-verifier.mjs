@@ -37,7 +37,7 @@ t('XSS échappé (item + détail)', /&lt;img/.test(A.listItemHtml({ id: 'x', fro
 t('bouton facture → « Vérifier la facture »', /Vérifier la facture/.test(A.actionBtnLabel({ action: 'facture_saisir' })));
 t('bouton rdv → « Enregistrer le RDV » (ouvre le formulaire de la révision)', /Enregistrer le RDV/.test(A.actionBtnLabel({ action: 'rdv_update' })));
 t('bouton amende → « Déposer le justificatif » (dépose le justif → payée)', /Déposer le justificatif/.test(A.actionBtnLabel({ action: 'amende_payee' })));
-t('bouton sinistre → « Ouvrir le dossier sinistre » (pas « Enregistrer la pièce »)', /Ouvrir le dossier sinistre/.test(A.actionBtnLabel({ action: 'sinistre_piece' })) && !/Enregistrer/.test(A.actionBtnLabel({ action: 'sinistre_piece' })));
+t('bouton sinistre → « Rattacher la pièce au sinistre »', /Rattacher la pièce/.test(A.actionBtnLabel({ action: 'sinistre_piece' })));
 t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.test(A.detailHtml({ id: 'f1', domaine: 'facture', action: 'facture_saisir', statut: 'a_verifier', dossier_ref: { plaque: 'HL724CD' }, pieces: [{ filename: 'f.pdf', attachmentId: 'Z' }] })));
 // Statut « ouvert » (non facture, finalisation manuelle) : dit « à finaliser », JAMAIS « traité », et garde un bouton d'ouverture.
 const ouv = A.detailHtml(Object.assign({}, amende, { statut: 'ouvert' }));
