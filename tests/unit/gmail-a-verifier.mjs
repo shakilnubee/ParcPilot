@@ -43,6 +43,14 @@ t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.t
 const ouv = A.detailHtml(Object.assign({}, amende, { statut: 'ouvert' }));
 t('détail « ouvert » : « à finaliser » + pas « Déjà traité » + bouton rouvrir', /à finaliser/.test(ouv) && !/Déjà traité/.test(ouv) && /gav-go/.test(ouv) && /gav-retirer/.test(ouv));
 
+// --- Changer le statut : transitions RÉELLEMENT possibles (jamais « appliqué »/« ouvert » à la main) ---
+t('statut a_verifier → aucune transition de menu (actions principales suffisent)', A.statutsPossibles({ statut: 'a_verifier' }).length === 0);
+t('statut ouvert → remettre à vérifier + ignorer', (function(){ const o = A.statutsPossibles({ statut: 'ouvert' }).map(x => x.to); return o.includes('a_verifier') && o.includes('ignore'); })());
+t('statut ignore → remettre à vérifier (pas « ignorer » à nouveau)', (function(){ const o = A.statutsPossibles({ statut: 'ignore' }).map(x => x.to); return o.includes('a_verifier') && !o.includes('ignore'); })());
+t('statut applique → remettre à vérifier ; jamais « applique »/« ouvert » proposé', (function(){ const o = A.statutsPossibles({ statut: 'applique' }).map(x => x.to); return o.includes('a_verifier') && !o.includes('applique') && !o.includes('ouvert'); })());
+t('statut retire → restaurer uniquement', (function(){ const o = A.statutsPossibles({ statut: 'retire' }).map(x => x.to); return o.length === 1 && o[0] === 'restore'; })());
+t('détail ouvert : menu « Changer le statut » + remettre à vérifier', (function(){ const d = A.detailHtml(Object.assign({}, amende, { statut: 'ouvert' })); return /Changer le statut/.test(d) && /gav-setstatut/.test(d) && /data-to="a_verifier"/.test(d); })());
+
 // --- RDV maintenance : extraction date / heure / garage depuis la réponse (parcours Entretien) ---
 const rdv1 = A.parseRdvFromText('Bonjour Shakil, Rendez-vous pris pour le Lundi 7/12 au garage Hyundai Lomme valauto. Cdt Ahmed');
 t('RDV : jour/mois 7/12 → …-12-07', /-12-07$/.test(rdv1.date), rdv1.date);

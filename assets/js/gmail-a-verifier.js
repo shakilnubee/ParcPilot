@@ -65,6 +65,25 @@
     return bits.join(' · ') || '— (à préciser)';
   };
 
+  // Changements de statut RÉELLEMENT possibles pour un mail (PUR, testable). On ne propose JAMAIS de poser
+  // « traité » / « appliqué » à la main : ces statuts ne viennent que d'une action métier (RDV validé,
+  // facture importée). On propose seulement : remettre à vérifier, ignorer (sortir de la file), restaurer.
+  A.statutsPossibles = function (it) {
+    var s = (it && it.statut) || 'a_verifier';
+    if (s === 'a_verifier') return [];                                   // ses actions principales suffisent
+    if (s === 'retire') return [{ to: 'restore', label: '↩ Restaurer dans la liste' }];
+    var out = [{ to: 'a_verifier', label: '↩ Remettre à vérifier' }];    // ouvert / ignore / corrige / confirme / applique
+    if (s !== 'ignore') out.push({ to: 'ignore', label: '✕ Ignorer' });
+    return out;
+  };
+  A._statutMenuHtml = function (it) {
+    var opts = A.statutsPossibles(it);
+    if (!opts.length) return '';
+    return '<div class="gav-d-statut"><span class="gav-muted" style="font-size:.76rem;font-weight:700">Changer le statut :</span>'
+      + opts.map(function (o) { return ' <button type="button" class="btn btn-outline gav-setstatut" data-to="' + esc(o.to) + '" style="font-size:.76rem">' + esc(o.label) + '</button>'; }).join('')
+      + '</div>';
+  };
+
   // Véhicule proposé (immat lisible) à partir de la plaque de la proposition.
   A.vehLabel = function (it) {
     var ref = (it && it.dossier_ref) || {};
@@ -135,7 +154,8 @@
         + '<button type="button" class="btn btn-dark gav-go" data-id="' + esc(it.id) + '">' + esc(A.actionBtnLabel(it)) + '</button>'
         + '<button type="button" class="btn btn-outline gav-correct" data-id="' + esc(it.id) + '">✎ Corriger le rattachement</button>'
         + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer de Parc Pilot</button>'
-        + '</div>';
+        + '</div>'
+        + A._statutMenuHtml(it);
     } else if (traite) {
       actions = (A._estAReprendre(it)
           ? '<div class="gav-d-done" style="color:#B45309">⚠️ À reprendre — facture non enregistrée</div><div class="gav-d-motif">Facture confirmée avant le correctif du parcours — l’enregistrement n’a pas pu être vérifié. Clique « Reprendre le traitement ».</div>'
@@ -143,7 +163,7 @@
         + '<div class="gav-d-actions">'
         + '<button type="button" class="btn btn-dark gav-reprendre">🔄 Reprendre le traitement</button>'
         + '<button type="button" class="btn btn-outline gav-retirer">🗑️ Retirer de Parc Pilot</button>'
-        + '</div><div class="gav-reprise" id="gav-reprise" hidden></div>';
+        + '</div>' + A._statutMenuHtml(it) + '<div class="gav-reprise" id="gav-reprise" hidden></div>';
     } else {
       actions = '<div class="gav-d-actions">'
         + '<button type="button" class="btn btn-dark gav-go" data-id="' + esc(it.id) + '">' + esc(A.actionBtnLabel(it)) + '</button>'
@@ -229,6 +249,7 @@
       'body.fp-dark .gav-pc-choix{background:#78350F;color:#FDE68A}',
       '.gav-d-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}',
       '.gav-d-actions .btn{font-size:.82rem}',
+      '.gav-d-statut{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed var(--fp-border,#E2E8F0)}',
       '.gav-d-done{margin-top:14px;font-weight:700;color:#166534}',
       '.gav-reprise{margin-top:12px;border-top:1px dashed var(--fp-border,#E2E8F0);padding-top:10px}',
       '.gav-rep-card{border:1px solid var(--fp-border,#E2E8F0);border-radius:10px;padding:9px 11px;margin-top:7px;font-size:.82rem}',
@@ -436,6 +457,19 @@
     var rp = host.querySelector('.gav-reprendre'); if (rp) rp.addEventListener('click', function () { if (sel) A.reprendre(host, sel); });
     var rt = host.querySelector('.gav-retirer'); if (rt) rt.addEventListener('click', function () { if (sel) A.retirer(host, sel); });
     var rs = host.querySelector('.gav-restaurer'); if (rs) rs.addEventListener('click', function () { if (sel) A.restaurer(host, sel); });
+    // « Changer le statut » : remettre à vérifier / ignorer / restaurer — MAJ immédiate (liste + compteur).
+    host.querySelectorAll('.gav-setstatut').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!sel) return; b.disabled = true;
+        var to = b.dataset.to;
+        if (to === 'restore') { A.restaurer(host, sel); return; }   // restaure vers le statut d'avant-retrait
+        // On ne touche QUE le statut : dossier_ref + pièces + facture/RDV déjà enregistrés sont conservés.
+        A.majStatut(sel.id, to).then(function () {
+          toast(to === 'a_verifier' ? 'Remis dans « À vérifier ».' : (to === 'ignore' ? 'Proposition ignorée.' : 'Statut mis à jour.'));
+          A._after(host, sel.id, to);
+        }).catch(function (e) { b.disabled = false; err('Changement de statut impossible : ' + (e.message || e)); });
+      });
+    });
   };
 
   A.societeDe = function (it) { return (it && it.societe) || (window.FP && FP.societe) || null; };
