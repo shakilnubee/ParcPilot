@@ -63,6 +63,11 @@ const rdv3 = A.parseRdvFromText('rdv le 03/02/2027 au garage Peugeot');
 t('RDV : année explicite 03/02/2027', rdv3.date === '2027-02-03', rdv3.date);
 t('RDV : texte vide → tout vide', (function(){ const r = A.parseRdvFromText(''); return r.date === '' && r.heure === '' && r.garage === ''; })());
 
+// --- CONTRÔLE TECHNIQUE : un mail maintenance « contrôle technique » → parcours CT (pas RDV) ---
+t('CT : objet « contrôle technique » détecté', A._estCT({ objet: 'Votre procès-verbal de contrôle technique', extrait: '' }) === true);
+t('CT : RDV garage normal NON détecté comme CT', A._estCT({ objet: 'Rendez-vous révision', extrait: 'RDV pris au garage Hyundai' }) === false);
+t('CT : bouton « Enregistrer le contrôle technique »', /contr[oô]le technique/i.test(A.actionBtnLabel({ domaine: 'maintenance', action: 'rdv_update', objet: 'Contrôle technique GR-585-HP', extrait: '' })));
+
 // --- liens de finalisation (Phase 5) ---
 t('lien amende → fiche par n° d’avis', A.lienDossier({ domaine: 'amende', dossier_ref: { numeroAvis: '2612744314620' } }) === 'amendes.html?avis=2612744314620');
 t('lien maintenance (plaque connue) → fiche véhicule', A.lienDossier({ domaine: 'maintenance', dossier_ref: { plaque: 'HL724CD' } }) === 'vehicules.html?veh=v1', A.lienDossier({ domaine: 'maintenance', dossier_ref: { plaque: 'HL724CD' } }));

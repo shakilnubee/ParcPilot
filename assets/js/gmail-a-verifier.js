@@ -43,6 +43,7 @@
 
   // Libellé du BOUTON principal — il ANNONCE l'action (demande explicite).
   A.actionBtnLabel = function (it) {
+    if (A._estCT(it)) return '🔧 Enregistrer le contrôle technique';
     switch (it && it.action) {
       case 'facture_saisir': return '🧾 Vérifier la facture';
       case 'amende_payee': return '🧾 Déposer le justificatif';
@@ -520,9 +521,29 @@
   // « Enregistrer le RDV » de la révision ; autres → ouverture honnête du dossier.
   A.action = function (host, it) {
     if (it.domaine === 'facture') return A.verifierFacture(host, it);
-    if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A.verifierRdv(host, it);
+    if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A._estCT(it) ? A.verifierCT(host, it) : A.verifierRdv(host, it);
     if (it.domaine === 'amende' && it.action === 'amende_payee') return A.verifierAmendeJustif(host, it);
     return A.confirmer(host, it);
+  };
+
+  // Un mail de maintenance qui parle de CONTRÔLE TECHNIQUE (PV / certificat) → parcours CT, pas RDV.
+  A._estCT = function (it) {
+    var s = (((it && it.objet) || '') + ' ' + ((it && it.extrait) || ''));
+    return /contr[oô]le technique|visite technique|proc[eè]s[- ]verbal.*techni|\bPV\b.*\bCT\b|certificat.*contr/i.test(s);
+  };
+  // CONTRÔLE TECHNIQUE : ouvre vehicules.html avec le PV → lecture IA + application (prochain CT / contre-visite)
+  // par le MÊME code que le scan manuel. Sans PV lisible (texte seul) → ouverture honnête du dossier.
+  A.verifierCT = function (host, it) {
+    var ref = it.dossier_ref || {};
+    var cls = A.classerPieces(it);
+    if (cls.aucun || cls.factureIdx == null) return A.confirmer(host, it);
+    var pj = (it.pieces || [])[cls.factureIdx];
+    if (!pj || !pj.attachmentId || !it.message_id) return A.confirmer(host, it);
+    var payload = { avId: it.id, societe: A.societeDe(it), plaque: ref.plaque, messageId: it.message_id, attachmentId: pj.attachmentId, filename: pj.filename || 'controle-technique.pdf' };
+    try { sessionStorage.setItem('fp_gmailct', JSON.stringify(payload)); }
+    catch (e) { err('Stockage local indisponible — réessaie.'); return; }
+    try { location.href = 'vehicules.html?gmailct=' + encodeURIComponent(it.id); }
+    catch (e) { err('Navigation impossible.'); }
   };
 
   // AMENDE (justificatif de paiement) : ouvre amendes.html avec le PDF du justificatif + l'amende cible
