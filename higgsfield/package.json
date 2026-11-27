@@ -1,0 +1,17 @@
+{
+  "name": "parc-pilot-capsule-higgsfield",
+  "private": true,
+  "type": "module",
+  "description": "Génération des clips de la capsule formation conducteur Parc Pilot via l'API Higgsfield (Seedance 2.5). Non publié sur le site.",
+  "scripts": {
+    "clip": "tsx generate-clip.ts"
+  },
+  "dependencies": {
+    "@higgsfield/client": "0.2.6",
+    "dotenv": "18.0.10"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

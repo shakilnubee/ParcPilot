@@ -10,6 +10,16 @@ playwright-report/
 __pycache__/
 *.pyc
 
+# Secrets locaux — JAMAIS committés (le dépôt est PUBLIC)
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+# Capsule vidéo Higgsfield (générée localement, non publiée)
+higgsfield/node_modules/
+higgsfield/out/
+
 # RGPD — ne jamais committer de dumps de données réelles (le repo est PUBLIC)
 supabase-import/*.csv
 supabase/conso-*.sql
