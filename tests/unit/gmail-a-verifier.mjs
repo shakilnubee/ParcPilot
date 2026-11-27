@@ -35,13 +35,25 @@ t('XSS échappé (item + détail)', /&lt;img/.test(A.listItemHtml({ id: 'x', fro
 // --- libellé du bouton d'action : HONNÊTETÉ — il n'annonce que ce qu'il fait vraiment ---
 // Seule la FACTURE écrit en base ; les autres domaines OUVRENT le dossier (saisie manuelle), aucun « Enregistrer/Valider » menteur.
 t('bouton facture → « Vérifier la facture »', /Vérifier la facture/.test(A.actionBtnLabel({ action: 'facture_saisir' })));
-t('bouton rdv → « Ouvrir le rendez-vous » (pas « Valider »)', /Ouvrir le rendez-vous/.test(A.actionBtnLabel({ action: 'rdv_update' })) && !/Valider/.test(A.actionBtnLabel({ action: 'rdv_update' })));
+t('bouton rdv → « Enregistrer le RDV » (ouvre le formulaire de la révision)', /Enregistrer le RDV/.test(A.actionBtnLabel({ action: 'rdv_update' })));
 t('bouton amende → « Ouvrir le dossier amende » (pas « Enregistrer »)', /Ouvrir le dossier amende/.test(A.actionBtnLabel({ action: 'amende_payee' })) && !/Enregistrer/.test(A.actionBtnLabel({ action: 'amende_payee' })));
 t('bouton sinistre → « Ouvrir le dossier sinistre » (pas « Enregistrer la pièce »)', /Ouvrir le dossier sinistre/.test(A.actionBtnLabel({ action: 'sinistre_piece' })) && !/Enregistrer/.test(A.actionBtnLabel({ action: 'sinistre_piece' })));
 t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.test(A.detailHtml({ id: 'f1', domaine: 'facture', action: 'facture_saisir', statut: 'a_verifier', dossier_ref: { plaque: 'HL724CD' }, pieces: [{ filename: 'f.pdf', attachmentId: 'Z' }] })));
 // Statut « ouvert » (non facture, finalisation manuelle) : dit « à finaliser », JAMAIS « traité », et garde un bouton d'ouverture.
 const ouv = A.detailHtml(Object.assign({}, amende, { statut: 'ouvert' }));
 t('détail « ouvert » : « à finaliser » + pas « Déjà traité » + bouton rouvrir', /à finaliser/.test(ouv) && !/Déjà traité/.test(ouv) && /gav-go/.test(ouv) && /gav-retirer/.test(ouv));
+
+// --- RDV maintenance : extraction date / heure / garage depuis la réponse (parcours Entretien) ---
+const rdv1 = A.parseRdvFromText('Bonjour Shakil, Rendez-vous pris pour le Lundi 7/12 au garage Hyundai Lomme valauto. Cdt Ahmed');
+t('RDV : jour/mois 7/12 → …-12-07', /-12-07$/.test(rdv1.date), rdv1.date);
+t('RDV : garage « Hyundai Lomme » détecté', /hyundai lomme/i.test(rdv1.garage), rdv1.garage);
+t('RDV : heure vide si absente', rdv1.heure === '');
+const rdv2 = A.parseRdvFromText('Le RDV est confirmé le 15 décembre à 8h30 au garage Renault Centre.');
+t('RDV : « 15 décembre » → …-12-15', /-12-15$/.test(rdv2.date), rdv2.date);
+t('RDV : heure « 8h30 » → 08:30', rdv2.heure === '08:30', rdv2.heure);
+const rdv3 = A.parseRdvFromText('rdv le 03/02/2027 au garage Peugeot');
+t('RDV : année explicite 03/02/2027', rdv3.date === '2027-02-03', rdv3.date);
+t('RDV : texte vide → tout vide', (function(){ const r = A.parseRdvFromText(''); return r.date === '' && r.heure === '' && r.garage === ''; })());
 
 // --- liens de finalisation (Phase 5) ---
 t('lien amende → fiche par n° d’avis', A.lienDossier({ domaine: 'amende', dossier_ref: { numeroAvis: '2612744314620' } }) === 'amendes.html?avis=2612744314620');
