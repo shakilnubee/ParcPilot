@@ -2333,6 +2333,7 @@
 
   // ---------- Nouvelle amende (prompt simple, pas de modal complète) ----------
   let _avisFile = null; // scan de l'avis sélectionné, envoyé au stockage à l'enregistrement
+  let _gmailAmendeApplique = null; // hook « À vérifier » (Gmail) : marque le mail « appliqué » après un enregistrement RÉEL
   let _scanBreakdown = null; // détail des 3 montants + dates limites lus par l'IA (persisté après insert)
   // #4 — Import MULTIPLE : file d'attente d'avis. On enchaîne le formulaire avis par avis.
   let _avisQueue = [];
@@ -2584,6 +2585,8 @@
     renderKPIs(); renderTable(); renderCharts();
     const dateOrNull = d => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : null;
     FP.persist.insert('amendes', { ...newA, date: dateOrNull(newA.date), annee: newA.annee || null, numeroAvis: newA.numeroAvis || null, commentaire: newA.commentaire || null, avisUrl: avisUrl || null });
+    // Vient de « À vérifier » (Gmail) : l'amende est RÉELLEMENT enregistrée → marquer le mail « appliqué ».
+    if (_gmailAmendeApplique) { try { _gmailAmendeApplique(); } catch (e) {} _gmailAmendeApplique = null; }
     // Persiste la ventilation des 3 montants + dates limites lue par l'IA (réglages société, pas de colonne DB).
     if (_scanBreakdown && FP.setAmendeMontants) { FP.setAmendeMontants(newA.id, _scanBreakdown); _scanBreakdown = null; }
     // #4 : import multiple en cours -> on enchaîne sur l'avis suivant (sans l'écran e-mail par avis)
@@ -3609,6 +3612,42 @@
       ov.querySelector('.jp-cancel').addEventListener('click', close);
       ov.querySelectorAll('.jp-row').forEach(b => b.addEventListener('click', () => { const a = aPayer[+b.dataset.i]; close(); if (a) applyTo(a, file); }));
     }
+    if (window.FP && FP.supabase && data && Array.isArray(data.amendes)) run();
+    else document.addEventListener('fp:data-ready', run, { once: true });
+  })();
+
+  // ===== SCAN d'une amende NOUVELLE depuis « À vérifier » (Gmail) : ?gmailamende=<avId> =====
+  // On récupère l'avis (PDF) via gmail-read, on ouvre le FORMULAIRE D'AJOUT (openAmendeModal) et on lance
+  // le MÊME scan que le dépôt manuel (handleAvis : montant minoré/forfaitaire, date, motif, plaque, n° d'avis
+  // + anti-doublon/majoration). Le mail n'est marqué « appliqué » qu'APRÈS un enregistrement RÉEL (saveAmende).
+  (function openAmendeFromGmail() {
+    const avId = new URLSearchParams(location.search).get('gmailamende');
+    if (!avId) return;
+    let info = null; try { info = JSON.parse(sessionStorage.getItem('fp_gmailamende') || 'null'); } catch (e) {}
+    const cleanUrl = () => { try { const u = new URL(location.href); u.searchParams.delete('gmailamende'); history.replaceState(null, '', u.pathname + (u.search || '')); } catch (e) {} };
+    if (!info || info.avId !== avId) { cleanUrl(); try { alert('Le mail à vérifier n’est plus disponible — rouvre-le depuis « À vérifier ».'); } catch (e) {} return; }
+    try { sessionStorage.removeItem('fp_gmailamende'); } catch (e) {}
+    const markApplique = () => {
+      try { if (window.FP && FP.supabase) FP.supabase.from('gmail_a_verifier').update({ statut: 'applique', traite_le: new Date().toISOString() }).eq('id', info.avId).then(function () {}, function () {}); } catch (e) {}
+    };
+    const run = async () => {
+      cleanUrl();
+      openAmendeModal();                          // même formulaire que le dépôt manuel
+      _gmailAmendeApplique = markApplique;        // marquage « appliqué » au prochain enregistrement réel
+      // Préremplir le n° d'avis si le triage l'a reconnu (le scan peut l'écraser avec la valeur lue).
+      try { if (info.numeroAvis && $('am-avis')) $('am-avis').value = info.numeroAvis; } catch (e) {}
+      if (info.attachmentId && info.messageId) {
+        try {
+          const r = await FP.supabase.functions.invoke('gmail-read', { body: { action: 'attachment', messageId: info.messageId, attachmentId: info.attachmentId, societe: info.societe } });
+          const d = r && r.data; if (!d || !d.ok || !d.dataB64) throw new Error((d && d.error) || 'PDF indisponible');
+          const bin = atob(d.dataB64); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const file = new File([bytes], info.filename || 'avis.pdf', { type: d.mimeType || 'application/pdf' });
+          _avisFile = file; handleAvis(file);     // SCAN (même moteur IA que le dépôt manuel)
+        } catch (e) {
+          try { alert('Impossible de charger l’avis automatiquement : ' + (e.message || e) + '\nTu peux saisir l’amende à la main dans le formulaire ouvert.'); } catch (_) {}
+        }
+      }
+    };
     if (window.FP && FP.supabase && data && Array.isArray(data.amendes)) run();
     else document.addEventListener('fp:data-ready', run, { once: true });
   })();
