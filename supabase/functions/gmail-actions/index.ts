@@ -25,6 +25,7 @@
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 import { T } from "../_shared/triage.mjs";
 
 const CORS = {
@@ -84,6 +85,52 @@ function parseFull(msg: any) {
     labels: Array.isArray(msg && msg.labelIds) ? msg.labelIds : [],
     pdfs, hasPdf: pdfs.length > 0,
   };
+}
+
+// --- Notification PUSH (Web Push / VAPID) — MÊME mécanisme que l'EDL et le scan QR (km-collect, edl-sign).
+//     Lit push_subscriptions de la société et envoie. Best-effort : si les clés VAPID manquent ou l'envoi
+//     échoue, la synchronisation réussit quand même (jamais bloquante).
+let _vapidReady: boolean | null = null;
+function vapidReady(): boolean {
+  if (_vapidReady !== null) return _vapidReady;
+  const pub = Deno.env.get("VAPID_PUBLIC_KEY") || "";
+  const priv = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+  const subj = Deno.env.get("VAPID_SUBJECT") || "mailto:contact@parc-pilot.fr";
+  if (!pub || !priv) { _vapidReady = false; return false; }
+  try { webpush.setVapidDetails(subj, pub, priv); _vapidReady = true; }
+  catch { _vapidReady = false; }
+  return _vapidReady;
+}
+async function sendPush(
+  db: ReturnType<typeof createClient>,
+  societe: string,
+  payload: { title: string; body: string; url?: string; tag?: string },
+) {
+  try {
+    if (!vapidReady()) return;
+    const soc = societe || "PXP";
+    const { data } = await db.from("push_subscriptions").select("id,endpoint,p256dh,auth").eq("societe", soc);
+    if (!Array.isArray(data) || !data.length) return;
+    const body = JSON.stringify({
+      title: payload.title || "Parc Pilot",
+      body: payload.body || "",
+      url: payload.url || "./pages/notifications.html",
+      tag: payload.tag || undefined,
+      icon: "./assets/icons/icon-192.png",
+    });
+    await Promise.all((data as Array<Record<string, string>>).map(async (s) => {
+      const sub = { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } };
+      try {
+        await webpush.sendNotification(sub, body);
+      } catch (e) {
+        // 404/410 = abonnement expiré (appareil désinstallé / permission retirée) → on le supprime.
+        const code = e && (e as { statusCode?: number }).statusCode;
+        if (code === 404 || code === 410) {
+          try { await db.from("push_subscriptions").delete().eq("id", s.id); } catch { /* ignore */ }
+        }
+      }
+    }));
+  } catch { /* push best-effort : ne bloque jamais la synchro */ }
 }
 
 Deno.serve(async (req) => {
@@ -204,6 +251,16 @@ Deno.serve(async (req) => {
           const prop = T.buildProposal(parsed, decision, soc);
           await admin.from("gmail_a_verifier").upsert(prop, { onConflict: "id", ignoreDuplicates: true });
           res.proposes++;
+        }
+        // Nouveaux mails « à vérifier » détectés → NOTIFICATION PUSH au(x) gestionnaire(s) de la société
+        // (même mécanisme que l'EDL / le scan QR). Une seule notif par synchro et par société ; best-effort.
+        if (res.proposes > 0) {
+          await sendPush(admin, soc, {
+            title: "📨 Mails à vérifier",
+            body: `${res.proposes} nouveau${res.proposes > 1 ? "x" : ""} mail${res.proposes > 1 ? "s" : ""} de flotte à vérifier dans Parc Pilot.`,
+            url: "./pages/notifications.html?tab=averifier",
+            tag: "gmail-averifier",
+          });
         }
         // Synchro réussie → horodatage + effacement d'une éventuelle erreur (tolère l'absence de colonne).
         try { await admin.from("gmail_connexions").update({ derniere_sync: new Date().toISOString(), sync_erreur: null }).eq("societe", soc); } catch (_) { /* avant migration */ }
