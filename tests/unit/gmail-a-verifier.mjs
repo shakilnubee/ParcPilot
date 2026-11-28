@@ -38,6 +38,10 @@ t('bouton facture → « Vérifier la facture »', /Vérifier la facture/.test(A
 t('bouton rdv → « Enregistrer le RDV » (ouvre le formulaire de la révision)', /Enregistrer le RDV/.test(A.actionBtnLabel({ action: 'rdv_update' })));
 t('bouton amende → « Déposer le justificatif » (dépose le justif → payée)', /Déposer le justificatif/.test(A.actionBtnLabel({ action: 'amende_payee' })));
 t('bouton sinistre → « Rattacher la pièce au sinistre »', /Rattacher la pièce/.test(A.actionBtnLabel({ action: 'sinistre_piece' })));
+// Amende NOUVELLE (pas un justificatif) : avec un avis PDF → annonce le SCAN ; sans pièce → ouvre le dossier.
+t('bouton amende nouvelle + avis PDF → « Scanner l’amende »', /Scanner l’amende/.test(A.actionBtnLabel({ domaine: 'amende', action: 'a_verifier', pieces: [{ filename: 'avis.pdf', attachmentId: 'A1' }] })));
+t('bouton amende nouvelle sans pièce → « Ouvrir le dossier »', /Ouvrir le dossier/.test(A.actionBtnLabel({ domaine: 'amende', action: 'a_verifier', pieces: [] })));
+t('A.verifierAmende branché (scan de l’amende)', typeof A.verifierAmende === 'function');
 t('détail facture: bouton « Vérifier la facture »', /Vérifier la facture/.test(A.detailHtml({ id: 'f1', domaine: 'facture', action: 'facture_saisir', statut: 'a_verifier', dossier_ref: { plaque: 'HL724CD' }, pieces: [{ filename: 'f.pdf', attachmentId: 'Z' }] })));
 // Statut « ouvert » (non facture, finalisation manuelle) : dit « à finaliser », JAMAIS « traité », et garde un bouton d'ouverture.
 const ouv = A.detailHtml(Object.assign({}, amende, { statut: 'ouvert' }));

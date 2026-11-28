@@ -44,6 +44,12 @@
   // Libellé du BOUTON principal — il ANNONCE l'action (demande explicite).
   A.actionBtnLabel = function (it) {
     if (A._estCT(it)) return '🔧 Enregistrer le contrôle technique';
+    // Amende NOUVELLE (pas un justificatif) : si un PDF (avis) est joint → on annonce le SCAN (même
+    // parcours que le dépôt manuel) ; sinon ouverture honnête du dossier pour saisie à la main.
+    if (it && it.domaine === 'amende' && it.action !== 'amende_payee') {
+      return (Array.isArray(it.pieces) && it.pieces.some(function (p) { return p && p.attachmentId; }))
+        ? '🅿️ Scanner l’amende' : '↗ Ouvrir le dossier';
+    }
     switch (it && it.action) {
       case 'facture_saisir': return '🧾 Vérifier la facture';
       case 'amende_payee': return '🧾 Déposer le justificatif';
@@ -522,7 +528,7 @@
   A.action = function (host, it) {
     if (it.domaine === 'facture') return A.verifierFacture(host, it);
     if (it.domaine === 'maintenance' && it.dossier_ref && it.dossier_ref.plaque) return A._estCT(it) ? A.verifierCT(host, it) : A.verifierRdv(host, it);
-    if (it.domaine === 'amende' && it.action === 'amende_payee') return A.verifierAmendeJustif(host, it);
+    if (it.domaine === 'amende') return (it.action === 'amende_payee') ? A.verifierAmendeJustif(host, it) : A.verifierAmende(host, it);
     if (it.domaine === 'sinistre') return A.verifierSinistre(host, it);
     return A.confirmer(host, it);
   };
@@ -560,6 +566,24 @@
     try { sessionStorage.setItem('fp_gmailct', JSON.stringify(payload)); }
     catch (e) { err('Stockage local indisponible — réessaie.'); return; }
     try { location.href = 'vehicules.html?gmailct=' + encodeURIComponent(it.id); }
+    catch (e) { err('Navigation impossible.'); }
+  };
+
+  // AMENDE (NOUVELLE, pas un justificatif) : ouvre amendes.html avec l'avis (PDF) → MÊME parcours que le
+  // dépôt manuel (openAmendeModal + handleAvis = scan IA : montant minoré/forfaitaire, date, motif, plaque,
+  // n° d'avis + anti-doublon/majoration). Le mail passe « appliqué » seulement après enregistrement réel.
+  // Sans PDF exploitable → ouverture honnête du dossier (saisie à la main).
+  A.verifierAmende = function (host, it) {
+    var cls = A.classerPieces(it);
+    if (cls.aucun || cls.factureIdx == null) return A.confirmer(host, it);
+    var pj = (it.pieces || [])[cls.factureIdx];
+    if (!pj || !pj.attachmentId || !it.message_id) return A.confirmer(host, it);
+    var ref = it.dossier_ref || {};
+    var payload = { avId: it.id, societe: A.societeDe(it), messageId: it.message_id, attachmentId: pj.attachmentId,
+      filename: pj.filename || 'avis.pdf', numeroAvis: ref.numeroAvis || '', plaque: ref.plaque || '' };
+    try { sessionStorage.setItem('fp_gmailamende', JSON.stringify(payload)); }
+    catch (e) { err('Stockage local indisponible — réessaie.'); return; }
+    try { location.href = 'amendes.html?gmailamende=' + encodeURIComponent(it.id); }
     catch (e) { err('Navigation impossible.'); }
   };
 
